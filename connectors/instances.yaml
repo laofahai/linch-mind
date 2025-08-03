@@ -1,0 +1,49 @@
+config_version: '1.0'
+instances:
+  clipboard_standard:
+    auto_start: true
+    config:
+      check_interval: 1.0
+      ignore_duplicates: true
+      ignore_passwords: true
+      max_content_length: 10000
+      min_content_length: 3
+    created_at: '2025-08-03T08:15:53'
+    data_count: 0
+    display_name: 标准剪贴板监控
+    enabled: true
+    last_heartbeat: '2025-08-03T16:29:44.546649'
+    process_id: 33640
+    state: error
+    type_id: clipboard
+    updated_at: '2025-08-03T16:29:44.874409'
+  filesystem_documents:
+    auto_start: true
+    config:
+      extensions:
+      - .md
+      - .txt
+      - .doc
+      - .docx
+      - .pdf
+      ignore_patterns:
+      - .git
+      - node_modules
+      - __pycache__
+      paths:
+      - ~/Documents
+      recursive: true
+    created_at: '2025-08-03T08:15:53'
+    data_count: 0
+    display_name: 文档目录监控
+    enabled: true
+    last_heartbeat: '2025-08-03T16:29:44.550139'
+    process_id: 33642
+    state: error
+    type_id: filesystem
+    updated_at: '2025-08-03T16:29:44.883709'
+last_updated: '2025-08-03T16:29:44.883710'
+metadata:
+  created_by: CoreConfigManager
+  description: 连接器实例配置
+  instance_count: 2

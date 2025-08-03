@@ -1,0 +1,168 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/linch-mind/connector-schema/v1.0.0",
+  "title": "Linch Mind Connector Manifest Schema",
+  "description": "Schema for Linch Mind connector manifest files (connector.json)",
+  "type": "object",
+  "required": ["id", "name", "version", "author", "description", "entry", "permissions"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z0-9-]+$",
+      "description": "Unique identifier for the connector (lowercase, alphanumeric and hyphens only)"
+    },
+    "name": {
+      "type": "string",
+      "description": "Human-readable name of the connector"
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$",
+      "description": "Semantic version (e.g., 1.0.0)"
+    },
+    "author": {
+      "type": "string",
+      "description": "Author or organization name"
+    },
+    "description": {
+      "type": "string",
+      "description": "Brief description of what this connector does"
+    },
+    "license": {
+      "type": "string",
+      "description": "License identifier (e.g., MIT, Apache-2.0)"
+    },
+    "homepage": {
+      "type": "string",
+      "format": "uri",
+      "description": "Project homepage or repository URL"
+    },
+    "category": {
+      "type": "string",
+      "enum": ["local_files", "system", "productivity", "communication", "cloud_services", "development"],
+      "description": "Connector category for marketplace organization"
+    },
+    "icon": {
+      "type": "string",
+      "description": "Icon identifier or path"
+    },
+    "entry": {
+      "type": "object",
+      "description": "Entry points for development and production modes",
+      "required": ["development", "production"],
+      "properties": {
+        "development": {
+          "type": "object",
+          "required": ["command", "args"],
+          "properties": {
+            "command": {
+              "type": "string",
+              "description": "Command to execute (e.g., python3)"
+            },
+            "args": {
+              "type": "array",
+              "items": { "type": "string" },
+              "description": "Arguments to pass to the command"
+            },
+            "working_dir": {
+              "type": "string",
+              "description": "Working directory for execution"
+            }
+          }
+        },
+        "production": {
+          "type": "object",
+          "required": ["windows", "macos", "linux"],
+          "properties": {
+            "windows": {
+              "type": "string",
+              "description": "Windows executable name"
+            },
+            "macos": {
+              "type": "string",
+              "description": "macOS executable name"
+            },
+            "linux": {
+              "type": "string",
+              "description": "Linux executable name"
+            }
+          }
+        }
+      }
+    },
+    "permissions": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z]+:[a-z]+$"
+      },
+      "description": "Required permissions in format 'category:action'"
+    },
+    "platforms": {
+      "type": "object",
+      "description": "Supported platforms and minimum versions",
+      "properties": {
+        "windows": {
+          "type": "object",
+          "properties": {
+            "min_version": { "type": "string" }
+          }
+        },
+        "macos": {
+          "type": "object",
+          "properties": {
+            "min_version": { "type": "string" }
+          }
+        },
+        "linux": {
+          "type": "object",
+          "properties": {
+            "min_version": { "type": "string" }
+          }
+        }
+      }
+    },
+    "capabilities": {
+      "type": "object",
+      "description": "Connector capabilities",
+      "properties": {
+        "supports_multiple_instances": {
+          "type": "boolean",
+          "default": false
+        },
+        "max_instances": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 1
+        },
+        "hot_reload": {
+          "type": "boolean",
+          "default": false
+        }
+      }
+    },
+    "build": {
+      "type": "object",
+      "description": "Build configuration for CI/CD",
+      "properties": {
+        "pre_build": {
+          "type": "string",
+          "description": "Command to run before building"
+        },
+        "build_command": {
+          "type": "string",
+          "description": "Main build command"
+        },
+        "post_build": {
+          "type": "string",
+          "description": "Command to run after building"
+        }
+      }
+    },
+    "config_schema": {
+      "type": "object",
+      "description": "JSON Schema for connector configuration"
+    }
+  },
+  "additionalProperties": false
+}

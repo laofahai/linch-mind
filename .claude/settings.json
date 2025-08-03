@@ -1,0 +1,153 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Users/laofahai/Documents/workspace/linch-mind/.claude/hooks/smart-routing.sh",
+            "description": "智能路由：根据文件路径和任务复杂度选择合适的sub-agent"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit.*\\.kt$|Write.*\\.kt$|MultiEdit.*\\.kt$",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Users/laofahai/Documents/workspace/linch-mind/.claude/hooks/advanced-quality-gate.sh",
+            "description": "高级质量门禁：多层质量检查包括静态分析、架构合规、性能和安全检查"
+          },
+          {
+            "type": "command", 
+            "command": "/Users/laofahai/Documents/workspace/linch-mind/.claude/hooks/intelligent-fallback.sh",
+            "description": "智能降级：监控执行状态，必要时触发降级策略或人工介入"
+          }
+        ]
+      },
+      {
+        "matcher": "Edit.*build\\.gradle\\.kts$|Write.*build\\.gradle\\.kts$",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Users/laofahai/Documents/workspace/linch-mind/.claude/hooks/quality-check.sh",
+            "description": "构建文件检查：确保构建配置正确"
+          },
+          {
+            "type": "command",
+            "command": "/Users/laofahai/Documents/workspace/linch-mind/.claude/hooks/intelligent-fallback.sh", 
+            "description": "构建文件降级检查：监控构建配置变更的风险"
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "matcher": ".*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo '{\"timestamp\": \"'$(date -Iseconds)'\", \"user_prompt\": \"'$(echo \"$CLAUDE_USER_PROMPT\" | head -c 100)'...\"}' >> .claude/logs/user-interactions.log",
+            "description": "用户交互日志：记录用户提示和时间戳"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "matcher": ".*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo '{\"timestamp\": \"'$(date -Iseconds)'\", \"session_end\": true}' >> .claude/logs/session-activity.log",
+            "description": "会话结束日志：记录AI助手会话完成时间"
+          }
+        ]
+      }
+    ]
+  },
+  "projectContext": {
+    "name": "Linch Mind",
+    "description": "个人AI生活助手 - 跨应用智能连接器",
+    "techStack": ["Kotlin Multiplatform", "Compose Desktop/Mobile", "SQLite", "多AI提供者"],
+    "developmentPhase": "AI主导开发模式验证",
+    "qualityStandards": {
+      "compilationRequired": true,
+      "testsRequired": false,
+      "codeStyleCheck": true,
+      "performanceMonitoring": true
+    }
+  },
+  "agentRouting": {
+    "enabled": true,
+    "complexityThreshold": 7,
+    "defaultAgent": "core-development-architect",
+    "routingRules": {
+      "ai": "ai-ml-specialist",
+      "ui": "ui-ux-specialist", 
+      "storage": "data-architecture-specialist",
+      "performance": "performance-optimizer",
+      "security": "security-privacy-specialist"
+    }
+  },
+  "qualityGate": {
+    "enabled": true,
+    "thresholds": {
+      "maxComplexity": 15,
+      "maxMethodLength": 50,
+      "maxExecutionTime": 300,
+      "maxConsecutiveErrors": 5,
+      "maxArchitectureViolations": 0,
+      "maxSecurityIssues": 0
+    },
+    "criticalFiles": [
+      "Main.kt",
+      "AppScope.kt", 
+      "*Service.kt",
+      "*Manager.kt",
+      "*Engine.kt",
+      "build.gradle.kts"
+    ],
+    "requireTestsFor": [
+      "*Service.kt",
+      "*Manager.kt", 
+      "*Engine.kt",
+      "*Repository.kt"
+    ]
+  },
+  "fallbackStrategy": {
+    "enabled": true,
+    "strategies": {
+      "humanReview": {
+        "conditions": ["criticalFile", "highComplexity"],
+        "priority": "high"
+      },
+      "humanIntervention": {
+        "conditions": ["consecutiveErrors", "compilationFailure"],
+        "priority": "critical"
+      },
+      "basicMode": {
+        "conditions": ["moderateErrors"],
+        "priority": "medium"  
+      },
+      "delayExecution": {
+        "conditions": ["systemHealthIssues"],
+        "priority": "low"
+      }
+    },
+    "notificationMethods": ["osascript", "log"]
+  },
+  "monitoring": {
+    "enabled": true,
+    "logRetention": "30d",
+    "metricsCollection": true,
+    "performanceTracking": true,
+    "healthChecks": {
+      "interval": "5m",
+      "endpoints": ["compilation", "tests", "diskSpace", "memory"]
+    }
+  }
+}

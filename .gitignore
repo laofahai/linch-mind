@@ -1,0 +1,172 @@
+# Miscellaneous
+*.class
+*.log
+*.pyc
+*.swp
+.DS_Store
+.atom/
+.buildlog/
+.history
+.svn/
+migrate_working_dir/
+
+# IntelliJ related
+*.iml
+*.ipr
+*.iws
+.idea/
+
+# The .vscode folder contains launch configuration and tasks you configure in
+# VS Code which you may wish to be included in version control, so this line
+# is commented out by default.
+#.vscode/
+
+# Flutter/Dart/Pub related
+**/doc/api/
+**/ios/Flutter/.last_build_id
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub-cache/
+.pub/
+/build/
+ui/build/
+
+# Symbolication related
+app.*.symbols
+
+# Obfuscation related
+app.*.map.json
+
+# Android Studio will place build artifacts here
+/android/app/debug
+/android/app/profile
+/android/app/release
+
+# Python related
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# PyInstaller
+*.manifest
+*.spec
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+cover/
+
+# Virtual environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+poetry.lock
+
+# Python development
+.mypy_cache/
+.pyre/
+.pytype/
+dmypy.json
+*.pyd
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# IPython
+profile_default/
+ipython_config.py
+
+# Poetry
+poetry.lock
+dist/
+
+# Project specific
+knowledge.db
+vector_index/
+logs/
+temp/
+*.tmp
+*.sqlite
+*.sqlite3
+.git_backup/
+
+# macOS specific
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# iOS specific
+**/ios/Pods/
+**/ios/Runner.xcworkspace/xcuserdata/
+**/ios/*.lock
+**/ios/Flutter/ephemeral/
+
+# macOS specific
+**/macos/Pods/
+**/macos/Runner.xcworkspace/xcuserdata/
+**/macos/*.lock
+**/macos/Flutter/ephemeral/
+
+# Android specific
+**/android/local.properties
+**/android/.gradle/
+**/android/gradlew
+**/android/gradlew.bat
+**/android/gradle/wrapper/gradle-wrapper.jar
+
+# Flutter additional
+**/flutter/ephemeral/
+
+# IDE and editor
+.vscode/
+*.swp
+*.swo
+*~
+
+# Backup files
+*.bak
+*_backup*
+registry_backup_*.json
+
+# Claude Code
+.claude/settings.local.json
