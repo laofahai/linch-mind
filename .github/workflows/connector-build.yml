@@ -134,32 +134,32 @@ jobs:
           
           # 确定平台后缀
           if [ "${{ runner.os }}" = "Windows" ]; then
-            SUFFIX=".exe"
+            EXEC_NAME="main.exe"
             PLATFORM="windows"
           elif [ "${{ runner.os }}" = "macOS" ]; then
-            SUFFIX="-macos"
+            EXEC_NAME="main"
             PLATFORM="macos"
           else
-            SUFFIX="-linux"
+            EXEC_NAME="main"
             PLATFORM="linux"
           fi
           
           # 使用PyInstaller构建
           pyinstaller \
             --onefile \
-            --name="main$SUFFIX" \
+            --name="main" \
             --distpath=. \
             --workpath=build \
             --specpath=build \
             main.py
           
           # 验证构建结果
-          if [ ! -f "main$SUFFIX" ]; then
-            echo "❌ Build failed: main$SUFFIX not found"
+          if [ ! -f "$EXEC_NAME" ]; then
+            echo "❌ Build failed: $EXEC_NAME not found"
             exit 1
           fi
           
-          echo "✅ Built main$SUFFIX ($(du -h main$SUFFIX | cut -f1))"
+          echo "✅ Built $EXEC_NAME ($(du -h $EXEC_NAME | cut -f1))"
         shell: bash
       
       - name: Create package
@@ -168,13 +168,13 @@ jobs:
           
           # 确定平台后缀
           if [ "${{ runner.os }}" = "Windows" ]; then
-            SUFFIX=".exe"
+            EXEC_NAME="main.exe"
             PLATFORM="windows"
           elif [ "${{ runner.os }}" = "macOS" ]; then
-            SUFFIX="-macos"
+            EXEC_NAME="main"
             PLATFORM="macos"
           else
-            SUFFIX="-linux"
+            EXEC_NAME="main"
             PLATFORM="linux"
           fi
           
@@ -191,7 +191,7 @@ jobs:
           mkdir -p "$PACKAGE_NAME"
           
           # 复制文件
-          cp "main$SUFFIX" "$PACKAGE_NAME/"
+          cp "$EXEC_NAME" "$PACKAGE_NAME/"
           cp connector.json "$PACKAGE_NAME/"
           cp README.md "$PACKAGE_NAME/"
           

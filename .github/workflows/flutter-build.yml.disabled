@@ -288,7 +288,7 @@ jobs:
     name: 🖥️ Build ${{ matrix.platform }}
     runs-on: ${{ matrix.os }}
     needs: [detect-changes, quality-check]
-    if: needs.detect-changes.outputs.should_build == 'true' && contains(fromJson(needs.detect-changes.outputs.platforms), matrix.platform)
+    if: needs.detect-changes.outputs.should_build == 'true'
     
     strategy:
       fail-fast: false
@@ -305,7 +305,19 @@ jobs:
             build_args: --verbose
     
     steps:
+      - name: Check if platform should be built
+        id: check_platform
+        run: |
+          PLATFORMS='${{ needs.detect-changes.outputs.platforms }}'
+          if [[ "$PLATFORMS" == *"${{ matrix.platform }}"* ]]; then
+            echo "should_continue=true" >> $GITHUB_OUTPUT
+          else
+            echo "should_continue=false" >> $GITHUB_OUTPUT
+            echo "Skipping ${{ matrix.platform }} as it's not in the build list"
+          fi
+      
       - name: Checkout code
+        if: steps.check_platform.outputs.should_continue == 'true'
         uses: actions/checkout@v4
       
       - name: Setup Linux dependencies
