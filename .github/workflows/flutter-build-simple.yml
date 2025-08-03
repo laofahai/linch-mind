@@ -62,7 +62,12 @@ jobs:
       - name: Run tests
         run: |
           cd ui
-          flutter test
+          # Skip tests if no test directory exists
+          if [ -d "test" ]; then
+            flutter test
+          else
+            echo "No test directory found, skipping tests"
+          fi
       
       - name: Build app
         run: |
