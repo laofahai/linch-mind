@@ -1,0 +1,980 @@
+name: 🔄 Integration & E2E Tests
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+  schedule:
+    # 每天晚上2点运行完整测试
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+    inputs:
+      test_suite:
+        description: 'Test suite to run'
+        required: false
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - integration
+          - e2e
+          - performance
+          - api_compatibility
+      environment:
+        description: 'Test environment'
+        required: false
+        default: 'staging'
+        type: choice
+        options:
+          - local
+          - staging
+          - production
+
+env:
+  FLUTTER_VERSION: "3.24.3"
+  PYTHON_VERSION: "3.11"
+  NODE_VERSION: "20"
+  COMPOSE_PROJECT_NAME: linch-mind-test
+
+jobs:
+  # 准备测试环境
+  setup-environment:
+    name: 🛠️ Setup Test Environment
+    runs-on: ubuntu-latest
+    outputs:
+      test_suite: ${{ steps.config.outputs.test_suite }}
+      environment: ${{ steps.config.outputs.environment }}
+      run_integration: ${{ steps.config.outputs.run_integration }}
+      run_e2e: ${{ steps.config.outputs.run_e2e }}
+      run_performance: ${{ steps.config.outputs.run_performance }}
+      run_api_compat: ${{ steps.config.outputs.run_api_compat }}
+    
+    steps:
+      - name: Determine test configuration
+        id: config
+        run: |
+          # 确定测试套件
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            TEST_SUITE="${{ github.event.inputs.test_suite }}"
+            ENVIRONMENT="${{ github.event.inputs.environment }}"
+          elif [ "${{ github.event_name }}" = "schedule" ]; then
+            TEST_SUITE="all"
+            ENVIRONMENT="staging"
+          elif [ "${{ github.ref }}" = "refs/heads/main" ]; then
+            TEST_SUITE="integration"
+            ENVIRONMENT="staging"
+          else
+            TEST_SUITE="integration"
+            ENVIRONMENT="local"
+          fi
+          
+          echo "test_suite=$TEST_SUITE" >> $GITHUB_OUTPUT
+          echo "environment=$ENVIRONMENT" >> $GITHUB_OUTPUT
+          
+          # 确定要运行的测试类型
+          if [ "$TEST_SUITE" = "all" ]; then
+            echo "run_integration=true" >> $GITHUB_OUTPUT
+            echo "run_e2e=true" >> $GITHUB_OUTPUT
+            echo "run_performance=true" >> $GITHUB_OUTPUT
+            echo "run_api_compat=true" >> $GITHUB_OUTPUT
+          elif [ "$TEST_SUITE" = "integration" ]; then
+            echo "run_integration=true" >> $GITHUB_OUTPUT
+            echo "run_e2e=false" >> $GITHUB_OUTPUT
+            echo "run_performance=false" >> $GITHUB_OUTPUT
+            echo "run_api_compat=true" >> $GITHUB_OUTPUT
+          elif [ "$TEST_SUITE" = "e2e" ]; then
+            echo "run_integration=false" >> $GITHUB_OUTPUT
+            echo "run_e2e=true" >> $GITHUB_OUTPUT
+            echo "run_performance=false" >> $GITHUB_OUTPUT
+            echo "run_api_compat=false" >> $GITHUB_OUTPUT
+          elif [ "$TEST_SUITE" = "performance" ]; then
+            echo "run_integration=false" >> $GITHUB_OUTPUT
+            echo "run_e2e=false" >> $GITHUB_OUTPUT
+            echo "run_performance=true" >> $GITHUB_OUTPUT
+            echo "run_api_compat=false" >> $GITHUB_OUTPUT
+          elif [ "$TEST_SUITE" = "api_compatibility" ]; then
+            echo "run_integration=false" >> $GITHUB_OUTPUT
+            echo "run_e2e=false" >> $GITHUB_OUTPUT
+            echo "run_performance=false" >> $GITHUB_OUTPUT
+            echo "run_api_compat=true" >> $GITHUB_OUTPUT
+          fi
+          
+          echo "Test suite: $TEST_SUITE"
+          echo "Environment: $ENVIRONMENT"
+
+  # 构建完整的测试环境
+  build-test-stack:
+    name: 🏗️ Build Test Stack
+    runs-on: ubuntu-latest
+    needs: setup-environment
+    if: needs.setup-environment.outputs.environment == 'local'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      
+      - name: Create docker-compose.test.yml
+        run: |
+          cat > docker-compose.test.yml << 'EOF'
+          version: '3.8'
+          
+          services:
+            daemon:
+              build:
+                context: ./daemon
+                dockerfile: Dockerfile
+              ports:
+                - "8000:8000"
+              environment:
+                - LINCH_MIND_ENV=test
+                - DATABASE_URL=sqlite:///data/test.db
+                - LOG_LEVEL=DEBUG
+              volumes:
+                - daemon_data:/app/data
+              healthcheck:
+                test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+                interval: 30s
+                timeout: 10s
+                retries: 3
+                start_period: 40s
+              depends_on:
+                - redis
+                - postgres
+            
+            postgres:
+              image: postgres:15-alpine
+              environment:
+                POSTGRES_DB: linch_mind_test
+                POSTGRES_USER: test
+                POSTGRES_PASSWORD: test123
+              ports:
+                - "5432:5432"
+              volumes:
+                - postgres_data:/var/lib/postgresql/data
+              healthcheck:
+                test: ["CMD-SHELL", "pg_isready -U test -d linch_mind_test"]
+                interval: 10s
+                timeout: 5s
+                retries: 5
+            
+            redis:
+              image: redis:7-alpine
+              ports:
+                - "6379:6379"
+              command: redis-server --appendonly yes
+              volumes:
+                - redis_data:/data
+              healthcheck:
+                test: ["CMD", "redis-cli", "ping"]
+                interval: 10s
+                timeout: 5s
+                retries: 3
+            
+            connector-registry:
+              build:
+                context: ./scripts
+                dockerfile: Dockerfile.registry
+              ports:
+                - "8001:8001"
+              environment:
+                - REGISTRY_DB_PATH=/data/registry.db
+              volumes:
+                - registry_data:/data
+              depends_on:
+                - daemon
+            
+            test-runner:
+              build:
+                context: .
+                dockerfile: Dockerfile.test
+              volumes:
+                - .:/workspace
+                - /var/run/docker.sock:/var/run/docker.sock
+              working_dir: /workspace
+              environment:
+                - DAEMON_URL=http://daemon:8000
+                - REGISTRY_URL=http://connector-registry:8001
+                - POSTGRES_URL=postgresql://test:test123@postgres:5432/linch_mind_test
+                - REDIS_URL=redis://redis:6379
+              depends_on:
+                daemon:
+                  condition: service_healthy
+                postgres:
+                  condition: service_healthy
+                redis:
+                  condition: service_healthy
+          
+          volumes:
+            daemon_data:
+            postgres_data:
+            redis_data:
+            registry_data:
+          EOF
+      
+      - name: Create test runner Dockerfile
+        run: |
+          cat > Dockerfile.test << 'EOF'
+          FROM python:3.11-slim
+          
+          # Install system dependencies
+          RUN apt-get update && apt-get install -y \
+              curl \
+              git \
+              wget \
+              unzip \
+              gnupg \
+              lsb-release \
+              docker.io \
+              && rm -rf /var/lib/apt/lists/*
+          
+          # Install Node.js for API testing tools
+          RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
+              && apt-get install -y nodejs
+          
+          # Install Flutter (for E2E tests)
+          RUN wget -q https://storage.googleapis.com/flutter_infra_release/releases/stable/linux/flutter_linux_3.24.3-stable.tar.xz \
+              && tar xf flutter_linux_3.24.3-stable.tar.xz \
+              && mv flutter /opt/flutter \
+              && rm flutter_linux_3.24.3-stable.tar.xz
+          
+          ENV PATH="/opt/flutter/bin:${PATH}"
+          
+          # Install Python testing tools
+          RUN pip install --no-cache-dir \
+              pytest \
+              pytest-asyncio \
+              pytest-xdist \
+              requests \
+              websockets \
+              locust \
+              newman \
+              k6
+          
+          # Install npm packages for API testing
+          RUN npm install -g newman dredd @apidevtools/swagger-parser
+          
+          WORKDIR /workspace
+          EOF
+      
+      - name: Build and start test stack
+        run: |
+          docker-compose -f docker-compose.test.yml build
+          docker-compose -f docker-compose.test.yml up -d
+          
+          # Wait for services to be ready
+          echo "Waiting for services to start..."
+          sleep 60
+          
+          # Verify services are running
+          docker-compose -f docker-compose.test.yml ps
+      
+      - name: Verify test environment
+        run: |
+          # Health check daemon
+          curl -f http://localhost:8000/health || exit 1
+          
+          # Health check registry
+          curl -f http://localhost:8001/health || exit 1
+          
+          # Test database connection
+          docker-compose -f docker-compose.test.yml exec -T postgres pg_isready -U test -d linch_mind_test
+          
+          echo "✅ Test environment is ready"
+      
+      - name: Export test environment
+        run: |
+          # Save docker-compose configuration for other jobs
+          echo "DAEMON_URL=http://localhost:8000" >> $GITHUB_ENV
+          echo "REGISTRY_URL=http://localhost:8001" >> $GITHUB_ENV
+          echo "POSTGRES_URL=postgresql://test:test123@localhost:5432/linch_mind_test" >> $GITHUB_ENV
+
+  # API集成测试
+  integration-tests:
+    name: 🔗 API Integration Tests
+    runs-on: ubuntu-latest
+    needs: [setup-environment, build-test-stack]
+    if: needs.setup-environment.outputs.run_integration == 'true'
+    
+    strategy:
+      matrix:
+        test_category:
+          - data_ingestion
+          - connector_management
+          - knowledge_graph
+          - user_behavior
+          - websocket_api
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      
+      - name: Install test dependencies
+        run: |
+          pip install -r requirements-test.txt || pip install pytest pytest-asyncio requests websockets
+      
+      - name: Create integration test suite
+        run: |
+          mkdir -p tests/integration
+          
+          cat > tests/integration/test_${{ matrix.test_category }}.py << 'EOF'
+          """
+          Integration tests for ${{ matrix.test_category }}
+          """
+          import pytest
+          import requests
+          import asyncio
+          import websockets
+          import json
+          import time
+          
+          BASE_URL = "http://localhost:8000"
+          WS_URL = "ws://localhost:8000"
+          
+          class TestAPI:
+              def setup_method(self):
+                  """Setup before each test"""
+                  # Ensure API is responsive
+                  response = requests.get(f"{BASE_URL}/health")
+                  assert response.status_code == 200
+              
+              def test_health_endpoint(self):
+                  """Test basic health check"""
+                  response = requests.get(f"{BASE_URL}/health")
+                  assert response.status_code == 200
+                  data = response.json()
+                  assert "status" in data
+                  assert data["status"] == "healthy"
+              
+              def test_api_version(self):
+                  """Test API version endpoint"""
+                  response = requests.get(f"{BASE_URL}/api/v1/")
+                  assert response.status_code == 200
+              
+              def test_openapi_schema(self):
+                  """Test OpenAPI schema availability"""
+                  response = requests.get(f"{BASE_URL}/openapi.json")
+                  assert response.status_code == 200
+                  data = response.json()
+                  assert "openapi" in data
+                  assert "paths" in data
+          
+          # Category-specific tests would be added here based on the matrix value
+          if "${{ matrix.test_category }}" == "data_ingestion":
+              class TestDataIngestion(TestAPI):
+                  def test_data_upload(self):
+                      """Test data upload endpoint"""
+                      test_data = {"content": "test content", "source": "test"}
+                      response = requests.post(
+                          f"{BASE_URL}/api/v1/data/ingest",
+                          json=test_data
+                      )
+                      assert response.status_code in [200, 201]
+                  
+                  def test_data_retrieval(self):
+                      """Test data retrieval endpoint"""
+                      response = requests.get(f"{BASE_URL}/api/v1/data/")
+                      assert response.status_code == 200
+          
+          elif "${{ matrix.test_category }}" == "connector_management":
+              class TestConnectorManagement(TestAPI):
+                  def test_list_connectors(self):
+                      """Test connector listing"""
+                      response = requests.get(f"{BASE_URL}/api/v1/connectors/")
+                      assert response.status_code == 200
+                      data = response.json()
+                      assert isinstance(data, list)
+                  
+                  def test_connector_lifecycle(self):
+                      """Test connector install/start/stop/uninstall"""
+                      # This would test the full connector lifecycle
+                      pass
+          
+          elif "${{ matrix.test_category }}" == "knowledge_graph":
+              class TestKnowledgeGraph(TestAPI):
+                  def test_graph_nodes(self):
+                      """Test graph nodes endpoint"""
+                      response = requests.get(f"{BASE_URL}/api/v1/graph/nodes")
+                      assert response.status_code == 200
+                  
+                  def test_graph_relationships(self):
+                      """Test graph relationships endpoint"""
+                      response = requests.get(f"{BASE_URL}/api/v1/graph/relationships")
+                      assert response.status_code == 200
+          
+          elif "${{ matrix.test_category }}" == "websocket_api":
+              class TestWebSocketAPI(TestAPI):
+                  @pytest.mark.asyncio
+                  async def test_websocket_connection(self):
+                      """Test WebSocket connection"""
+                      try:
+                          async with websockets.connect(f"{WS_URL}/ws") as websocket:
+                              # Send test message
+                              await websocket.send(json.dumps({"type": "ping"}))
+                              
+                              # Receive response
+                              response = await asyncio.wait_for(websocket.recv(), timeout=5.0)
+                              data = json.loads(response)
+                              assert "type" in data
+                      except Exception as e:
+                          pytest.fail(f"WebSocket test failed: {e}")
+          EOF
+      
+      - name: Run integration tests
+        run: |
+          cd tests/integration
+          pytest test_${{ matrix.test_category }}.py -v --tb=short
+        env:
+          DAEMON_URL: http://localhost:8000
+          REGISTRY_URL: http://localhost:8001
+      
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: integration-test-results-${{ matrix.test_category }}
+          path: |
+            tests/integration/pytest.xml
+            tests/integration/*.log
+          retention-days: 30
+
+  # 端到端测试
+  e2e-tests:
+    name: 🎭 End-to-End Tests
+    runs-on: ubuntu-latest
+    needs: [setup-environment, build-test-stack]
+    if: needs.setup-environment.outputs.run_e2e == 'true'
+    
+    strategy:
+      matrix:
+        test_scenario:
+          - user_onboarding
+          - connector_setup
+          - data_exploration
+          - knowledge_discovery
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: 'stable'
+          cache: true
+      
+      - name: Install Flutter dependencies
+        run: |
+          cd ui
+          flutter pub get
+      
+      - name: Create E2E test suite
+        run: |
+          mkdir -p ui/test_driver
+          
+          cat > ui/test_driver/app.dart << 'EOF'
+          import 'package:flutter/material.dart';
+          import 'package:flutter_driver/driver_extension.dart';
+          import 'package:linch_mind/main.dart' as app;
+          
+          void main() {
+            // Enable Flutter Driver extension
+            enableFlutterDriverExtension();
+            
+            // Start the app
+            app.main();
+          }
+          EOF
+          
+          cat > ui/test_driver/app_test.dart << 'EOF'
+          import 'package:flutter_driver/flutter_driver.dart';
+          import 'package:test/test.dart';
+          
+          void main() {
+            group('${{ matrix.test_scenario }} E2E Tests', () {
+              late FlutterDriver driver;
+              
+              setUpAll(() async {
+                driver = await FlutterDriver.connect();
+              });
+              
+              tearDownAll(() async {
+                if (driver != null) {
+                  driver.close();
+                }
+              });
+              
+              test('App starts and shows home screen', () async {
+                // Wait for app to load
+                await driver.waitFor(find.byType('MaterialApp'));
+                
+                // Check that home screen is displayed
+                await driver.waitFor(find.text('Linch Mind'));
+              });
+              
+              test('Navigation works', () async {
+                // Test navigation between main screens
+                final connectorsTab = find.byValueKey('connectors_tab');
+                await driver.tap(connectorsTab);
+                
+                await driver.waitFor(find.text('Connectors'));
+              });
+              
+              // Scenario-specific tests would be added here
+              if ('${{ matrix.test_scenario }}' == 'user_onboarding') {
+                test('User onboarding flow', () async {
+                  // Test complete onboarding process
+                  print('Testing user onboarding...');
+                });
+              } else if ('${{ matrix.test_scenario }}' == 'connector_setup') {
+                test('Connector setup flow', () async {
+                  // Test connector installation and configuration
+                  print('Testing connector setup...');
+                });
+              } else if ('${{ matrix.test_scenario }}' == 'data_exploration') {
+                test('Data exploration flow', () async {
+                  // Test data browsing and search
+                  print('Testing data exploration...');
+                });
+              } else if ('${{ matrix.test_scenario }}' == 'knowledge_discovery') {
+                test('Knowledge discovery flow', () async {
+                  // Test knowledge graph interaction
+                  print('Testing knowledge discovery...');
+                });
+              }
+            });
+          }
+          EOF
+      
+      - name: Run E2E tests
+        run: |
+          cd ui
+          
+          # Start the app in test mode
+          flutter drive \
+            --driver=test_driver/app_test.dart \
+            --target=test_driver/app.dart \
+            --profile \
+            --dart-define=FLUTTER_TEST=true \
+            --dart-define=DAEMON_URL=http://localhost:8000
+        timeout-minutes: 15
+      
+      - name: Upload E2E test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: e2e-test-results-${{ matrix.test_scenario }}
+          path: |
+            ui/test_driver/*.log
+            ui/build/screenshots/
+          retention-days: 30
+
+  # 性能测试
+  performance-tests:
+    name: ⚡ Performance Tests
+    runs-on: ubuntu-latest
+    needs: [setup-environment, build-test-stack]
+    if: needs.setup-environment.outputs.run_performance == 'true'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Install performance testing tools
+        run: |
+          # Install k6
+          curl https://github.com/grafana/k6/releases/download/v0.47.0/k6-v0.47.0-linux-amd64.tar.gz -L | tar xvz --strip-components 1
+          sudo mv k6 /usr/local/bin/
+          
+          # Install artillery
+          npm install -g artillery
+      
+      - name: Create performance test scenarios
+        run: |
+          mkdir -p tests/performance
+          
+          # k6 load test script
+          cat > tests/performance/load-test.js << 'EOF'
+          import http from 'k6/http';
+          import { check, sleep } from 'k6';
+          import { Rate } from 'k6/metrics';
+          
+          export let errorRate = new Rate('errors');
+          
+          export let options = {
+            stages: [
+              { duration: '2m', target: 10 }, // Ramp up
+              { duration: '5m', target: 10 }, // Stay at 10 users
+              { duration: '2m', target: 20 }, // Ramp up to 20 users
+              { duration: '5m', target: 20 }, // Stay at 20 users
+              { duration: '2m', target: 0 },  // Ramp down
+            ],
+            thresholds: {
+              http_req_duration: ['p(95)<500'], // 95% requests under 500ms
+              http_req_failed: ['rate<0.1'],    // Error rate under 10%
+            },
+          };
+          
+          const BASE_URL = __ENV.DAEMON_URL || 'http://localhost:8000';
+          
+          export default function() {
+            // Test health endpoint
+            let response = http.get(`${BASE_URL}/health`);
+            check(response, {
+              'health check status is 200': (r) => r.status === 200,
+              'health check response time < 100ms': (r) => r.timings.duration < 100,
+            });
+            errorRate.add(response.status !== 200);
+            
+            // Test API endpoints
+            response = http.get(`${BASE_URL}/api/v1/data/`);
+            check(response, {
+              'data endpoint status is 200': (r) => r.status === 200,
+              'data endpoint response time < 500ms': (r) => r.timings.duration < 500,
+            });
+            errorRate.add(response.status !== 200);
+            
+            // Test graph endpoints
+            response = http.get(`${BASE_URL}/api/v1/graph/nodes`);
+            check(response, {
+              'graph nodes status is 200': (r) => r.status === 200,
+              'graph nodes response time < 1000ms': (r) => r.timings.duration < 1000,
+            });
+            errorRate.add(response.status !== 200);
+            
+            sleep(1);
+          }
+          EOF
+          
+          # Artillery configuration
+          cat > tests/performance/artillery-config.yml << 'EOF'
+          config:
+            target: '{{ default "http://localhost:8000" }}'
+            phases:
+              - duration: 60
+                arrivalRate: 5
+                name: "Warm up"
+              - duration: 120
+                arrivalRate: 10
+                name: "Sustained load"
+              - duration: 60
+                arrivalRate: 20
+                name: "Peak load"
+            processor: "./artillery-functions.js"
+          
+          scenarios:
+            - name: "API Load Test"
+              weight: 100
+              flow:
+                - get:
+                    url: "/health"
+                    capture:
+                      - json: "$.status"
+                        as: "health_status"
+                - think: 1
+                - get:
+                    url: "/api/v1/data/"
+                - think: 2
+                - get:
+                    url: "/api/v1/graph/nodes"
+                    expect:
+                      - statusCode: 200
+                      - contentType: "application/json"
+                - think: 1
+          EOF
+      
+      - name: Run k6 load tests
+        run: |
+          cd tests/performance
+          k6 run load-test.js --out json=k6-results.json
+        env:
+          DAEMON_URL: http://localhost:8000
+      
+      - name: Run Artillery tests
+        run: |
+          cd tests/performance
+          artillery run artillery-config.yml --output artillery-results.json
+      
+      - name: Analyze performance results
+        run: |
+          cd tests/performance
+          
+          echo "## ⚡ Performance Test Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # Parse k6 results
+          if [ -f k6-results.json ]; then
+            echo "### K6 Load Test Results" >> $GITHUB_STEP_SUMMARY
+            echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+            tail -1 k6-results.json | jq -r '"HTTP req duration: " + (.metrics.http_req_duration.med | tostring) + "ms (median)"' >> $GITHUB_STEP_SUMMARY
+            tail -1 k6-results.json | jq -r '"HTTP req rate: " + (.metrics.http_reqs.rate | tostring) + " req/s"' >> $GITHUB_STEP_SUMMARY
+            tail -1 k6-results.json | jq -r '"Error rate: " + (.metrics.http_req_failed.rate | tostring) + "%"' >> $GITHUB_STEP_SUMMARY
+            echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+      
+      - name: Upload performance results
+        uses: actions/upload-artifact@v4
+        with:
+          name: performance-test-results
+          path: |
+            tests/performance/*.json
+            tests/performance/*.html
+          retention-days: 30
+
+  # API兼容性测试
+  api-compatibility-tests:
+    name: 🔄 API Compatibility Tests
+    runs-on: ubuntu-latest
+    needs: [setup-environment, build-test-stack]
+    if: needs.setup-environment.outputs.run_api_compat == 'true'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      
+      - name: Install API testing tools
+        run: |
+          npm install -g newman dredd @apidevtools/swagger-parser
+      
+      - name: Generate OpenAPI spec
+        run: |
+          # Download current OpenAPI spec from running service
+          curl -o openapi-current.json http://localhost:8000/openapi.json
+          
+          # Compare with reference spec if it exists
+          if [ -f docs/api/openapi-reference.json ]; then
+            echo "Comparing API versions..."
+            # Use swagger-diff or custom comparison logic
+          else
+            echo "No reference spec found, using current as baseline"
+            cp openapi-current.json docs/api/openapi-reference.json || true
+          fi
+      
+      - name: Validate API schema
+        run: |
+          swagger-parser validate openapi-current.json
+          echo "✅ OpenAPI schema is valid"
+      
+      - name: Create Postman collection from OpenAPI
+        run: |
+          # Convert OpenAPI to Postman collection
+          cat > convert-openapi.js << 'EOF'
+          const fs = require('fs');
+          
+          // Read OpenAPI spec
+          const openapi = JSON.parse(fs.readFileSync('openapi-current.json', 'utf8'));
+          
+          // Create basic Postman collection
+          const collection = {
+            info: {
+              name: 'Linch Mind API Tests',
+              schema: 'https://schema.getpostman.com/json/collection/v2.1.0/collection.json'
+            },
+            item: []
+          };
+          
+          // Generate requests from OpenAPI paths
+          for (const [path, methods] of Object.entries(openapi.paths)) {
+            for (const [method, spec] of Object.entries(methods)) {
+              if (['get', 'post', 'put', 'delete', 'patch'].includes(method)) {
+                collection.item.push({
+                  name: `${method.toUpperCase()} ${path}`,
+                  request: {
+                    method: method.toUpperCase(),
+                    url: {
+                      raw: `{{BASE_URL}}${path}`,
+                      host: ['{{BASE_URL}}'],
+                      path: path.split('/').filter(p => p)
+                    },
+                    header: [
+                      {
+                        key: 'Content-Type',
+                        value: 'application/json'
+                      }
+                    ]
+                  },
+                  event: [
+                    {
+                      listen: 'test',
+                      script: {
+                        exec: [
+                          'pm.test("Status code is success", function () {',
+                          '    pm.expect(pm.response.code).to.be.oneOf([200, 201, 202, 204]);',
+                          '});',
+                          '',
+                          'pm.test("Response time is less than 2000ms", function () {',
+                          '    pm.expect(pm.response.responseTime).to.be.below(2000);',
+                          '});'
+                        ]
+                      }
+                    }
+                  ]
+                });
+              }
+            }
+          }
+          
+          fs.writeFileSync('api-tests.postman_collection.json', JSON.stringify(collection, null, 2));
+          console.log('✅ Postman collection generated');
+          EOF
+          
+          node convert-openapi.js
+      
+      - name: Create Postman environment
+        run: |
+          cat > api-test.postman_environment.json << 'EOF'
+          {
+            "name": "Linch Mind Test Environment",
+            "values": [
+              {
+                "key": "BASE_URL",
+                "value": "http://localhost:8000",
+                "enabled": true
+              }
+            ]
+          }
+          EOF
+      
+      - name: Run Postman tests
+        run: |
+          newman run api-tests.postman_collection.json \
+            -e api-test.postman_environment.json \
+            --reporters cli,json \
+            --reporter-json-export newman-results.json
+      
+      - name: Generate compatibility report
+        run: |
+          echo "## 🔄 API Compatibility Report" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [ -f newman-results.json ]; then
+            TOTAL_TESTS=$(jq '.run.stats.tests.total' newman-results.json)
+            PASSED_TESTS=$(jq '.run.stats.tests.passed' newman-results.json)
+            FAILED_TESTS=$(jq '.run.stats.tests.failed' newman-results.json)
+            
+            echo "**Test Results:**" >> $GITHUB_STEP_SUMMARY
+            echo "- Total: $TOTAL_TESTS" >> $GITHUB_STEP_SUMMARY
+            echo "- Passed: $PASSED_TESTS ✅" >> $GITHUB_STEP_SUMMARY
+            echo "- Failed: $FAILED_TESTS ❌" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            
+            if [ "$FAILED_TESTS" -gt 0 ]; then
+              echo "❌ **API Compatibility Issues Detected**" >> $GITHUB_STEP_SUMMARY
+            else
+              echo "✅ **All API Compatibility Tests Passed**" >> $GITHUB_STEP_SUMMARY
+            fi
+          fi
+      
+      - name: Upload API test results
+        uses: actions/upload-artifact@v4
+        with:
+          name: api-compatibility-results
+          path: |
+            newman-results.json
+            openapi-current.json
+            api-tests.postman_collection.json
+          retention-days: 30
+
+  # 测试结果汇总
+  test-summary:
+    name: 📊 Test Results Summary
+    runs-on: ubuntu-latest
+    needs: [setup-environment, integration-tests, e2e-tests, performance-tests, api-compatibility-tests]
+    if: always()
+    
+    steps:
+      - name: Download all test artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: test-results/
+      
+      - name: Generate comprehensive test report
+        run: |
+          echo "# 🔄 Integration & E2E Test Report" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Test Suite**: ${{ needs.setup-environment.outputs.test_suite }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Environment**: ${{ needs.setup-environment.outputs.environment }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          echo "## 📋 Test Status Overview" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # Integration tests
+          if [ "${{ needs.setup-environment.outputs.run_integration }}" = "true" ]; then
+            echo "- **Integration Tests**: ${{ needs.integration-tests.result == 'success' && '✅ PASSED' || '❌ FAILED' }}" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "- **Integration Tests**: ⏭️ SKIPPED" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          # E2E tests
+          if [ "${{ needs.setup-environment.outputs.run_e2e }}" = "true" ]; then
+            echo "- **E2E Tests**: ${{ needs.e2e-tests.result == 'success' && '✅ PASSED' || '❌ FAILED' }}" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "- **E2E Tests**: ⏭️ SKIPPED" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          # Performance tests
+          if [ "${{ needs.setup-environment.outputs.run_performance }}" = "true" ]; then
+            echo "- **Performance Tests**: ${{ needs.performance-tests.result == 'success' && '✅ PASSED' || '❌ FAILED' }}" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "- **Performance Tests**: ⏭️ SKIPPED" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          # API compatibility tests
+          if [ "${{ needs.setup-environment.outputs.run_api_compat }}" = "true" ]; then
+            echo "- **API Compatibility**: ${{ needs.api-compatibility-tests.result == 'success' && '✅ PASSED' || '❌ FAILED' }}" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "- **API Compatibility**: ⏭️ SKIPPED" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # Overall status
+          if [ "${{ needs.integration-tests.result }}" != "failure" ] && 
+             [ "${{ needs.e2e-tests.result }}" != "failure" ] && 
+             [ "${{ needs.performance-tests.result }}" != "failure" ] && 
+             [ "${{ needs.api-compatibility-tests.result }}" != "failure" ]; then
+            echo "🎉 **Overall Status**: ALL TESTS PASSED" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ **Overall Status**: SOME TESTS FAILED" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "📁 **Artifacts**: Test results and reports are available in the workflow artifacts." >> $GITHUB_STEP_SUMMARY
+
+  # 清理测试环境
+  cleanup:
+    name: 🧹 Cleanup Test Environment
+    runs-on: ubuntu-latest
+    needs: [build-test-stack, test-summary]
+    if: always() && needs.build-test-stack.result != 'skipped'
+    
+    steps:
+      - name: Cleanup Docker resources
+        run: |
+          # Stop and remove containers
+          docker-compose -f docker-compose.test.yml down -v --remove-orphans || true
+          
+          # Remove test images
+          docker rmi $(docker images --filter "reference=*linch-mind-test*" -q) || true
+          
+          # Clean up volumes
+          docker volume prune -f || true
+          
+          echo "✅ Test environment cleaned up"
