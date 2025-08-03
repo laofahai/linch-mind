@@ -1,0 +1,76 @@
+# 🎯 Linch Mind CI/CD 统一版本配置
+# 所有工作流都从此文件读取版本信息，确保一致性
+
+versions:
+  # 核心运行时版本
+  flutter: "3.24.3"
+  python: "3.11"
+  java: "17"
+  node: "20"
+  
+  # 构建工具版本
+  poetry: "1.7.1"
+  xcode: "15.0"
+  
+  # CI/CD工具版本
+  actions:
+    checkout: "v4"
+    setup_python: "v4"
+    setup_java: "v3"
+    setup_node: "v4"
+    upload_artifact: "v4"
+    download_artifact: "v4"
+    cache: "v3"
+
+# 环境配置
+environments:
+  development:
+    registry_url: "http://localhost:8001"
+    daemon_url: "http://localhost:8000"
+  
+  staging:
+    registry_url: "https://staging-registry.linch-mind.com"
+    daemon_url: "https://staging-api.linch-mind.com"
+  
+  production:
+    registry_url: "https://registry.linch-mind.com"
+    daemon_url: "https://api.linch-mind.com"
+
+# 构建配置
+build:
+  # 默认构建平台
+  platforms:
+    flutter: ["linux", "macos", "windows"]
+    connectors: ["ubuntu-latest", "windows-latest", "macos-latest"]
+  
+  # 质量门禁配置
+  quality_gates:
+    test_coverage_threshold: 80
+    security_scan_severity: "high"
+    code_style_enforcement: true
+  
+  # 构建优化
+  cache_strategy:
+    flutter: true
+    python: true
+    node: true
+    gradle: true
+
+# 发布配置
+release:
+  # 自动发布条件
+  auto_release:
+    branches: ["main"]
+    path_patterns: ["ui/**", "daemon/**", "connectors/**"]
+  
+  # 版本策略
+  versioning:
+    strategy: "semantic"
+    auto_increment: true
+    tag_prefix: "v"
+
+# 通知配置
+notifications:
+  slack_webhook: ""  # 留空，从secrets读取
+  discord_webhook: ""  # 留空，从secrets读取
+  email_recipients: []

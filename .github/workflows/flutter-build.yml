@@ -288,7 +288,7 @@ jobs:
     name: 🖥️ Build ${{ matrix.platform }}
     runs-on: ${{ matrix.os }}
     needs: [detect-changes, quality-check]
-    if: needs.detect-changes.outputs.should_build == 'true'
+    if: needs.detect-changes.outputs.should_build == 'true' && contains(fromJson(needs.detect-changes.outputs.platforms), matrix.platform)
     
     strategy:
       fail-fast: false
@@ -303,10 +303,6 @@ jobs:
           - platform: windows
             os: windows-latest
             build_args: --verbose
-        exclude:
-          - ${{ !contains(fromJson(needs.detect-changes.outputs.platforms), 'linux') && matrix.platform == 'linux' }}
-          - ${{ !contains(fromJson(needs.detect-changes.outputs.platforms), 'macos') && matrix.platform == 'macos' }}
-          - ${{ !contains(fromJson(needs.detect-changes.outputs.platforms), 'windows') && matrix.platform == 'windows' }}
     
     steps:
       - name: Checkout code
@@ -530,10 +526,10 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           
           # 整体状态
-          if [ "${{ needs.quality-check.result }}" = "success" ] && 
-             [ "${{ needs.build-desktop.result }}" != "failure" ] && 
-             [ "${{ needs.build-android.result }}" != "failure" ] && 
-             [ "${{ needs.build-ios.result }}" != "failure" ] && 
+          if [ "${{ needs.quality-check.result }}" = "success" ] && \
+             [ "${{ needs.build-desktop.result }}" != "failure" ] && \
+             [ "${{ needs.build-android.result }}" != "failure" ] && \
+             [ "${{ needs.build-ios.result }}" != "failure" ] && \
              [ "${{ needs.build-web.result }}" != "failure" ]; then
             echo "🎉 **Overall Status**: SUCCESS" >> $GITHUB_STEP_SUMMARY
           else
