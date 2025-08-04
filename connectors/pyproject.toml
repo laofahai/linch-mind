@@ -10,7 +10,7 @@ packages = [
 ]
 
 [tool.poetry.dependencies]
-python = "^3.11"
+python = ">=3.11,<3.13"
 # 连接器核心依赖
 httpx = "^0.27.0"
 watchdog = "^6.0.0"
@@ -25,6 +25,7 @@ pathlib = "^1.0.0"
 pytest = "^8.0.0"
 black = "^24.0.0"
 isort = "^5.13.0"
+pyinstaller = "^6.0.0"
 
 [build-system]
 requires = ["poetry-core"]

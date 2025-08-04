@@ -2,18 +2,19 @@
   "$schema": "../../connector.schema.json",
   "id": "filesystem",
   "name": "文件系统连接器",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "author": "Linch Mind Team",
   "description": "实时监控文件系统变化，支持多目录、多规则的智能文件索引",
   "license": "MIT",
   "homepage": "https://github.com/linch-mind/connectors/filesystem",
   "category": "local_files",
   "icon": "folder",
-  
   "entry": {
     "development": {
       "command": "python3",
-      "args": ["main.py"],
+      "args": [
+        "main.py"
+      ],
       "working_dir": "."
     },
     "production": {
@@ -22,31 +23,31 @@
       "linux": "filesystem-connector"
     }
   },
-  
   "permissions": [
     "filesystem:read",
     "filesystem:watch",
     "network:daemon-api"
   ],
-  
   "platforms": {
-    "windows": { "min_version": "10" },
-    "macos": { "min_version": "10.15" },
-    "linux": { "min_version": "ubuntu-20.04" }
+    "windows": {
+      "min_version": "10"
+    },
+    "macos": {
+      "min_version": "10.15"
+    },
+    "linux": {
+      "min_version": "ubuntu-20.04"
+    }
   },
-  
-  
   "capabilities": {
     "supports_multiple_instances": true,
     "max_instances": 10,
     "hot_reload": true
   },
-  
   "build": {
     "pre_build": "pip install -r requirements.txt",
     "build_command": "pyinstaller --onefile --name filesystem-connector main.py",
     "post_build": "echo 'Build completed'"
   },
-  
   "config_schema_source": "runtime"
 }
