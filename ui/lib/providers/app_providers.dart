@@ -1,80 +1,64 @@
 import 'dart:async';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../models/api_models.dart';
 import '../models/connector_lifecycle_models.dart';
-import '../services/api_client.dart';
 import '../services/connector_lifecycle_api_client.dart';
 
-// API 客户端提供者
-final apiClientProvider = Provider<ApiClient>((ref) {
-  return ApiClient();
+// 主题管理提供者
+final themeModeProvider = StateNotifierProvider<ThemeModeNotifier, ThemeMode>((ref) {
+  return ThemeModeNotifier();
 });
+
+class ThemeModeNotifier extends StateNotifier<ThemeMode> {
+  ThemeModeNotifier() : super(ThemeMode.system);
+
+  void setThemeMode(ThemeMode mode) {
+    state = mode;
+  }
+
+  void toggleTheme() {
+    switch (state) {
+      case ThemeMode.light:
+        state = ThemeMode.dark;
+        break;
+      case ThemeMode.dark:
+        state = ThemeMode.system;
+        break;
+      case ThemeMode.system:
+        state = ThemeMode.light;
+        break;
+    }
+  }
+}
 
 // 连接器生命周期API客户端提供者
 final connectorLifecycleApiProvider = Provider<ConnectorLifecycleApiClient>((ref) {
   return ConnectorLifecycleApiService.instance;
 });
 
-// 服务器信息提供者
-final serverInfoProvider = FutureProvider<ServerInfo>((ref) async {
-  final apiClient = ref.watch(apiClientProvider);
-  return await apiClient.getServerInfo();
-});
-
-// 连接器类型提供者（新API）
-final connectorTypesProvider = FutureProvider<List<ConnectorTypeInfo>>((ref) async {
+// 连接器定义提供者
+final connectorDefinitionsProvider = FutureProvider<List<ConnectorDefinition>>((ref) async {
   final apiClient = ref.watch(connectorLifecycleApiProvider);
-  final response = await apiClient.discoverConnectorTypes();
-  return response.connectorTypes;
+  final response = await apiClient.discoverConnectors();
+  return response.connectors;
 });
 
-// 连接器实例提供者（新API）
-final connectorInstancesProvider = FutureProvider<List<ConnectorInstanceInfo>>((ref) async {
+// 连接器提供者
+final connectorsProvider = FutureProvider<List<ConnectorInfo>>((ref) async {
   final apiClient = ref.watch(connectorLifecycleApiProvider);
-  final response = await apiClient.getConnectorInstances();
-  return response.instances;
+  final response = await apiClient.getConnectors();
+  return response.collectors;
 });
 
-// 数据项列表提供者
-final dataItemsProvider = FutureProvider.family<List<DataItem>, int?>((ref, limit) async {
-  final apiClient = ref.watch(apiClientProvider);
-  return await apiClient.getData(limit: limit);
-});
-
-// AI 推荐提供者
-final recommendationsProvider = FutureProvider.family<List<AIRecommendation>, int?>((ref, limit) async {
-  final apiClient = ref.watch(apiClientProvider);
-  return await apiClient.getRecommendations(limit: limit);
-});
-
-// 图数据节点提供者
-final graphNodesProvider = FutureProvider.family<List<GraphNode>, int?>((ref, limit) async {
-  final apiClient = ref.watch(apiClientProvider);
-  return await apiClient.getGraphNodes(limit: limit);
-});
-
-// 数据库统计提供者
-final databaseStatsProvider = FutureProvider<DatabaseStats>((ref) async {
-  final apiClient = ref.watch(apiClientProvider);
-  return await apiClient.getDatabaseStats();
-});
-
-// 健康检查提供者
+// 健康检查提供者 - 简化版本，直接使用HTTP健康检查
 final healthCheckProvider = FutureProvider<bool>((ref) async {
-  final apiClient = ref.watch(apiClientProvider);
-  return await apiClient.healthCheck();
-});
-
-// 连接器系统健康检查提供者（新API）
-final connectorHealthProvider = FutureProvider<ConnectorHealthResponse>((ref) async {
-  final apiClient = ref.watch(connectorLifecycleApiProvider);
-  return await apiClient.getHealthCheck();
-});
-
-// 系统诊断提供者
-final systemDiagnosticsProvider = FutureProvider<SystemDiagnostics>((ref) async {
-  final apiClient = ref.watch(apiClientProvider);
-  return await apiClient.getSystemDiagnostics();
+  try {
+    final apiClient = ref.watch(connectorLifecycleApiProvider);
+    final response = await apiClient.getHealthCheck();
+    return response.success;
+  } catch (e) {
+    return false;
+  }
 });
 
 // 应用状态提供者
@@ -138,7 +122,7 @@ class AppStateNotifier extends StateNotifier<AppState> {
   }
 }
 
-// 连接器实例状态管理提供者（新API）
+// 连接器实例状态管理提供者
 final connectorInstanceStateProvider = StateNotifierProvider.family<ConnectorInstanceStateNotifier, ConnectorInstanceState, String>((ref, instanceId) {
   return ConnectorInstanceStateNotifier(ref.watch(connectorLifecycleApiProvider), instanceId);
 });
@@ -182,7 +166,7 @@ class ConnectorInstanceStateNotifier extends StateNotifier<ConnectorInstanceStat
   Future<void> startInstance() async {
     state = state.copyWith(isLoading: true, errorMessage: null);
     try {
-      await apiClient.startConnectorInstance(instanceId);
+      await apiClient.startConnector(instanceId);
       state = state.copyWith(state: ConnectorState.running, isLoading: false);
     } catch (e) {
       state = state.copyWith(
@@ -196,7 +180,7 @@ class ConnectorInstanceStateNotifier extends StateNotifier<ConnectorInstanceStat
   Future<void> stopInstance() async {
     state = state.copyWith(isLoading: true, errorMessage: null);
     try {
-      await apiClient.stopConnectorInstance(instanceId);
+      await apiClient.stopConnector(instanceId);
       state = state.copyWith(state: ConnectorState.enabled, isLoading: false);
     } catch (e) {
       state = state.copyWith(
@@ -210,7 +194,7 @@ class ConnectorInstanceStateNotifier extends StateNotifier<ConnectorInstanceStat
   Future<void> restartInstance() async {
     state = state.copyWith(isLoading: true, errorMessage: null);
     try {
-      await apiClient.restartConnectorInstance(instanceId);
+      await apiClient.restartConnector(instanceId);
       state = state.copyWith(state: ConnectorState.running, isLoading: false);
     } catch (e) {
       state = state.copyWith(

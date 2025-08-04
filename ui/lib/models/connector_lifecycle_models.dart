@@ -27,11 +27,11 @@ enum ConnectorState {
   uninstalling,
 }
 
-/// 连接器类型信息
+/// 连接器信息 - 不再区分类型，每个连接器都是独立的
 @freezed
-class ConnectorTypeInfo with _$ConnectorTypeInfo {
-  const factory ConnectorTypeInfo({
-    @JsonKey(name: 'type_id') required String typeId,
+class ConnectorDefinition with _$ConnectorDefinition {
+  const factory ConnectorDefinition({
+    @JsonKey(name: 'connector_id') required String connectorId,
     required String name,
     @JsonKey(name: 'display_name') required String displayName,
     required String description,
@@ -39,8 +39,6 @@ class ConnectorTypeInfo with _$ConnectorTypeInfo {
     required String version,
     required String author,
     @Default('') String license,
-    @JsonKey(name: 'supports_multiple_instances') @Default(false) bool supportsMultipleInstances,
-    @JsonKey(name: 'max_instances_per_user') @Default(1) int maxInstancesPerUser,
     @JsonKey(name: 'auto_discovery') @Default(false) bool autoDiscovery,
     @JsonKey(name: 'hot_config_reload') @Default(true) bool hotConfigReload,
     @JsonKey(name: 'health_check') @Default(true) bool healthCheck,
@@ -49,11 +47,13 @@ class ConnectorTypeInfo with _$ConnectorTypeInfo {
     @Default([]) List<String> permissions,
     @JsonKey(name: 'config_schema') @Default({}) Map<String, dynamic> configSchema,
     @JsonKey(name: 'default_config') @Default({}) Map<String, dynamic> defaultConfig,
-    @JsonKey(name: 'instance_templates') @Default([]) List<InstanceTemplate> instanceTemplates,
-  }) = _ConnectorTypeInfo;
+    // 添加path字段来直接处理路径信息
+    String? path,
+    @JsonKey(name: 'is_registered') bool? isRegistered,
+  }) = _ConnectorDefinition;
 
-  factory ConnectorTypeInfo.fromJson(Map<String, dynamic> json) =>
-      _$ConnectorTypeInfoFromJson(json);
+  factory ConnectorDefinition.fromJson(Map<String, dynamic> json) =>
+      _$ConnectorDefinitionFromJson(json);
 }
 
 /// 实例模板
@@ -70,14 +70,12 @@ class InstanceTemplate with _$InstanceTemplate {
       _$InstanceTemplateFromJson(json);
 }
 
-/// 连接器实例信息
+/// 连接器信息 - 运行时状态信息
 @freezed
-class ConnectorInstanceInfo with _$ConnectorInstanceInfo {
-  const factory ConnectorInstanceInfo({
-    @JsonKey(name: 'instance_id') required String instanceId,
+class ConnectorInfo with _$ConnectorInfo {
+  const factory ConnectorInfo({
+    @JsonKey(name: 'collector_id') required String collectorId,
     @JsonKey(name: 'display_name') required String displayName,
-    @JsonKey(name: 'type_id') required String typeId,
-    @JsonKey(name: 'type_name') @Default('未知') String typeName,
     required ConnectorState state,
     @Default(true) bool enabled,
     @JsonKey(name: 'auto_start') @Default(true) bool autoStart,
@@ -88,25 +86,25 @@ class ConnectorInstanceInfo with _$ConnectorInstanceInfo {
     @JsonKey(name: 'created_at') DateTime? createdAt,
     @JsonKey(name: 'updated_at') DateTime? updatedAt,
     @Default({}) Map<String, dynamic> config,
-  }) = _ConnectorInstanceInfo;
+  }) = _ConnectorInfo;
 
-  factory ConnectorInstanceInfo.fromJson(Map<String, dynamic> json) =>
-      _$ConnectorInstanceInfoFromJson(json);
+  factory ConnectorInfo.fromJson(Map<String, dynamic> json) =>
+      _$ConnectorInfoFromJson(json);
 }
 
-/// 创建连接器实例请求
+/// 创建连接器请求 - 不再需要类型ID
 @freezed
-class CreateInstanceRequest with _$CreateInstanceRequest {
-  const factory CreateInstanceRequest({
-    @JsonKey(name: 'type_id') required String typeId,
+class CreateConnectorRequest with _$CreateConnectorRequest {
+  const factory CreateConnectorRequest({
+    @JsonKey(name: 'connector_id') required String connectorId,
     @JsonKey(name: 'display_name') required String displayName,
     @Default({}) Map<String, dynamic> config,
     @JsonKey(name: 'auto_start') @Default(true) bool autoStart,
     @JsonKey(name: 'template_id') String? templateId,
-  }) = _CreateInstanceRequest;
+  }) = _CreateConnectorRequest;
 
-  factory CreateInstanceRequest.fromJson(Map<String, dynamic> json) =>
-      _$CreateInstanceRequestFromJson(json);
+  factory CreateConnectorRequest.fromJson(Map<String, dynamic> json) =>
+      _$CreateConnectorRequestFromJson(json);
 }
 
 /// 更新配置请求
@@ -240,67 +238,44 @@ class ConnectorApiResponse with _$ConnectorApiResponse {
       _$ConnectorApiResponseFromJson(json);
 }
 
-/// 连接器类型发现响应
+/// 连接器发现响应 - 发现可用的连接器
 @freezed
 class DiscoveryResponse with _$DiscoveryResponse {
   const factory DiscoveryResponse({
     required bool success,
     required String message,
-    @JsonKey(name: 'connector_types') @Default([]) List<ConnectorTypeInfo> connectorTypes,
+    @JsonKey(name: 'connectors') @Default([]) List<ConnectorDefinition> connectors,
   }) = _DiscoveryResponse;
 
   factory DiscoveryResponse.fromJson(Map<String, dynamic> json) =>
       _$DiscoveryResponseFromJson(json);
 }
 
-/// 实例列表响应
+/// 连接器列表响应
 @freezed
-class InstanceListResponse with _$InstanceListResponse {
-  const factory InstanceListResponse({
+class ConnectorListResponse with _$ConnectorListResponse {
+  const factory ConnectorListResponse({
     required bool success,
-    @Default([]) List<ConnectorInstanceInfo> instances,
+    @Default([]) List<ConnectorInfo> collectors,
     @JsonKey(name: 'total_count') @Default(0) int totalCount,
-  }) = _InstanceListResponse;
+  }) = _ConnectorListResponse;
 
-  factory InstanceListResponse.fromJson(Map<String, dynamic> json) =>
-      _$InstanceListResponseFromJson(json);
+  factory ConnectorListResponse.fromJson(Map<String, dynamic> json) =>
+      _$ConnectorListResponseFromJson(json);
 }
 
-/// 实例详情响应
+/// 连接器详情响应
 @freezed
-class InstanceDetailResponse with _$InstanceDetailResponse {
-  const factory InstanceDetailResponse({
+class ConnectorDetailResponse with _$ConnectorDetailResponse {
+  const factory ConnectorDetailResponse({
     required bool success,
-    required ConnectorInstanceDetail instance,
-  }) = _InstanceDetailResponse;
+    required ConnectorInfo collector,
+  }) = _ConnectorDetailResponse;
 
-  factory InstanceDetailResponse.fromJson(Map<String, dynamic> json) =>
-      _$InstanceDetailResponseFromJson(json);
+  factory ConnectorDetailResponse.fromJson(Map<String, dynamic> json) =>
+      _$ConnectorDetailResponseFromJson(json);
 }
 
-/// 连接器实例详情（包含类型信息）
-@freezed
-class ConnectorInstanceDetail with _$ConnectorInstanceDetail {
-  const factory ConnectorInstanceDetail({
-    @JsonKey(name: 'instance_id') required String instanceId,
-    @JsonKey(name: 'display_name') required String displayName,
-    @JsonKey(name: 'type_id') required String typeId,
-    required Map<String, dynamic> config,
-    required ConnectorState state,
-    @Default(true) bool enabled,
-    @JsonKey(name: 'auto_start') @Default(true) bool autoStart,
-    @JsonKey(name: 'process_id') int? processId,
-    @JsonKey(name: 'last_heartbeat') DateTime? lastHeartbeat,
-    @JsonKey(name: 'data_count') @Default(0) int dataCount,
-    @JsonKey(name: 'error_message') String? errorMessage,
-    @JsonKey(name: 'created_at') DateTime? createdAt,
-    @JsonKey(name: 'updated_at') DateTime? updatedAt,
-    @JsonKey(name: 'connector_type') ConnectorTypeInfo? connectorType,
-  }) = _ConnectorInstanceDetail;
-
-  factory ConnectorInstanceDetail.fromJson(Map<String, dynamic> json) =>
-      _$ConnectorInstanceDetailFromJson(json);
-}
 
 /// 操作响应（启动、停止、重启等）
 @freezed
@@ -317,4 +292,47 @@ class OperationResponse with _$OperationResponse {
 
   factory OperationResponse.fromJson(Map<String, dynamic> json) =>
       _$OperationResponseFromJson(json);
+}
+
+/// 发现的连接器信息
+@freezed
+class DiscoveredConnectorInfo with _$DiscoveredConnectorInfo {
+  const factory DiscoveredConnectorInfo({
+    required String path,
+    @JsonKey(name: 'connector_id') required String connectorId,
+    required String name,
+    required String description,
+    required String version,
+    @JsonKey(name: 'entry_point') required String entryPoint,
+    @JsonKey(name: 'is_registered') required bool isRegistered,
+  }) = _DiscoveredConnectorInfo;
+
+  factory DiscoveredConnectorInfo.fromJson(Map<String, dynamic> json) =>
+      _$DiscoveredConnectorInfoFromJson(json);
+}
+
+/// 目录扫描响应
+@freezed
+class DirectoryScanResponse with _$DirectoryScanResponse {
+  const factory DirectoryScanResponse({
+    required bool success,
+    required Map<String, dynamic> data,
+    required String message,
+  }) = _DirectoryScanResponse;
+
+  factory DirectoryScanResponse.fromJson(Map<String, dynamic> json) =>
+      _$DirectoryScanResponseFromJson(json);
+}
+
+/// 连接器注册响应
+@freezed
+class ConnectorRegistrationResponse with _$ConnectorRegistrationResponse {
+  const factory ConnectorRegistrationResponse({
+    required bool success,
+    required Map<String, dynamic> data,
+    required String message,
+  }) = _ConnectorRegistrationResponse;
+
+  factory ConnectorRegistrationResponse.fromJson(Map<String, dynamic> json) =>
+      _$ConnectorRegistrationResponseFromJson(json);
 }

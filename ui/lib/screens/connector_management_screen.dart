@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:file_picker/file_picker.dart';
 import '../models/connector_lifecycle_models.dart';
 import '../services/connector_lifecycle_api_client.dart';
 
@@ -14,12 +15,10 @@ class ConnectorManagementScreen extends ConsumerStatefulWidget {
 class _ConnectorManagementScreenState extends ConsumerState<ConnectorManagementScreen> {
   final _apiClient = ConnectorLifecycleApiService.instance;
   
-  List<ConnectorTypeInfo> _connectorTypes = [];
-  List<ConnectorInstanceInfo> _instances = [];
+  List<ConnectorInfo> _connectors = [];
   bool _isLoading = true;
   String? _errorMessage;
   String _searchQuery = '';
-  ConnectorState? _stateFilter;
 
   @override
   void initState() {
@@ -34,18 +33,11 @@ class _ConnectorManagementScreenState extends ConsumerState<ConnectorManagementS
     });
 
     try {
-      // 并行加载连接器类型和实例
-      final futures = await Future.wait([
-        _apiClient.discoverConnectorTypes(),
-        _apiClient.getConnectorInstances(),
-      ]);
-
-      final discoveryResponse = futures[0] as DiscoveryResponse;
-      final instanceResponse = futures[1] as InstanceListResponse;
+      // 加载连接器列表
+      final connectorResponse = await _apiClient.getConnectors();
 
       setState(() {
-        _connectorTypes = discoveryResponse.connectorTypes;
-        _instances = instanceResponse.instances;
+        _connectors = connectorResponse.collectors;
         _isLoading = false;
       });
     } catch (e) {
@@ -60,20 +52,15 @@ class _ConnectorManagementScreenState extends ConsumerState<ConnectorManagementS
     await _loadData();
   }
 
-  List<ConnectorInstanceInfo> get _filteredInstances {
-    var filtered = _instances.where((instance) {
+  List<ConnectorInfo> get _filteredConnectors {
+    var filtered = _connectors.where((connector) {
       // 搜索过滤
       if (_searchQuery.isNotEmpty) {
         final query = _searchQuery.toLowerCase();
-        if (!instance.displayName.toLowerCase().contains(query) &&
-            !instance.typeName.toLowerCase().contains(query)) {
+        if (!connector.displayName.toLowerCase().contains(query) &&
+            !connector.collectorId.toLowerCase().contains(query)) {
           return false;
         }
-      }
-      
-      // 状态过滤
-      if (_stateFilter != null && instance.state != _stateFilter) {
-        return false;
       }
       
       return true;
@@ -90,6 +77,7 @@ class _ConnectorManagementScreenState extends ConsumerState<ConnectorManagementS
       
       final orderA = stateOrder[a.state] ?? 99;
       final orderB = stateOrder[b.state] ?? 99;
+      
       
       if (orderA != orderB) {
         return orderA.compareTo(orderB);
@@ -130,8 +118,13 @@ class _ConnectorManagementScreenState extends ConsumerState<ConnectorManagementS
               ),
               IconButton(
                 icon: const Icon(Icons.add),
-                onPressed: _showCreateInstanceDialog,
-                tooltip: '新建连接器实例',
+                onPressed: _showAddConnectorDialog,
+                tooltip: '添加连接器',
+              ),
+              IconButton(
+                icon: const Icon(Icons.settings),
+                onPressed: _showConnectorSettings,
+                tooltip: '连接器设置',
               ),
             ],
           ),
@@ -157,59 +150,22 @@ class _ConnectorManagementScreenState extends ConsumerState<ConnectorManagementS
           ),
         ],
       ),
-      child: Column(
-        children: [
-          // 搜索框
-          TextField(
-            decoration: const InputDecoration(
-              hintText: '搜索连接器...',
-              prefixIcon: Icon(Icons.search),
-              border: OutlineInputBorder(),
-              isDense: true,
-            ),
-            onChanged: (value) {
-              setState(() {
-                _searchQuery = value;
-              });
-            },
-          ),
-          const SizedBox(height: 12),
-          // 状态过滤器
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              children: [
-                const Text('状态: '),
-                const SizedBox(width: 8),
-                _buildStateFilterChip('全部', null),
-                const SizedBox(width: 8),
-                _buildStateFilterChip('运行中', ConnectorState.running),
-                const SizedBox(width: 8),
-                _buildStateFilterChip('已启用', ConnectorState.enabled),
-                const SizedBox(width: 8),
-                _buildStateFilterChip('已配置', ConnectorState.configured),
-                const SizedBox(width: 8),
-                _buildStateFilterChip('错误', ConnectorState.error),
-              ],
-            ),
-          ),
-        ],
+      child: TextField(
+        decoration: const InputDecoration(
+          hintText: '搜索连接器...',
+          prefixIcon: Icon(Icons.search),
+          border: OutlineInputBorder(),
+          isDense: true,
+        ),
+        onChanged: (value) {
+          setState(() {
+            _searchQuery = value;
+          });
+        },
       ),
     );
   }
 
-  Widget _buildStateFilterChip(String label, ConnectorState? state) {
-    final isSelected = _stateFilter == state;
-    return FilterChip(
-      label: Text(label),
-      selected: isSelected,
-      onSelected: (selected) {
-        setState(() {
-          _stateFilter = selected ? state : null;
-        });
-      },
-    );
-  }
 
   Widget _buildContent() {
     if (_isLoading) {
@@ -246,9 +202,9 @@ class _ConnectorManagementScreenState extends ConsumerState<ConnectorManagementS
       );
     }
 
-    final filteredInstances = _filteredInstances;
+    final filteredConnectors = _filteredConnectors;
 
-    if (filteredInstances.isEmpty) {
+    if (filteredConnectors.isEmpty) {
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -260,16 +216,16 @@ class _ConnectorManagementScreenState extends ConsumerState<ConnectorManagementS
             ),
             const SizedBox(height: 16),
             Text(
-              _instances.isEmpty ? '还没有连接器实例' : '没有找到匹配的连接器',
+              _connectors.isEmpty ? '还没有发现连接器' : '没有找到匹配的连接器',
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
                 color: Theme.of(context).disabledColor,
               ),
             ),
             const SizedBox(height: 16),
             ElevatedButton.icon(
-              onPressed: _showCreateInstanceDialog,
-              icon: const Icon(Icons.add),
-              label: const Text('创建连接器实例'),
+              onPressed: _refreshData,
+              icon: const Icon(Icons.refresh),
+              label: const Text('刷新连接器'),
             ),
           ],
         ),
@@ -280,22 +236,22 @@ class _ConnectorManagementScreenState extends ConsumerState<ConnectorManagementS
       onRefresh: _refreshData,
       child: ListView.builder(
         padding: const EdgeInsets.all(16),
-        itemCount: filteredInstances.length,
+        itemCount: filteredConnectors.length,
         itemBuilder: (context, index) {
-          final instance = filteredInstances[index];
-          return _buildInstanceCard(instance);
+          final connector = filteredConnectors[index];
+          return _buildConnectorCard(connector);
         },
       ),
     );
   }
 
-  Widget _buildInstanceCard(ConnectorInstanceInfo instance) {
+  Widget _buildConnectorCard(ConnectorInfo connector) {
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       child: ExpansionTile(
-        leading: _buildStateIndicator(instance.state),
+        leading: _buildStateIndicator(connector.state),
         title: Text(
-          instance.displayName,
+          connector.displayName,
           style: Theme.of(context).textTheme.titleMedium?.copyWith(
             fontWeight: FontWeight.w600,
           ),
@@ -303,10 +259,10 @@ class _ConnectorManagementScreenState extends ConsumerState<ConnectorManagementS
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('类型: ${instance.typeName}'),
-            if (instance.errorMessage != null)
+            Text('ID: ${connector.collectorId}'),
+            if (connector.errorMessage != null)
               Text(
-                '错误: ${instance.errorMessage}',
+                '错误: ${connector.errorMessage}',
                 style: TextStyle(
                   color: Theme.of(context).colorScheme.error,
                   fontSize: 12,
@@ -314,9 +270,9 @@ class _ConnectorManagementScreenState extends ConsumerState<ConnectorManagementS
               ),
           ],
         ),
-        trailing: _buildInstanceActions(instance),
+        trailing: _buildConnectorActions(connector),
         children: [
-          _buildInstanceDetails(instance),
+          _buildConnectorDetails(connector),
         ],
       ),
     );
@@ -359,13 +315,13 @@ class _ConnectorManagementScreenState extends ConsumerState<ConnectorManagementS
     );
   }
 
-  Widget _buildInstanceActions(ConnectorInstanceInfo instance) {
+  Widget _buildConnectorActions(ConnectorInfo connector) {
     return PopupMenuButton<String>(
-      onSelected: (action) => _handleInstanceAction(instance, action),
+      onSelected: (action) => _handleConnectorAction(connector, action),
       itemBuilder: (context) {
         final items = <PopupMenuEntry<String>>[];
 
-        switch (instance.state) {
+        switch (connector.state) {
           case ConnectorState.running:
             items.addAll([
               const PopupMenuItem(value: 'stop', child: Text('停止')),
@@ -389,7 +345,6 @@ class _ConnectorManagementScreenState extends ConsumerState<ConnectorManagementS
         items.addAll([
           const PopupMenuDivider(),
           const PopupMenuItem(value: 'edit', child: Text('编辑配置')),
-          const PopupMenuItem(value: 'delete', child: Text('删除实例')),
         ]);
 
         return items;
@@ -398,24 +353,23 @@ class _ConnectorManagementScreenState extends ConsumerState<ConnectorManagementS
     );
   }
 
-  Widget _buildInstanceDetails(ConnectorInstanceInfo instance) {
+  Widget _buildConnectorDetails(ConnectorInfo connector) {
     return Padding(
       padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildDetailRow('实例ID', instance.instanceId),
-          _buildDetailRow('类型ID', instance.typeId),
-          _buildDetailRow('状态', _getStateDisplayName(instance.state)),
-          if (instance.processId != null)
-            _buildDetailRow('进程ID', instance.processId.toString()),
-          if (instance.lastHeartbeat != null)
-            _buildDetailRow('最后心跳', _formatDateTime(instance.lastHeartbeat!)),
-          _buildDetailRow('数据量', '${instance.dataCount} 条'),
-          if (instance.createdAt != null)
-            _buildDetailRow('创建时间', _formatDateTime(instance.createdAt!)),
-          if (instance.updatedAt != null)
-            _buildDetailRow('更新时间', _formatDateTime(instance.updatedAt!)),
+          _buildDetailRow('连接器ID', connector.collectorId),
+          _buildDetailRow('状态', _getStateDisplayName(connector.state)),
+          if (connector.processId != null)
+            _buildDetailRow('进程ID', connector.processId.toString()),
+          if (connector.lastHeartbeat != null)
+            _buildDetailRow('最后心跳', _formatDateTime(connector.lastHeartbeat!)),
+          _buildDetailRow('数据量', '${connector.dataCount} 条'),
+          if (connector.createdAt != null)
+            _buildDetailRow('创建时间', _formatDateTime(connector.createdAt!)),
+          if (connector.updatedAt != null)
+            _buildDetailRow('更新时间', _formatDateTime(connector.updatedAt!)),
         ],
       ),
     );
@@ -474,24 +428,21 @@ class _ConnectorManagementScreenState extends ConsumerState<ConnectorManagementS
            '${dateTime.hour.toString().padLeft(2, '0')}:${dateTime.minute.toString().padLeft(2, '0')}';
   }
 
-  Future<void> _handleInstanceAction(ConnectorInstanceInfo instance, String action) async {
+  Future<void> _handleConnectorAction(ConnectorInfo connector, String action) async {
     try {
       switch (action) {
         case 'start':
-          await _apiClient.startConnectorInstance(instance.instanceId);
+          await _apiClient.startConnector(connector.collectorId);
           break;
         case 'stop':
-          await _apiClient.stopConnectorInstance(instance.instanceId);
+          await _apiClient.stopConnector(connector.collectorId);
           break;
         case 'restart':
-          await _apiClient.restartConnectorInstance(instance.instanceId);
+          await _apiClient.restartConnector(connector.collectorId);
           break;
         case 'edit':
-          await _showEditConfigDialog(instance);
+          await _showEditConfigDialog(connector);
           return; // 不刷新，让编辑对话框处理
-        case 'delete':
-          await _confirmAndDeleteInstance(instance);
-          return; // 不刷新，让删除处理刷新
       }
 
       // 刷新数据
@@ -514,71 +465,265 @@ class _ConnectorManagementScreenState extends ConsumerState<ConnectorManagementS
     }
   }
 
-  Future<void> _showCreateInstanceDialog() async {
-    if (_connectorTypes.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('没有可用的连接器类型')),
-      );
-      return;
-    }
+  Future<void> _showAddConnectorDialog() async {
+    String? selectedPath;
+    bool isScanning = false;
+    String? errorMessage;
+    List<ConnectorDefinition> availableConnectors = [];
 
-    // TODO: 实现创建实例对话框
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('创建实例功能开发中...')),
-    );
-  }
-
-  Future<void> _showEditConfigDialog(ConnectorInstanceInfo instance) async {
-    // TODO: 实现配置编辑对话框
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('配置编辑功能开发中...')),
-    );
-  }
-
-  Future<void> _confirmAndDeleteInstance(ConnectorInstanceInfo instance) async {
-    final confirmed = await showDialog<bool>(
+    await showDialog<void>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('确认删除'),
-        content: Text('确定要删除连接器实例 "${instance.displayName}" 吗？\n\n此操作不可撤销。'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('取消'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Theme.of(context).colorScheme.error,
-            ),
-            child: const Text('删除'),
-          ),
-        ],
-      ),
-    );
+      builder: (BuildContext context) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: const Text('添加连接器'),
+              content: SizedBox(
+                width: 500,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('选择连接器目录:'),
+                    const SizedBox(height: 4),
+                    Text(
+                      '支持选择连接器根目录或具体连接器目录\n例如: connectors/ 或 connectors/official/filesystem',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: Theme.of(context).disabledColor,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            selectedPath ?? '未选择目录',
+                            style: TextStyle(
+                              color: selectedPath != null 
+                                ? Theme.of(context).textTheme.bodyMedium?.color 
+                                : Theme.of(context).disabledColor,
+                            ),
+                          ),
+                        ),
+                        ElevatedButton(
+                          onPressed: isScanning ? null : () async {
+                            try {
+                              String? directoryPath = await FilePicker.platform.getDirectoryPath(
+                                dialogTitle: '选择连接器目录（支持根目录或具体连接器目录）',
+                              );
+                              
+                              if (directoryPath != null) {
+                                // 检查是否选择了具体的连接器目录
+                                final dirName = directoryPath.split('/').last;
+                                
+                                // 验证目录是否包含连接器必要文件
+                                // 这里可以根据实际需求添加更多验证
+                                if (dirName.isEmpty) {
+                                  setDialogState(() {
+                                    errorMessage = '请选择具体的连接器目录，如: filesystem';
+                                  });
+                                  return;
+                                }
+                                
+                                setDialogState(() {
+                                  selectedPath = directoryPath;
+                                  errorMessage = null;
+                                });
+                                
+                                // 自动触发扫描
+                                if (selectedPath != null) {
+                                  // 延迟100ms执行扫描，让UI更新
+                                  Future.delayed(const Duration(milliseconds: 100), () async {
+                                    setDialogState(() {
+                                      isScanning = true;
+                                      errorMessage = null;
+                                      availableConnectors = [];
+                                    });
 
-    if (confirmed == true) {
-      try {
-        await _apiClient.deleteConnectorInstance(instance.instanceId);
-        await _refreshData();
-        
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('连接器实例已删除')),
-          );
-        }
-      } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('删除失败: $e'),
-              backgroundColor: Theme.of(context).colorScheme.error,
-            ),
-          );
-        }
+                                    try {
+                                      final response = await _apiClient.scanConnectorDirectory(selectedPath!);
+                                      setDialogState(() {
+                                        availableConnectors = response.connectors;
+                                        isScanning = false;
+                                        if (availableConnectors.isEmpty) {
+                                          errorMessage = '该目录中未发现有效的连接器。\n请确保所选目录包含 connector.json 文件，或选择包含连接器子目录的父目录。';
+                                        }
+                                      });
+                                    } catch (e) {
+                                      setDialogState(() {
+                                        errorMessage = '扫描目录失败: $e';
+                                        isScanning = false;
+                                      });
+                                    }
+                                  });
+                                }
+                              }
+                            } catch (e) {
+                              setDialogState(() {
+                                errorMessage = '选择目录失败: $e';
+                              });
+                            }
+                          },
+                          child: const Text('选择目录'),
+                        ),
+                      ],
+                    ),
+                    if (selectedPath != null && !isScanning && availableConnectors.isEmpty) ...[
+                      const SizedBox(height: 16),
+                      Row(
+                        children: [
+                          ElevatedButton(
+                            onPressed: () async {
+                              setDialogState(() {
+                                isScanning = true;
+                                errorMessage = null;
+                                availableConnectors = [];
+                              });
+
+                              try {
+                                final response = await _apiClient.scanConnectorDirectory(selectedPath!);
+                                setDialogState(() {
+                                  availableConnectors = response.connectors;
+                                  isScanning = false;
+                                  if (availableConnectors.isEmpty) {
+                                    errorMessage = '该目录中未发现有效的连接器。\n请确保所选目录包含 connector.json 文件，或选择包含连接器子目录的父目录。';
+                                  }
+                                });
+                              } catch (e) {
+                                setDialogState(() {
+                                  errorMessage = '扫描目录失败: $e';
+                                  isScanning = false;
+                                });
+                              }
+                            },
+                            child: const Text('重新扫描'),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            '未发现连接器，请重新扫描或选择其他目录',
+                            style: TextStyle(
+                              color: Theme.of(context).disabledColor,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                    if (isScanning) ...[
+                      const SizedBox(height: 16),
+                      Row(
+                        children: [
+                          const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
+                          const SizedBox(width: 8),
+                          const Text('正在扫描连接器...'),
+                        ],
+                      ),
+                    ],
+                    if (errorMessage != null) ...[
+                      const SizedBox(height: 8),
+                      Text(
+                        errorMessage!,
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.error,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                    if (availableConnectors.isNotEmpty) ...[
+                      const SizedBox(height: 16),
+                      const Text('发现的连接器:'),
+                      const SizedBox(height: 8),
+                      Container(
+                        constraints: const BoxConstraints(maxHeight: 200),
+                        child: ListView.builder(
+                          shrinkWrap: true,
+                          itemCount: availableConnectors.length,
+                          itemBuilder: (context, index) {
+                            final type = availableConnectors[index];
+                            return Card(
+                              child: ListTile(
+                                title: Text(type.displayName),
+                                subtitle: Text('ID: ${type.connectorId}\n版本: ${type.version}'),
+                                trailing: ElevatedButton(
+                                  onPressed: () => _createConnectorInstance(type),
+                                  child: const Text('创建'),
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text('取消'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Future<void> _createConnectorInstance(ConnectorDefinition type) async {
+    try {
+      // 创建请求，包含连接器路径信息
+      final config = <String, dynamic>{};
+      
+      // 如果type包含path信息，添加到config中
+      if (type.path != null) {
+        config['path'] = type.path;
+      }
+      
+      final request = CreateConnectorRequest(
+        connectorId: type.connectorId,
+        displayName: type.displayName,
+        config: config,
+        autoStart: true,
+      );
+
+      await _apiClient.createConnector(request);
+      
+      if (mounted) {
+        Navigator.of(context).pop(); // 关闭对话框
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('成功创建连接器: ${type.displayName}')),
+        );
+        await _refreshData(); // 刷新列表
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('创建连接器失败: $e'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+          ),
+        );
       }
     }
   }
+
+  Future<void> _showConnectorSettings() async {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('连接器设置功能暂未实现')),
+    );
+  }
+
+  Future<void> _showEditConfigDialog(ConnectorInfo connector) async {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('配置编辑功能暂未实现')),
+    );
+  }
+
 
   @override
   void dispose() {

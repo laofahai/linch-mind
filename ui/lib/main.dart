@@ -1,14 +1,50 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
-import 'screens/home_screen.dart';
+import 'package:window_manager/window_manager.dart';
+import 'package:bitsdojo_window/bitsdojo_window.dart';
 import 'screens/connector_management_screen.dart';
-import 'screens/data_screen.dart';
-import 'screens/graph_screen.dart';
+import 'screens/my_mind_screen.dart';
+import 'screens/knowledge_nebula_screen.dart';
+import 'screens/settings_screen.dart';
 import 'providers/app_providers.dart';
-import 'widgets/status_indicator.dart';
+import 'widgets/unified_app_bar.dart';
+import 'widgets/responsive_navigation.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  
+  // 只在桌面端配置窗口管理
+  if (defaultTargetPlatform == TargetPlatform.macOS ||
+      defaultTargetPlatform == TargetPlatform.windows ||
+      defaultTargetPlatform == TargetPlatform.linux) {
+    
+    // 配置窗口管理
+    await windowManager.ensureInitialized();
+    
+    WindowOptions windowOptions = const WindowOptions(
+      size: Size(1200, 800),
+      center: true,
+      backgroundColor: Colors.transparent,
+      skipTaskbar: false,
+      titleBarStyle: TitleBarStyle.hidden,
+      windowButtonVisibility: false,
+    );
+    
+    windowManager.waitUntilReadyToShow(windowOptions, () async {
+      await windowManager.show();
+      await windowManager.focus();
+    });
+    
+    doWhenWindowReady(() {
+      const initialSize = Size(1200, 800);
+      appWindow.minSize = const Size(800, 600);
+      appWindow.size = initialSize;
+      appWindow.alignment = Alignment.center;
+      appWindow.show();
+    });
+  }
+
   runApp(
     const ProviderScope(
       child: LinchMindApp(),
@@ -16,44 +52,118 @@ void main() {
   );
 }
 
-class LinchMindApp extends StatelessWidget {
+class LinchMindApp extends ConsumerWidget {
   const LinchMindApp({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return MaterialApp.router(
+  Widget build(BuildContext context, WidgetRef ref) {
+    final themeMode = ref.watch(themeModeProvider);
+    
+    return MaterialApp(
       title: 'Linch Mind',
-      theme: ThemeData(
-        useMaterial3: true,
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF6750A4),
-          brightness: Brightness.light,
+      theme: _buildLightTheme(),
+      darkTheme: _buildDarkTheme(),
+      themeMode: themeMode,
+      home: const MainApp(),
+    );
+  }
+
+  ThemeData _buildLightTheme() {
+    const seedColor = Color(0xFF2196F3); // 现代蓝色
+    final colorScheme = ColorScheme.fromSeed(
+      seedColor: seedColor,
+      brightness: Brightness.light,
+    );
+
+    return ThemeData(
+      useMaterial3: true,
+      colorScheme: colorScheme,
+      cardTheme: CardThemeData(
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+          side: BorderSide(
+            color: colorScheme.outline.withValues(alpha: 0.2),
+          ),
         ),
       ),
-      darkTheme: ThemeData(
-        useMaterial3: true,
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF6750A4),
-          brightness: Brightness.dark,
+      elevatedButtonTheme: ElevatedButtonThemeData(
+        style: ElevatedButton.styleFrom(
+          elevation: 0,
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(8),
+          ),
         ),
       ),
-      routerConfig: _router,
+      inputDecorationTheme: InputDecorationTheme(
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: BorderSide(color: colorScheme.outline.withValues(alpha: 0.3)),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: BorderSide(color: colorScheme.outline.withValues(alpha: 0.3)),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: BorderSide(color: colorScheme.primary, width: 2),
+        ),
+        filled: true,
+        fillColor: colorScheme.surface,
+      ),
+    );
+  }
+
+  ThemeData _buildDarkTheme() {
+    const seedColor = Color(0xFF2196F3); // 现代蓝色
+    final colorScheme = ColorScheme.fromSeed(
+      seedColor: seedColor,
+      brightness: Brightness.dark,
+    );
+
+    return ThemeData(
+      useMaterial3: true,
+      colorScheme: colorScheme,
+      cardTheme: CardThemeData(
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+          side: BorderSide(
+            color: colorScheme.outline.withValues(alpha: 0.2),
+          ),
+        ),
+      ),
+      elevatedButtonTheme: ElevatedButtonThemeData(
+        style: ElevatedButton.styleFrom(
+          elevation: 0,
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(8),
+          ),
+        ),
+      ),
+      inputDecorationTheme: InputDecorationTheme(
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: BorderSide(color: colorScheme.outline.withValues(alpha: 0.3)),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: BorderSide(color: colorScheme.outline.withValues(alpha: 0.3)),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: BorderSide(color: colorScheme.primary, width: 2),
+        ),
+        filled: true,
+        fillColor: colorScheme.surface,
+      ),
     );
   }
 }
 
-final GoRouter _router = GoRouter(
-  routes: [
-    GoRoute(
-      path: '/',
-      pageBuilder: (context, state) => NoTransitionPage<void>(
-        child: const MainApp(),
-      ),
-    ),
-  ],
-);
-
-/// 主应用组件 - 管理所有导航，不使用路由切换
+/// 主应用组件 - 响应式导航版本
 class MainApp extends ConsumerStatefulWidget {
   const MainApp({super.key});
 
@@ -62,136 +172,37 @@ class MainApp extends ConsumerStatefulWidget {
 }
 
 class _MainAppState extends ConsumerState<MainApp> {
-  int _selectedIndex = 0;
+  int _currentIndex = 0;
 
-  final List<Widget> _screens = const [
-    HomeScreen(),
+  final List<Widget> _pages = const [
+    MyMindScreen(),
+    KnowledgeNebulaScreen(),
     ConnectorManagementScreen(),
-    DataScreen(),
-    GraphScreen(),
+    SettingsScreen(),
   ];
 
-  final List<String> _titles = const [
-    'Home',
-    'Connectors',
-    'Data',
-    'Graph',
+  final List<String> _pageTitles = const [
+    'My Mind',
+    '知识星云',
+    '连接器',
+    '设置',
   ];
-
-  void _onDestinationSelected(int index) {
-    setState(() {
-      _selectedIndex = index;
-    });
-  }
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        if (constraints.maxWidth > 840) {
-          return _buildDesktopLayout();
-        } else {
-          return _buildMobileLayout();
-        }
+    return ResponsiveLayout(
+      currentIndex: _currentIndex,
+      onDestinationSelected: (index) {
+        setState(() {
+          _currentIndex = index;
+        });
       },
-    );
-  }
-
-  Widget _buildDesktopLayout() {
-    return Scaffold(
-      body: Row(
-        children: [
-          // 固定的左侧导航栏
-          NavigationRail(
-            selectedIndex: _selectedIndex,
-            onDestinationSelected: _onDestinationSelected,
-            labelType: NavigationRailLabelType.all,
-            backgroundColor: Theme.of(context).colorScheme.surfaceContainerLow,
-            destinations: const [
-              NavigationRailDestination(
-                icon: Icon(Icons.home_outlined),
-                selectedIcon: Icon(Icons.home),
-                label: Text('Home'),
-              ),
-              NavigationRailDestination(
-                icon: Icon(Icons.cable_outlined),
-                selectedIcon: Icon(Icons.cable),
-                label: Text('Connectors'),
-              ),
-              NavigationRailDestination(
-                icon: Icon(Icons.storage_outlined),
-                selectedIcon: Icon(Icons.storage),
-                label: Text('Data'),
-              ),
-              NavigationRailDestination(
-                icon: Icon(Icons.account_tree_outlined),
-                selectedIcon: Icon(Icons.account_tree),
-                label: Text('Graph'),
-              ),
-            ],
-          ),
-          // 分隔线
-          const VerticalDivider(thickness: 1, width: 1),
-          // 主内容区域 - 只有这部分会切换，无动画
-          Expanded(
-            child: _screens[_selectedIndex],
-          ),
-        ],
+      appBar: UnifiedAppBar(
+        title: _pageTitles[_currentIndex],
       ),
-    );
-  }
-
-  Widget _buildMobileLayout() {
-    final healthCheckAsync = ref.watch(healthCheckProvider);
-    
-    return Scaffold(
-      // 固定的AppBar
-      appBar: AppBar(
-        title: Text('Linch Mind - ${_titles[_selectedIndex]}'),
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        actions: [
-          healthCheckAsync.when(
-            data: (isHealthy) => StatusIndicator(
-              isConnected: isHealthy,
-              onTap: () => ref.refresh(healthCheckProvider),
-            ),
-            loading: () => const CircularProgressIndicator(),
-            error: (_, __) => StatusIndicator(
-              isConnected: false,
-              onTap: () => ref.refresh(healthCheckProvider),
-            ),
-          ),
-          const SizedBox(width: 16),
-        ],
-      ),
-      // 主内容区域 - 只有这部分会切换，无动画
-      body: _screens[_selectedIndex],
-      // 固定的底部导航栏
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _selectedIndex,
-        onDestinationSelected: _onDestinationSelected,
-        destinations: const [
-          NavigationDestination(
-            icon: Icon(Icons.home_outlined),
-            selectedIcon: Icon(Icons.home),
-            label: 'Home',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.cable_outlined),
-            selectedIcon: Icon(Icons.cable),
-            label: 'Connectors',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.storage_outlined),
-            selectedIcon: Icon(Icons.storage),
-            label: 'Data',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.account_tree_outlined),
-            selectedIcon: Icon(Icons.account_tree),
-            label: 'Graph',
-          ),
-        ],
+      child: IndexedStack(
+        index: _currentIndex,
+        children: _pages,
       ),
     );
   }

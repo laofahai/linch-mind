@@ -22,7 +22,8 @@ from fastapi.middleware.cors import CORSMiddleware
 # 导入依赖管理和路由
 from api.dependencies import get_config_manager, cleanup_services
 from api.routers import health
-from api.routers.connector_lifecycle import router as connector_router
+from api.routers.connector_lifecycle_api import router as connector_lifecycle_router
+from api.routers.connector_config_api import router as connector_config_router
 
 # 初始化配置和日志
 config_manager = get_config_manager()
@@ -55,21 +56,42 @@ async def auto_start_connectors():
         
         # 获取启动结果
         connectors = manager.list_connectors()
-        running_count = len([c for c in connectors if c["state"] == "running"])
+        running_count = len([c for c in connectors if c["status"] == "running"])
         
         logger.info(f"🎉 连接器启动完成: {running_count}/{len(connectors)} 个连接器正在运行")
         
         if running_count > 0:
             for connector in connectors:
-                if connector["state"] == "running":
+                if connector["status"] == "running":
                     logger.info(f"  ✅ {connector['name']} (PID: {connector['pid']})")
                 else:
-                    logger.warning(f"  ❌ {connector['name']} - {connector['state']}")
+                    logger.warning(f"  ❌ {connector['name']} - {connector['status']}")
         
     except Exception as e:
         logger.error(f"❌ 启动连接器失败: {e}")
         import traceback
         logger.error(f"详细错误信息: {traceback.format_exc()}")
+
+
+async def start_health_check_scheduler():
+    """启动健康检查调度器"""
+    import asyncio
+    from services.connectors.connector_manager import get_connector_manager
+    
+    async def health_check_loop():
+        """定期健康检查循环"""
+        manager = get_connector_manager()
+        while True:
+            try:
+                await asyncio.sleep(30)  # 每30秒检查一次
+                manager.health_check_all_connectors()
+                logger.debug("健康检查完成")
+            except Exception as e:
+                logger.error(f"健康检查失败: {e}")
+    
+    # 启动后台任务
+    asyncio.create_task(health_check_loop())
+    logger.info("✅ 健康检查调度器已启动 (30秒间隔)")
 
 
 # 应用生命周期管理
@@ -85,6 +107,12 @@ async def lifespan(app: FastAPI):
         await auto_start_connectors()
     except Exception as e:
         logger.error(f"自动启动连接器失败: {e}")
+    
+    # 启动健康检查调度器
+    try:
+        await start_health_check_scheduler()
+    except Exception as e:
+        logger.error(f"启动健康检查调度器失败: {e}")
     
     yield
     
@@ -132,11 +160,13 @@ def create_app() -> FastAPI:
 
     # 注册路由模块
     app.include_router(health.router)
-    app.include_router(connector_router)  # 连接器API
+    app.include_router(connector_lifecycle_router)  # 连接器生命周期API
+    app.include_router(connector_config_router)     # 连接器配置管理API
     
     logger.info("📍 路由注册完成:")
     logger.info("   - Health: / /health /server/info")
-    logger.info("   - Connectors: /connectors/*")
+    logger.info("   - Connector Lifecycle: /connector-lifecycle/*")
+    logger.info("   - Connector Config: /connector-config/*")
 
     return app
 

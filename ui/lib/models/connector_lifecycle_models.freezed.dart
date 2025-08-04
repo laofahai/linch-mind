@@ -14,14 +14,14 @@ T _$identity<T>(T value) => value;
 final _privateConstructorUsedError = UnsupportedError(
     'It seems like you constructed your class using `MyClass._()`. This constructor is only meant to be used by freezed and you are not supposed to need it nor use it.\nPlease check the documentation here for more information: https://github.com/rrousselGit/freezed#adding-getters-and-methods-to-our-models');
 
-ConnectorTypeInfo _$ConnectorTypeInfoFromJson(Map<String, dynamic> json) {
-  return _ConnectorTypeInfo.fromJson(json);
+ConnectorDefinition _$ConnectorDefinitionFromJson(Map<String, dynamic> json) {
+  return _ConnectorDefinition.fromJson(json);
 }
 
 /// @nodoc
-mixin _$ConnectorTypeInfo {
-  @JsonKey(name: 'type_id')
-  String get typeId => throw _privateConstructorUsedError;
+mixin _$ConnectorDefinition {
+  @JsonKey(name: 'connector_id')
+  String get connectorId => throw _privateConstructorUsedError;
   String get name => throw _privateConstructorUsedError;
   @JsonKey(name: 'display_name')
   String get displayName => throw _privateConstructorUsedError;
@@ -30,10 +30,6 @@ mixin _$ConnectorTypeInfo {
   String get version => throw _privateConstructorUsedError;
   String get author => throw _privateConstructorUsedError;
   String get license => throw _privateConstructorUsedError;
-  @JsonKey(name: 'supports_multiple_instances')
-  bool get supportsMultipleInstances => throw _privateConstructorUsedError;
-  @JsonKey(name: 'max_instances_per_user')
-  int get maxInstancesPerUser => throw _privateConstructorUsedError;
   @JsonKey(name: 'auto_discovery')
   bool get autoDiscovery => throw _privateConstructorUsedError;
   @JsonKey(name: 'hot_config_reload')
@@ -47,29 +43,30 @@ mixin _$ConnectorTypeInfo {
   @JsonKey(name: 'config_schema')
   Map<String, dynamic> get configSchema => throw _privateConstructorUsedError;
   @JsonKey(name: 'default_config')
-  Map<String, dynamic> get defaultConfig => throw _privateConstructorUsedError;
-  @JsonKey(name: 'instance_templates')
-  List<InstanceTemplate> get instanceTemplates =>
-      throw _privateConstructorUsedError;
+  Map<String, dynamic> get defaultConfig =>
+      throw _privateConstructorUsedError; // 添加path字段来直接处理路径信息
+  String? get path => throw _privateConstructorUsedError;
+  @JsonKey(name: 'is_registered')
+  bool? get isRegistered => throw _privateConstructorUsedError;
 
-  /// Serializes this ConnectorTypeInfo to a JSON map.
+  /// Serializes this ConnectorDefinition to a JSON map.
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
 
-  /// Create a copy of ConnectorTypeInfo
+  /// Create a copy of ConnectorDefinition
   /// with the given fields replaced by the non-null parameter values.
   @JsonKey(includeFromJson: false, includeToJson: false)
-  $ConnectorTypeInfoCopyWith<ConnectorTypeInfo> get copyWith =>
+  $ConnectorDefinitionCopyWith<ConnectorDefinition> get copyWith =>
       throw _privateConstructorUsedError;
 }
 
 /// @nodoc
-abstract class $ConnectorTypeInfoCopyWith<$Res> {
-  factory $ConnectorTypeInfoCopyWith(
-          ConnectorTypeInfo value, $Res Function(ConnectorTypeInfo) then) =
-      _$ConnectorTypeInfoCopyWithImpl<$Res, ConnectorTypeInfo>;
+abstract class $ConnectorDefinitionCopyWith<$Res> {
+  factory $ConnectorDefinitionCopyWith(
+          ConnectorDefinition value, $Res Function(ConnectorDefinition) then) =
+      _$ConnectorDefinitionCopyWithImpl<$Res, ConnectorDefinition>;
   @useResult
   $Res call(
-      {@JsonKey(name: 'type_id') String typeId,
+      {@JsonKey(name: 'connector_id') String connectorId,
       String name,
       @JsonKey(name: 'display_name') String displayName,
       String description,
@@ -77,9 +74,6 @@ abstract class $ConnectorTypeInfoCopyWith<$Res> {
       String version,
       String author,
       String license,
-      @JsonKey(name: 'supports_multiple_instances')
-      bool supportsMultipleInstances,
-      @JsonKey(name: 'max_instances_per_user') int maxInstancesPerUser,
       @JsonKey(name: 'auto_discovery') bool autoDiscovery,
       @JsonKey(name: 'hot_config_reload') bool hotConfigReload,
       @JsonKey(name: 'health_check') bool healthCheck,
@@ -88,26 +82,26 @@ abstract class $ConnectorTypeInfoCopyWith<$Res> {
       List<String> permissions,
       @JsonKey(name: 'config_schema') Map<String, dynamic> configSchema,
       @JsonKey(name: 'default_config') Map<String, dynamic> defaultConfig,
-      @JsonKey(name: 'instance_templates')
-      List<InstanceTemplate> instanceTemplates});
+      String? path,
+      @JsonKey(name: 'is_registered') bool? isRegistered});
 }
 
 /// @nodoc
-class _$ConnectorTypeInfoCopyWithImpl<$Res, $Val extends ConnectorTypeInfo>
-    implements $ConnectorTypeInfoCopyWith<$Res> {
-  _$ConnectorTypeInfoCopyWithImpl(this._value, this._then);
+class _$ConnectorDefinitionCopyWithImpl<$Res, $Val extends ConnectorDefinition>
+    implements $ConnectorDefinitionCopyWith<$Res> {
+  _$ConnectorDefinitionCopyWithImpl(this._value, this._then);
 
   // ignore: unused_field
   final $Val _value;
   // ignore: unused_field
   final $Res Function($Val) _then;
 
-  /// Create a copy of ConnectorTypeInfo
+  /// Create a copy of ConnectorDefinition
   /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
-    Object? typeId = null,
+    Object? connectorId = null,
     Object? name = null,
     Object? displayName = null,
     Object? description = null,
@@ -115,8 +109,6 @@ class _$ConnectorTypeInfoCopyWithImpl<$Res, $Val extends ConnectorTypeInfo>
     Object? version = null,
     Object? author = null,
     Object? license = null,
-    Object? supportsMultipleInstances = null,
-    Object? maxInstancesPerUser = null,
     Object? autoDiscovery = null,
     Object? hotConfigReload = null,
     Object? healthCheck = null,
@@ -125,12 +117,13 @@ class _$ConnectorTypeInfoCopyWithImpl<$Res, $Val extends ConnectorTypeInfo>
     Object? permissions = null,
     Object? configSchema = null,
     Object? defaultConfig = null,
-    Object? instanceTemplates = null,
+    Object? path = freezed,
+    Object? isRegistered = freezed,
   }) {
     return _then(_value.copyWith(
-      typeId: null == typeId
-          ? _value.typeId
-          : typeId // ignore: cast_nullable_to_non_nullable
+      connectorId: null == connectorId
+          ? _value.connectorId
+          : connectorId // ignore: cast_nullable_to_non_nullable
               as String,
       name: null == name
           ? _value.name
@@ -160,14 +153,6 @@ class _$ConnectorTypeInfoCopyWithImpl<$Res, $Val extends ConnectorTypeInfo>
           ? _value.license
           : license // ignore: cast_nullable_to_non_nullable
               as String,
-      supportsMultipleInstances: null == supportsMultipleInstances
-          ? _value.supportsMultipleInstances
-          : supportsMultipleInstances // ignore: cast_nullable_to_non_nullable
-              as bool,
-      maxInstancesPerUser: null == maxInstancesPerUser
-          ? _value.maxInstancesPerUser
-          : maxInstancesPerUser // ignore: cast_nullable_to_non_nullable
-              as int,
       autoDiscovery: null == autoDiscovery
           ? _value.autoDiscovery
           : autoDiscovery // ignore: cast_nullable_to_non_nullable
@@ -200,24 +185,28 @@ class _$ConnectorTypeInfoCopyWithImpl<$Res, $Val extends ConnectorTypeInfo>
           ? _value.defaultConfig
           : defaultConfig // ignore: cast_nullable_to_non_nullable
               as Map<String, dynamic>,
-      instanceTemplates: null == instanceTemplates
-          ? _value.instanceTemplates
-          : instanceTemplates // ignore: cast_nullable_to_non_nullable
-              as List<InstanceTemplate>,
+      path: freezed == path
+          ? _value.path
+          : path // ignore: cast_nullable_to_non_nullable
+              as String?,
+      isRegistered: freezed == isRegistered
+          ? _value.isRegistered
+          : isRegistered // ignore: cast_nullable_to_non_nullable
+              as bool?,
     ) as $Val);
   }
 }
 
 /// @nodoc
-abstract class _$$ConnectorTypeInfoImplCopyWith<$Res>
-    implements $ConnectorTypeInfoCopyWith<$Res> {
-  factory _$$ConnectorTypeInfoImplCopyWith(_$ConnectorTypeInfoImpl value,
-          $Res Function(_$ConnectorTypeInfoImpl) then) =
-      __$$ConnectorTypeInfoImplCopyWithImpl<$Res>;
+abstract class _$$ConnectorDefinitionImplCopyWith<$Res>
+    implements $ConnectorDefinitionCopyWith<$Res> {
+  factory _$$ConnectorDefinitionImplCopyWith(_$ConnectorDefinitionImpl value,
+          $Res Function(_$ConnectorDefinitionImpl) then) =
+      __$$ConnectorDefinitionImplCopyWithImpl<$Res>;
   @override
   @useResult
   $Res call(
-      {@JsonKey(name: 'type_id') String typeId,
+      {@JsonKey(name: 'connector_id') String connectorId,
       String name,
       @JsonKey(name: 'display_name') String displayName,
       String description,
@@ -225,9 +214,6 @@ abstract class _$$ConnectorTypeInfoImplCopyWith<$Res>
       String version,
       String author,
       String license,
-      @JsonKey(name: 'supports_multiple_instances')
-      bool supportsMultipleInstances,
-      @JsonKey(name: 'max_instances_per_user') int maxInstancesPerUser,
       @JsonKey(name: 'auto_discovery') bool autoDiscovery,
       @JsonKey(name: 'hot_config_reload') bool hotConfigReload,
       @JsonKey(name: 'health_check') bool healthCheck,
@@ -236,24 +222,24 @@ abstract class _$$ConnectorTypeInfoImplCopyWith<$Res>
       List<String> permissions,
       @JsonKey(name: 'config_schema') Map<String, dynamic> configSchema,
       @JsonKey(name: 'default_config') Map<String, dynamic> defaultConfig,
-      @JsonKey(name: 'instance_templates')
-      List<InstanceTemplate> instanceTemplates});
+      String? path,
+      @JsonKey(name: 'is_registered') bool? isRegistered});
 }
 
 /// @nodoc
-class __$$ConnectorTypeInfoImplCopyWithImpl<$Res>
-    extends _$ConnectorTypeInfoCopyWithImpl<$Res, _$ConnectorTypeInfoImpl>
-    implements _$$ConnectorTypeInfoImplCopyWith<$Res> {
-  __$$ConnectorTypeInfoImplCopyWithImpl(_$ConnectorTypeInfoImpl _value,
-      $Res Function(_$ConnectorTypeInfoImpl) _then)
+class __$$ConnectorDefinitionImplCopyWithImpl<$Res>
+    extends _$ConnectorDefinitionCopyWithImpl<$Res, _$ConnectorDefinitionImpl>
+    implements _$$ConnectorDefinitionImplCopyWith<$Res> {
+  __$$ConnectorDefinitionImplCopyWithImpl(_$ConnectorDefinitionImpl _value,
+      $Res Function(_$ConnectorDefinitionImpl) _then)
       : super(_value, _then);
 
-  /// Create a copy of ConnectorTypeInfo
+  /// Create a copy of ConnectorDefinition
   /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
-    Object? typeId = null,
+    Object? connectorId = null,
     Object? name = null,
     Object? displayName = null,
     Object? description = null,
@@ -261,8 +247,6 @@ class __$$ConnectorTypeInfoImplCopyWithImpl<$Res>
     Object? version = null,
     Object? author = null,
     Object? license = null,
-    Object? supportsMultipleInstances = null,
-    Object? maxInstancesPerUser = null,
     Object? autoDiscovery = null,
     Object? hotConfigReload = null,
     Object? healthCheck = null,
@@ -271,12 +255,13 @@ class __$$ConnectorTypeInfoImplCopyWithImpl<$Res>
     Object? permissions = null,
     Object? configSchema = null,
     Object? defaultConfig = null,
-    Object? instanceTemplates = null,
+    Object? path = freezed,
+    Object? isRegistered = freezed,
   }) {
-    return _then(_$ConnectorTypeInfoImpl(
-      typeId: null == typeId
-          ? _value.typeId
-          : typeId // ignore: cast_nullable_to_non_nullable
+    return _then(_$ConnectorDefinitionImpl(
+      connectorId: null == connectorId
+          ? _value.connectorId
+          : connectorId // ignore: cast_nullable_to_non_nullable
               as String,
       name: null == name
           ? _value.name
@@ -306,14 +291,6 @@ class __$$ConnectorTypeInfoImplCopyWithImpl<$Res>
           ? _value.license
           : license // ignore: cast_nullable_to_non_nullable
               as String,
-      supportsMultipleInstances: null == supportsMultipleInstances
-          ? _value.supportsMultipleInstances
-          : supportsMultipleInstances // ignore: cast_nullable_to_non_nullable
-              as bool,
-      maxInstancesPerUser: null == maxInstancesPerUser
-          ? _value.maxInstancesPerUser
-          : maxInstancesPerUser // ignore: cast_nullable_to_non_nullable
-              as int,
       autoDiscovery: null == autoDiscovery
           ? _value.autoDiscovery
           : autoDiscovery // ignore: cast_nullable_to_non_nullable
@@ -346,19 +323,23 @@ class __$$ConnectorTypeInfoImplCopyWithImpl<$Res>
           ? _value._defaultConfig
           : defaultConfig // ignore: cast_nullable_to_non_nullable
               as Map<String, dynamic>,
-      instanceTemplates: null == instanceTemplates
-          ? _value._instanceTemplates
-          : instanceTemplates // ignore: cast_nullable_to_non_nullable
-              as List<InstanceTemplate>,
+      path: freezed == path
+          ? _value.path
+          : path // ignore: cast_nullable_to_non_nullable
+              as String?,
+      isRegistered: freezed == isRegistered
+          ? _value.isRegistered
+          : isRegistered // ignore: cast_nullable_to_non_nullable
+              as bool?,
     ));
   }
 }
 
 /// @nodoc
 @JsonSerializable()
-class _$ConnectorTypeInfoImpl implements _ConnectorTypeInfo {
-  const _$ConnectorTypeInfoImpl(
-      {@JsonKey(name: 'type_id') required this.typeId,
+class _$ConnectorDefinitionImpl implements _ConnectorDefinition {
+  const _$ConnectorDefinitionImpl(
+      {@JsonKey(name: 'connector_id') required this.connectorId,
       required this.name,
       @JsonKey(name: 'display_name') required this.displayName,
       required this.description,
@@ -366,9 +347,6 @@ class _$ConnectorTypeInfoImpl implements _ConnectorTypeInfo {
       required this.version,
       required this.author,
       this.license = '',
-      @JsonKey(name: 'supports_multiple_instances')
-      this.supportsMultipleInstances = false,
-      @JsonKey(name: 'max_instances_per_user') this.maxInstancesPerUser = 1,
       @JsonKey(name: 'auto_discovery') this.autoDiscovery = false,
       @JsonKey(name: 'hot_config_reload') this.hotConfigReload = true,
       @JsonKey(name: 'health_check') this.healthCheck = true,
@@ -379,20 +357,19 @@ class _$ConnectorTypeInfoImpl implements _ConnectorTypeInfo {
       final Map<String, dynamic> configSchema = const {},
       @JsonKey(name: 'default_config')
       final Map<String, dynamic> defaultConfig = const {},
-      @JsonKey(name: 'instance_templates')
-      final List<InstanceTemplate> instanceTemplates = const []})
+      this.path,
+      @JsonKey(name: 'is_registered') this.isRegistered})
       : _dependencies = dependencies,
         _permissions = permissions,
         _configSchema = configSchema,
-        _defaultConfig = defaultConfig,
-        _instanceTemplates = instanceTemplates;
+        _defaultConfig = defaultConfig;
 
-  factory _$ConnectorTypeInfoImpl.fromJson(Map<String, dynamic> json) =>
-      _$$ConnectorTypeInfoImplFromJson(json);
+  factory _$ConnectorDefinitionImpl.fromJson(Map<String, dynamic> json) =>
+      _$$ConnectorDefinitionImplFromJson(json);
 
   @override
-  @JsonKey(name: 'type_id')
-  final String typeId;
+  @JsonKey(name: 'connector_id')
+  final String connectorId;
   @override
   final String name;
   @override
@@ -409,12 +386,6 @@ class _$ConnectorTypeInfoImpl implements _ConnectorTypeInfo {
   @override
   @JsonKey()
   final String license;
-  @override
-  @JsonKey(name: 'supports_multiple_instances')
-  final bool supportsMultipleInstances;
-  @override
-  @JsonKey(name: 'max_instances_per_user')
-  final int maxInstancesPerUser;
   @override
   @JsonKey(name: 'auto_discovery')
   final bool autoDiscovery;
@@ -463,27 +434,25 @@ class _$ConnectorTypeInfoImpl implements _ConnectorTypeInfo {
     return EqualUnmodifiableMapView(_defaultConfig);
   }
 
-  final List<InstanceTemplate> _instanceTemplates;
+// 添加path字段来直接处理路径信息
   @override
-  @JsonKey(name: 'instance_templates')
-  List<InstanceTemplate> get instanceTemplates {
-    if (_instanceTemplates is EqualUnmodifiableListView)
-      return _instanceTemplates;
-    // ignore: implicit_dynamic_type
-    return EqualUnmodifiableListView(_instanceTemplates);
-  }
+  final String? path;
+  @override
+  @JsonKey(name: 'is_registered')
+  final bool? isRegistered;
 
   @override
   String toString() {
-    return 'ConnectorTypeInfo(typeId: $typeId, name: $name, displayName: $displayName, description: $description, category: $category, version: $version, author: $author, license: $license, supportsMultipleInstances: $supportsMultipleInstances, maxInstancesPerUser: $maxInstancesPerUser, autoDiscovery: $autoDiscovery, hotConfigReload: $hotConfigReload, healthCheck: $healthCheck, entryPoint: $entryPoint, dependencies: $dependencies, permissions: $permissions, configSchema: $configSchema, defaultConfig: $defaultConfig, instanceTemplates: $instanceTemplates)';
+    return 'ConnectorDefinition(connectorId: $connectorId, name: $name, displayName: $displayName, description: $description, category: $category, version: $version, author: $author, license: $license, autoDiscovery: $autoDiscovery, hotConfigReload: $hotConfigReload, healthCheck: $healthCheck, entryPoint: $entryPoint, dependencies: $dependencies, permissions: $permissions, configSchema: $configSchema, defaultConfig: $defaultConfig, path: $path, isRegistered: $isRegistered)';
   }
 
   @override
   bool operator ==(Object other) {
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
-            other is _$ConnectorTypeInfoImpl &&
-            (identical(other.typeId, typeId) || other.typeId == typeId) &&
+            other is _$ConnectorDefinitionImpl &&
+            (identical(other.connectorId, connectorId) ||
+                other.connectorId == connectorId) &&
             (identical(other.name, name) || other.name == name) &&
             (identical(other.displayName, displayName) ||
                 other.displayName == displayName) &&
@@ -494,11 +463,6 @@ class _$ConnectorTypeInfoImpl implements _ConnectorTypeInfo {
             (identical(other.version, version) || other.version == version) &&
             (identical(other.author, author) || other.author == author) &&
             (identical(other.license, license) || other.license == license) &&
-            (identical(other.supportsMultipleInstances,
-                    supportsMultipleInstances) ||
-                other.supportsMultipleInstances == supportsMultipleInstances) &&
-            (identical(other.maxInstancesPerUser, maxInstancesPerUser) ||
-                other.maxInstancesPerUser == maxInstancesPerUser) &&
             (identical(other.autoDiscovery, autoDiscovery) ||
                 other.autoDiscovery == autoDiscovery) &&
             (identical(other.hotConfigReload, hotConfigReload) ||
@@ -515,55 +479,54 @@ class _$ConnectorTypeInfoImpl implements _ConnectorTypeInfo {
                 .equals(other._configSchema, _configSchema) &&
             const DeepCollectionEquality()
                 .equals(other._defaultConfig, _defaultConfig) &&
-            const DeepCollectionEquality()
-                .equals(other._instanceTemplates, _instanceTemplates));
+            (identical(other.path, path) || other.path == path) &&
+            (identical(other.isRegistered, isRegistered) ||
+                other.isRegistered == isRegistered));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
   @override
-  int get hashCode => Object.hashAll([
-        runtimeType,
-        typeId,
-        name,
-        displayName,
-        description,
-        category,
-        version,
-        author,
-        license,
-        supportsMultipleInstances,
-        maxInstancesPerUser,
-        autoDiscovery,
-        hotConfigReload,
-        healthCheck,
-        entryPoint,
-        const DeepCollectionEquality().hash(_dependencies),
-        const DeepCollectionEquality().hash(_permissions),
-        const DeepCollectionEquality().hash(_configSchema),
-        const DeepCollectionEquality().hash(_defaultConfig),
-        const DeepCollectionEquality().hash(_instanceTemplates)
-      ]);
+  int get hashCode => Object.hash(
+      runtimeType,
+      connectorId,
+      name,
+      displayName,
+      description,
+      category,
+      version,
+      author,
+      license,
+      autoDiscovery,
+      hotConfigReload,
+      healthCheck,
+      entryPoint,
+      const DeepCollectionEquality().hash(_dependencies),
+      const DeepCollectionEquality().hash(_permissions),
+      const DeepCollectionEquality().hash(_configSchema),
+      const DeepCollectionEquality().hash(_defaultConfig),
+      path,
+      isRegistered);
 
-  /// Create a copy of ConnectorTypeInfo
+  /// Create a copy of ConnectorDefinition
   /// with the given fields replaced by the non-null parameter values.
   @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   @pragma('vm:prefer-inline')
-  _$$ConnectorTypeInfoImplCopyWith<_$ConnectorTypeInfoImpl> get copyWith =>
-      __$$ConnectorTypeInfoImplCopyWithImpl<_$ConnectorTypeInfoImpl>(
+  _$$ConnectorDefinitionImplCopyWith<_$ConnectorDefinitionImpl> get copyWith =>
+      __$$ConnectorDefinitionImplCopyWithImpl<_$ConnectorDefinitionImpl>(
           this, _$identity);
 
   @override
   Map<String, dynamic> toJson() {
-    return _$$ConnectorTypeInfoImplToJson(
+    return _$$ConnectorDefinitionImplToJson(
       this,
     );
   }
 }
 
-abstract class _ConnectorTypeInfo implements ConnectorTypeInfo {
-  const factory _ConnectorTypeInfo(
-      {@JsonKey(name: 'type_id') required final String typeId,
+abstract class _ConnectorDefinition implements ConnectorDefinition {
+  const factory _ConnectorDefinition(
+      {@JsonKey(name: 'connector_id') required final String connectorId,
       required final String name,
       @JsonKey(name: 'display_name') required final String displayName,
       required final String description,
@@ -571,9 +534,6 @@ abstract class _ConnectorTypeInfo implements ConnectorTypeInfo {
       required final String version,
       required final String author,
       final String license,
-      @JsonKey(name: 'supports_multiple_instances')
-      final bool supportsMultipleInstances,
-      @JsonKey(name: 'max_instances_per_user') final int maxInstancesPerUser,
       @JsonKey(name: 'auto_discovery') final bool autoDiscovery,
       @JsonKey(name: 'hot_config_reload') final bool hotConfigReload,
       @JsonKey(name: 'health_check') final bool healthCheck,
@@ -582,16 +542,16 @@ abstract class _ConnectorTypeInfo implements ConnectorTypeInfo {
       final List<String> permissions,
       @JsonKey(name: 'config_schema') final Map<String, dynamic> configSchema,
       @JsonKey(name: 'default_config') final Map<String, dynamic> defaultConfig,
-      @JsonKey(name: 'instance_templates')
-      final List<InstanceTemplate>
-          instanceTemplates}) = _$ConnectorTypeInfoImpl;
+      final String? path,
+      @JsonKey(name: 'is_registered')
+      final bool? isRegistered}) = _$ConnectorDefinitionImpl;
 
-  factory _ConnectorTypeInfo.fromJson(Map<String, dynamic> json) =
-      _$ConnectorTypeInfoImpl.fromJson;
+  factory _ConnectorDefinition.fromJson(Map<String, dynamic> json) =
+      _$ConnectorDefinitionImpl.fromJson;
 
   @override
-  @JsonKey(name: 'type_id')
-  String get typeId;
+  @JsonKey(name: 'connector_id')
+  String get connectorId;
   @override
   String get name;
   @override
@@ -607,12 +567,6 @@ abstract class _ConnectorTypeInfo implements ConnectorTypeInfo {
   String get author;
   @override
   String get license;
-  @override
-  @JsonKey(name: 'supports_multiple_instances')
-  bool get supportsMultipleInstances;
-  @override
-  @JsonKey(name: 'max_instances_per_user')
-  int get maxInstancesPerUser;
   @override
   @JsonKey(name: 'auto_discovery')
   bool get autoDiscovery;
@@ -634,16 +588,18 @@ abstract class _ConnectorTypeInfo implements ConnectorTypeInfo {
   Map<String, dynamic> get configSchema;
   @override
   @JsonKey(name: 'default_config')
-  Map<String, dynamic> get defaultConfig;
+  Map<String, dynamic> get defaultConfig; // 添加path字段来直接处理路径信息
   @override
-  @JsonKey(name: 'instance_templates')
-  List<InstanceTemplate> get instanceTemplates;
+  String? get path;
+  @override
+  @JsonKey(name: 'is_registered')
+  bool? get isRegistered;
 
-  /// Create a copy of ConnectorTypeInfo
+  /// Create a copy of ConnectorDefinition
   /// with the given fields replaced by the non-null parameter values.
   @override
   @JsonKey(includeFromJson: false, includeToJson: false)
-  _$$ConnectorTypeInfoImplCopyWith<_$ConnectorTypeInfoImpl> get copyWith =>
+  _$$ConnectorDefinitionImplCopyWith<_$ConnectorDefinitionImpl> get copyWith =>
       throw _privateConstructorUsedError;
 }
 
@@ -870,21 +826,16 @@ abstract class _InstanceTemplate implements InstanceTemplate {
       throw _privateConstructorUsedError;
 }
 
-ConnectorInstanceInfo _$ConnectorInstanceInfoFromJson(
-    Map<String, dynamic> json) {
-  return _ConnectorInstanceInfo.fromJson(json);
+ConnectorInfo _$ConnectorInfoFromJson(Map<String, dynamic> json) {
+  return _ConnectorInfo.fromJson(json);
 }
 
 /// @nodoc
-mixin _$ConnectorInstanceInfo {
-  @JsonKey(name: 'instance_id')
-  String get instanceId => throw _privateConstructorUsedError;
+mixin _$ConnectorInfo {
+  @JsonKey(name: 'collector_id')
+  String get collectorId => throw _privateConstructorUsedError;
   @JsonKey(name: 'display_name')
   String get displayName => throw _privateConstructorUsedError;
-  @JsonKey(name: 'type_id')
-  String get typeId => throw _privateConstructorUsedError;
-  @JsonKey(name: 'type_name')
-  String get typeName => throw _privateConstructorUsedError;
   ConnectorState get state => throw _privateConstructorUsedError;
   bool get enabled => throw _privateConstructorUsedError;
   @JsonKey(name: 'auto_start')
@@ -903,27 +854,25 @@ mixin _$ConnectorInstanceInfo {
   DateTime? get updatedAt => throw _privateConstructorUsedError;
   Map<String, dynamic> get config => throw _privateConstructorUsedError;
 
-  /// Serializes this ConnectorInstanceInfo to a JSON map.
+  /// Serializes this ConnectorInfo to a JSON map.
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
 
-  /// Create a copy of ConnectorInstanceInfo
+  /// Create a copy of ConnectorInfo
   /// with the given fields replaced by the non-null parameter values.
   @JsonKey(includeFromJson: false, includeToJson: false)
-  $ConnectorInstanceInfoCopyWith<ConnectorInstanceInfo> get copyWith =>
+  $ConnectorInfoCopyWith<ConnectorInfo> get copyWith =>
       throw _privateConstructorUsedError;
 }
 
 /// @nodoc
-abstract class $ConnectorInstanceInfoCopyWith<$Res> {
-  factory $ConnectorInstanceInfoCopyWith(ConnectorInstanceInfo value,
-          $Res Function(ConnectorInstanceInfo) then) =
-      _$ConnectorInstanceInfoCopyWithImpl<$Res, ConnectorInstanceInfo>;
+abstract class $ConnectorInfoCopyWith<$Res> {
+  factory $ConnectorInfoCopyWith(
+          ConnectorInfo value, $Res Function(ConnectorInfo) then) =
+      _$ConnectorInfoCopyWithImpl<$Res, ConnectorInfo>;
   @useResult
   $Res call(
-      {@JsonKey(name: 'instance_id') String instanceId,
+      {@JsonKey(name: 'collector_id') String collectorId,
       @JsonKey(name: 'display_name') String displayName,
-      @JsonKey(name: 'type_id') String typeId,
-      @JsonKey(name: 'type_name') String typeName,
       ConnectorState state,
       bool enabled,
       @JsonKey(name: 'auto_start') bool autoStart,
@@ -937,25 +886,22 @@ abstract class $ConnectorInstanceInfoCopyWith<$Res> {
 }
 
 /// @nodoc
-class _$ConnectorInstanceInfoCopyWithImpl<$Res,
-        $Val extends ConnectorInstanceInfo>
-    implements $ConnectorInstanceInfoCopyWith<$Res> {
-  _$ConnectorInstanceInfoCopyWithImpl(this._value, this._then);
+class _$ConnectorInfoCopyWithImpl<$Res, $Val extends ConnectorInfo>
+    implements $ConnectorInfoCopyWith<$Res> {
+  _$ConnectorInfoCopyWithImpl(this._value, this._then);
 
   // ignore: unused_field
   final $Val _value;
   // ignore: unused_field
   final $Res Function($Val) _then;
 
-  /// Create a copy of ConnectorInstanceInfo
+  /// Create a copy of ConnectorInfo
   /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
-    Object? instanceId = null,
+    Object? collectorId = null,
     Object? displayName = null,
-    Object? typeId = null,
-    Object? typeName = null,
     Object? state = null,
     Object? enabled = null,
     Object? autoStart = null,
@@ -968,21 +914,13 @@ class _$ConnectorInstanceInfoCopyWithImpl<$Res,
     Object? config = null,
   }) {
     return _then(_value.copyWith(
-      instanceId: null == instanceId
-          ? _value.instanceId
-          : instanceId // ignore: cast_nullable_to_non_nullable
+      collectorId: null == collectorId
+          ? _value.collectorId
+          : collectorId // ignore: cast_nullable_to_non_nullable
               as String,
       displayName: null == displayName
           ? _value.displayName
           : displayName // ignore: cast_nullable_to_non_nullable
-              as String,
-      typeId: null == typeId
-          ? _value.typeId
-          : typeId // ignore: cast_nullable_to_non_nullable
-              as String,
-      typeName: null == typeName
-          ? _value.typeName
-          : typeName // ignore: cast_nullable_to_non_nullable
               as String,
       state: null == state
           ? _value.state
@@ -1029,19 +967,16 @@ class _$ConnectorInstanceInfoCopyWithImpl<$Res,
 }
 
 /// @nodoc
-abstract class _$$ConnectorInstanceInfoImplCopyWith<$Res>
-    implements $ConnectorInstanceInfoCopyWith<$Res> {
-  factory _$$ConnectorInstanceInfoImplCopyWith(
-          _$ConnectorInstanceInfoImpl value,
-          $Res Function(_$ConnectorInstanceInfoImpl) then) =
-      __$$ConnectorInstanceInfoImplCopyWithImpl<$Res>;
+abstract class _$$ConnectorInfoImplCopyWith<$Res>
+    implements $ConnectorInfoCopyWith<$Res> {
+  factory _$$ConnectorInfoImplCopyWith(
+          _$ConnectorInfoImpl value, $Res Function(_$ConnectorInfoImpl) then) =
+      __$$ConnectorInfoImplCopyWithImpl<$Res>;
   @override
   @useResult
   $Res call(
-      {@JsonKey(name: 'instance_id') String instanceId,
+      {@JsonKey(name: 'collector_id') String collectorId,
       @JsonKey(name: 'display_name') String displayName,
-      @JsonKey(name: 'type_id') String typeId,
-      @JsonKey(name: 'type_name') String typeName,
       ConnectorState state,
       bool enabled,
       @JsonKey(name: 'auto_start') bool autoStart,
@@ -1055,23 +990,20 @@ abstract class _$$ConnectorInstanceInfoImplCopyWith<$Res>
 }
 
 /// @nodoc
-class __$$ConnectorInstanceInfoImplCopyWithImpl<$Res>
-    extends _$ConnectorInstanceInfoCopyWithImpl<$Res,
-        _$ConnectorInstanceInfoImpl>
-    implements _$$ConnectorInstanceInfoImplCopyWith<$Res> {
-  __$$ConnectorInstanceInfoImplCopyWithImpl(_$ConnectorInstanceInfoImpl _value,
-      $Res Function(_$ConnectorInstanceInfoImpl) _then)
+class __$$ConnectorInfoImplCopyWithImpl<$Res>
+    extends _$ConnectorInfoCopyWithImpl<$Res, _$ConnectorInfoImpl>
+    implements _$$ConnectorInfoImplCopyWith<$Res> {
+  __$$ConnectorInfoImplCopyWithImpl(
+      _$ConnectorInfoImpl _value, $Res Function(_$ConnectorInfoImpl) _then)
       : super(_value, _then);
 
-  /// Create a copy of ConnectorInstanceInfo
+  /// Create a copy of ConnectorInfo
   /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
-    Object? instanceId = null,
+    Object? collectorId = null,
     Object? displayName = null,
-    Object? typeId = null,
-    Object? typeName = null,
     Object? state = null,
     Object? enabled = null,
     Object? autoStart = null,
@@ -1083,22 +1015,14 @@ class __$$ConnectorInstanceInfoImplCopyWithImpl<$Res>
     Object? updatedAt = freezed,
     Object? config = null,
   }) {
-    return _then(_$ConnectorInstanceInfoImpl(
-      instanceId: null == instanceId
-          ? _value.instanceId
-          : instanceId // ignore: cast_nullable_to_non_nullable
+    return _then(_$ConnectorInfoImpl(
+      collectorId: null == collectorId
+          ? _value.collectorId
+          : collectorId // ignore: cast_nullable_to_non_nullable
               as String,
       displayName: null == displayName
           ? _value.displayName
           : displayName // ignore: cast_nullable_to_non_nullable
-              as String,
-      typeId: null == typeId
-          ? _value.typeId
-          : typeId // ignore: cast_nullable_to_non_nullable
-              as String,
-      typeName: null == typeName
-          ? _value.typeName
-          : typeName // ignore: cast_nullable_to_non_nullable
               as String,
       state: null == state
           ? _value.state
@@ -1146,12 +1070,10 @@ class __$$ConnectorInstanceInfoImplCopyWithImpl<$Res>
 
 /// @nodoc
 @JsonSerializable()
-class _$ConnectorInstanceInfoImpl implements _ConnectorInstanceInfo {
-  const _$ConnectorInstanceInfoImpl(
-      {@JsonKey(name: 'instance_id') required this.instanceId,
+class _$ConnectorInfoImpl implements _ConnectorInfo {
+  const _$ConnectorInfoImpl(
+      {@JsonKey(name: 'collector_id') required this.collectorId,
       @JsonKey(name: 'display_name') required this.displayName,
-      @JsonKey(name: 'type_id') required this.typeId,
-      @JsonKey(name: 'type_name') this.typeName = '未知',
       required this.state,
       this.enabled = true,
       @JsonKey(name: 'auto_start') this.autoStart = true,
@@ -1164,21 +1086,15 @@ class _$ConnectorInstanceInfoImpl implements _ConnectorInstanceInfo {
       final Map<String, dynamic> config = const {}})
       : _config = config;
 
-  factory _$ConnectorInstanceInfoImpl.fromJson(Map<String, dynamic> json) =>
-      _$$ConnectorInstanceInfoImplFromJson(json);
+  factory _$ConnectorInfoImpl.fromJson(Map<String, dynamic> json) =>
+      _$$ConnectorInfoImplFromJson(json);
 
   @override
-  @JsonKey(name: 'instance_id')
-  final String instanceId;
+  @JsonKey(name: 'collector_id')
+  final String collectorId;
   @override
   @JsonKey(name: 'display_name')
   final String displayName;
-  @override
-  @JsonKey(name: 'type_id')
-  final String typeId;
-  @override
-  @JsonKey(name: 'type_name')
-  final String typeName;
   @override
   final ConnectorState state;
   @override
@@ -1216,21 +1132,18 @@ class _$ConnectorInstanceInfoImpl implements _ConnectorInstanceInfo {
 
   @override
   String toString() {
-    return 'ConnectorInstanceInfo(instanceId: $instanceId, displayName: $displayName, typeId: $typeId, typeName: $typeName, state: $state, enabled: $enabled, autoStart: $autoStart, processId: $processId, lastHeartbeat: $lastHeartbeat, dataCount: $dataCount, errorMessage: $errorMessage, createdAt: $createdAt, updatedAt: $updatedAt, config: $config)';
+    return 'ConnectorInfo(collectorId: $collectorId, displayName: $displayName, state: $state, enabled: $enabled, autoStart: $autoStart, processId: $processId, lastHeartbeat: $lastHeartbeat, dataCount: $dataCount, errorMessage: $errorMessage, createdAt: $createdAt, updatedAt: $updatedAt, config: $config)';
   }
 
   @override
   bool operator ==(Object other) {
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
-            other is _$ConnectorInstanceInfoImpl &&
-            (identical(other.instanceId, instanceId) ||
-                other.instanceId == instanceId) &&
+            other is _$ConnectorInfoImpl &&
+            (identical(other.collectorId, collectorId) ||
+                other.collectorId == collectorId) &&
             (identical(other.displayName, displayName) ||
                 other.displayName == displayName) &&
-            (identical(other.typeId, typeId) || other.typeId == typeId) &&
-            (identical(other.typeName, typeName) ||
-                other.typeName == typeName) &&
             (identical(other.state, state) || other.state == state) &&
             (identical(other.enabled, enabled) || other.enabled == enabled) &&
             (identical(other.autoStart, autoStart) ||
@@ -1254,10 +1167,8 @@ class _$ConnectorInstanceInfoImpl implements _ConnectorInstanceInfo {
   @override
   int get hashCode => Object.hash(
       runtimeType,
-      instanceId,
+      collectorId,
       displayName,
-      typeId,
-      typeName,
       state,
       enabled,
       autoStart,
@@ -1269,29 +1180,26 @@ class _$ConnectorInstanceInfoImpl implements _ConnectorInstanceInfo {
       updatedAt,
       const DeepCollectionEquality().hash(_config));
 
-  /// Create a copy of ConnectorInstanceInfo
+  /// Create a copy of ConnectorInfo
   /// with the given fields replaced by the non-null parameter values.
   @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   @pragma('vm:prefer-inline')
-  _$$ConnectorInstanceInfoImplCopyWith<_$ConnectorInstanceInfoImpl>
-      get copyWith => __$$ConnectorInstanceInfoImplCopyWithImpl<
-          _$ConnectorInstanceInfoImpl>(this, _$identity);
+  _$$ConnectorInfoImplCopyWith<_$ConnectorInfoImpl> get copyWith =>
+      __$$ConnectorInfoImplCopyWithImpl<_$ConnectorInfoImpl>(this, _$identity);
 
   @override
   Map<String, dynamic> toJson() {
-    return _$$ConnectorInstanceInfoImplToJson(
+    return _$$ConnectorInfoImplToJson(
       this,
     );
   }
 }
 
-abstract class _ConnectorInstanceInfo implements ConnectorInstanceInfo {
-  const factory _ConnectorInstanceInfo(
-      {@JsonKey(name: 'instance_id') required final String instanceId,
+abstract class _ConnectorInfo implements ConnectorInfo {
+  const factory _ConnectorInfo(
+      {@JsonKey(name: 'collector_id') required final String collectorId,
       @JsonKey(name: 'display_name') required final String displayName,
-      @JsonKey(name: 'type_id') required final String typeId,
-      @JsonKey(name: 'type_name') final String typeName,
       required final ConnectorState state,
       final bool enabled,
       @JsonKey(name: 'auto_start') final bool autoStart,
@@ -1301,23 +1209,17 @@ abstract class _ConnectorInstanceInfo implements ConnectorInstanceInfo {
       @JsonKey(name: 'error_message') final String? errorMessage,
       @JsonKey(name: 'created_at') final DateTime? createdAt,
       @JsonKey(name: 'updated_at') final DateTime? updatedAt,
-      final Map<String, dynamic> config}) = _$ConnectorInstanceInfoImpl;
+      final Map<String, dynamic> config}) = _$ConnectorInfoImpl;
 
-  factory _ConnectorInstanceInfo.fromJson(Map<String, dynamic> json) =
-      _$ConnectorInstanceInfoImpl.fromJson;
+  factory _ConnectorInfo.fromJson(Map<String, dynamic> json) =
+      _$ConnectorInfoImpl.fromJson;
 
   @override
-  @JsonKey(name: 'instance_id')
-  String get instanceId;
+  @JsonKey(name: 'collector_id')
+  String get collectorId;
   @override
   @JsonKey(name: 'display_name')
   String get displayName;
-  @override
-  @JsonKey(name: 'type_id')
-  String get typeId;
-  @override
-  @JsonKey(name: 'type_name')
-  String get typeName;
   @override
   ConnectorState get state;
   @override
@@ -1346,23 +1248,23 @@ abstract class _ConnectorInstanceInfo implements ConnectorInstanceInfo {
   @override
   Map<String, dynamic> get config;
 
-  /// Create a copy of ConnectorInstanceInfo
+  /// Create a copy of ConnectorInfo
   /// with the given fields replaced by the non-null parameter values.
   @override
   @JsonKey(includeFromJson: false, includeToJson: false)
-  _$$ConnectorInstanceInfoImplCopyWith<_$ConnectorInstanceInfoImpl>
-      get copyWith => throw _privateConstructorUsedError;
+  _$$ConnectorInfoImplCopyWith<_$ConnectorInfoImpl> get copyWith =>
+      throw _privateConstructorUsedError;
 }
 
-CreateInstanceRequest _$CreateInstanceRequestFromJson(
+CreateConnectorRequest _$CreateConnectorRequestFromJson(
     Map<String, dynamic> json) {
-  return _CreateInstanceRequest.fromJson(json);
+  return _CreateConnectorRequest.fromJson(json);
 }
 
 /// @nodoc
-mixin _$CreateInstanceRequest {
-  @JsonKey(name: 'type_id')
-  String get typeId => throw _privateConstructorUsedError;
+mixin _$CreateConnectorRequest {
+  @JsonKey(name: 'connector_id')
+  String get connectorId => throw _privateConstructorUsedError;
   @JsonKey(name: 'display_name')
   String get displayName => throw _privateConstructorUsedError;
   Map<String, dynamic> get config => throw _privateConstructorUsedError;
@@ -1371,24 +1273,24 @@ mixin _$CreateInstanceRequest {
   @JsonKey(name: 'template_id')
   String? get templateId => throw _privateConstructorUsedError;
 
-  /// Serializes this CreateInstanceRequest to a JSON map.
+  /// Serializes this CreateConnectorRequest to a JSON map.
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
 
-  /// Create a copy of CreateInstanceRequest
+  /// Create a copy of CreateConnectorRequest
   /// with the given fields replaced by the non-null parameter values.
   @JsonKey(includeFromJson: false, includeToJson: false)
-  $CreateInstanceRequestCopyWith<CreateInstanceRequest> get copyWith =>
+  $CreateConnectorRequestCopyWith<CreateConnectorRequest> get copyWith =>
       throw _privateConstructorUsedError;
 }
 
 /// @nodoc
-abstract class $CreateInstanceRequestCopyWith<$Res> {
-  factory $CreateInstanceRequestCopyWith(CreateInstanceRequest value,
-          $Res Function(CreateInstanceRequest) then) =
-      _$CreateInstanceRequestCopyWithImpl<$Res, CreateInstanceRequest>;
+abstract class $CreateConnectorRequestCopyWith<$Res> {
+  factory $CreateConnectorRequestCopyWith(CreateConnectorRequest value,
+          $Res Function(CreateConnectorRequest) then) =
+      _$CreateConnectorRequestCopyWithImpl<$Res, CreateConnectorRequest>;
   @useResult
   $Res call(
-      {@JsonKey(name: 'type_id') String typeId,
+      {@JsonKey(name: 'connector_id') String connectorId,
       @JsonKey(name: 'display_name') String displayName,
       Map<String, dynamic> config,
       @JsonKey(name: 'auto_start') bool autoStart,
@@ -1396,31 +1298,31 @@ abstract class $CreateInstanceRequestCopyWith<$Res> {
 }
 
 /// @nodoc
-class _$CreateInstanceRequestCopyWithImpl<$Res,
-        $Val extends CreateInstanceRequest>
-    implements $CreateInstanceRequestCopyWith<$Res> {
-  _$CreateInstanceRequestCopyWithImpl(this._value, this._then);
+class _$CreateConnectorRequestCopyWithImpl<$Res,
+        $Val extends CreateConnectorRequest>
+    implements $CreateConnectorRequestCopyWith<$Res> {
+  _$CreateConnectorRequestCopyWithImpl(this._value, this._then);
 
   // ignore: unused_field
   final $Val _value;
   // ignore: unused_field
   final $Res Function($Val) _then;
 
-  /// Create a copy of CreateInstanceRequest
+  /// Create a copy of CreateConnectorRequest
   /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
-    Object? typeId = null,
+    Object? connectorId = null,
     Object? displayName = null,
     Object? config = null,
     Object? autoStart = null,
     Object? templateId = freezed,
   }) {
     return _then(_value.copyWith(
-      typeId: null == typeId
-          ? _value.typeId
-          : typeId // ignore: cast_nullable_to_non_nullable
+      connectorId: null == connectorId
+          ? _value.connectorId
+          : connectorId // ignore: cast_nullable_to_non_nullable
               as String,
       displayName: null == displayName
           ? _value.displayName
@@ -1443,16 +1345,16 @@ class _$CreateInstanceRequestCopyWithImpl<$Res,
 }
 
 /// @nodoc
-abstract class _$$CreateInstanceRequestImplCopyWith<$Res>
-    implements $CreateInstanceRequestCopyWith<$Res> {
-  factory _$$CreateInstanceRequestImplCopyWith(
-          _$CreateInstanceRequestImpl value,
-          $Res Function(_$CreateInstanceRequestImpl) then) =
-      __$$CreateInstanceRequestImplCopyWithImpl<$Res>;
+abstract class _$$CreateConnectorRequestImplCopyWith<$Res>
+    implements $CreateConnectorRequestCopyWith<$Res> {
+  factory _$$CreateConnectorRequestImplCopyWith(
+          _$CreateConnectorRequestImpl value,
+          $Res Function(_$CreateConnectorRequestImpl) then) =
+      __$$CreateConnectorRequestImplCopyWithImpl<$Res>;
   @override
   @useResult
   $Res call(
-      {@JsonKey(name: 'type_id') String typeId,
+      {@JsonKey(name: 'connector_id') String connectorId,
       @JsonKey(name: 'display_name') String displayName,
       Map<String, dynamic> config,
       @JsonKey(name: 'auto_start') bool autoStart,
@@ -1460,29 +1362,30 @@ abstract class _$$CreateInstanceRequestImplCopyWith<$Res>
 }
 
 /// @nodoc
-class __$$CreateInstanceRequestImplCopyWithImpl<$Res>
-    extends _$CreateInstanceRequestCopyWithImpl<$Res,
-        _$CreateInstanceRequestImpl>
-    implements _$$CreateInstanceRequestImplCopyWith<$Res> {
-  __$$CreateInstanceRequestImplCopyWithImpl(_$CreateInstanceRequestImpl _value,
-      $Res Function(_$CreateInstanceRequestImpl) _then)
+class __$$CreateConnectorRequestImplCopyWithImpl<$Res>
+    extends _$CreateConnectorRequestCopyWithImpl<$Res,
+        _$CreateConnectorRequestImpl>
+    implements _$$CreateConnectorRequestImplCopyWith<$Res> {
+  __$$CreateConnectorRequestImplCopyWithImpl(
+      _$CreateConnectorRequestImpl _value,
+      $Res Function(_$CreateConnectorRequestImpl) _then)
       : super(_value, _then);
 
-  /// Create a copy of CreateInstanceRequest
+  /// Create a copy of CreateConnectorRequest
   /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
-    Object? typeId = null,
+    Object? connectorId = null,
     Object? displayName = null,
     Object? config = null,
     Object? autoStart = null,
     Object? templateId = freezed,
   }) {
-    return _then(_$CreateInstanceRequestImpl(
-      typeId: null == typeId
-          ? _value.typeId
-          : typeId // ignore: cast_nullable_to_non_nullable
+    return _then(_$CreateConnectorRequestImpl(
+      connectorId: null == connectorId
+          ? _value.connectorId
+          : connectorId // ignore: cast_nullable_to_non_nullable
               as String,
       displayName: null == displayName
           ? _value.displayName
@@ -1506,21 +1409,21 @@ class __$$CreateInstanceRequestImplCopyWithImpl<$Res>
 
 /// @nodoc
 @JsonSerializable()
-class _$CreateInstanceRequestImpl implements _CreateInstanceRequest {
-  const _$CreateInstanceRequestImpl(
-      {@JsonKey(name: 'type_id') required this.typeId,
+class _$CreateConnectorRequestImpl implements _CreateConnectorRequest {
+  const _$CreateConnectorRequestImpl(
+      {@JsonKey(name: 'connector_id') required this.connectorId,
       @JsonKey(name: 'display_name') required this.displayName,
       final Map<String, dynamic> config = const {},
       @JsonKey(name: 'auto_start') this.autoStart = true,
       @JsonKey(name: 'template_id') this.templateId})
       : _config = config;
 
-  factory _$CreateInstanceRequestImpl.fromJson(Map<String, dynamic> json) =>
-      _$$CreateInstanceRequestImplFromJson(json);
+  factory _$CreateConnectorRequestImpl.fromJson(Map<String, dynamic> json) =>
+      _$$CreateConnectorRequestImplFromJson(json);
 
   @override
-  @JsonKey(name: 'type_id')
-  final String typeId;
+  @JsonKey(name: 'connector_id')
+  final String connectorId;
   @override
   @JsonKey(name: 'display_name')
   final String displayName;
@@ -1542,15 +1445,16 @@ class _$CreateInstanceRequestImpl implements _CreateInstanceRequest {
 
   @override
   String toString() {
-    return 'CreateInstanceRequest(typeId: $typeId, displayName: $displayName, config: $config, autoStart: $autoStart, templateId: $templateId)';
+    return 'CreateConnectorRequest(connectorId: $connectorId, displayName: $displayName, config: $config, autoStart: $autoStart, templateId: $templateId)';
   }
 
   @override
   bool operator ==(Object other) {
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
-            other is _$CreateInstanceRequestImpl &&
-            (identical(other.typeId, typeId) || other.typeId == typeId) &&
+            other is _$CreateConnectorRequestImpl &&
+            (identical(other.connectorId, connectorId) ||
+                other.connectorId == connectorId) &&
             (identical(other.displayName, displayName) ||
                 other.displayName == displayName) &&
             const DeepCollectionEquality().equals(other._config, _config) &&
@@ -1562,41 +1466,41 @@ class _$CreateInstanceRequestImpl implements _CreateInstanceRequest {
 
   @JsonKey(includeFromJson: false, includeToJson: false)
   @override
-  int get hashCode => Object.hash(runtimeType, typeId, displayName,
+  int get hashCode => Object.hash(runtimeType, connectorId, displayName,
       const DeepCollectionEquality().hash(_config), autoStart, templateId);
 
-  /// Create a copy of CreateInstanceRequest
+  /// Create a copy of CreateConnectorRequest
   /// with the given fields replaced by the non-null parameter values.
   @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   @pragma('vm:prefer-inline')
-  _$$CreateInstanceRequestImplCopyWith<_$CreateInstanceRequestImpl>
-      get copyWith => __$$CreateInstanceRequestImplCopyWithImpl<
-          _$CreateInstanceRequestImpl>(this, _$identity);
+  _$$CreateConnectorRequestImplCopyWith<_$CreateConnectorRequestImpl>
+      get copyWith => __$$CreateConnectorRequestImplCopyWithImpl<
+          _$CreateConnectorRequestImpl>(this, _$identity);
 
   @override
   Map<String, dynamic> toJson() {
-    return _$$CreateInstanceRequestImplToJson(
+    return _$$CreateConnectorRequestImplToJson(
       this,
     );
   }
 }
 
-abstract class _CreateInstanceRequest implements CreateInstanceRequest {
-  const factory _CreateInstanceRequest(
-          {@JsonKey(name: 'type_id') required final String typeId,
+abstract class _CreateConnectorRequest implements CreateConnectorRequest {
+  const factory _CreateConnectorRequest(
+          {@JsonKey(name: 'connector_id') required final String connectorId,
           @JsonKey(name: 'display_name') required final String displayName,
           final Map<String, dynamic> config,
           @JsonKey(name: 'auto_start') final bool autoStart,
           @JsonKey(name: 'template_id') final String? templateId}) =
-      _$CreateInstanceRequestImpl;
+      _$CreateConnectorRequestImpl;
 
-  factory _CreateInstanceRequest.fromJson(Map<String, dynamic> json) =
-      _$CreateInstanceRequestImpl.fromJson;
+  factory _CreateConnectorRequest.fromJson(Map<String, dynamic> json) =
+      _$CreateConnectorRequestImpl.fromJson;
 
   @override
-  @JsonKey(name: 'type_id')
-  String get typeId;
+  @JsonKey(name: 'connector_id')
+  String get connectorId;
   @override
   @JsonKey(name: 'display_name')
   String get displayName;
@@ -1609,11 +1513,11 @@ abstract class _CreateInstanceRequest implements CreateInstanceRequest {
   @JsonKey(name: 'template_id')
   String? get templateId;
 
-  /// Create a copy of CreateInstanceRequest
+  /// Create a copy of CreateConnectorRequest
   /// with the given fields replaced by the non-null parameter values.
   @override
   @JsonKey(includeFromJson: false, includeToJson: false)
-  _$$CreateInstanceRequestImplCopyWith<_$CreateInstanceRequestImpl>
+  _$$CreateConnectorRequestImplCopyWith<_$CreateConnectorRequestImpl>
       get copyWith => throw _privateConstructorUsedError;
 }
 
@@ -3739,8 +3643,8 @@ DiscoveryResponse _$DiscoveryResponseFromJson(Map<String, dynamic> json) {
 mixin _$DiscoveryResponse {
   bool get success => throw _privateConstructorUsedError;
   String get message => throw _privateConstructorUsedError;
-  @JsonKey(name: 'connector_types')
-  List<ConnectorTypeInfo> get connectorTypes =>
+  @JsonKey(name: 'connectors')
+  List<ConnectorDefinition> get connectors =>
       throw _privateConstructorUsedError;
 
   /// Serializes this DiscoveryResponse to a JSON map.
@@ -3762,8 +3666,7 @@ abstract class $DiscoveryResponseCopyWith<$Res> {
   $Res call(
       {bool success,
       String message,
-      @JsonKey(name: 'connector_types')
-      List<ConnectorTypeInfo> connectorTypes});
+      @JsonKey(name: 'connectors') List<ConnectorDefinition> connectors});
 }
 
 /// @nodoc
@@ -3783,7 +3686,7 @@ class _$DiscoveryResponseCopyWithImpl<$Res, $Val extends DiscoveryResponse>
   $Res call({
     Object? success = null,
     Object? message = null,
-    Object? connectorTypes = null,
+    Object? connectors = null,
   }) {
     return _then(_value.copyWith(
       success: null == success
@@ -3794,10 +3697,10 @@ class _$DiscoveryResponseCopyWithImpl<$Res, $Val extends DiscoveryResponse>
           ? _value.message
           : message // ignore: cast_nullable_to_non_nullable
               as String,
-      connectorTypes: null == connectorTypes
-          ? _value.connectorTypes
-          : connectorTypes // ignore: cast_nullable_to_non_nullable
-              as List<ConnectorTypeInfo>,
+      connectors: null == connectors
+          ? _value.connectors
+          : connectors // ignore: cast_nullable_to_non_nullable
+              as List<ConnectorDefinition>,
     ) as $Val);
   }
 }
@@ -3813,8 +3716,7 @@ abstract class _$$DiscoveryResponseImplCopyWith<$Res>
   $Res call(
       {bool success,
       String message,
-      @JsonKey(name: 'connector_types')
-      List<ConnectorTypeInfo> connectorTypes});
+      @JsonKey(name: 'connectors') List<ConnectorDefinition> connectors});
 }
 
 /// @nodoc
@@ -3832,7 +3734,7 @@ class __$$DiscoveryResponseImplCopyWithImpl<$Res>
   $Res call({
     Object? success = null,
     Object? message = null,
-    Object? connectorTypes = null,
+    Object? connectors = null,
   }) {
     return _then(_$DiscoveryResponseImpl(
       success: null == success
@@ -3843,10 +3745,10 @@ class __$$DiscoveryResponseImplCopyWithImpl<$Res>
           ? _value.message
           : message // ignore: cast_nullable_to_non_nullable
               as String,
-      connectorTypes: null == connectorTypes
-          ? _value._connectorTypes
-          : connectorTypes // ignore: cast_nullable_to_non_nullable
-              as List<ConnectorTypeInfo>,
+      connectors: null == connectors
+          ? _value._connectors
+          : connectors // ignore: cast_nullable_to_non_nullable
+              as List<ConnectorDefinition>,
     ));
   }
 }
@@ -3857,9 +3759,9 @@ class _$DiscoveryResponseImpl implements _DiscoveryResponse {
   const _$DiscoveryResponseImpl(
       {required this.success,
       required this.message,
-      @JsonKey(name: 'connector_types')
-      final List<ConnectorTypeInfo> connectorTypes = const []})
-      : _connectorTypes = connectorTypes;
+      @JsonKey(name: 'connectors')
+      final List<ConnectorDefinition> connectors = const []})
+      : _connectors = connectors;
 
   factory _$DiscoveryResponseImpl.fromJson(Map<String, dynamic> json) =>
       _$$DiscoveryResponseImplFromJson(json);
@@ -3868,18 +3770,18 @@ class _$DiscoveryResponseImpl implements _DiscoveryResponse {
   final bool success;
   @override
   final String message;
-  final List<ConnectorTypeInfo> _connectorTypes;
+  final List<ConnectorDefinition> _connectors;
   @override
-  @JsonKey(name: 'connector_types')
-  List<ConnectorTypeInfo> get connectorTypes {
-    if (_connectorTypes is EqualUnmodifiableListView) return _connectorTypes;
+  @JsonKey(name: 'connectors')
+  List<ConnectorDefinition> get connectors {
+    if (_connectors is EqualUnmodifiableListView) return _connectors;
     // ignore: implicit_dynamic_type
-    return EqualUnmodifiableListView(_connectorTypes);
+    return EqualUnmodifiableListView(_connectors);
   }
 
   @override
   String toString() {
-    return 'DiscoveryResponse(success: $success, message: $message, connectorTypes: $connectorTypes)';
+    return 'DiscoveryResponse(success: $success, message: $message, connectors: $connectors)';
   }
 
   @override
@@ -3890,13 +3792,13 @@ class _$DiscoveryResponseImpl implements _DiscoveryResponse {
             (identical(other.success, success) || other.success == success) &&
             (identical(other.message, message) || other.message == message) &&
             const DeepCollectionEquality()
-                .equals(other._connectorTypes, _connectorTypes));
+                .equals(other._connectors, _connectors));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   int get hashCode => Object.hash(runtimeType, success, message,
-      const DeepCollectionEquality().hash(_connectorTypes));
+      const DeepCollectionEquality().hash(_connectors));
 
   /// Create a copy of DiscoveryResponse
   /// with the given fields replaced by the non-null parameter values.
@@ -3919,8 +3821,8 @@ abstract class _DiscoveryResponse implements DiscoveryResponse {
   const factory _DiscoveryResponse(
       {required final bool success,
       required final String message,
-      @JsonKey(name: 'connector_types')
-      final List<ConnectorTypeInfo> connectorTypes}) = _$DiscoveryResponseImpl;
+      @JsonKey(name: 'connectors')
+      final List<ConnectorDefinition> connectors}) = _$DiscoveryResponseImpl;
 
   factory _DiscoveryResponse.fromJson(Map<String, dynamic> json) =
       _$DiscoveryResponseImpl.fromJson;
@@ -3930,8 +3832,8 @@ abstract class _DiscoveryResponse implements DiscoveryResponse {
   @override
   String get message;
   @override
-  @JsonKey(name: 'connector_types')
-  List<ConnectorTypeInfo> get connectorTypes;
+  @JsonKey(name: 'connectors')
+  List<ConnectorDefinition> get connectors;
 
   /// Create a copy of DiscoveryResponse
   /// with the given fields replaced by the non-null parameter values.
@@ -3941,58 +3843,58 @@ abstract class _DiscoveryResponse implements DiscoveryResponse {
       throw _privateConstructorUsedError;
 }
 
-InstanceListResponse _$InstanceListResponseFromJson(Map<String, dynamic> json) {
-  return _InstanceListResponse.fromJson(json);
+ConnectorListResponse _$ConnectorListResponseFromJson(
+    Map<String, dynamic> json) {
+  return _ConnectorListResponse.fromJson(json);
 }
 
 /// @nodoc
-mixin _$InstanceListResponse {
+mixin _$ConnectorListResponse {
   bool get success => throw _privateConstructorUsedError;
-  List<ConnectorInstanceInfo> get instances =>
-      throw _privateConstructorUsedError;
+  List<ConnectorInfo> get collectors => throw _privateConstructorUsedError;
   @JsonKey(name: 'total_count')
   int get totalCount => throw _privateConstructorUsedError;
 
-  /// Serializes this InstanceListResponse to a JSON map.
+  /// Serializes this ConnectorListResponse to a JSON map.
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
 
-  /// Create a copy of InstanceListResponse
+  /// Create a copy of ConnectorListResponse
   /// with the given fields replaced by the non-null parameter values.
   @JsonKey(includeFromJson: false, includeToJson: false)
-  $InstanceListResponseCopyWith<InstanceListResponse> get copyWith =>
+  $ConnectorListResponseCopyWith<ConnectorListResponse> get copyWith =>
       throw _privateConstructorUsedError;
 }
 
 /// @nodoc
-abstract class $InstanceListResponseCopyWith<$Res> {
-  factory $InstanceListResponseCopyWith(InstanceListResponse value,
-          $Res Function(InstanceListResponse) then) =
-      _$InstanceListResponseCopyWithImpl<$Res, InstanceListResponse>;
+abstract class $ConnectorListResponseCopyWith<$Res> {
+  factory $ConnectorListResponseCopyWith(ConnectorListResponse value,
+          $Res Function(ConnectorListResponse) then) =
+      _$ConnectorListResponseCopyWithImpl<$Res, ConnectorListResponse>;
   @useResult
   $Res call(
       {bool success,
-      List<ConnectorInstanceInfo> instances,
+      List<ConnectorInfo> collectors,
       @JsonKey(name: 'total_count') int totalCount});
 }
 
 /// @nodoc
-class _$InstanceListResponseCopyWithImpl<$Res,
-        $Val extends InstanceListResponse>
-    implements $InstanceListResponseCopyWith<$Res> {
-  _$InstanceListResponseCopyWithImpl(this._value, this._then);
+class _$ConnectorListResponseCopyWithImpl<$Res,
+        $Val extends ConnectorListResponse>
+    implements $ConnectorListResponseCopyWith<$Res> {
+  _$ConnectorListResponseCopyWithImpl(this._value, this._then);
 
   // ignore: unused_field
   final $Val _value;
   // ignore: unused_field
   final $Res Function($Val) _then;
 
-  /// Create a copy of InstanceListResponse
+  /// Create a copy of ConnectorListResponse
   /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
     Object? success = null,
-    Object? instances = null,
+    Object? collectors = null,
     Object? totalCount = null,
   }) {
     return _then(_value.copyWith(
@@ -4000,10 +3902,10 @@ class _$InstanceListResponseCopyWithImpl<$Res,
           ? _value.success
           : success // ignore: cast_nullable_to_non_nullable
               as bool,
-      instances: null == instances
-          ? _value.instances
-          : instances // ignore: cast_nullable_to_non_nullable
-              as List<ConnectorInstanceInfo>,
+      collectors: null == collectors
+          ? _value.collectors
+          : collectors // ignore: cast_nullable_to_non_nullable
+              as List<ConnectorInfo>,
       totalCount: null == totalCount
           ? _value.totalCount
           : totalCount // ignore: cast_nullable_to_non_nullable
@@ -4013,45 +3915,47 @@ class _$InstanceListResponseCopyWithImpl<$Res,
 }
 
 /// @nodoc
-abstract class _$$InstanceListResponseImplCopyWith<$Res>
-    implements $InstanceListResponseCopyWith<$Res> {
-  factory _$$InstanceListResponseImplCopyWith(_$InstanceListResponseImpl value,
-          $Res Function(_$InstanceListResponseImpl) then) =
-      __$$InstanceListResponseImplCopyWithImpl<$Res>;
+abstract class _$$ConnectorListResponseImplCopyWith<$Res>
+    implements $ConnectorListResponseCopyWith<$Res> {
+  factory _$$ConnectorListResponseImplCopyWith(
+          _$ConnectorListResponseImpl value,
+          $Res Function(_$ConnectorListResponseImpl) then) =
+      __$$ConnectorListResponseImplCopyWithImpl<$Res>;
   @override
   @useResult
   $Res call(
       {bool success,
-      List<ConnectorInstanceInfo> instances,
+      List<ConnectorInfo> collectors,
       @JsonKey(name: 'total_count') int totalCount});
 }
 
 /// @nodoc
-class __$$InstanceListResponseImplCopyWithImpl<$Res>
-    extends _$InstanceListResponseCopyWithImpl<$Res, _$InstanceListResponseImpl>
-    implements _$$InstanceListResponseImplCopyWith<$Res> {
-  __$$InstanceListResponseImplCopyWithImpl(_$InstanceListResponseImpl _value,
-      $Res Function(_$InstanceListResponseImpl) _then)
+class __$$ConnectorListResponseImplCopyWithImpl<$Res>
+    extends _$ConnectorListResponseCopyWithImpl<$Res,
+        _$ConnectorListResponseImpl>
+    implements _$$ConnectorListResponseImplCopyWith<$Res> {
+  __$$ConnectorListResponseImplCopyWithImpl(_$ConnectorListResponseImpl _value,
+      $Res Function(_$ConnectorListResponseImpl) _then)
       : super(_value, _then);
 
-  /// Create a copy of InstanceListResponse
+  /// Create a copy of ConnectorListResponse
   /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
     Object? success = null,
-    Object? instances = null,
+    Object? collectors = null,
     Object? totalCount = null,
   }) {
-    return _then(_$InstanceListResponseImpl(
+    return _then(_$ConnectorListResponseImpl(
       success: null == success
           ? _value.success
           : success // ignore: cast_nullable_to_non_nullable
               as bool,
-      instances: null == instances
-          ? _value._instances
-          : instances // ignore: cast_nullable_to_non_nullable
-              as List<ConnectorInstanceInfo>,
+      collectors: null == collectors
+          ? _value._collectors
+          : collectors // ignore: cast_nullable_to_non_nullable
+              as List<ConnectorInfo>,
       totalCount: null == totalCount
           ? _value.totalCount
           : totalCount // ignore: cast_nullable_to_non_nullable
@@ -4062,25 +3966,25 @@ class __$$InstanceListResponseImplCopyWithImpl<$Res>
 
 /// @nodoc
 @JsonSerializable()
-class _$InstanceListResponseImpl implements _InstanceListResponse {
-  const _$InstanceListResponseImpl(
+class _$ConnectorListResponseImpl implements _ConnectorListResponse {
+  const _$ConnectorListResponseImpl(
       {required this.success,
-      final List<ConnectorInstanceInfo> instances = const [],
+      final List<ConnectorInfo> collectors = const [],
       @JsonKey(name: 'total_count') this.totalCount = 0})
-      : _instances = instances;
+      : _collectors = collectors;
 
-  factory _$InstanceListResponseImpl.fromJson(Map<String, dynamic> json) =>
-      _$$InstanceListResponseImplFromJson(json);
+  factory _$ConnectorListResponseImpl.fromJson(Map<String, dynamic> json) =>
+      _$$ConnectorListResponseImplFromJson(json);
 
   @override
   final bool success;
-  final List<ConnectorInstanceInfo> _instances;
+  final List<ConnectorInfo> _collectors;
   @override
   @JsonKey()
-  List<ConnectorInstanceInfo> get instances {
-    if (_instances is EqualUnmodifiableListView) return _instances;
+  List<ConnectorInfo> get collectors {
+    if (_collectors is EqualUnmodifiableListView) return _collectors;
     // ignore: implicit_dynamic_type
-    return EqualUnmodifiableListView(_instances);
+    return EqualUnmodifiableListView(_collectors);
   }
 
   @override
@@ -4089,17 +3993,17 @@ class _$InstanceListResponseImpl implements _InstanceListResponse {
 
   @override
   String toString() {
-    return 'InstanceListResponse(success: $success, instances: $instances, totalCount: $totalCount)';
+    return 'ConnectorListResponse(success: $success, collectors: $collectors, totalCount: $totalCount)';
   }
 
   @override
   bool operator ==(Object other) {
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
-            other is _$InstanceListResponseImpl &&
+            other is _$ConnectorListResponseImpl &&
             (identical(other.success, success) || other.success == success) &&
             const DeepCollectionEquality()
-                .equals(other._instances, _instances) &&
+                .equals(other._collectors, _collectors) &&
             (identical(other.totalCount, totalCount) ||
                 other.totalCount == totalCount));
   }
@@ -4107,745 +4011,238 @@ class _$InstanceListResponseImpl implements _InstanceListResponse {
   @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   int get hashCode => Object.hash(runtimeType, success,
-      const DeepCollectionEquality().hash(_instances), totalCount);
+      const DeepCollectionEquality().hash(_collectors), totalCount);
 
-  /// Create a copy of InstanceListResponse
+  /// Create a copy of ConnectorListResponse
   /// with the given fields replaced by the non-null parameter values.
   @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   @pragma('vm:prefer-inline')
-  _$$InstanceListResponseImplCopyWith<_$InstanceListResponseImpl>
-      get copyWith =>
-          __$$InstanceListResponseImplCopyWithImpl<_$InstanceListResponseImpl>(
-              this, _$identity);
+  _$$ConnectorListResponseImplCopyWith<_$ConnectorListResponseImpl>
+      get copyWith => __$$ConnectorListResponseImplCopyWithImpl<
+          _$ConnectorListResponseImpl>(this, _$identity);
 
   @override
   Map<String, dynamic> toJson() {
-    return _$$InstanceListResponseImplToJson(
+    return _$$ConnectorListResponseImplToJson(
       this,
     );
   }
 }
 
-abstract class _InstanceListResponse implements InstanceListResponse {
-  const factory _InstanceListResponse(
+abstract class _ConnectorListResponse implements ConnectorListResponse {
+  const factory _ConnectorListResponse(
           {required final bool success,
-          final List<ConnectorInstanceInfo> instances,
+          final List<ConnectorInfo> collectors,
           @JsonKey(name: 'total_count') final int totalCount}) =
-      _$InstanceListResponseImpl;
+      _$ConnectorListResponseImpl;
 
-  factory _InstanceListResponse.fromJson(Map<String, dynamic> json) =
-      _$InstanceListResponseImpl.fromJson;
+  factory _ConnectorListResponse.fromJson(Map<String, dynamic> json) =
+      _$ConnectorListResponseImpl.fromJson;
 
   @override
   bool get success;
   @override
-  List<ConnectorInstanceInfo> get instances;
+  List<ConnectorInfo> get collectors;
   @override
   @JsonKey(name: 'total_count')
   int get totalCount;
 
-  /// Create a copy of InstanceListResponse
+  /// Create a copy of ConnectorListResponse
   /// with the given fields replaced by the non-null parameter values.
   @override
   @JsonKey(includeFromJson: false, includeToJson: false)
-  _$$InstanceListResponseImplCopyWith<_$InstanceListResponseImpl>
+  _$$ConnectorListResponseImplCopyWith<_$ConnectorListResponseImpl>
       get copyWith => throw _privateConstructorUsedError;
 }
 
-InstanceDetailResponse _$InstanceDetailResponseFromJson(
+ConnectorDetailResponse _$ConnectorDetailResponseFromJson(
     Map<String, dynamic> json) {
-  return _InstanceDetailResponse.fromJson(json);
+  return _ConnectorDetailResponse.fromJson(json);
 }
 
 /// @nodoc
-mixin _$InstanceDetailResponse {
+mixin _$ConnectorDetailResponse {
   bool get success => throw _privateConstructorUsedError;
-  ConnectorInstanceDetail get instance => throw _privateConstructorUsedError;
+  ConnectorInfo get collector => throw _privateConstructorUsedError;
 
-  /// Serializes this InstanceDetailResponse to a JSON map.
+  /// Serializes this ConnectorDetailResponse to a JSON map.
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
 
-  /// Create a copy of InstanceDetailResponse
+  /// Create a copy of ConnectorDetailResponse
   /// with the given fields replaced by the non-null parameter values.
   @JsonKey(includeFromJson: false, includeToJson: false)
-  $InstanceDetailResponseCopyWith<InstanceDetailResponse> get copyWith =>
+  $ConnectorDetailResponseCopyWith<ConnectorDetailResponse> get copyWith =>
       throw _privateConstructorUsedError;
 }
 
 /// @nodoc
-abstract class $InstanceDetailResponseCopyWith<$Res> {
-  factory $InstanceDetailResponseCopyWith(InstanceDetailResponse value,
-          $Res Function(InstanceDetailResponse) then) =
-      _$InstanceDetailResponseCopyWithImpl<$Res, InstanceDetailResponse>;
+abstract class $ConnectorDetailResponseCopyWith<$Res> {
+  factory $ConnectorDetailResponseCopyWith(ConnectorDetailResponse value,
+          $Res Function(ConnectorDetailResponse) then) =
+      _$ConnectorDetailResponseCopyWithImpl<$Res, ConnectorDetailResponse>;
   @useResult
-  $Res call({bool success, ConnectorInstanceDetail instance});
+  $Res call({bool success, ConnectorInfo collector});
 
-  $ConnectorInstanceDetailCopyWith<$Res> get instance;
+  $ConnectorInfoCopyWith<$Res> get collector;
 }
 
 /// @nodoc
-class _$InstanceDetailResponseCopyWithImpl<$Res,
-        $Val extends InstanceDetailResponse>
-    implements $InstanceDetailResponseCopyWith<$Res> {
-  _$InstanceDetailResponseCopyWithImpl(this._value, this._then);
+class _$ConnectorDetailResponseCopyWithImpl<$Res,
+        $Val extends ConnectorDetailResponse>
+    implements $ConnectorDetailResponseCopyWith<$Res> {
+  _$ConnectorDetailResponseCopyWithImpl(this._value, this._then);
 
   // ignore: unused_field
   final $Val _value;
   // ignore: unused_field
   final $Res Function($Val) _then;
 
-  /// Create a copy of InstanceDetailResponse
+  /// Create a copy of ConnectorDetailResponse
   /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
     Object? success = null,
-    Object? instance = null,
+    Object? collector = null,
   }) {
     return _then(_value.copyWith(
       success: null == success
           ? _value.success
           : success // ignore: cast_nullable_to_non_nullable
               as bool,
-      instance: null == instance
-          ? _value.instance
-          : instance // ignore: cast_nullable_to_non_nullable
-              as ConnectorInstanceDetail,
+      collector: null == collector
+          ? _value.collector
+          : collector // ignore: cast_nullable_to_non_nullable
+              as ConnectorInfo,
     ) as $Val);
   }
 
-  /// Create a copy of InstanceDetailResponse
+  /// Create a copy of ConnectorDetailResponse
   /// with the given fields replaced by the non-null parameter values.
   @override
   @pragma('vm:prefer-inline')
-  $ConnectorInstanceDetailCopyWith<$Res> get instance {
-    return $ConnectorInstanceDetailCopyWith<$Res>(_value.instance, (value) {
-      return _then(_value.copyWith(instance: value) as $Val);
+  $ConnectorInfoCopyWith<$Res> get collector {
+    return $ConnectorInfoCopyWith<$Res>(_value.collector, (value) {
+      return _then(_value.copyWith(collector: value) as $Val);
     });
   }
 }
 
 /// @nodoc
-abstract class _$$InstanceDetailResponseImplCopyWith<$Res>
-    implements $InstanceDetailResponseCopyWith<$Res> {
-  factory _$$InstanceDetailResponseImplCopyWith(
-          _$InstanceDetailResponseImpl value,
-          $Res Function(_$InstanceDetailResponseImpl) then) =
-      __$$InstanceDetailResponseImplCopyWithImpl<$Res>;
+abstract class _$$ConnectorDetailResponseImplCopyWith<$Res>
+    implements $ConnectorDetailResponseCopyWith<$Res> {
+  factory _$$ConnectorDetailResponseImplCopyWith(
+          _$ConnectorDetailResponseImpl value,
+          $Res Function(_$ConnectorDetailResponseImpl) then) =
+      __$$ConnectorDetailResponseImplCopyWithImpl<$Res>;
   @override
   @useResult
-  $Res call({bool success, ConnectorInstanceDetail instance});
+  $Res call({bool success, ConnectorInfo collector});
 
   @override
-  $ConnectorInstanceDetailCopyWith<$Res> get instance;
+  $ConnectorInfoCopyWith<$Res> get collector;
 }
 
 /// @nodoc
-class __$$InstanceDetailResponseImplCopyWithImpl<$Res>
-    extends _$InstanceDetailResponseCopyWithImpl<$Res,
-        _$InstanceDetailResponseImpl>
-    implements _$$InstanceDetailResponseImplCopyWith<$Res> {
-  __$$InstanceDetailResponseImplCopyWithImpl(
-      _$InstanceDetailResponseImpl _value,
-      $Res Function(_$InstanceDetailResponseImpl) _then)
+class __$$ConnectorDetailResponseImplCopyWithImpl<$Res>
+    extends _$ConnectorDetailResponseCopyWithImpl<$Res,
+        _$ConnectorDetailResponseImpl>
+    implements _$$ConnectorDetailResponseImplCopyWith<$Res> {
+  __$$ConnectorDetailResponseImplCopyWithImpl(
+      _$ConnectorDetailResponseImpl _value,
+      $Res Function(_$ConnectorDetailResponseImpl) _then)
       : super(_value, _then);
 
-  /// Create a copy of InstanceDetailResponse
+  /// Create a copy of ConnectorDetailResponse
   /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
     Object? success = null,
-    Object? instance = null,
+    Object? collector = null,
   }) {
-    return _then(_$InstanceDetailResponseImpl(
+    return _then(_$ConnectorDetailResponseImpl(
       success: null == success
           ? _value.success
           : success // ignore: cast_nullable_to_non_nullable
               as bool,
-      instance: null == instance
-          ? _value.instance
-          : instance // ignore: cast_nullable_to_non_nullable
-              as ConnectorInstanceDetail,
+      collector: null == collector
+          ? _value.collector
+          : collector // ignore: cast_nullable_to_non_nullable
+              as ConnectorInfo,
     ));
   }
 }
 
 /// @nodoc
 @JsonSerializable()
-class _$InstanceDetailResponseImpl implements _InstanceDetailResponse {
-  const _$InstanceDetailResponseImpl(
-      {required this.success, required this.instance});
+class _$ConnectorDetailResponseImpl implements _ConnectorDetailResponse {
+  const _$ConnectorDetailResponseImpl(
+      {required this.success, required this.collector});
 
-  factory _$InstanceDetailResponseImpl.fromJson(Map<String, dynamic> json) =>
-      _$$InstanceDetailResponseImplFromJson(json);
+  factory _$ConnectorDetailResponseImpl.fromJson(Map<String, dynamic> json) =>
+      _$$ConnectorDetailResponseImplFromJson(json);
 
   @override
   final bool success;
   @override
-  final ConnectorInstanceDetail instance;
+  final ConnectorInfo collector;
 
   @override
   String toString() {
-    return 'InstanceDetailResponse(success: $success, instance: $instance)';
+    return 'ConnectorDetailResponse(success: $success, collector: $collector)';
   }
 
   @override
   bool operator ==(Object other) {
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
-            other is _$InstanceDetailResponseImpl &&
+            other is _$ConnectorDetailResponseImpl &&
             (identical(other.success, success) || other.success == success) &&
-            (identical(other.instance, instance) ||
-                other.instance == instance));
+            (identical(other.collector, collector) ||
+                other.collector == collector));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
   @override
-  int get hashCode => Object.hash(runtimeType, success, instance);
+  int get hashCode => Object.hash(runtimeType, success, collector);
 
-  /// Create a copy of InstanceDetailResponse
+  /// Create a copy of ConnectorDetailResponse
   /// with the given fields replaced by the non-null parameter values.
   @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   @pragma('vm:prefer-inline')
-  _$$InstanceDetailResponseImplCopyWith<_$InstanceDetailResponseImpl>
-      get copyWith => __$$InstanceDetailResponseImplCopyWithImpl<
-          _$InstanceDetailResponseImpl>(this, _$identity);
+  _$$ConnectorDetailResponseImplCopyWith<_$ConnectorDetailResponseImpl>
+      get copyWith => __$$ConnectorDetailResponseImplCopyWithImpl<
+          _$ConnectorDetailResponseImpl>(this, _$identity);
 
   @override
   Map<String, dynamic> toJson() {
-    return _$$InstanceDetailResponseImplToJson(
+    return _$$ConnectorDetailResponseImplToJson(
       this,
     );
   }
 }
 
-abstract class _InstanceDetailResponse implements InstanceDetailResponse {
-  const factory _InstanceDetailResponse(
-          {required final bool success,
-          required final ConnectorInstanceDetail instance}) =
-      _$InstanceDetailResponseImpl;
+abstract class _ConnectorDetailResponse implements ConnectorDetailResponse {
+  const factory _ConnectorDetailResponse(
+      {required final bool success,
+      required final ConnectorInfo collector}) = _$ConnectorDetailResponseImpl;
 
-  factory _InstanceDetailResponse.fromJson(Map<String, dynamic> json) =
-      _$InstanceDetailResponseImpl.fromJson;
+  factory _ConnectorDetailResponse.fromJson(Map<String, dynamic> json) =
+      _$ConnectorDetailResponseImpl.fromJson;
 
   @override
   bool get success;
   @override
-  ConnectorInstanceDetail get instance;
+  ConnectorInfo get collector;
 
-  /// Create a copy of InstanceDetailResponse
+  /// Create a copy of ConnectorDetailResponse
   /// with the given fields replaced by the non-null parameter values.
   @override
   @JsonKey(includeFromJson: false, includeToJson: false)
-  _$$InstanceDetailResponseImplCopyWith<_$InstanceDetailResponseImpl>
-      get copyWith => throw _privateConstructorUsedError;
-}
-
-ConnectorInstanceDetail _$ConnectorInstanceDetailFromJson(
-    Map<String, dynamic> json) {
-  return _ConnectorInstanceDetail.fromJson(json);
-}
-
-/// @nodoc
-mixin _$ConnectorInstanceDetail {
-  @JsonKey(name: 'instance_id')
-  String get instanceId => throw _privateConstructorUsedError;
-  @JsonKey(name: 'display_name')
-  String get displayName => throw _privateConstructorUsedError;
-  @JsonKey(name: 'type_id')
-  String get typeId => throw _privateConstructorUsedError;
-  Map<String, dynamic> get config => throw _privateConstructorUsedError;
-  ConnectorState get state => throw _privateConstructorUsedError;
-  bool get enabled => throw _privateConstructorUsedError;
-  @JsonKey(name: 'auto_start')
-  bool get autoStart => throw _privateConstructorUsedError;
-  @JsonKey(name: 'process_id')
-  int? get processId => throw _privateConstructorUsedError;
-  @JsonKey(name: 'last_heartbeat')
-  DateTime? get lastHeartbeat => throw _privateConstructorUsedError;
-  @JsonKey(name: 'data_count')
-  int get dataCount => throw _privateConstructorUsedError;
-  @JsonKey(name: 'error_message')
-  String? get errorMessage => throw _privateConstructorUsedError;
-  @JsonKey(name: 'created_at')
-  DateTime? get createdAt => throw _privateConstructorUsedError;
-  @JsonKey(name: 'updated_at')
-  DateTime? get updatedAt => throw _privateConstructorUsedError;
-  @JsonKey(name: 'connector_type')
-  ConnectorTypeInfo? get connectorType => throw _privateConstructorUsedError;
-
-  /// Serializes this ConnectorInstanceDetail to a JSON map.
-  Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
-
-  /// Create a copy of ConnectorInstanceDetail
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
-  $ConnectorInstanceDetailCopyWith<ConnectorInstanceDetail> get copyWith =>
-      throw _privateConstructorUsedError;
-}
-
-/// @nodoc
-abstract class $ConnectorInstanceDetailCopyWith<$Res> {
-  factory $ConnectorInstanceDetailCopyWith(ConnectorInstanceDetail value,
-          $Res Function(ConnectorInstanceDetail) then) =
-      _$ConnectorInstanceDetailCopyWithImpl<$Res, ConnectorInstanceDetail>;
-  @useResult
-  $Res call(
-      {@JsonKey(name: 'instance_id') String instanceId,
-      @JsonKey(name: 'display_name') String displayName,
-      @JsonKey(name: 'type_id') String typeId,
-      Map<String, dynamic> config,
-      ConnectorState state,
-      bool enabled,
-      @JsonKey(name: 'auto_start') bool autoStart,
-      @JsonKey(name: 'process_id') int? processId,
-      @JsonKey(name: 'last_heartbeat') DateTime? lastHeartbeat,
-      @JsonKey(name: 'data_count') int dataCount,
-      @JsonKey(name: 'error_message') String? errorMessage,
-      @JsonKey(name: 'created_at') DateTime? createdAt,
-      @JsonKey(name: 'updated_at') DateTime? updatedAt,
-      @JsonKey(name: 'connector_type') ConnectorTypeInfo? connectorType});
-
-  $ConnectorTypeInfoCopyWith<$Res>? get connectorType;
-}
-
-/// @nodoc
-class _$ConnectorInstanceDetailCopyWithImpl<$Res,
-        $Val extends ConnectorInstanceDetail>
-    implements $ConnectorInstanceDetailCopyWith<$Res> {
-  _$ConnectorInstanceDetailCopyWithImpl(this._value, this._then);
-
-  // ignore: unused_field
-  final $Val _value;
-  // ignore: unused_field
-  final $Res Function($Val) _then;
-
-  /// Create a copy of ConnectorInstanceDetail
-  /// with the given fields replaced by the non-null parameter values.
-  @pragma('vm:prefer-inline')
-  @override
-  $Res call({
-    Object? instanceId = null,
-    Object? displayName = null,
-    Object? typeId = null,
-    Object? config = null,
-    Object? state = null,
-    Object? enabled = null,
-    Object? autoStart = null,
-    Object? processId = freezed,
-    Object? lastHeartbeat = freezed,
-    Object? dataCount = null,
-    Object? errorMessage = freezed,
-    Object? createdAt = freezed,
-    Object? updatedAt = freezed,
-    Object? connectorType = freezed,
-  }) {
-    return _then(_value.copyWith(
-      instanceId: null == instanceId
-          ? _value.instanceId
-          : instanceId // ignore: cast_nullable_to_non_nullable
-              as String,
-      displayName: null == displayName
-          ? _value.displayName
-          : displayName // ignore: cast_nullable_to_non_nullable
-              as String,
-      typeId: null == typeId
-          ? _value.typeId
-          : typeId // ignore: cast_nullable_to_non_nullable
-              as String,
-      config: null == config
-          ? _value.config
-          : config // ignore: cast_nullable_to_non_nullable
-              as Map<String, dynamic>,
-      state: null == state
-          ? _value.state
-          : state // ignore: cast_nullable_to_non_nullable
-              as ConnectorState,
-      enabled: null == enabled
-          ? _value.enabled
-          : enabled // ignore: cast_nullable_to_non_nullable
-              as bool,
-      autoStart: null == autoStart
-          ? _value.autoStart
-          : autoStart // ignore: cast_nullable_to_non_nullable
-              as bool,
-      processId: freezed == processId
-          ? _value.processId
-          : processId // ignore: cast_nullable_to_non_nullable
-              as int?,
-      lastHeartbeat: freezed == lastHeartbeat
-          ? _value.lastHeartbeat
-          : lastHeartbeat // ignore: cast_nullable_to_non_nullable
-              as DateTime?,
-      dataCount: null == dataCount
-          ? _value.dataCount
-          : dataCount // ignore: cast_nullable_to_non_nullable
-              as int,
-      errorMessage: freezed == errorMessage
-          ? _value.errorMessage
-          : errorMessage // ignore: cast_nullable_to_non_nullable
-              as String?,
-      createdAt: freezed == createdAt
-          ? _value.createdAt
-          : createdAt // ignore: cast_nullable_to_non_nullable
-              as DateTime?,
-      updatedAt: freezed == updatedAt
-          ? _value.updatedAt
-          : updatedAt // ignore: cast_nullable_to_non_nullable
-              as DateTime?,
-      connectorType: freezed == connectorType
-          ? _value.connectorType
-          : connectorType // ignore: cast_nullable_to_non_nullable
-              as ConnectorTypeInfo?,
-    ) as $Val);
-  }
-
-  /// Create a copy of ConnectorInstanceDetail
-  /// with the given fields replaced by the non-null parameter values.
-  @override
-  @pragma('vm:prefer-inline')
-  $ConnectorTypeInfoCopyWith<$Res>? get connectorType {
-    if (_value.connectorType == null) {
-      return null;
-    }
-
-    return $ConnectorTypeInfoCopyWith<$Res>(_value.connectorType!, (value) {
-      return _then(_value.copyWith(connectorType: value) as $Val);
-    });
-  }
-}
-
-/// @nodoc
-abstract class _$$ConnectorInstanceDetailImplCopyWith<$Res>
-    implements $ConnectorInstanceDetailCopyWith<$Res> {
-  factory _$$ConnectorInstanceDetailImplCopyWith(
-          _$ConnectorInstanceDetailImpl value,
-          $Res Function(_$ConnectorInstanceDetailImpl) then) =
-      __$$ConnectorInstanceDetailImplCopyWithImpl<$Res>;
-  @override
-  @useResult
-  $Res call(
-      {@JsonKey(name: 'instance_id') String instanceId,
-      @JsonKey(name: 'display_name') String displayName,
-      @JsonKey(name: 'type_id') String typeId,
-      Map<String, dynamic> config,
-      ConnectorState state,
-      bool enabled,
-      @JsonKey(name: 'auto_start') bool autoStart,
-      @JsonKey(name: 'process_id') int? processId,
-      @JsonKey(name: 'last_heartbeat') DateTime? lastHeartbeat,
-      @JsonKey(name: 'data_count') int dataCount,
-      @JsonKey(name: 'error_message') String? errorMessage,
-      @JsonKey(name: 'created_at') DateTime? createdAt,
-      @JsonKey(name: 'updated_at') DateTime? updatedAt,
-      @JsonKey(name: 'connector_type') ConnectorTypeInfo? connectorType});
-
-  @override
-  $ConnectorTypeInfoCopyWith<$Res>? get connectorType;
-}
-
-/// @nodoc
-class __$$ConnectorInstanceDetailImplCopyWithImpl<$Res>
-    extends _$ConnectorInstanceDetailCopyWithImpl<$Res,
-        _$ConnectorInstanceDetailImpl>
-    implements _$$ConnectorInstanceDetailImplCopyWith<$Res> {
-  __$$ConnectorInstanceDetailImplCopyWithImpl(
-      _$ConnectorInstanceDetailImpl _value,
-      $Res Function(_$ConnectorInstanceDetailImpl) _then)
-      : super(_value, _then);
-
-  /// Create a copy of ConnectorInstanceDetail
-  /// with the given fields replaced by the non-null parameter values.
-  @pragma('vm:prefer-inline')
-  @override
-  $Res call({
-    Object? instanceId = null,
-    Object? displayName = null,
-    Object? typeId = null,
-    Object? config = null,
-    Object? state = null,
-    Object? enabled = null,
-    Object? autoStart = null,
-    Object? processId = freezed,
-    Object? lastHeartbeat = freezed,
-    Object? dataCount = null,
-    Object? errorMessage = freezed,
-    Object? createdAt = freezed,
-    Object? updatedAt = freezed,
-    Object? connectorType = freezed,
-  }) {
-    return _then(_$ConnectorInstanceDetailImpl(
-      instanceId: null == instanceId
-          ? _value.instanceId
-          : instanceId // ignore: cast_nullable_to_non_nullable
-              as String,
-      displayName: null == displayName
-          ? _value.displayName
-          : displayName // ignore: cast_nullable_to_non_nullable
-              as String,
-      typeId: null == typeId
-          ? _value.typeId
-          : typeId // ignore: cast_nullable_to_non_nullable
-              as String,
-      config: null == config
-          ? _value._config
-          : config // ignore: cast_nullable_to_non_nullable
-              as Map<String, dynamic>,
-      state: null == state
-          ? _value.state
-          : state // ignore: cast_nullable_to_non_nullable
-              as ConnectorState,
-      enabled: null == enabled
-          ? _value.enabled
-          : enabled // ignore: cast_nullable_to_non_nullable
-              as bool,
-      autoStart: null == autoStart
-          ? _value.autoStart
-          : autoStart // ignore: cast_nullable_to_non_nullable
-              as bool,
-      processId: freezed == processId
-          ? _value.processId
-          : processId // ignore: cast_nullable_to_non_nullable
-              as int?,
-      lastHeartbeat: freezed == lastHeartbeat
-          ? _value.lastHeartbeat
-          : lastHeartbeat // ignore: cast_nullable_to_non_nullable
-              as DateTime?,
-      dataCount: null == dataCount
-          ? _value.dataCount
-          : dataCount // ignore: cast_nullable_to_non_nullable
-              as int,
-      errorMessage: freezed == errorMessage
-          ? _value.errorMessage
-          : errorMessage // ignore: cast_nullable_to_non_nullable
-              as String?,
-      createdAt: freezed == createdAt
-          ? _value.createdAt
-          : createdAt // ignore: cast_nullable_to_non_nullable
-              as DateTime?,
-      updatedAt: freezed == updatedAt
-          ? _value.updatedAt
-          : updatedAt // ignore: cast_nullable_to_non_nullable
-              as DateTime?,
-      connectorType: freezed == connectorType
-          ? _value.connectorType
-          : connectorType // ignore: cast_nullable_to_non_nullable
-              as ConnectorTypeInfo?,
-    ));
-  }
-}
-
-/// @nodoc
-@JsonSerializable()
-class _$ConnectorInstanceDetailImpl implements _ConnectorInstanceDetail {
-  const _$ConnectorInstanceDetailImpl(
-      {@JsonKey(name: 'instance_id') required this.instanceId,
-      @JsonKey(name: 'display_name') required this.displayName,
-      @JsonKey(name: 'type_id') required this.typeId,
-      required final Map<String, dynamic> config,
-      required this.state,
-      this.enabled = true,
-      @JsonKey(name: 'auto_start') this.autoStart = true,
-      @JsonKey(name: 'process_id') this.processId,
-      @JsonKey(name: 'last_heartbeat') this.lastHeartbeat,
-      @JsonKey(name: 'data_count') this.dataCount = 0,
-      @JsonKey(name: 'error_message') this.errorMessage,
-      @JsonKey(name: 'created_at') this.createdAt,
-      @JsonKey(name: 'updated_at') this.updatedAt,
-      @JsonKey(name: 'connector_type') this.connectorType})
-      : _config = config;
-
-  factory _$ConnectorInstanceDetailImpl.fromJson(Map<String, dynamic> json) =>
-      _$$ConnectorInstanceDetailImplFromJson(json);
-
-  @override
-  @JsonKey(name: 'instance_id')
-  final String instanceId;
-  @override
-  @JsonKey(name: 'display_name')
-  final String displayName;
-  @override
-  @JsonKey(name: 'type_id')
-  final String typeId;
-  final Map<String, dynamic> _config;
-  @override
-  Map<String, dynamic> get config {
-    if (_config is EqualUnmodifiableMapView) return _config;
-    // ignore: implicit_dynamic_type
-    return EqualUnmodifiableMapView(_config);
-  }
-
-  @override
-  final ConnectorState state;
-  @override
-  @JsonKey()
-  final bool enabled;
-  @override
-  @JsonKey(name: 'auto_start')
-  final bool autoStart;
-  @override
-  @JsonKey(name: 'process_id')
-  final int? processId;
-  @override
-  @JsonKey(name: 'last_heartbeat')
-  final DateTime? lastHeartbeat;
-  @override
-  @JsonKey(name: 'data_count')
-  final int dataCount;
-  @override
-  @JsonKey(name: 'error_message')
-  final String? errorMessage;
-  @override
-  @JsonKey(name: 'created_at')
-  final DateTime? createdAt;
-  @override
-  @JsonKey(name: 'updated_at')
-  final DateTime? updatedAt;
-  @override
-  @JsonKey(name: 'connector_type')
-  final ConnectorTypeInfo? connectorType;
-
-  @override
-  String toString() {
-    return 'ConnectorInstanceDetail(instanceId: $instanceId, displayName: $displayName, typeId: $typeId, config: $config, state: $state, enabled: $enabled, autoStart: $autoStart, processId: $processId, lastHeartbeat: $lastHeartbeat, dataCount: $dataCount, errorMessage: $errorMessage, createdAt: $createdAt, updatedAt: $updatedAt, connectorType: $connectorType)';
-  }
-
-  @override
-  bool operator ==(Object other) {
-    return identical(this, other) ||
-        (other.runtimeType == runtimeType &&
-            other is _$ConnectorInstanceDetailImpl &&
-            (identical(other.instanceId, instanceId) ||
-                other.instanceId == instanceId) &&
-            (identical(other.displayName, displayName) ||
-                other.displayName == displayName) &&
-            (identical(other.typeId, typeId) || other.typeId == typeId) &&
-            const DeepCollectionEquality().equals(other._config, _config) &&
-            (identical(other.state, state) || other.state == state) &&
-            (identical(other.enabled, enabled) || other.enabled == enabled) &&
-            (identical(other.autoStart, autoStart) ||
-                other.autoStart == autoStart) &&
-            (identical(other.processId, processId) ||
-                other.processId == processId) &&
-            (identical(other.lastHeartbeat, lastHeartbeat) ||
-                other.lastHeartbeat == lastHeartbeat) &&
-            (identical(other.dataCount, dataCount) ||
-                other.dataCount == dataCount) &&
-            (identical(other.errorMessage, errorMessage) ||
-                other.errorMessage == errorMessage) &&
-            (identical(other.createdAt, createdAt) ||
-                other.createdAt == createdAt) &&
-            (identical(other.updatedAt, updatedAt) ||
-                other.updatedAt == updatedAt) &&
-            (identical(other.connectorType, connectorType) ||
-                other.connectorType == connectorType));
-  }
-
-  @JsonKey(includeFromJson: false, includeToJson: false)
-  @override
-  int get hashCode => Object.hash(
-      runtimeType,
-      instanceId,
-      displayName,
-      typeId,
-      const DeepCollectionEquality().hash(_config),
-      state,
-      enabled,
-      autoStart,
-      processId,
-      lastHeartbeat,
-      dataCount,
-      errorMessage,
-      createdAt,
-      updatedAt,
-      connectorType);
-
-  /// Create a copy of ConnectorInstanceDetail
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
-  @override
-  @pragma('vm:prefer-inline')
-  _$$ConnectorInstanceDetailImplCopyWith<_$ConnectorInstanceDetailImpl>
-      get copyWith => __$$ConnectorInstanceDetailImplCopyWithImpl<
-          _$ConnectorInstanceDetailImpl>(this, _$identity);
-
-  @override
-  Map<String, dynamic> toJson() {
-    return _$$ConnectorInstanceDetailImplToJson(
-      this,
-    );
-  }
-}
-
-abstract class _ConnectorInstanceDetail implements ConnectorInstanceDetail {
-  const factory _ConnectorInstanceDetail(
-      {@JsonKey(name: 'instance_id') required final String instanceId,
-      @JsonKey(name: 'display_name') required final String displayName,
-      @JsonKey(name: 'type_id') required final String typeId,
-      required final Map<String, dynamic> config,
-      required final ConnectorState state,
-      final bool enabled,
-      @JsonKey(name: 'auto_start') final bool autoStart,
-      @JsonKey(name: 'process_id') final int? processId,
-      @JsonKey(name: 'last_heartbeat') final DateTime? lastHeartbeat,
-      @JsonKey(name: 'data_count') final int dataCount,
-      @JsonKey(name: 'error_message') final String? errorMessage,
-      @JsonKey(name: 'created_at') final DateTime? createdAt,
-      @JsonKey(name: 'updated_at') final DateTime? updatedAt,
-      @JsonKey(name: 'connector_type')
-      final ConnectorTypeInfo? connectorType}) = _$ConnectorInstanceDetailImpl;
-
-  factory _ConnectorInstanceDetail.fromJson(Map<String, dynamic> json) =
-      _$ConnectorInstanceDetailImpl.fromJson;
-
-  @override
-  @JsonKey(name: 'instance_id')
-  String get instanceId;
-  @override
-  @JsonKey(name: 'display_name')
-  String get displayName;
-  @override
-  @JsonKey(name: 'type_id')
-  String get typeId;
-  @override
-  Map<String, dynamic> get config;
-  @override
-  ConnectorState get state;
-  @override
-  bool get enabled;
-  @override
-  @JsonKey(name: 'auto_start')
-  bool get autoStart;
-  @override
-  @JsonKey(name: 'process_id')
-  int? get processId;
-  @override
-  @JsonKey(name: 'last_heartbeat')
-  DateTime? get lastHeartbeat;
-  @override
-  @JsonKey(name: 'data_count')
-  int get dataCount;
-  @override
-  @JsonKey(name: 'error_message')
-  String? get errorMessage;
-  @override
-  @JsonKey(name: 'created_at')
-  DateTime? get createdAt;
-  @override
-  @JsonKey(name: 'updated_at')
-  DateTime? get updatedAt;
-  @override
-  @JsonKey(name: 'connector_type')
-  ConnectorTypeInfo? get connectorType;
-
-  /// Create a copy of ConnectorInstanceDetail
-  /// with the given fields replaced by the non-null parameter values.
-  @override
-  @JsonKey(includeFromJson: false, includeToJson: false)
-  _$$ConnectorInstanceDetailImplCopyWith<_$ConnectorInstanceDetailImpl>
+  _$$ConnectorDetailResponseImplCopyWith<_$ConnectorDetailResponseImpl>
       get copyWith => throw _privateConstructorUsedError;
 }
 
@@ -5139,4 +4536,706 @@ abstract class _OperationResponse implements OperationResponse {
   @JsonKey(includeFromJson: false, includeToJson: false)
   _$$OperationResponseImplCopyWith<_$OperationResponseImpl> get copyWith =>
       throw _privateConstructorUsedError;
+}
+
+DiscoveredConnectorInfo _$DiscoveredConnectorInfoFromJson(
+    Map<String, dynamic> json) {
+  return _DiscoveredConnectorInfo.fromJson(json);
+}
+
+/// @nodoc
+mixin _$DiscoveredConnectorInfo {
+  String get path => throw _privateConstructorUsedError;
+  @JsonKey(name: 'connector_id')
+  String get connectorId => throw _privateConstructorUsedError;
+  String get name => throw _privateConstructorUsedError;
+  String get description => throw _privateConstructorUsedError;
+  String get version => throw _privateConstructorUsedError;
+  @JsonKey(name: 'entry_point')
+  String get entryPoint => throw _privateConstructorUsedError;
+  @JsonKey(name: 'is_registered')
+  bool get isRegistered => throw _privateConstructorUsedError;
+
+  /// Serializes this DiscoveredConnectorInfo to a JSON map.
+  Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
+
+  /// Create a copy of DiscoveredConnectorInfo
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  $DiscoveredConnectorInfoCopyWith<DiscoveredConnectorInfo> get copyWith =>
+      throw _privateConstructorUsedError;
+}
+
+/// @nodoc
+abstract class $DiscoveredConnectorInfoCopyWith<$Res> {
+  factory $DiscoveredConnectorInfoCopyWith(DiscoveredConnectorInfo value,
+          $Res Function(DiscoveredConnectorInfo) then) =
+      _$DiscoveredConnectorInfoCopyWithImpl<$Res, DiscoveredConnectorInfo>;
+  @useResult
+  $Res call(
+      {String path,
+      @JsonKey(name: 'connector_id') String connectorId,
+      String name,
+      String description,
+      String version,
+      @JsonKey(name: 'entry_point') String entryPoint,
+      @JsonKey(name: 'is_registered') bool isRegistered});
+}
+
+/// @nodoc
+class _$DiscoveredConnectorInfoCopyWithImpl<$Res,
+        $Val extends DiscoveredConnectorInfo>
+    implements $DiscoveredConnectorInfoCopyWith<$Res> {
+  _$DiscoveredConnectorInfoCopyWithImpl(this._value, this._then);
+
+  // ignore: unused_field
+  final $Val _value;
+  // ignore: unused_field
+  final $Res Function($Val) _then;
+
+  /// Create a copy of DiscoveredConnectorInfo
+  /// with the given fields replaced by the non-null parameter values.
+  @pragma('vm:prefer-inline')
+  @override
+  $Res call({
+    Object? path = null,
+    Object? connectorId = null,
+    Object? name = null,
+    Object? description = null,
+    Object? version = null,
+    Object? entryPoint = null,
+    Object? isRegistered = null,
+  }) {
+    return _then(_value.copyWith(
+      path: null == path
+          ? _value.path
+          : path // ignore: cast_nullable_to_non_nullable
+              as String,
+      connectorId: null == connectorId
+          ? _value.connectorId
+          : connectorId // ignore: cast_nullable_to_non_nullable
+              as String,
+      name: null == name
+          ? _value.name
+          : name // ignore: cast_nullable_to_non_nullable
+              as String,
+      description: null == description
+          ? _value.description
+          : description // ignore: cast_nullable_to_non_nullable
+              as String,
+      version: null == version
+          ? _value.version
+          : version // ignore: cast_nullable_to_non_nullable
+              as String,
+      entryPoint: null == entryPoint
+          ? _value.entryPoint
+          : entryPoint // ignore: cast_nullable_to_non_nullable
+              as String,
+      isRegistered: null == isRegistered
+          ? _value.isRegistered
+          : isRegistered // ignore: cast_nullable_to_non_nullable
+              as bool,
+    ) as $Val);
+  }
+}
+
+/// @nodoc
+abstract class _$$DiscoveredConnectorInfoImplCopyWith<$Res>
+    implements $DiscoveredConnectorInfoCopyWith<$Res> {
+  factory _$$DiscoveredConnectorInfoImplCopyWith(
+          _$DiscoveredConnectorInfoImpl value,
+          $Res Function(_$DiscoveredConnectorInfoImpl) then) =
+      __$$DiscoveredConnectorInfoImplCopyWithImpl<$Res>;
+  @override
+  @useResult
+  $Res call(
+      {String path,
+      @JsonKey(name: 'connector_id') String connectorId,
+      String name,
+      String description,
+      String version,
+      @JsonKey(name: 'entry_point') String entryPoint,
+      @JsonKey(name: 'is_registered') bool isRegistered});
+}
+
+/// @nodoc
+class __$$DiscoveredConnectorInfoImplCopyWithImpl<$Res>
+    extends _$DiscoveredConnectorInfoCopyWithImpl<$Res,
+        _$DiscoveredConnectorInfoImpl>
+    implements _$$DiscoveredConnectorInfoImplCopyWith<$Res> {
+  __$$DiscoveredConnectorInfoImplCopyWithImpl(
+      _$DiscoveredConnectorInfoImpl _value,
+      $Res Function(_$DiscoveredConnectorInfoImpl) _then)
+      : super(_value, _then);
+
+  /// Create a copy of DiscoveredConnectorInfo
+  /// with the given fields replaced by the non-null parameter values.
+  @pragma('vm:prefer-inline')
+  @override
+  $Res call({
+    Object? path = null,
+    Object? connectorId = null,
+    Object? name = null,
+    Object? description = null,
+    Object? version = null,
+    Object? entryPoint = null,
+    Object? isRegistered = null,
+  }) {
+    return _then(_$DiscoveredConnectorInfoImpl(
+      path: null == path
+          ? _value.path
+          : path // ignore: cast_nullable_to_non_nullable
+              as String,
+      connectorId: null == connectorId
+          ? _value.connectorId
+          : connectorId // ignore: cast_nullable_to_non_nullable
+              as String,
+      name: null == name
+          ? _value.name
+          : name // ignore: cast_nullable_to_non_nullable
+              as String,
+      description: null == description
+          ? _value.description
+          : description // ignore: cast_nullable_to_non_nullable
+              as String,
+      version: null == version
+          ? _value.version
+          : version // ignore: cast_nullable_to_non_nullable
+              as String,
+      entryPoint: null == entryPoint
+          ? _value.entryPoint
+          : entryPoint // ignore: cast_nullable_to_non_nullable
+              as String,
+      isRegistered: null == isRegistered
+          ? _value.isRegistered
+          : isRegistered // ignore: cast_nullable_to_non_nullable
+              as bool,
+    ));
+  }
+}
+
+/// @nodoc
+@JsonSerializable()
+class _$DiscoveredConnectorInfoImpl implements _DiscoveredConnectorInfo {
+  const _$DiscoveredConnectorInfoImpl(
+      {required this.path,
+      @JsonKey(name: 'connector_id') required this.connectorId,
+      required this.name,
+      required this.description,
+      required this.version,
+      @JsonKey(name: 'entry_point') required this.entryPoint,
+      @JsonKey(name: 'is_registered') required this.isRegistered});
+
+  factory _$DiscoveredConnectorInfoImpl.fromJson(Map<String, dynamic> json) =>
+      _$$DiscoveredConnectorInfoImplFromJson(json);
+
+  @override
+  final String path;
+  @override
+  @JsonKey(name: 'connector_id')
+  final String connectorId;
+  @override
+  final String name;
+  @override
+  final String description;
+  @override
+  final String version;
+  @override
+  @JsonKey(name: 'entry_point')
+  final String entryPoint;
+  @override
+  @JsonKey(name: 'is_registered')
+  final bool isRegistered;
+
+  @override
+  String toString() {
+    return 'DiscoveredConnectorInfo(path: $path, connectorId: $connectorId, name: $name, description: $description, version: $version, entryPoint: $entryPoint, isRegistered: $isRegistered)';
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is _$DiscoveredConnectorInfoImpl &&
+            (identical(other.path, path) || other.path == path) &&
+            (identical(other.connectorId, connectorId) ||
+                other.connectorId == connectorId) &&
+            (identical(other.name, name) || other.name == name) &&
+            (identical(other.description, description) ||
+                other.description == description) &&
+            (identical(other.version, version) || other.version == version) &&
+            (identical(other.entryPoint, entryPoint) ||
+                other.entryPoint == entryPoint) &&
+            (identical(other.isRegistered, isRegistered) ||
+                other.isRegistered == isRegistered));
+  }
+
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @override
+  int get hashCode => Object.hash(runtimeType, path, connectorId, name,
+      description, version, entryPoint, isRegistered);
+
+  /// Create a copy of DiscoveredConnectorInfo
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @override
+  @pragma('vm:prefer-inline')
+  _$$DiscoveredConnectorInfoImplCopyWith<_$DiscoveredConnectorInfoImpl>
+      get copyWith => __$$DiscoveredConnectorInfoImplCopyWithImpl<
+          _$DiscoveredConnectorInfoImpl>(this, _$identity);
+
+  @override
+  Map<String, dynamic> toJson() {
+    return _$$DiscoveredConnectorInfoImplToJson(
+      this,
+    );
+  }
+}
+
+abstract class _DiscoveredConnectorInfo implements DiscoveredConnectorInfo {
+  const factory _DiscoveredConnectorInfo(
+          {required final String path,
+          @JsonKey(name: 'connector_id') required final String connectorId,
+          required final String name,
+          required final String description,
+          required final String version,
+          @JsonKey(name: 'entry_point') required final String entryPoint,
+          @JsonKey(name: 'is_registered') required final bool isRegistered}) =
+      _$DiscoveredConnectorInfoImpl;
+
+  factory _DiscoveredConnectorInfo.fromJson(Map<String, dynamic> json) =
+      _$DiscoveredConnectorInfoImpl.fromJson;
+
+  @override
+  String get path;
+  @override
+  @JsonKey(name: 'connector_id')
+  String get connectorId;
+  @override
+  String get name;
+  @override
+  String get description;
+  @override
+  String get version;
+  @override
+  @JsonKey(name: 'entry_point')
+  String get entryPoint;
+  @override
+  @JsonKey(name: 'is_registered')
+  bool get isRegistered;
+
+  /// Create a copy of DiscoveredConnectorInfo
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  _$$DiscoveredConnectorInfoImplCopyWith<_$DiscoveredConnectorInfoImpl>
+      get copyWith => throw _privateConstructorUsedError;
+}
+
+DirectoryScanResponse _$DirectoryScanResponseFromJson(
+    Map<String, dynamic> json) {
+  return _DirectoryScanResponse.fromJson(json);
+}
+
+/// @nodoc
+mixin _$DirectoryScanResponse {
+  bool get success => throw _privateConstructorUsedError;
+  Map<String, dynamic> get data => throw _privateConstructorUsedError;
+  String get message => throw _privateConstructorUsedError;
+
+  /// Serializes this DirectoryScanResponse to a JSON map.
+  Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
+
+  /// Create a copy of DirectoryScanResponse
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  $DirectoryScanResponseCopyWith<DirectoryScanResponse> get copyWith =>
+      throw _privateConstructorUsedError;
+}
+
+/// @nodoc
+abstract class $DirectoryScanResponseCopyWith<$Res> {
+  factory $DirectoryScanResponseCopyWith(DirectoryScanResponse value,
+          $Res Function(DirectoryScanResponse) then) =
+      _$DirectoryScanResponseCopyWithImpl<$Res, DirectoryScanResponse>;
+  @useResult
+  $Res call({bool success, Map<String, dynamic> data, String message});
+}
+
+/// @nodoc
+class _$DirectoryScanResponseCopyWithImpl<$Res,
+        $Val extends DirectoryScanResponse>
+    implements $DirectoryScanResponseCopyWith<$Res> {
+  _$DirectoryScanResponseCopyWithImpl(this._value, this._then);
+
+  // ignore: unused_field
+  final $Val _value;
+  // ignore: unused_field
+  final $Res Function($Val) _then;
+
+  /// Create a copy of DirectoryScanResponse
+  /// with the given fields replaced by the non-null parameter values.
+  @pragma('vm:prefer-inline')
+  @override
+  $Res call({
+    Object? success = null,
+    Object? data = null,
+    Object? message = null,
+  }) {
+    return _then(_value.copyWith(
+      success: null == success
+          ? _value.success
+          : success // ignore: cast_nullable_to_non_nullable
+              as bool,
+      data: null == data
+          ? _value.data
+          : data // ignore: cast_nullable_to_non_nullable
+              as Map<String, dynamic>,
+      message: null == message
+          ? _value.message
+          : message // ignore: cast_nullable_to_non_nullable
+              as String,
+    ) as $Val);
+  }
+}
+
+/// @nodoc
+abstract class _$$DirectoryScanResponseImplCopyWith<$Res>
+    implements $DirectoryScanResponseCopyWith<$Res> {
+  factory _$$DirectoryScanResponseImplCopyWith(
+          _$DirectoryScanResponseImpl value,
+          $Res Function(_$DirectoryScanResponseImpl) then) =
+      __$$DirectoryScanResponseImplCopyWithImpl<$Res>;
+  @override
+  @useResult
+  $Res call({bool success, Map<String, dynamic> data, String message});
+}
+
+/// @nodoc
+class __$$DirectoryScanResponseImplCopyWithImpl<$Res>
+    extends _$DirectoryScanResponseCopyWithImpl<$Res,
+        _$DirectoryScanResponseImpl>
+    implements _$$DirectoryScanResponseImplCopyWith<$Res> {
+  __$$DirectoryScanResponseImplCopyWithImpl(_$DirectoryScanResponseImpl _value,
+      $Res Function(_$DirectoryScanResponseImpl) _then)
+      : super(_value, _then);
+
+  /// Create a copy of DirectoryScanResponse
+  /// with the given fields replaced by the non-null parameter values.
+  @pragma('vm:prefer-inline')
+  @override
+  $Res call({
+    Object? success = null,
+    Object? data = null,
+    Object? message = null,
+  }) {
+    return _then(_$DirectoryScanResponseImpl(
+      success: null == success
+          ? _value.success
+          : success // ignore: cast_nullable_to_non_nullable
+              as bool,
+      data: null == data
+          ? _value._data
+          : data // ignore: cast_nullable_to_non_nullable
+              as Map<String, dynamic>,
+      message: null == message
+          ? _value.message
+          : message // ignore: cast_nullable_to_non_nullable
+              as String,
+    ));
+  }
+}
+
+/// @nodoc
+@JsonSerializable()
+class _$DirectoryScanResponseImpl implements _DirectoryScanResponse {
+  const _$DirectoryScanResponseImpl(
+      {required this.success,
+      required final Map<String, dynamic> data,
+      required this.message})
+      : _data = data;
+
+  factory _$DirectoryScanResponseImpl.fromJson(Map<String, dynamic> json) =>
+      _$$DirectoryScanResponseImplFromJson(json);
+
+  @override
+  final bool success;
+  final Map<String, dynamic> _data;
+  @override
+  Map<String, dynamic> get data {
+    if (_data is EqualUnmodifiableMapView) return _data;
+    // ignore: implicit_dynamic_type
+    return EqualUnmodifiableMapView(_data);
+  }
+
+  @override
+  final String message;
+
+  @override
+  String toString() {
+    return 'DirectoryScanResponse(success: $success, data: $data, message: $message)';
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is _$DirectoryScanResponseImpl &&
+            (identical(other.success, success) || other.success == success) &&
+            const DeepCollectionEquality().equals(other._data, _data) &&
+            (identical(other.message, message) || other.message == message));
+  }
+
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @override
+  int get hashCode => Object.hash(runtimeType, success,
+      const DeepCollectionEquality().hash(_data), message);
+
+  /// Create a copy of DirectoryScanResponse
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @override
+  @pragma('vm:prefer-inline')
+  _$$DirectoryScanResponseImplCopyWith<_$DirectoryScanResponseImpl>
+      get copyWith => __$$DirectoryScanResponseImplCopyWithImpl<
+          _$DirectoryScanResponseImpl>(this, _$identity);
+
+  @override
+  Map<String, dynamic> toJson() {
+    return _$$DirectoryScanResponseImplToJson(
+      this,
+    );
+  }
+}
+
+abstract class _DirectoryScanResponse implements DirectoryScanResponse {
+  const factory _DirectoryScanResponse(
+      {required final bool success,
+      required final Map<String, dynamic> data,
+      required final String message}) = _$DirectoryScanResponseImpl;
+
+  factory _DirectoryScanResponse.fromJson(Map<String, dynamic> json) =
+      _$DirectoryScanResponseImpl.fromJson;
+
+  @override
+  bool get success;
+  @override
+  Map<String, dynamic> get data;
+  @override
+  String get message;
+
+  /// Create a copy of DirectoryScanResponse
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  _$$DirectoryScanResponseImplCopyWith<_$DirectoryScanResponseImpl>
+      get copyWith => throw _privateConstructorUsedError;
+}
+
+ConnectorRegistrationResponse _$ConnectorRegistrationResponseFromJson(
+    Map<String, dynamic> json) {
+  return _ConnectorRegistrationResponse.fromJson(json);
+}
+
+/// @nodoc
+mixin _$ConnectorRegistrationResponse {
+  bool get success => throw _privateConstructorUsedError;
+  Map<String, dynamic> get data => throw _privateConstructorUsedError;
+  String get message => throw _privateConstructorUsedError;
+
+  /// Serializes this ConnectorRegistrationResponse to a JSON map.
+  Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
+
+  /// Create a copy of ConnectorRegistrationResponse
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  $ConnectorRegistrationResponseCopyWith<ConnectorRegistrationResponse>
+      get copyWith => throw _privateConstructorUsedError;
+}
+
+/// @nodoc
+abstract class $ConnectorRegistrationResponseCopyWith<$Res> {
+  factory $ConnectorRegistrationResponseCopyWith(
+          ConnectorRegistrationResponse value,
+          $Res Function(ConnectorRegistrationResponse) then) =
+      _$ConnectorRegistrationResponseCopyWithImpl<$Res,
+          ConnectorRegistrationResponse>;
+  @useResult
+  $Res call({bool success, Map<String, dynamic> data, String message});
+}
+
+/// @nodoc
+class _$ConnectorRegistrationResponseCopyWithImpl<$Res,
+        $Val extends ConnectorRegistrationResponse>
+    implements $ConnectorRegistrationResponseCopyWith<$Res> {
+  _$ConnectorRegistrationResponseCopyWithImpl(this._value, this._then);
+
+  // ignore: unused_field
+  final $Val _value;
+  // ignore: unused_field
+  final $Res Function($Val) _then;
+
+  /// Create a copy of ConnectorRegistrationResponse
+  /// with the given fields replaced by the non-null parameter values.
+  @pragma('vm:prefer-inline')
+  @override
+  $Res call({
+    Object? success = null,
+    Object? data = null,
+    Object? message = null,
+  }) {
+    return _then(_value.copyWith(
+      success: null == success
+          ? _value.success
+          : success // ignore: cast_nullable_to_non_nullable
+              as bool,
+      data: null == data
+          ? _value.data
+          : data // ignore: cast_nullable_to_non_nullable
+              as Map<String, dynamic>,
+      message: null == message
+          ? _value.message
+          : message // ignore: cast_nullable_to_non_nullable
+              as String,
+    ) as $Val);
+  }
+}
+
+/// @nodoc
+abstract class _$$ConnectorRegistrationResponseImplCopyWith<$Res>
+    implements $ConnectorRegistrationResponseCopyWith<$Res> {
+  factory _$$ConnectorRegistrationResponseImplCopyWith(
+          _$ConnectorRegistrationResponseImpl value,
+          $Res Function(_$ConnectorRegistrationResponseImpl) then) =
+      __$$ConnectorRegistrationResponseImplCopyWithImpl<$Res>;
+  @override
+  @useResult
+  $Res call({bool success, Map<String, dynamic> data, String message});
+}
+
+/// @nodoc
+class __$$ConnectorRegistrationResponseImplCopyWithImpl<$Res>
+    extends _$ConnectorRegistrationResponseCopyWithImpl<$Res,
+        _$ConnectorRegistrationResponseImpl>
+    implements _$$ConnectorRegistrationResponseImplCopyWith<$Res> {
+  __$$ConnectorRegistrationResponseImplCopyWithImpl(
+      _$ConnectorRegistrationResponseImpl _value,
+      $Res Function(_$ConnectorRegistrationResponseImpl) _then)
+      : super(_value, _then);
+
+  /// Create a copy of ConnectorRegistrationResponse
+  /// with the given fields replaced by the non-null parameter values.
+  @pragma('vm:prefer-inline')
+  @override
+  $Res call({
+    Object? success = null,
+    Object? data = null,
+    Object? message = null,
+  }) {
+    return _then(_$ConnectorRegistrationResponseImpl(
+      success: null == success
+          ? _value.success
+          : success // ignore: cast_nullable_to_non_nullable
+              as bool,
+      data: null == data
+          ? _value._data
+          : data // ignore: cast_nullable_to_non_nullable
+              as Map<String, dynamic>,
+      message: null == message
+          ? _value.message
+          : message // ignore: cast_nullable_to_non_nullable
+              as String,
+    ));
+  }
+}
+
+/// @nodoc
+@JsonSerializable()
+class _$ConnectorRegistrationResponseImpl
+    implements _ConnectorRegistrationResponse {
+  const _$ConnectorRegistrationResponseImpl(
+      {required this.success,
+      required final Map<String, dynamic> data,
+      required this.message})
+      : _data = data;
+
+  factory _$ConnectorRegistrationResponseImpl.fromJson(
+          Map<String, dynamic> json) =>
+      _$$ConnectorRegistrationResponseImplFromJson(json);
+
+  @override
+  final bool success;
+  final Map<String, dynamic> _data;
+  @override
+  Map<String, dynamic> get data {
+    if (_data is EqualUnmodifiableMapView) return _data;
+    // ignore: implicit_dynamic_type
+    return EqualUnmodifiableMapView(_data);
+  }
+
+  @override
+  final String message;
+
+  @override
+  String toString() {
+    return 'ConnectorRegistrationResponse(success: $success, data: $data, message: $message)';
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is _$ConnectorRegistrationResponseImpl &&
+            (identical(other.success, success) || other.success == success) &&
+            const DeepCollectionEquality().equals(other._data, _data) &&
+            (identical(other.message, message) || other.message == message));
+  }
+
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @override
+  int get hashCode => Object.hash(runtimeType, success,
+      const DeepCollectionEquality().hash(_data), message);
+
+  /// Create a copy of ConnectorRegistrationResponse
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @override
+  @pragma('vm:prefer-inline')
+  _$$ConnectorRegistrationResponseImplCopyWith<
+          _$ConnectorRegistrationResponseImpl>
+      get copyWith => __$$ConnectorRegistrationResponseImplCopyWithImpl<
+          _$ConnectorRegistrationResponseImpl>(this, _$identity);
+
+  @override
+  Map<String, dynamic> toJson() {
+    return _$$ConnectorRegistrationResponseImplToJson(
+      this,
+    );
+  }
+}
+
+abstract class _ConnectorRegistrationResponse
+    implements ConnectorRegistrationResponse {
+  const factory _ConnectorRegistrationResponse(
+      {required final bool success,
+      required final Map<String, dynamic> data,
+      required final String message}) = _$ConnectorRegistrationResponseImpl;
+
+  factory _ConnectorRegistrationResponse.fromJson(Map<String, dynamic> json) =
+      _$ConnectorRegistrationResponseImpl.fromJson;
+
+  @override
+  bool get success;
+  @override
+  Map<String, dynamic> get data;
+  @override
+  String get message;
+
+  /// Create a copy of ConnectorRegistrationResponse
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  _$$ConnectorRegistrationResponseImplCopyWith<
+          _$ConnectorRegistrationResponseImpl>
+      get copyWith => throw _privateConstructorUsedError;
 }

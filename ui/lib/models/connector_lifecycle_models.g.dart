@@ -6,10 +6,10 @@ part of 'connector_lifecycle_models.dart';
 // JsonSerializableGenerator
 // **************************************************************************
 
-_$ConnectorTypeInfoImpl _$$ConnectorTypeInfoImplFromJson(
+_$ConnectorDefinitionImpl _$$ConnectorDefinitionImplFromJson(
         Map<String, dynamic> json) =>
-    _$ConnectorTypeInfoImpl(
-      typeId: json['type_id'] as String,
+    _$ConnectorDefinitionImpl(
+      connectorId: json['connector_id'] as String,
       name: json['name'] as String,
       displayName: json['display_name'] as String,
       description: json['description'] as String,
@@ -17,10 +17,6 @@ _$ConnectorTypeInfoImpl _$$ConnectorTypeInfoImplFromJson(
       version: json['version'] as String,
       author: json['author'] as String,
       license: json['license'] as String? ?? '',
-      supportsMultipleInstances:
-          json['supports_multiple_instances'] as bool? ?? false,
-      maxInstancesPerUser:
-          (json['max_instances_per_user'] as num?)?.toInt() ?? 1,
       autoDiscovery: json['auto_discovery'] as bool? ?? false,
       hotConfigReload: json['hot_config_reload'] as bool? ?? true,
       healthCheck: json['health_check'] as bool? ?? true,
@@ -36,16 +32,14 @@ _$ConnectorTypeInfoImpl _$$ConnectorTypeInfoImplFromJson(
       configSchema: json['config_schema'] as Map<String, dynamic>? ?? const {},
       defaultConfig:
           json['default_config'] as Map<String, dynamic>? ?? const {},
-      instanceTemplates: (json['instance_templates'] as List<dynamic>?)
-              ?.map((e) => InstanceTemplate.fromJson(e as Map<String, dynamic>))
-              .toList() ??
-          const [],
+      path: json['path'] as String?,
+      isRegistered: json['is_registered'] as bool?,
     );
 
-Map<String, dynamic> _$$ConnectorTypeInfoImplToJson(
-        _$ConnectorTypeInfoImpl instance) =>
+Map<String, dynamic> _$$ConnectorDefinitionImplToJson(
+        _$ConnectorDefinitionImpl instance) =>
     <String, dynamic>{
-      'type_id': instance.typeId,
+      'connector_id': instance.connectorId,
       'name': instance.name,
       'display_name': instance.displayName,
       'description': instance.description,
@@ -53,8 +47,6 @@ Map<String, dynamic> _$$ConnectorTypeInfoImplToJson(
       'version': instance.version,
       'author': instance.author,
       'license': instance.license,
-      'supports_multiple_instances': instance.supportsMultipleInstances,
-      'max_instances_per_user': instance.maxInstancesPerUser,
       'auto_discovery': instance.autoDiscovery,
       'hot_config_reload': instance.hotConfigReload,
       'health_check': instance.healthCheck,
@@ -63,7 +55,8 @@ Map<String, dynamic> _$$ConnectorTypeInfoImplToJson(
       'permissions': instance.permissions,
       'config_schema': instance.configSchema,
       'default_config': instance.defaultConfig,
-      'instance_templates': instance.instanceTemplates,
+      'path': instance.path,
+      'is_registered': instance.isRegistered,
     };
 
 _$InstanceTemplateImpl _$$InstanceTemplateImplFromJson(
@@ -84,13 +77,10 @@ Map<String, dynamic> _$$InstanceTemplateImplToJson(
       'config': instance.config,
     };
 
-_$ConnectorInstanceInfoImpl _$$ConnectorInstanceInfoImplFromJson(
-        Map<String, dynamic> json) =>
-    _$ConnectorInstanceInfoImpl(
-      instanceId: json['instance_id'] as String,
+_$ConnectorInfoImpl _$$ConnectorInfoImplFromJson(Map<String, dynamic> json) =>
+    _$ConnectorInfoImpl(
+      collectorId: json['collector_id'] as String,
       displayName: json['display_name'] as String,
-      typeId: json['type_id'] as String,
-      typeName: json['type_name'] as String? ?? '未知',
       state: $enumDecode(_$ConnectorStateEnumMap, json['state']),
       enabled: json['enabled'] as bool? ?? true,
       autoStart: json['auto_start'] as bool? ?? true,
@@ -109,13 +99,10 @@ _$ConnectorInstanceInfoImpl _$$ConnectorInstanceInfoImplFromJson(
       config: json['config'] as Map<String, dynamic>? ?? const {},
     );
 
-Map<String, dynamic> _$$ConnectorInstanceInfoImplToJson(
-        _$ConnectorInstanceInfoImpl instance) =>
+Map<String, dynamic> _$$ConnectorInfoImplToJson(_$ConnectorInfoImpl instance) =>
     <String, dynamic>{
-      'instance_id': instance.instanceId,
+      'collector_id': instance.collectorId,
       'display_name': instance.displayName,
-      'type_id': instance.typeId,
-      'type_name': instance.typeName,
       'state': _$ConnectorStateEnumMap[instance.state]!,
       'enabled': instance.enabled,
       'auto_start': instance.autoStart,
@@ -140,20 +127,20 @@ const _$ConnectorStateEnumMap = {
   ConnectorState.uninstalling: 'uninstalling',
 };
 
-_$CreateInstanceRequestImpl _$$CreateInstanceRequestImplFromJson(
+_$CreateConnectorRequestImpl _$$CreateConnectorRequestImplFromJson(
         Map<String, dynamic> json) =>
-    _$CreateInstanceRequestImpl(
-      typeId: json['type_id'] as String,
+    _$CreateConnectorRequestImpl(
+      connectorId: json['connector_id'] as String,
       displayName: json['display_name'] as String,
       config: json['config'] as Map<String, dynamic>? ?? const {},
       autoStart: json['auto_start'] as bool? ?? true,
       templateId: json['template_id'] as String?,
     );
 
-Map<String, dynamic> _$$CreateInstanceRequestImplToJson(
-        _$CreateInstanceRequestImpl instance) =>
+Map<String, dynamic> _$$CreateConnectorRequestImplToJson(
+        _$CreateConnectorRequestImpl instance) =>
     <String, dynamic>{
-      'type_id': instance.typeId,
+      'connector_id': instance.connectorId,
       'display_name': instance.displayName,
       'config': instance.config,
       'auto_start': instance.autoStart,
@@ -331,9 +318,9 @@ _$DiscoveryResponseImpl _$$DiscoveryResponseImplFromJson(
     _$DiscoveryResponseImpl(
       success: json['success'] as bool,
       message: json['message'] as String,
-      connectorTypes: (json['connector_types'] as List<dynamic>?)
-              ?.map(
-                  (e) => ConnectorTypeInfo.fromJson(e as Map<String, dynamic>))
+      connectors: (json['connectors'] as List<dynamic>?)
+              ?.map((e) =>
+                  ConnectorDefinition.fromJson(e as Map<String, dynamic>))
               .toList() ??
           const [],
     );
@@ -343,89 +330,41 @@ Map<String, dynamic> _$$DiscoveryResponseImplToJson(
     <String, dynamic>{
       'success': instance.success,
       'message': instance.message,
-      'connector_types': instance.connectorTypes,
+      'connectors': instance.connectors,
     };
 
-_$InstanceListResponseImpl _$$InstanceListResponseImplFromJson(
+_$ConnectorListResponseImpl _$$ConnectorListResponseImplFromJson(
         Map<String, dynamic> json) =>
-    _$InstanceListResponseImpl(
+    _$ConnectorListResponseImpl(
       success: json['success'] as bool,
-      instances: (json['instances'] as List<dynamic>?)
-              ?.map((e) =>
-                  ConnectorInstanceInfo.fromJson(e as Map<String, dynamic>))
+      collectors: (json['collectors'] as List<dynamic>?)
+              ?.map((e) => ConnectorInfo.fromJson(e as Map<String, dynamic>))
               .toList() ??
           const [],
       totalCount: (json['total_count'] as num?)?.toInt() ?? 0,
     );
 
-Map<String, dynamic> _$$InstanceListResponseImplToJson(
-        _$InstanceListResponseImpl instance) =>
+Map<String, dynamic> _$$ConnectorListResponseImplToJson(
+        _$ConnectorListResponseImpl instance) =>
     <String, dynamic>{
       'success': instance.success,
-      'instances': instance.instances,
+      'collectors': instance.collectors,
       'total_count': instance.totalCount,
     };
 
-_$InstanceDetailResponseImpl _$$InstanceDetailResponseImplFromJson(
+_$ConnectorDetailResponseImpl _$$ConnectorDetailResponseImplFromJson(
         Map<String, dynamic> json) =>
-    _$InstanceDetailResponseImpl(
+    _$ConnectorDetailResponseImpl(
       success: json['success'] as bool,
-      instance: ConnectorInstanceDetail.fromJson(
-          json['instance'] as Map<String, dynamic>),
+      collector:
+          ConnectorInfo.fromJson(json['collector'] as Map<String, dynamic>),
     );
 
-Map<String, dynamic> _$$InstanceDetailResponseImplToJson(
-        _$InstanceDetailResponseImpl instance) =>
+Map<String, dynamic> _$$ConnectorDetailResponseImplToJson(
+        _$ConnectorDetailResponseImpl instance) =>
     <String, dynamic>{
       'success': instance.success,
-      'instance': instance.instance,
-    };
-
-_$ConnectorInstanceDetailImpl _$$ConnectorInstanceDetailImplFromJson(
-        Map<String, dynamic> json) =>
-    _$ConnectorInstanceDetailImpl(
-      instanceId: json['instance_id'] as String,
-      displayName: json['display_name'] as String,
-      typeId: json['type_id'] as String,
-      config: json['config'] as Map<String, dynamic>,
-      state: $enumDecode(_$ConnectorStateEnumMap, json['state']),
-      enabled: json['enabled'] as bool? ?? true,
-      autoStart: json['auto_start'] as bool? ?? true,
-      processId: (json['process_id'] as num?)?.toInt(),
-      lastHeartbeat: json['last_heartbeat'] == null
-          ? null
-          : DateTime.parse(json['last_heartbeat'] as String),
-      dataCount: (json['data_count'] as num?)?.toInt() ?? 0,
-      errorMessage: json['error_message'] as String?,
-      createdAt: json['created_at'] == null
-          ? null
-          : DateTime.parse(json['created_at'] as String),
-      updatedAt: json['updated_at'] == null
-          ? null
-          : DateTime.parse(json['updated_at'] as String),
-      connectorType: json['connector_type'] == null
-          ? null
-          : ConnectorTypeInfo.fromJson(
-              json['connector_type'] as Map<String, dynamic>),
-    );
-
-Map<String, dynamic> _$$ConnectorInstanceDetailImplToJson(
-        _$ConnectorInstanceDetailImpl instance) =>
-    <String, dynamic>{
-      'instance_id': instance.instanceId,
-      'display_name': instance.displayName,
-      'type_id': instance.typeId,
-      'config': instance.config,
-      'state': _$ConnectorStateEnumMap[instance.state]!,
-      'enabled': instance.enabled,
-      'auto_start': instance.autoStart,
-      'process_id': instance.processId,
-      'last_heartbeat': instance.lastHeartbeat?.toIso8601String(),
-      'data_count': instance.dataCount,
-      'error_message': instance.errorMessage,
-      'created_at': instance.createdAt?.toIso8601String(),
-      'updated_at': instance.updatedAt?.toIso8601String(),
-      'connector_type': instance.connectorType,
+      'collector': instance.collector,
     };
 
 _$OperationResponseImpl _$$OperationResponseImplFromJson(
@@ -450,4 +389,60 @@ Map<String, dynamic> _$$OperationResponseImplToJson(
       'hot_reload_applied': instance.hotReloadApplied,
       'requires_restart': instance.requiresRestart,
       'was_running': instance.wasRunning,
+    };
+
+_$DiscoveredConnectorInfoImpl _$$DiscoveredConnectorInfoImplFromJson(
+        Map<String, dynamic> json) =>
+    _$DiscoveredConnectorInfoImpl(
+      path: json['path'] as String,
+      connectorId: json['connector_id'] as String,
+      name: json['name'] as String,
+      description: json['description'] as String,
+      version: json['version'] as String,
+      entryPoint: json['entry_point'] as String,
+      isRegistered: json['is_registered'] as bool,
+    );
+
+Map<String, dynamic> _$$DiscoveredConnectorInfoImplToJson(
+        _$DiscoveredConnectorInfoImpl instance) =>
+    <String, dynamic>{
+      'path': instance.path,
+      'connector_id': instance.connectorId,
+      'name': instance.name,
+      'description': instance.description,
+      'version': instance.version,
+      'entry_point': instance.entryPoint,
+      'is_registered': instance.isRegistered,
+    };
+
+_$DirectoryScanResponseImpl _$$DirectoryScanResponseImplFromJson(
+        Map<String, dynamic> json) =>
+    _$DirectoryScanResponseImpl(
+      success: json['success'] as bool,
+      data: json['data'] as Map<String, dynamic>,
+      message: json['message'] as String,
+    );
+
+Map<String, dynamic> _$$DirectoryScanResponseImplToJson(
+        _$DirectoryScanResponseImpl instance) =>
+    <String, dynamic>{
+      'success': instance.success,
+      'data': instance.data,
+      'message': instance.message,
+    };
+
+_$ConnectorRegistrationResponseImpl
+    _$$ConnectorRegistrationResponseImplFromJson(Map<String, dynamic> json) =>
+        _$ConnectorRegistrationResponseImpl(
+          success: json['success'] as bool,
+          data: json['data'] as Map<String, dynamic>,
+          message: json['message'] as String,
+        );
+
+Map<String, dynamic> _$$ConnectorRegistrationResponseImplToJson(
+        _$ConnectorRegistrationResponseImpl instance) =>
+    <String, dynamic>{
+      'success': instance.success,
+      'data': instance.data,
+      'message': instance.message,
     };

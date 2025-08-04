@@ -1,24 +1,24 @@
 #!/usr/bin/env python3
 """
-简化的数据库服务 - Session V65
-使用简化的数据模型，移除复杂的实例管理
+简化的数据库服务 - Session V66 模型清理
+只保留连接器管理的基本功能
 """
 
 import logging
 from typing import List, Dict, Any, Optional
 from datetime import datetime
-from sqlalchemy import create_engine, and_
+from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy.exc import SQLAlchemyError
 
 from config.core_config import get_database_config
-from models.core_models import Base, DataItem, ConnectorType, ConnectorProcess
+from models.database_models import Base, Connector
 
 logger = logging.getLogger(__name__)
 
 
 class DatabaseService:
-    """简化的数据库服务"""
+    """简化的数据库服务 - 只管理连接器"""
     
     def __init__(self):
         self.db_config = get_database_config()
@@ -28,223 +28,134 @@ class DatabaseService:
             pool_pre_ping=True,
             pool_recycle=3600
         )
-        
-        # 创建数据表
-        Base.metadata.create_all(self.engine)
-        
-        # 创建会话工厂
         self.SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=self.engine)
-        
-        logger.info("数据库服务初始化完成")
+        self._initialize_database()
+    
+    def _initialize_database(self):
+        """初始化数据库表结构"""
+        try:
+            Base.metadata.create_all(bind=self.engine)
+            logger.info("数据库表结构初始化完成")
+        except Exception as e:
+            logger.error(f"数据库初始化失败: {e}")
+            raise
+    
+    def register_connector(self, connector_info: Dict[str, Any]) -> bool:
+        """注册连接器"""
+        try:
+            with self.SessionLocal() as session:
+                existing = session.query(Connector).filter(
+                    Connector.connector_id == connector_info["connector_id"]
+                ).first()
+                
+                if existing:
+                    # 更新现有连接器信息
+                    for key, value in connector_info.items():
+                        if hasattr(existing, key):
+                            setattr(existing, key, value)
+                    existing.updated_at = datetime.utcnow()
+                    logger.info(f"更新连接器: {connector_info['connector_id']}")
+                else:
+                    # 创建新连接器
+                    connector = Connector(**connector_info)
+                    session.add(connector)
+                    logger.info(f"注册新连接器: {connector_info['connector_id']}")
+                
+                session.commit()
+                return True
+        except SQLAlchemyError as e:
+            logger.error(f"注册连接器失败: {e}")
+            return False
+    
+    def get_connectors(self) -> List[Connector]:
+        """获取所有连接器"""
+        try:
+            with self.SessionLocal() as session:
+                return session.query(Connector).all()
+        except SQLAlchemyError as e:
+            logger.error(f"获取连接器列表失败: {e}")
+            return []
+    
+    def get_connector(self, connector_id: str) -> Optional[Connector]:
+        """根据ID获取连接器"""
+        try:
+            with self.SessionLocal() as session:
+                return session.query(Connector).filter(
+                    Connector.connector_id == connector_id
+                ).first()
+        except SQLAlchemyError as e:
+            logger.error(f"获取连接器失败 [{connector_id}]: {e}")
+            return None
+    
+    def update_connector_status(self, connector_id: str, status: str, process_id: Optional[int] = None) -> bool:
+        """更新连接器状态"""
+        try:
+            with self.SessionLocal() as session:
+                connector = session.query(Connector).filter(
+                    Connector.connector_id == connector_id
+                ).first()
+                
+                if connector:
+                    connector.status = status
+                    if process_id is not None:
+                        connector.process_id = process_id
+                    connector.updated_at = datetime.utcnow()
+                    session.commit()
+                    logger.info(f"更新连接器状态: {connector_id} -> {status}")
+                    return True
+                else:
+                    logger.warning(f"连接器不存在: {connector_id}")
+                    return False
+        except SQLAlchemyError as e:
+            logger.error(f"更新连接器状态失败 [{connector_id}]: {e}")
+            return False
+    
+    def get_database_stats(self) -> Dict[str, Any]:
+        """获取数据库统计信息"""
+        try:
+            with self.SessionLocal() as session:
+                connectors_count = session.query(Connector).count()
+                running_connectors_count = session.query(Connector).filter(
+                    Connector.status == "running"
+                ).count()
+                
+                return {
+                    "connectors_count": connectors_count,
+                    "running_connectors_count": running_connectors_count,
+                    "database_path": self.db_config.sqlite_url
+                }
+        except SQLAlchemyError as e:
+            logger.error(f"获取数据库统计失败: {e}")
+            return {}
     
     def get_session(self) -> Session:
         """获取数据库会话"""
         return self.SessionLocal()
     
-    # 连接器类型管理
-    def register_connector_type(self, connector_info: Dict[str, Any]) -> bool:
-        """注册连接器类型"""
+    def cleanup(self):
+        """清理资源"""
         try:
-            with self.get_session() as session:
-                # 检查是否已存在
-                existing = session.query(ConnectorType).filter(
-                    ConnectorType.type_id == connector_info["type_id"]
-                ).first()
-                
-                if existing:
-                    # 更新现有记录
-                    for key, value in connector_info.items():
-                        setattr(existing, key, value)
-                    existing.updated_at = datetime.utcnow()
-                else:
-                    # 创建新记录
-                    connector_type = ConnectorType(**connector_info)
-                    session.add(connector_type)
-                
-                session.commit()
-                logger.info(f"连接器类型注册成功: {connector_info['type_id']}")
-                return True
-                
-        except SQLAlchemyError as e:
-            logger.error(f"注册连接器类型失败: {e}")
-            return False
-    
-    def get_connector_types(self) -> List[ConnectorType]:
-        """获取所有连接器类型"""
-        try:
-            with self.get_session() as session:
-                return session.query(ConnectorType).filter(
-                    ConnectorType.is_enabled == True
-                ).all()
-        except SQLAlchemyError as e:
-            logger.error(f"获取连接器类型失败: {e}")
-            return []
-    
-    def get_connector_type(self, type_id: str) -> Optional[ConnectorType]:
-        """获取指定连接器类型"""
-        try:
-            with self.get_session() as session:
-                return session.query(ConnectorType).filter(
-                    ConnectorType.type_id == type_id
-                ).first()
-        except SQLAlchemyError as e:
-            logger.error(f"获取连接器类型失败 {type_id}: {e}")
-            return None
-    
-    # 连接器进程管理
-    def update_connector_process(self, connector_id: str, process_info: Dict[str, Any]) -> bool:
-        """更新连接器进程信息"""
-        try:
-            with self.get_session() as session:
-                process = session.query(ConnectorProcess).filter(
-                    ConnectorProcess.connector_id == connector_id
-                ).first()
-                
-                if process:
-                    # 更新现有记录
-                    for key, value in process_info.items():
-                        setattr(process, key, value)
-                    process.updated_at = datetime.utcnow()
-                else:
-                    # 创建新记录
-                    process_info["connector_id"] = connector_id
-                    process = ConnectorProcess(**process_info)
-                    session.add(process)
-                
-                session.commit()
-                return True
-                
-        except SQLAlchemyError as e:
-            logger.error(f"更新连接器进程信息失败: {e}")
-            return False
-    
-    def get_connector_process(self, connector_id: str) -> Optional[ConnectorProcess]:
-        """获取连接器进程信息"""
-        try:
-            with self.get_session() as session:
-                return session.query(ConnectorProcess).filter(
-                    ConnectorProcess.connector_id == connector_id
-                ).first()
-        except SQLAlchemyError as e:
-            logger.error(f"获取连接器进程信息失败 {connector_id}: {e}")
-            return None
-    
-    def get_all_connector_processes(self) -> List[ConnectorProcess]:
-        """获取所有连接器进程信息"""
-        try:
-            with self.get_session() as session:
-                return session.query(ConnectorProcess).all()
-        except SQLAlchemyError as e:
-            logger.error(f"获取所有连接器进程信息失败: {e}")
-            return []
-    
-    # 数据项管理
-    def store_data_item(self, data_item: Dict[str, Any]) -> bool:
-        """存储数据项"""
-        try:
-            with self.get_session() as session:
-                # 检查是否已存在（基于checksum或source_path）
-                existing = None
-                if data_item.get("checksum"):
-                    existing = session.query(DataItem).filter(
-                        and_(
-                            DataItem.source_connector == data_item["source_connector"],
-                            DataItem.checksum == data_item["checksum"]
-                        )
-                    ).first()
-                elif data_item.get("source_path"):
-                    existing = session.query(DataItem).filter(
-                        and_(
-                            DataItem.source_connector == data_item["source_connector"],
-                            DataItem.source_path == data_item["source_path"]
-                        )
-                    ).first()
-                
-                if existing:
-                    # 更新现有数据项
-                    for key, value in data_item.items():
-                        setattr(existing, key, value)
-                    existing.updated_at = datetime.utcnow()
-                    logger.debug(f"数据项更新: {existing.id}")
-                else:
-                    # 创建新数据项
-                    if "id" not in data_item:
-                        import uuid
-                        data_item["id"] = str(uuid.uuid4())
-                    
-                    item = DataItem(**data_item)
-                    session.add(item)
-                    logger.debug(f"数据项创建: {item.id}")
-                
-                session.commit()
-                return True
-                
-        except SQLAlchemyError as e:
-            logger.error(f"存储数据项失败: {e}")
-            return False
-    
-    def get_data_items(self, 
-                      connector_id: Optional[str] = None, 
-                      limit: int = 100, 
-                      offset: int = 0) -> List[DataItem]:
-        """获取数据项"""
-        try:
-            with self.get_session() as session:
-                query = session.query(DataItem).filter(DataItem.active == True)
-                
-                if connector_id:
-                    query = query.filter(DataItem.source_connector == connector_id)
-                
-                return query.order_by(DataItem.created_at.desc()).offset(offset).limit(limit).all()
-                
-        except SQLAlchemyError as e:
-            logger.error(f"获取数据项失败: {e}")
-            return []
-    
-    def count_data_items(self, connector_id: Optional[str] = None) -> int:
-        """统计数据项数量"""
-        try:
-            with self.get_session() as session:
-                query = session.query(DataItem).filter(DataItem.active == True)
-                
-                if connector_id:
-                    query = query.filter(DataItem.source_connector == connector_id)
-                
-                return query.count()
-                
-        except SQLAlchemyError as e:
-            logger.error(f"统计数据项失败: {e}")
-            return 0
-    
-    # 系统统计
-    
-    def get_database_stats(self) -> Dict[str, Any]:
-        """获取数据库统计信息"""
-        try:
-            with self.get_session() as session:
-                connector_types_count = session.query(ConnectorType).count()
-                active_connectors_count = session.query(ConnectorProcess).filter(
-                    ConnectorProcess.status == "running"
-                ).count()
-                data_items_count = session.query(DataItem).filter(DataItem.active == True).count()
-                return {
-                    "connector_types": connector_types_count,
-                    "active_connectors": active_connectors_count,
-                    "data_items": data_items_count,
-                    "database_path": self.db_config.sqlite_url
-                }
-                
-        except SQLAlchemyError as e:
-            logger.error(f"获取数据库统计失败: {e}")
-            return {}
+            self.engine.dispose()
+            logger.info("数据库连接已清理")
+        except Exception as e:
+            logger.error(f"数据库清理失败: {e}")
 
 
-# 全局单例
-_simple_database_service = None
+# 全局数据库服务实例
+_database_service: Optional[DatabaseService] = None
+
 
 def get_database_service() -> DatabaseService:
-    """获取数据库服务单例"""
-    global _simple_database_service
-    if _simple_database_service is None:
-        _simple_database_service = DatabaseService()
-    return _simple_database_service
+    """获取数据库服务实例（单例模式）"""
+    global _database_service
+    if _database_service is None:
+        _database_service = DatabaseService()
+    return _database_service
+
+
+def cleanup_database_service():
+    """清理数据库服务"""
+    global _database_service
+    if _database_service:
+        _database_service.cleanup()
+        _database_service = None

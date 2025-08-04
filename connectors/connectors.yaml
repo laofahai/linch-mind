@@ -1,15 +1,21 @@
 config_version: '1.0'
-connector_types:
+connectors:
   clipboard:
     name: 剪贴板连接器
+    display_name: 剪贴板连接器
     description: 监控系统剪贴板变化，自动记录和索引复制的内容
+    category: system
     entry_point: main.py
     version: 0.0.1
+    author: Linch Mind Team
   filesystem:
     name: 文件系统连接器
+    display_name: 文件系统连接器
     description: 实时监控文件系统变化，支持多目录、多规则的智能文件索引
+    category: storage
     entry_point: main.py
     version: 0.0.1
+    author: Linch Mind Team
 last_updated: '2025-08-03T22:19:19.781128'
 metadata:
   connector_count: 2

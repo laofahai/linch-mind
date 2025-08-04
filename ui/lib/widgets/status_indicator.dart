@@ -155,6 +155,93 @@ class StatusDot extends StatelessWidget {
   }
 }
 
+// 响应式状态指示器
+class ResponsiveStatusIndicator extends StatelessWidget {
+  final bool isConnected;
+  final VoidCallback? onTap;
+  final String? customMessage;
+
+  const ResponsiveStatusIndicator({
+    super.key,
+    required this.isConnected,
+    this.onTap,
+    this.customMessage,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // 根据可用宽度决定显示模式
+        if (constraints.maxWidth < 80) {
+          // 超小屏幕：仅显示状态点
+          return GestureDetector(
+            onTap: onTap ?? () => _showStatusSnackBar(context),
+            child: Tooltip(
+              message: customMessage ?? (isConnected ? 'Connected' : 'Disconnected'),
+              child: StatusDot(
+                isActive: isConnected,
+                size: 12,
+              ),
+            ),
+          );
+        } else if (constraints.maxWidth < 120) {
+          // 小屏幕：仅显示图标
+          return GestureDetector(
+            onTap: onTap ?? () => _showStatusSnackBar(context),
+            child: Tooltip(
+              message: customMessage ?? (isConnected ? 'Connected' : 'Disconnected'),
+              child: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: (isConnected ? Colors.green : Colors.red).withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(
+                  isConnected ? Icons.cloud_done : Icons.cloud_off,
+                  size: 16,
+                  color: isConnected ? Colors.green : Colors.red,
+                ),
+              ),
+            ),
+          );
+        } else {
+          // 大屏幕：显示完整的StatusIndicator
+          return StatusIndicator(
+            isConnected: isConnected,
+            onTap: onTap,
+            customMessage: customMessage,
+          );
+        }
+      },
+    );
+  }
+
+  void _showStatusSnackBar(BuildContext context) {
+    final statusText = customMessage ?? (isConnected ? 'Connected' : 'Disconnected');
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              isConnected ? Icons.cloud_done : Icons.cloud_off,
+              color: Colors.white,
+              size: 16,
+            ),
+            const SizedBox(width: 8),
+            Text('Status: $statusText'),
+          ],
+        ),
+        backgroundColor: isConnected ? Colors.green : Colors.red,
+        duration: const Duration(seconds: 2),
+        behavior: SnackBarBehavior.floating,
+        margin: const EdgeInsets.all(16),
+      ),
+    );
+  }
+}
+
 // 详细状态卡片
 class StatusCard extends StatelessWidget {
   final String title;

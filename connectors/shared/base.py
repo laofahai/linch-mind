@@ -42,7 +42,7 @@ class BaseConnector(ABC):
         try:
             async with httpx.AsyncClient(timeout=30.0) as client:
                 response = await client.get(
-                    f"{self.daemon_url}/api/v1/connectors/{self.connector_id}/config"
+                    f"{self.daemon_url}/connector-config/current/{self.connector_id}"
                 )
                 if response.status_code == 200:
                     config = response.json()
@@ -240,7 +240,7 @@ class BaseConnector(ABC):
 
             async with httpx.AsyncClient(timeout=30.0) as client:
                 response = await client.post(
-                    f"{self.daemon_url}/api/v1/connectors/{self.connector_id}/schema",
+                    f"{self.daemon_url}/connector-config/register-schema/{self.connector_id}",
                     json=payload,
                     headers={"Content-Type": "application/json"},
                 )
