@@ -11,11 +11,14 @@ import asyncio
 import os
 import sys
 from pathlib import Path
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Set
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler, FileModifiedEvent, FileCreatedEvent
 import time
 import logging
+
+# 支持的文件类型扩展名（新增功能）
+SUPPORTED_EXTENSIONS = {'.txt', '.md', '.py', '.js', '.json', '.yaml', '.yml', '.html', '.css'}
 
 
 # 导入基类
