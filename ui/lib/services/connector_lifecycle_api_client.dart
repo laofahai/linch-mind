@@ -36,21 +36,21 @@ class ConnectorLifecycleApiClient {
     ));
     
     // 禁用代理 - 直连本地服务
-    (_dio.httpClientAdapter as IOHttpClientAdapter).createHttpClient = () {
+    (_dio!.httpClientAdapter as IOHttpClientAdapter).createHttpClient = () {
       final client = HttpClient();
       client.findProxy = (uri) => 'DIRECT';
       return client;
     };
 
     // 添加拦截器用于日志和错误处理
-    _dio.interceptors.add(LogInterceptor(
+    _dio!.interceptors.add(LogInterceptor(
       requestBody: true,
       responseBody: true,
       error: true,
       logPrint: (obj) => print('[ConnectorLifecycleAPI] $obj'),
     ));
 
-    _dio.interceptors.add(InterceptorsWrapper(
+    _dio!.interceptors.add(InterceptorsWrapper(
       onError: (error, handler) {
         print('[ConnectorLifecycleAPI] Error: ${error.message}');
         if (error.response?.data != null) {
@@ -320,10 +320,7 @@ class ConnectorLifecycleApiClient {
     yield* Stream<ConnectorEvent>.empty();
   }
 
-  /// 关闭客户端连接
-  void dispose() {
-    _dio.close();
-  }
+  /// 关闭客户端连接 - 已在第17行定义，删除重复声明
 }
 
 /// 连接器API异常

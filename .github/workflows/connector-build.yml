@@ -74,16 +74,7 @@ data['version'] = new_version
 with open(config_file, 'w') as f:
     json.dump(data, f, indent=2, ensure_ascii=False)
 
-# 更新 connectors.yaml
-import yaml
-with open('connectors.yaml', 'r') as f:
-    yaml_data = yaml.safe_load(f)
-
-connector_name = data['id']
-if 'connectors' in yaml_data and connector_name in yaml_data['connectors']:
-    yaml_data['connectors'][connector_name]['version'] = new_version
-    with open('connectors.yaml', 'w') as f:
-        yaml.dump(yaml_data, f, default_flow_style=False, allow_unicode=True)
+# connectors.yaml 已废弃，不再更新
 
 print(f"✅ Updated {connector_name} to version {new_version}")
 EOF "$config_file"
@@ -154,9 +145,8 @@ import yaml
 import os
 from datetime import datetime
 
-# 读取connectors.yaml
-with open('connectors.yaml', 'r') as f:
-    connectors_config = yaml.safe_load(f)
+# 动态扫描所有 connector.json 文件
+import glob
 
 registry = {
     'schema_version': '1.0',
@@ -168,24 +158,24 @@ registry = {
     }
 }
 
-# 遍历所有连接器
-for connector_id, connector_info in connectors_config.get('connectors', {}).items():
-    config_path = f'official/{connector_id}/connector.json'
-    if os.path.exists(config_path):
-        with open(config_path, 'r') as f:
-            config = json.load(f)
-        
-        registry['connectors'][connector_id] = {
-            'id': config['id'],
-            'name': config['name'],
-            'version': config['version'],
-            'description': config['description'],
-            'author': config['author'],
-            'category': config['category'],
-            'platforms': config.get('platforms', {}),
-            'permissions': config.get('permissions', []),
-            'capabilities': config.get('capabilities', {}),
-        }
+# 扫描所有连接器配置文件
+config_files = glob.glob('official/*/connector.json')
+for config_path in config_files:
+    with open(config_path, 'r') as f:
+        config = json.load(f)
+    
+    connector_id = config['id']
+    registry['connectors'][connector_id] = {
+        'id': config['id'],
+        'name': config['name'],
+        'version': config['version'],
+        'description': config['description'],
+        'author': config['author'],
+        'category': config['category'],
+        'platforms': config.get('platforms', {}),
+        'permissions': config.get('permissions', []),
+        'capabilities': config.get('capabilities', {}),
+    }
 
 # 保存注册表
 with open('registry.json', 'w') as f:
