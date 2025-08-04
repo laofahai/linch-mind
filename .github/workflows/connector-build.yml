@@ -5,6 +5,7 @@ on:
     branches: [ main ]
     paths:
       - 'connectors/official/**'
+      - 'connectors/community/**'
 
 jobs:
   build:
@@ -30,25 +31,35 @@ jobs:
         run: |
           cd connectors
           
-          # 检测变更的连接器
-          changed_files=$(git diff --name-only HEAD~1 HEAD | grep '^connectors/official/' || true)
+          # 检测变更的连接器（支持official和community）
+          changed_files=$(git diff --name-only HEAD~1 HEAD | grep -E '^connectors/(official|community)/' || true)
           
           if [ -z "$changed_files" ]; then
             echo "No connector changes detected"
             exit 0
           fi
           
-          # 提取连接器名称
-          changed_connectors=$(echo "$changed_files" | grep -E '^connectors/official/[^/]+/' | sed 's|connectors/official/\([^/]*\)/.*|\1|' | sort -u)
+          # 提取连接器名称和类型
+          changed_connectors=""
+          for file in $changed_files; do
+            if [[ $file =~ ^connectors/(official|community)/([^/]+)/ ]]; then
+              connector_type="${BASH_REMATCH[1]}"
+              connector_name="${BASH_REMATCH[2]}"
+              connector_path="$connector_type/$connector_name"
+              changed_connectors="$changed_connectors $connector_path"
+            fi
+          done
+          
+          changed_connectors=$(echo "$changed_connectors" | tr ' ' '\n' | sort -u | tr '\n' ' ')
           
           echo "Changed connectors: $changed_connectors"
           echo "CHANGED_CONNECTORS=$changed_connectors" >> $GITHUB_ENV
           
-          # 简单版本递增（先实现最基本的功能）
-          for connector in $changed_connectors; do
-            config_file="official/$connector/connector.json"
+          # 简单版本递增（支持official和community）
+          for connector_path in $changed_connectors; do
+            config_file="$connector_path/connector.json"
             if [ -f "$config_file" ]; then
-              echo "Processing $connector..."
+              echo "Processing $connector_path..."
               
               # 获取当前版本并递增patch
               python3 << 'EOF'
@@ -86,10 +97,10 @@ EOF "$config_file"
         run: |
           cd connectors
           
-          for connector in $CHANGED_CONNECTORS; do
-            echo "🚀 Building $connector..."
+          for connector_path in $CHANGED_CONNECTORS; do
+            echo "🚀 Building $connector_path..."
             
-            cd "official/$connector"
+            cd "$connector_path"
             
             # 使用统一的构建逻辑
             python3 << 'EOF'
@@ -141,12 +152,11 @@ EOF
           
           python3 << 'EOF'
 import json
-import yaml
 import os
+import glob
 from datetime import datetime
 
 # 动态扫描所有 connector.json 文件
-import glob
 
 registry = {
     'schema_version': '1.0',
@@ -158,8 +168,8 @@ registry = {
     }
 }
 
-# 扫描所有连接器配置文件
-config_files = glob.glob('official/*/connector.json')
+# 扫描所有连接器配置文件（official和community）
+config_files = glob.glob('official/*/connector.json') + glob.glob('community/*/connector.json')
 for config_path in config_files:
     with open(config_path, 'r') as f:
         config = json.load(f)
