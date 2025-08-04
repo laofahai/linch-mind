@@ -48,7 +48,7 @@ class ResponsiveNavigation extends StatelessWidget {
     final theme = Theme.of(context);
     
     return Container(
-      width: 240,
+      width: 80,
       decoration: BoxDecoration(
         color: theme.colorScheme.surface,
         border: Border(
@@ -102,21 +102,22 @@ class ResponsiveNavigation extends StatelessWidget {
     final theme = Theme.of(context);
     
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
       child: Material(
         color: Colors.transparent,
         child: InkWell(
           onTap: onTap,
           borderRadius: BorderRadius.circular(12),
           child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            padding: const EdgeInsets.symmetric(vertical: 12),
             decoration: BoxDecoration(
               color: isSelected 
                 ? theme.colorScheme.secondaryContainer
                 : Colors.transparent,
               borderRadius: BorderRadius.circular(12),
             ),
-            child: Row(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
               children: [
                 IconTheme(
                   data: IconThemeData(
@@ -129,17 +130,18 @@ class ResponsiveNavigation extends StatelessWidget {
                     ? (destination.selectedIcon ?? destination.icon)
                     : destination.icon,
                 ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Text(
-                    destination.label,
-                    style: theme.textTheme.labelLarge?.copyWith(
-                      color: isSelected 
-                        ? theme.colorScheme.onSecondaryContainer
-                        : theme.colorScheme.onSurfaceVariant,
-                      fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-                    ),
+                const SizedBox(height: 4),
+                Text(
+                  destination.label,
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: isSelected 
+                      ? theme.colorScheme.onSecondaryContainer
+                      : theme.colorScheme.onSurfaceVariant,
+                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
                   ),
+                  textAlign: TextAlign.center,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ],
             ),

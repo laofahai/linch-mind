@@ -181,13 +181,6 @@ class _MainAppState extends ConsumerState<MainApp> {
     SettingsScreen(),
   ];
 
-  final List<String> _pageTitles = const [
-    'My Mind',
-    '知识星云',
-    '连接器',
-    '设置',
-  ];
-
   @override
   Widget build(BuildContext context) {
     return ResponsiveLayout(
@@ -197,8 +190,8 @@ class _MainAppState extends ConsumerState<MainApp> {
           _currentIndex = index;
         });
       },
-      appBar: UnifiedAppBar(
-        title: _pageTitles[_currentIndex],
+      appBar: const UnifiedAppBar(
+        title: 'Linch Mind', // 固定标题
       ),
       child: IndexedStack(
         index: _currentIndex,
