@@ -94,7 +94,7 @@
       "type": "array",
       "items": {
         "type": "string",
-        "pattern": "^[a-z]+:[a-z]+$"
+        "pattern": "^[a-z-_]+:[a-z-_]+$"
       },
       "description": "Required permissions in format 'category:action'"
     },
@@ -161,7 +161,13 @@
     },
     "config_schema": {
       "type": "object",
-      "description": "JSON Schema for connector configuration"
+      "description": "JSON Schema for connector configuration (deprecated - use runtime schema from Python code)"
+    },
+    "config_schema_source": {
+      "type": "string",
+      "enum": ["runtime", "static"],
+      "description": "Source of config schema: 'runtime' loads from Python code, 'static' uses connector.json",
+      "default": "runtime"
     }
   },
   "additionalProperties": false

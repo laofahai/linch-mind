@@ -138,11 +138,11 @@ class ConnectorHealthChecker:
     def get_connector_status(self, connector_id: str) -> ConnectorStatus:
         """获取连接器状态"""
         if not self.runtime_manager.is_connector_running(connector_id):
-            return ConnectorStatus.STOPPED
+            return ConnectorStatus.INSTALLED
         
         process_info = self.runtime_manager.get_process_info(connector_id)
         if not process_info:
-            return ConnectorStatus.STOPPED
+            return ConnectorStatus.INSTALLED
         
         pid = process_info["pid"]
         
@@ -151,9 +151,9 @@ class ConnectorHealthChecker:
             if psutil_process.is_running():
                 return ConnectorStatus.RUNNING
             else:
-                return ConnectorStatus.STOPPED
+                return ConnectorStatus.INSTALLED
         except psutil.NoSuchProcess:
-            return ConnectorStatus.STOPPED
+            return ConnectorStatus.INSTALLED
         except Exception:
             return ConnectorStatus.ERROR
     

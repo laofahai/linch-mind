@@ -27,8 +27,8 @@ dependencies:
   flutter_svg: ^2.0.0
 
   # 工具
-  freezed_annotation: ^2.4.0
-  json_annotation: ^4.8.0
+  freezed_annotation: ^2.4.4
+  json_annotation: ^4.9.0
 
   # Material Design
   material_color_utilities: ^0.11.1
@@ -39,8 +39,8 @@ dev_dependencies:
   
   # 代码生成
   build_runner: ^2.4.0
-  freezed: ^2.4.0
-  json_serializable: ^6.7.0
+  freezed: ^2.5.8
+  json_serializable: ^6.9.5
   riverpod_generator: ^2.3.0
   
   # 代码分析

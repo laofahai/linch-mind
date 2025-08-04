@@ -27,20 +27,6 @@ class DataItem(Base):
     graph_nodes = relationship("GraphNode", back_populates="source_data")
 
 
-class Connector(Base):
-    """连接器配置表"""
-    __tablename__ = "connectors"
-    
-    id = Column(String, primary_key=True)
-    name = Column(String, nullable=False)
-    description = Column(Text)
-    status = Column(String, nullable=False)  # running, stopped, error
-    data_count = Column(Integer, default=0)
-    last_update = Column(DateTime, nullable=False)
-    config = Column(JSON)
-    error_message = Column(Text)
-
-
 class ConnectorType(Base):
     """连接器类型表 - 注册所有可用的连接器类型"""
     __tablename__ = "connector_types"
@@ -92,7 +78,7 @@ class ConnectorInstance(Base):
     display_name = Column(String, nullable=False)  # 用户友好的显示名称
     type_id = Column(String, ForeignKey("connector_types.type_id"), nullable=False)
     config = Column(JSON, nullable=False)  # 实例的具体配置
-    status = Column(String, nullable=False, default="stopped")  # running, stopped, error, starting
+    status = Column(String, nullable=False, default="installed")  # installed, running, error
     process_id = Column(Integer)  # 连接器进程ID
     data_count = Column(Integer, default=0)
     last_heartbeat = Column(DateTime)
@@ -103,23 +89,6 @@ class ConnectorInstance(Base):
     
     # 关联到连接器类型
     connector_type = relationship("ConnectorType")
-
-
-class ConnectorConfigSchema(Base):
-    """连接器配置Schema表 - 存储连接器自定义的配置模式（保留向后兼容）"""
-    __tablename__ = "connector_config_schemas"
-    
-    connector_id = Column(String, primary_key=True)
-    connector_name = Column(String, nullable=False)
-    connector_description = Column(Text)
-    config_schema = Column(JSON, nullable=False)  # JSON Schema定义
-    ui_schema = Column(JSON)  # UI渲染提示
-    current_config = Column(JSON)  # 当前配置值
-    default_config = Column(JSON)  # 默认配置值
-    schema_version = Column(String, default="1.0")
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    last_config_update = Column(DateTime)  # 配置最后更新时间
 
 
 class AIRecommendation(Base):

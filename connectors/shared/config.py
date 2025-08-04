@@ -4,6 +4,7 @@
 
 import json
 import os
+import threading
 from pathlib import Path
 from typing import Dict, Any, Optional
 
@@ -13,10 +14,13 @@ class LinchConfig:
 
     _instance: Optional["LinchConfig"] = None
     _config_cache: Optional[Dict[str, Any]] = None
+    _lock = threading.Lock()
 
     def __new__(cls):
         if cls._instance is None:
-            cls._instance = super().__new__(cls)
+            with cls._lock:
+                if cls._instance is None:
+                    cls._instance = super().__new__(cls)
         return cls._instance
 
     def __init__(self):
@@ -53,8 +57,10 @@ class LinchConfig:
     def get_config(self) -> Dict[str, Any]:
         """获取完整配置"""
         if self._config_cache is None:
-            with open(self.config_file, "r", encoding="utf-8") as f:
-                self._config_cache = json.load(f)
+            with self._lock:
+                if self._config_cache is None:
+                    with open(self.config_file, "r", encoding="utf-8") as f:
+                        self._config_cache = json.load(f)
         return self._config_cache
 
     def get_daemon_url(self) -> str:
@@ -120,7 +126,8 @@ class LinchConfig:
 
     def reload_config(self):
         """重新加载配置"""
-        self._config_cache = None
+        with self._lock:
+            self._config_cache = None
 
 
 # 全局配置实例

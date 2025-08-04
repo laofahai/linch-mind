@@ -133,7 +133,7 @@ class ClipboardConnector(BaseConnector):
                 self.logger.error(f"❌ 推送剪贴板数据失败")
 
         except Exception as e:
-            self.logger.error(f"处理剪贴板变化失败: {e}")
+            self._handle_error(e, "处理剪贴板变化失败")
 
     def _detect_content_type(self, content: str) -> str:
         """检测内容类型"""
@@ -159,15 +159,19 @@ class ClipboardConnector(BaseConnector):
         # 检查依赖
         dep_status = self.check_dependencies()
         if dep_status["status"] != "ok":
-            self.logger.error(f"❌ 依赖检查失败: {dep_status['message']}")
-            self.logger.error(
-                f"📋 安装命令: {dep_status.get('install_command', 'pip install pyperclip')}"
+            self._handle_error(
+                Exception(dep_status['message']),
+                f"依赖检查失败，安装命令: {dep_status.get('install_command', 'pip install pyperclip')}",
+                critical=True
             )
             return
 
         if not PYPERCLIP_AVAILABLE:
-            self.logger.error("❌ pyperclip库不可用，无法监控剪贴板")
-            self.logger.error("📋 请运行: pip install pyperclip")
+            self._handle_error(
+                Exception("pyperclip库不可用"),
+                "无法监控剪贴板，请运行: pip install pyperclip",
+                critical=True
+            )
             return
 
         # 加载配置
@@ -210,8 +214,7 @@ class ClipboardConnector(BaseConnector):
                     await asyncio.sleep(self.check_interval)
 
                 except Exception as e:
-                    self.logger.error(f"监控剪贴板时发生错误: {e}")
-                    await asyncio.sleep(5)  # 错误恢复延迟
+                    await self._handle_async_error(e, "监控剪贴板时发生错误", retry_delay=5.0)
 
         except KeyboardInterrupt:
             self.logger.info("收到中断信号")

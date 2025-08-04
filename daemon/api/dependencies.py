@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-依赖注入模块 - 管理所有服务实例
-Session 5 架构重构 - 职责分离和依赖管理
+简化的依赖注入模块 - Session V65
+移除复杂的连接器管理，使用简化的服务
 """
 
 import sys
@@ -13,62 +13,42 @@ import logging
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
-from services.database_service import DatabaseService
-from services.connectors.lifecycle_manager import ConnectorLifecycleManager, get_lifecycle_manager
-from services.storage_strategy import SmartContentProcessor
+from services.database_service import get_database_service, DatabaseService
+from services.connectors.connector_manager import get_connector_manager, ConnectorManager
 from config.core_config import CoreConfigManager, get_core_config
 
 logger = logging.getLogger(__name__)
 
-# 全局服务实例
-_db_service = None
-_content_processor = None
-
 
 @lru_cache()
 def get_config_manager() -> CoreConfigManager:
-    """获取配置管理器单例 (Session V61: 使用核心配置)"""
+    """获取配置管理器单例"""
     config_manager = get_core_config()
     logger.info("核心配置管理器初始化完成")
     return config_manager
 
 
-def get_database_service() -> DatabaseService:
+def get_database() -> DatabaseService:
     """获取数据库服务单例"""
-    global _db_service
-    if _db_service is None:
-        config = get_config_manager()
-        _db_service = DatabaseService(config.get_paths()["database"])
-        logger.info("数据库服务初始化完成")
-    return _db_service
+    return get_database_service()
 
 
-def get_connector_manager():
-    """已弃用：使用 get_lifecycle_manager() 替代"""
-    logger.warning("get_connector_manager() 已弃用，请使用 get_lifecycle_manager()")
-    return get_lifecycle_manager()
-
-
-def get_content_processor() -> SmartContentProcessor:
-    """获取智能内容处理器单例"""
-    global _content_processor
-    if _content_processor is None:
-        _content_processor = SmartContentProcessor()
-        logger.info("智能内容处理器初始化完成")
-    return _content_processor
+def get_connector_service() -> ConnectorManager:
+    """获取连接器管理器单例"""
+    return get_connector_manager()
 
 
 async def cleanup_services():
     """清理所有服务资源"""
     logger.info("开始清理服务资源...")
     
-    # 清理连接器生命周期管理器
+    # 清理连接器管理器
     try:
-        lifecycle_manager = get_lifecycle_manager()
-        await lifecycle_manager.shutdown_all()
-        logger.info("连接器生命周期管理器资源已清理")
+        connector_manager = get_connector_manager()
+        await connector_manager.stop_all_connectors()
+        logger.info("连接器管理器资源已清理")
     except Exception as e:
-        logger.error(f"清理生命周期管理器时出错: {e}")
+        logger.error(f"清理连接器管理器时出错: {e}")
     
     logger.info("所有服务资源清理完成")
 
@@ -77,7 +57,7 @@ async def cleanup_services():
 async def get_db():
     """FastAPI依赖: 获取数据库会话"""
     db_service = get_database_service()
-    db = db_service.SessionLocal()
+    db = db_service.get_session()
     try:
         yield db
     finally:
@@ -85,21 +65,10 @@ async def get_db():
 
 
 async def get_db_service() -> DatabaseService:
-    """FastAPI依赖: 获取数据库服务（高级功能）"""
+    """FastAPI依赖: 获取数据库服务"""
     return get_database_service()
 
 
-async def get_connectors():
-    """FastAPI依赖: 获取连接器管理器（已弃用，使用 get_lifecycle）"""
-    logger.warning("get_connectors() 依赖已弃用，请使用 get_lifecycle()")
-    return get_lifecycle_manager()
-
-
-async def get_processor() -> SmartContentProcessor:
-    """FastAPI依赖: 获取内容处理器"""
-    return get_content_processor()
-
-
-async def get_lifecycle() -> ConnectorLifecycleManager:
-    """FastAPI依赖: 获取连接器生命周期管理器"""
-    return get_lifecycle_manager()
+async def get_connectors() -> ConnectorManager:
+    """FastAPI依赖: 获取连接器管理器"""
+    return get_connector_manager()

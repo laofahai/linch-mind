@@ -75,7 +75,7 @@ flutter pub get
 
 # 4. 启动daemon
 cd ../daemon
-poetry run uvicorn api.main:app --host 127.0.0.1 --port 8088
+poetry run uvicorn api.main:app --host 127.0.0.1 --port 58471
 
 # 5. 启动连接器
 cd ../connectors
@@ -168,7 +168,7 @@ linch-mind/
 └── CLAUDE.md               # 开发上下文和指导
 ```
 
-## 📊 当前开发状态 (Session V39)
+## 📊 当前开发状态 (Session V62+)
 
 ### ✅ 已完成的核心基础设施
 - **✅ 数据持久化**: SQLite + SQLAlchemy ORM + 完整数据模型
@@ -218,8 +218,8 @@ poetry run python official/filesystem/main.py
 python test_connector_management.py
 
 # 手动API测试
-curl http://localhost:8088/api/v1/connectors/
-curl http://localhost:8088/api/v1/connectors/filesystem/config
+curl http://localhost:58471/api/v1/connectors/
+curl http://localhost:58471/api/v1/connectors/filesystem/config
 ```
 
 ## 🔧 技术栈
@@ -238,26 +238,28 @@ curl http://localhost:8088/api/v1/connectors/filesystem/config
 - **[连接器开发指南](connectors/README.md)** - 连接器开发和扩展
 
 ### 🏗️ 技术设计
-- **[Daemon架构设计](docs/01_technical_design/daemon_architecture.md)** - 后台服务架构
-- **[日志系统设计](docs/01_technical_design/logging_system/)** - 结构化日志
-- **[性能优化](docs/01_technical_design/performance_optimization_roadmap.md)** - 系统优化
+- **[Daemon架构设计](docs/01_technical_design/daemon_architecture.md)** - Python FastAPI后台服务架构
+- **[Flutter架构设计](docs/01_technical_design/flutter_architecture_design.md)** - 跨平台UI架构和状态管理
+- **[连接器开发标准](docs/01_technical_design/connector_internal_management_standards.md)** - 连接器开发指南
+- **[日志系统设计](docs/01_technical_design/logging_system/)** - 结构化日志和监控
+- **[API契约设计](docs/01_technical_design/api_contract_design.md)** - RESTful API接口规范
 
 ### 📋 重要决策
-- **[架构迁移决策](docs/02_decisions/flutter_migration_decision_record.md)** - Kotlin → Flutter迁移
-- **[硬件扩展决策](docs/02_decisions/hardware_extension_decision_record.md)** - 硬件支持策略
+- **[架构迁移决策](docs/02_decisions/flutter_migration_decision_record.md)** - Kotlin → Python + Flutter迁移完成
+- **[硬件扩展决策](docs/02_decisions/hardware_extension_decision_record.md)** - 硬件支持已决策推迟
 
 ## 🧪 测试和验证
 
 ### 启动验证
 ```bash
 # 检查daemon健康状态
-curl http://localhost:8088/
+curl http://localhost:58471/
 
 # 验证连接器列表
-curl http://localhost:8088/api/v1/connectors/
+curl http://localhost:58471/api/v1/connectors/
 
 # 测试连接器启动
-curl -X POST http://localhost:8088/api/v1/connectors/filesystem/start
+curl -X POST http://localhost:58471/api/v1/connectors/filesystem/start
 ```
 
 ### 开发流程
@@ -291,4 +293,4 @@ curl -X POST http://localhost:8088/api/v1/connectors/filesystem/start
 **Linch Mind - Flutter + Python 架构** 🚀  
 *真正的个人AI生活助手，连接你的数字生活*
 
-*最后更新: 2025-08-02 | Session V39 - 连接器生态完善*
+*最后更新: 2025-08-03 | Session V62+ - Python + Flutter架构稳定运行*

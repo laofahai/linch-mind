@@ -3,7 +3,6 @@
   "id": "clipboard",
   "name": "剪贴板连接器",
   "version": "0.0.1",
-  "type": "system",
   "author": "Linch Mind Team",
   "description": "监控系统剪贴板变化，自动记录和索引复制的内容",
   "license": "MIT",
@@ -48,33 +47,5 @@
     "post_build": "echo 'Build completed'"
   },
   
-  "config_schema": {
-    "type": "object",
-    "properties": {
-      "check_interval": {
-        "type": "number",
-        "description": "剪贴板检查间隔（秒）",
-        "default": 1.0,
-        "minimum": 0.1,
-        "maximum": 10.0
-      },
-      "max_content_length": {
-        "type": "integer",
-        "description": "最大内容长度",
-        "default": 10000,
-        "minimum": 100,
-        "maximum": 100000
-      },
-      "ignore_passwords": {
-        "type": "boolean",
-        "description": "自动检测并忽略密码内容",
-        "default": true
-      },
-      "ignore_duplicates": {
-        "type": "boolean",
-        "description": "忽略重复的剪贴板内容",
-        "default": true
-      }
-    }
-  }
+  "config_schema_source": "runtime"
 }

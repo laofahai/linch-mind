@@ -47,11 +47,8 @@ class DatabaseConfig:
 @dataclass
 class ConnectorConfig:
     """连接器配置"""
-    registry_url: str = "http://localhost:8001/v1"
-    install_dir: str = "connectors/installed"
     config_dir: str = "connectors"
     filesystem_enabled: bool = True
-    filesystem_watch_paths: List[str] = field(default_factory=list)
     clipboard_enabled: bool = False
 
 
@@ -193,11 +190,21 @@ class CoreConfigManager:
     def _dict_to_config(self, data: Dict[str, Any]) -> AppConfig:
         """将字典转换为配置对象 - 增强错误处理"""
         try:
-            # 处理嵌套配置
+            # 处理嵌套配置，确保都是字典类型
             server_data = data.get("server", {})
             database_data = data.get("database", {})
             connectors_data = data.get("connectors", {})
             ai_data = data.get("ai", {})
+            
+            # 类型检查和修正
+            if not isinstance(server_data, dict):
+                server_data = {}
+            if not isinstance(database_data, dict):
+                database_data = {}
+            if not isinstance(connectors_data, dict):
+                connectors_data = {}
+            if not isinstance(ai_data, dict):
+                ai_data = {}
             
             return AppConfig(
                 app_name=data.get("app_name", "Linch Mind"),
@@ -241,48 +248,24 @@ class CoreConfigManager:
             raise
     
     def _setup_dynamic_paths(self):
-        """设置动态路径配置 - 标准化路径处理"""
-        # 设置数据库路径 - 使用绝对路径
-        if not self.config.database.sqlite_url or self.config.database.sqlite_url == "":
-            self.config.database.sqlite_url = f"sqlite:///{self.db_dir}/linch_mind.db"
+        """设置动态路径配置 - 简化版本"""
+        # 设置数据库路径
+        self.config.database.sqlite_url = f"sqlite:///{self.db_dir}/linch_mind.db"
+        self.config.database.chroma_persist_directory = str(self.db_dir / "chromadb")
         
-        if not self.config.database.chroma_persist_directory or self.config.database.chroma_persist_directory == "":
-            self.config.database.chroma_persist_directory = str(self.db_dir / "chromadb")
-        
-        # 设置连接器目录路径 - 修正为正确的相对路径
+        # 设置连接器目录路径
         if self.config.connectors.config_dir == "connectors":
             self.config.connectors.config_dir = str(self.config_root / "connectors")
-        
-        if self.config.connectors.install_dir == "connectors/installed":
-            self.config.connectors.install_dir = str(self.config_root / "connectors" / "packages")
     
     def _apply_env_overrides(self):
-        """应用环境变量覆盖 - 简化版本"""
-        # 服务器配置
+        """应用环境变量覆盖 - 简化版本，只保留必要的覆盖"""
+        # 只支持端口覆盖
         if port := os.getenv("LINCH_SERVER_PORT"):
             try:
                 self.config.server.port = int(port)
                 logger.info(f"Server port overridden by env: {port}")
             except ValueError:
                 logger.warning(f"Invalid LINCH_SERVER_PORT value: {port}")
-        
-        if host := os.getenv("LINCH_SERVER_HOST"):
-            self.config.server.host = host
-            logger.info(f"Server host overridden by env: {host}")
-        
-        # 数据库配置
-        if db_url := os.getenv("LINCH_DB_URL"):
-            self.config.database.sqlite_url = db_url
-            logger.info("Database URL overridden by env")
-        
-        if chroma_dir := os.getenv("LINCH_CHROMA_DIR"):
-            self.config.database.chroma_persist_directory = chroma_dir
-            logger.info("ChromaDB directory overridden by env")
-        
-        # 连接器配置
-        if registry_url := os.getenv("REGISTRY_URL"):
-            self.config.connectors.registry_url = registry_url
-            logger.info(f"Registry URL overridden by env: {registry_url}")
         
         # 调试模式
         if debug := os.getenv("LINCH_DEBUG"):
@@ -381,25 +364,101 @@ class CoreConfigManager:
         
         return errors
     
-    def get_env_override_info(self) -> Dict[str, str]:
-        """获取环境变量覆盖信息"""
-        env_vars = {}
+    
+    def _is_port_available(self, port: int) -> bool:
+        """检查端口是否可用"""
+        import socket
+        try:
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                s.bind(('localhost', port))
+                return True
+        except OSError:
+            return False
+    
+    def get_available_port(self) -> int:
+        """获取可用端口，自动处理端口冲突
         
-        # 检查常用环境变量
-        env_mappings = {
-            "REGISTRY_URL": "connectors.registry_url",
-            "LINCH_SERVER_PORT": "server.port",
-            "LINCH_SERVER_HOST": "server.host",
-            "LINCH_DB_URL": "database.sqlite_url",
-            "LINCH_CHROMA_DIR": "database.chroma_persist_directory",
-            "LINCH_DEBUG": "debug"
-        }
+        Returns:
+            int: 可用的端口号
+        """
+        # 首先尝试配置的端口
+        preferred_port = self.config.server.port
+        if self._is_port_available(preferred_port):
+            # 写入端口文件
+            self._write_port_file(preferred_port)
+            logger.info(f"Using preferred port: {preferred_port}")
+            return preferred_port
         
-        for env_var, config_path in env_mappings.items():
-            if value := os.getenv(env_var):
-                env_vars[env_var] = f"overrides {config_path} = {value}"
+        # 如果配置端口不可用，在端口范围内查找
+        port_range = self.config.server.port_range
+        start_port, end_port = port_range[0], port_range[1]
         
-        return env_vars
+        logger.warning(f"Preferred port {preferred_port} is not available, searching in range {start_port}-{end_port}")
+        
+        for port in range(start_port, end_port + 1):
+            if self._is_port_available(port):
+                # 更新配置中的端口
+                self.config.server.port = port
+                # 写入端口文件
+                self._write_port_file(port)
+                logger.info(f"Found available port: {port}")
+                return port
+        
+        # 如果范围内没有可用端口，使用系统分配
+        import socket
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            s.bind(('localhost', 0))
+            dynamic_port = s.getsockname()[1]
+            
+        # 更新配置
+        self.config.server.port = dynamic_port
+        # 写入端口文件
+        self._write_port_file(dynamic_port)
+        logger.warning(f"Using system-assigned port: {dynamic_port}")
+        return dynamic_port
+    
+    def _write_port_file(self, port: int):
+        """写入端口文件供其他组件读取"""
+        port_file = self.app_data_dir / "daemon.port"
+        try:
+            with open(port_file, 'w') as f:
+                f.write(str(port))
+            logger.debug(f"Port file written: {port_file} -> {port}")
+        except Exception as e:
+            logger.error(f"Failed to write port file: {e}")
+    
+    def read_port_file(self) -> Optional[int]:
+        """读取端口文件
+        
+        Returns:
+            Optional[int]: 端口号，如果文件不存在或无效则返回None
+        """
+        port_file = self.app_data_dir / "daemon.port"
+        if not port_file.exists():
+            return None
+        
+        try:
+            with open(port_file, 'r') as f:
+                port = int(f.read().strip())
+            logger.debug(f"Read port from file: {port}")
+            return port
+        except (ValueError, IOError) as e:
+            logger.warning(f"Failed to read port file: {e}")
+            return None
+    
+    def cleanup_port_file(self):
+        """清理端口文件"""
+        port_file = self.app_data_dir / "daemon.port"
+        if port_file.exists():
+            try:
+                port_file.unlink()
+                logger.debug("Port file cleaned up")
+            except Exception as e:
+                logger.warning(f"Failed to cleanup port file: {e}")
+    
+    def get_port(self) -> int:
+        """获取配置的端口"""
+        return self.config.server.port
 
 
 # 全局单例

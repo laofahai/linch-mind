@@ -14,7 +14,6 @@ from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler, FileModifiedEvent, FileCreatedEvent
 import time
 import logging
-from queue import Queue
 
 
 # 导入基类
@@ -35,8 +34,8 @@ class FileSystemConnector(BaseConnector, FileSystemEventHandler):
         BaseConnector.__init__(self, "filesystem", daemon_url)
         FileSystemEventHandler.__init__(self)
 
-        # 使用队列进行线程安全的事件处理
-        self.event_queue = Queue()
+        # 使用异步队列进行事件处理
+        self.event_queue = asyncio.Queue()
 
         # 配置将从daemon加载
         self.watch_paths = []
@@ -46,286 +45,63 @@ class FileSystemConnector(BaseConnector, FileSystemEventHandler):
 
     @classmethod
     def get_config_schema(cls) -> Dict[str, Any]:
-        """文件系统连接器配置schema - 支持目录级别配置"""
+        """文件系统连接器配置schema - 简化版本"""
         return {
             "type": "object",
             "title": "文件系统连接器配置",
-            "description": "配置文件系统监控的路径、文件类型和过滤规则，支持目录级别的个性化配置",
+            "description": "配置文件系统监控的基本参数",
             "properties": {
-                "global_config": {
-                    "type": "object",
-                    "title": "全局默认配置",
-                    "description": "所有监控目录的默认配置，可被目录特定配置覆盖",
-                    "properties": {
-                        "default_extensions": {
-                            "type": "array",
-                            "title": "默认文件类型",
-                            "description": "默认监控的文件扩展名",
-                            "items": {"type": "string"},
-                            "default": [
-                                ".txt",
-                                ".md",
-                                ".py",
-                                ".js",
-                                ".html",
-                                ".css",
-                                ".json",
-                                ".yaml",
-                            ],
-                            "ui_component": "chip_input",
-                            "predefined_options": [
-                                ".txt",
-                                ".md",
-                                ".py",
-                                ".js",
-                                ".ts",
-                                ".html",
-                                ".css",
-                                ".json",
-                                ".yaml",
-                                ".yml",
-                                ".java",
-                                ".kt",
-                                ".go",
-                                ".rs",
-                                ".cpp",
-                                ".c",
-                                ".h",
-                                ".xml",
-                                ".sql",
-                                ".sh",
-                            ],
-                        },
-                        "max_file_size": {
-                            "type": "integer",
-                            "title": "默认最大文件大小 (MB)",
-                            "description": "超过此大小的文件将被忽略",
-                            "default": 10,
-                            "minimum": 1,
-                            "maximum": 1000,
-                            "ui_component": "slider",
-                        },
-                        "max_content_length": {
-                            "type": "integer",
-                            "title": "默认最大内容长度",
-                            "description": "文件内容截断长度（字符数）",
-                            "default": 50000,
-                            "minimum": 1000,
-                            "maximum": 500000,
-                            "ui_component": "number_input",
-                        },
-                        "default_ignore_patterns": {
-                            "type": "array",
-                            "title": "默认忽略模式",
-                            "description": "全局忽略的文件模式",
-                            "items": {"type": "string"},
-                            "default": [
-                                "*.tmp",
-                                ".*",
-                                "node_modules/*",
-                                "__pycache__/*",
-                                "*.log",
-                                ".git/*",
-                            ],
-                            "ui_component": "tag_input",
-                        },
-                    },
-                    "required": ["default_extensions", "max_file_size"],
-                },
-                "directory_configs": {
+                "watch_paths": {
                     "type": "array",
-                    "title": "目录特定配置",
-                    "description": "为特定目录定制的监控配置，会覆盖全局默认配置",
-                    "items": {
-                        "type": "object",
-                        "properties": {
-                            "path": {
-                                "type": "string",
-                                "title": "监控路径",
-                                "description": "要监控的目录路径",
-                                "ui_component": "directory_picker",
-                            },
-                            "display_name": {
-                                "type": "string",
-                                "title": "显示名称",
-                                "description": "此监控配置的友好名称",
-                                "default": "",
-                            },
-                            "extensions": {
-                                "type": "array",
-                                "title": "文件类型",
-                                "description": "此目录特定的文件扩展名（留空使用全局默认）",
-                                "items": {"type": "string"},
-                                "ui_component": "chip_input_optional",
-                            },
-                            "max_file_size": {
-                                "type": "integer",
-                                "title": "最大文件大小 (MB)",
-                                "description": "此目录的文件大小限制（留空使用全局默认）",
-                                "minimum": 1,
-                                "maximum": 1000,
-                                "ui_component": "slider_optional",
-                            },
-                            "ignore_patterns": {
-                                "type": "array",
-                                "title": "额外忽略模式",
-                                "description": "此目录额外的忽略模式（会添加到全局忽略模式）",
-                                "items": {"type": "string"},
-                                "ui_component": "tag_input",
-                            },
-                            "priority": {
-                                "type": "string",
-                                "title": "优先级",
-                                "description": "此目录的处理优先级",
-                                "enum": ["high", "normal", "low"],
-                                "default": "normal",
-                                "ui_component": "select",
-                            },
-                            "recursive": {
-                                "type": "boolean",
-                                "title": "递归监控",
-                                "description": "是否监控子目录",
-                                "default": true,
-                                "ui_component": "switch",
-                            },
-                            "enabled": {
-                                "type": "boolean",
-                                "title": "启用监控",
-                                "description": "是否启用此目录的监控",
-                                "default": true,
-                                "ui_component": "switch",
-                            },
-                        },
-                        "required": ["path"],
-                    },
-                    "default": [
-                        {
-                            "path": "~/Downloads",
-                            "display_name": "下载文件夹",
-                            "priority": "low",
-                            "recursive": false,
-                        },
-                        {
-                            "path": "~/Documents",
-                            "display_name": "文档文件夹",
-                            "priority": "normal",
-                            "recursive": true,
-                        },
-                    ],
-                    "ui_component": "dynamic_list",
+                    "title": "监控路径",
+                    "description": "要监控的目录路径列表",
+                    "items": {"type": "string"},
+                    "default": ["~/Downloads", "~/Documents"],
                 },
-                "advanced_settings": {
-                    "type": "object",
-                    "title": "高级设置",
-                    "properties": {
-                        "check_interval": {
-                            "type": "number",
-                            "title": "配置检查间隔 (秒)",
-                            "description": "检查配置变更的间隔时间",
-                            "default": 30.0,
-                            "minimum": 10.0,
-                            "maximum": 300.0,
-                            "ui_component": "number_input",
-                        },
-                        "batch_processing": {
-                            "type": "boolean",
-                            "title": "批量处理",
-                            "description": "启用批量处理以提高性能",
-                            "default": true,
-                            "ui_component": "switch",
-                        },
-                        "batch_size": {
-                            "type": "integer",
-                            "title": "批量大小",
-                            "description": "批量处理的文件数量",
-                            "default": 10,
-                            "minimum": 1,
-                            "maximum": 100,
-                            "ui_component": "number_input",
-                        },
-                    },
+                "supported_extensions": {
+                    "type": "array",
+                    "title": "支持的文件类型",
+                    "description": "监控的文件扩展名",
+                    "items": {"type": "string"},
+                    "default": [".txt", ".md", ".py", ".js", ".html", ".css", ".json", ".yaml"],
+                },
+                "max_file_size": {
+                    "type": "integer",
+                    "title": "最大文件大小 (MB)",
+                    "description": "超过此大小的文件将被忽略",
+                    "default": 10,
+                    "minimum": 1,
+                    "maximum": 100,
+                },
+                "max_content_length": {
+                    "type": "integer",
+                    "title": "最大内容长度",
+                    "description": "文件内容截断长度（字符数）",
+                    "default": 50000,
+                    "minimum": 1000,
+                    "maximum": 100000,
+                },
+                "ignore_patterns": {
+                    "type": "array",
+                    "title": "忽略模式",
+                    "description": "忽略的文件模式",
+                    "items": {"type": "string"},
+                    "default": ["*.tmp", ".*", "node_modules/*", "__pycache__/*", "*.log", ".git/*"],
                 },
             },
-            "required": ["global_config", "directory_configs"],
+            "required": ["watch_paths", "supported_extensions"],
         }
 
     @classmethod
     def get_config_ui_schema(cls) -> Dict[str, Any]:
-        """UI渲染提示 - 支持层次化配置界面"""
+        """UI渲染提示 - 简化版本"""
         return {
-            "ui_layout": "tabs",  # 使用标签页布局
-            "tabs": [
-                {
-                    "id": "global",
-                    "title": "全局默认",
-                    "icon": "settings",
-                    "description": "设置所有目录的默认监控规则",
-                    "fields": ["global_config"],
-                },
-                {
-                    "id": "directories",
-                    "title": "目录配置",
-                    "icon": "folder",
-                    "description": "为特定目录定制监控规则",
-                    "fields": ["directory_configs"],
-                },
-                {
-                    "id": "advanced",
-                    "title": "高级设置",
-                    "icon": "gear",
-                    "description": "性能和高级选项",
-                    "fields": ["advanced_settings"],
-                },
-            ],
-            "field_components": {
-                "global_config": {"component": "group", "layout": "grid", "columns": 2},
-                "directory_configs": {
-                    "component": "dynamic_list",
-                    "add_button_text": "添加监控目录",
-                    "empty_message": "还没有配置监控目录",
-                    "item_template": {
-                        "layout": "card",
-                        "show_preview": True,
-                        "preview_fields": ["path", "display_name", "priority"],
-                    },
-                },
-                "advanced_settings": {"component": "group", "layout": "form"},
-            },
-            "validation_rules": {
-                "directory_configs": {
-                    "min_items": 1,
-                    "unique_paths": True,
-                    "path_exists": True,
-                }
-            },
+            "ui_layout": "form",
             "help_text": {
-                "global_config": "这些设置将作为所有监控目录的默认值。目录特定配置可以覆盖这些默认值。",
-                "directory_configs": "为每个目录单独配置监控规则。留空的字段将使用全局默认值。",
-                "advanced_settings": "这些设置影响连接器的整体性能和行为。",
-            },
-            "examples": {
-                "directory_configs": [
-                    {
-                        "title": "开发项目目录",
-                        "config": {
-                            "path": "~/Projects",
-                            "display_name": "我的项目",
-                            "extensions": [".py", ".js", ".ts", ".md"],
-                            "priority": "high",
-                            "recursive": True,
-                        },
-                    },
-                    {
-                        "title": "下载文件夹（仅文档）",
-                        "config": {
-                            "path": "~/Downloads",
-                            "display_name": "下载的文档",
-                            "extensions": [".pdf", ".txt", ".md"],
-                            "max_file_size": 50,
-                            "recursive": False,
-                        },
-                    },
-                ]
+                "watch_paths": "输入要监控的目录路径，每行一个",
+                "supported_extensions": "输入要监控的文件扩展名，如 .txt, .py",
+                "max_file_size": "超过此大小的文件将被忽略",
+                "ignore_patterns": "文件匹配这些模式时将被忽略",
             },
         }
 
@@ -334,31 +110,17 @@ class FileSystemConnector(BaseConnector, FileSystemEventHandler):
         await self.load_config_from_daemon()
 
         # 获取配置或使用默认值
-        self.watch_paths = self.get_config(
-            "watch_paths", self._get_default_watch_paths()
-        )
+        self.watch_paths = self.get_config("watch_paths", self._get_default_watch_paths())
         self.supported_extensions = set(
             self.get_config(
                 "supported_extensions",
-                [
-                    ".txt",
-                    ".md",
-                    ".py",
-                    ".js",
-                    ".html",
-                    ".css",
-                    ".json",
-                    ".yaml",
-                    ".yml",
-                ],
+                [".txt", ".md", ".py", ".js", ".html", ".css", ".json", ".yaml"],
             )
         )
-        self.max_file_size = (
-            self.get_config("max_file_size", 1) * 1024 * 1024
-        )  # 转换为字节
+        self.max_file_size = self.get_config("max_file_size", 10) * 1024 * 1024  # 转换为字节
         self.ignore_patterns = self.get_config(
             "ignore_patterns",
-            ["*.tmp", ".*", "node_modules/*", "__pycache__/*", "*.log"],
+            ["*.tmp", ".*", "node_modules/*", "__pycache__/*", "*.log", ".git/*"],
         )
 
         self.logger.info(f"监控路径: {self.watch_paths}")
@@ -389,13 +151,21 @@ class FileSystemConnector(BaseConnector, FileSystemEventHandler):
     def _queue_file_event(self, event_type: str, file_path: str):
         """将文件事件加入队列"""
         try:
-            self.event_queue.put_nowait(
-                {
-                    "event_type": event_type,
-                    "file_path": file_path,
-                    "timestamp": time.time(),
-                }
-            )
+            # 使用线程安全的方式将事件放入异步队列
+            event_data = {
+                "event_type": event_type,
+                "file_path": file_path,
+                "timestamp": time.time(),
+            }
+            # 如果有事件循环在运行，则放入队列
+            try:
+                loop = asyncio.get_running_loop()
+                asyncio.run_coroutine_threadsafe(
+                    self.event_queue.put(event_data), loop
+                )
+            except RuntimeError:
+                # 没有运行的事件循环，创建一个临时的
+                self.logger.warning("没有运行的事件循环，跳过此事件")
             self.logger.debug(f"文件事件已加入队列: {event_type} - {file_path}")
         except Exception as e:
             self.logger.error(f"将文件事件加入队列失败: {e}")
@@ -447,7 +217,7 @@ class FileSystemConnector(BaseConnector, FileSystemEventHandler):
                 self.logger.error(f"❌ 推送失败: {file_path_obj.name}")
 
         except Exception as e:
-            self.logger.error(f"处理文件事件失败 {file_path}: {e}")
+            self._handle_error(e, f"处理文件事件失败 {file_path}")
 
     async def _event_processor(self):
         """异步事件处理器 - 消费队列中的文件事件"""
@@ -455,20 +225,21 @@ class FileSystemConnector(BaseConnector, FileSystemEventHandler):
 
         while not self.should_stop:
             try:
-                # 非阻塞获取队列中的事件
-                if not self.event_queue.empty():
-                    event_data = self.event_queue.get_nowait()
+                # 等待队列中的事件，避免忙等待
+                try:
+                    event_data = await asyncio.wait_for(
+                        self.event_queue.get(), timeout=1.0
+                    )
                     await self._process_file_event(
                         event_data["event_type"], event_data["file_path"]
                     )
                     self.event_queue.task_done()
-                else:
-                    # 短暂等待，避免CPU繁忙等待
-                    await asyncio.sleep(0.1)
+                except asyncio.TimeoutError:
+                    # 超时是正常的，继续循环
+                    continue
 
             except Exception as e:
-                self.logger.error(f"事件处理器错误: {e}")
-                await asyncio.sleep(1)  # 错误恢复延迟
+                await self._handle_async_error(e, "事件处理器错误", retry_delay=1.0)
 
         self.logger.info("异步事件处理器已停止")
 

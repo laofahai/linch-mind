@@ -12,6 +12,7 @@ import os
 import importlib
 import subprocess
 import sys
+import uuid
 from abc import ABC, abstractmethod
 from typing import Dict, Any, Optional, List
 from datetime import datetime
@@ -77,8 +78,7 @@ class BaseConnector(ABC):
                 await self.load_config_from_daemon()
                 await asyncio.sleep(check_interval)
             except Exception as e:
-                self.logger.error(f"配置监控错误: {e}")
-                await asyncio.sleep(check_interval)
+                await self._handle_async_error(e, "配置监控错误", retry_delay=check_interval)
 
     def get_config(self, key: str, default: Any = None) -> Any:
         """获取配置项"""
@@ -102,7 +102,7 @@ class BaseConnector(ABC):
     ) -> Dict[str, Any]:
         """创建数据项 - 统一格式"""
         return {
-            "id": f"{self.connector_id}_{int(time.time() * 1000)}_{hash(content) % 10000}",
+            "id": f"{self.connector_id}_{uuid.uuid4().hex}",
             "content": content,
             "source_connector": self.connector_id,
             "timestamp": datetime.now().isoformat(),
@@ -124,16 +124,18 @@ class BaseConnector(ABC):
                     result = response.json()
                     return result.get("success", False)
                 else:
-                    self.logger.error(
-                        f"HTTP错误: {response.status_code} - {response.text}"
+                    self._handle_error(
+                        Exception(f"HTTP {response.status_code}: {response.text}"),
+                        "推送数据到Daemon失败",
+                        critical=True
                     )
                     return False
 
-        except httpx.ConnectError:
-            self.logger.error("无法连接到Daemon，请确保Daemon正在运行")
+        except httpx.ConnectError as e:
+            self._handle_error(e, "无法连接到Daemon，请确保Daemon正在运行", critical=True)
             return False
         except Exception as e:
-            self.logger.error(f"推送数据到Daemon失败: {e}")
+            self._handle_error(e, "推送数据到Daemon失败")
             return False
 
     async def test_daemon_connection(self) -> bool:
@@ -155,6 +157,23 @@ class BaseConnector(ABC):
         """停止连接器"""
         self.logger.info(f"停止{self.connector_id}连接器...")
         self.should_stop = True
+
+    def _handle_error(self, error: Exception, context: str, critical: bool = False) -> bool:
+        """统一错误处理"""
+        error_msg = f"{context}: {error}"
+        
+        if critical:
+            self.logger.error(f"严重错误 - {error_msg}")
+            return False
+        else:
+            self.logger.warning(f"可恢复错误 - {error_msg}")
+            return True
+
+    async def _handle_async_error(self, error: Exception, context: str, retry_delay: float = 1.0):
+        """异步错误处理，包含重试延迟"""
+        self.logger.error(f"{context}: {error}")
+        if retry_delay > 0:
+            await asyncio.sleep(retry_delay)
 
     @classmethod
     def get_required_dependencies(cls) -> List[str]:
@@ -205,7 +224,7 @@ class BaseConnector(ABC):
         return {}
 
     async def register_config_schema(self):
-        """向daemon注册配置schema"""
+        """向daemon注册配置schema - 使用运行时schema"""
         try:
             schema = self.get_config_schema()
             ui_schema = self.get_config_ui_schema()
@@ -216,6 +235,7 @@ class BaseConnector(ABC):
                 "ui_schema": ui_schema,
                 "connector_name": self.__class__.__name__,
                 "connector_description": self.__class__.__doc__ or "",
+                "schema_source": "runtime",  # 标识schema来源于运行时Python代码
             }
 
             async with httpx.AsyncClient(timeout=30.0) as client:
@@ -226,7 +246,7 @@ class BaseConnector(ABC):
                 )
 
                 if response.status_code == 200:
-                    self.logger.info("✅ 配置schema注册成功")
+                    self.logger.info("✅ 运行时配置schema注册成功")
                     return True
                 else:
                     self.logger.error(

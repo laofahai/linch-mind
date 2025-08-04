@@ -14,39 +14,25 @@
 ### 🏗️ [技术设计](./01_technical_design/)
 系统架构设计、技术选型和实现方案
 
-#### 🔌 连接器插件系统 (核心)
-- **[连接器插件生态系统架构](./01_technical_design/connector_plugin_ecosystem_architecture.md)** 
-  - 双模式架构设计 (开发/生产)
-  - CI/CD构建和发布流水线  
-  - 在线注册表和插件发现机制
-  - 安全验证和权限管理系统
-
-- **[插件开发者指南](./01_technical_design/plugin_developer_guide.md)**
-  - 5分钟快速开始开发插件
-  - 项目结构和核心文件说明
-  - 测试、调试和最佳实践
-  - 生产环境构建和发布流程
-
-- **[生产环境部署指南](./01_technical_design/production_deployment_guide.md)**
-  - Docker容器化部署方案
-  - 插件注册表服务架构
-  - CI/CD自动化部署流水线
-  - 监控、安全和运维指南
+#### 🔌 连接器系统 (核心)
+- **[连接器开发标准](./01_technical_design/connector_internal_management_standards.md)** 
+  - 简化的连接器架构设计
+  - Python生态和Poetry管理
+  - API驱动的数据推送机制
 
 #### 🛠️ 系统架构设计
 - **[Daemon架构设计](./01_technical_design/daemon_architecture.md)** - Python FastAPI后端服务架构
-- **[Flutter架构设计](./01_technical_design/flutter_architecture_design.md)** - 跨平台UI应用架构
+- **[Flutter架构设计](./01_technical_design/flutter_architecture_design.md)** - 跨平台UI架构和状态管理
 - **[API契约设计](./01_technical_design/api_contract_design.md)** - RESTful API接口规范
 
 #### 📊 专业领域设计
 - **[日志系统](./01_technical_design/logging_system/)** - 结构化日志和监控体系
-- **[NER系统](./01_technical_design/ner_system/)** - 智能实体识别和分析
-- **[性能优化路线图](./01_technical_design/performance_optimization_roadmap.md)** - 系统性能优化策略
 
 ### 📋 [架构决策记录](./02_decisions/)
 重要的技术决策和架构选择的记录
 
 - **[Flutter迁移决策记录](./02_decisions/flutter_migration_decision_record.md)** - 从Kotlin Multiplatform迁移到Flutter的决策分析
+- **[Python + Flutter最终架构决策](./02_decisions/python_flutter_architecture_final_decision.md)** - 最终技术架构选择的完整决策过程
 - **[硬件扩展决策记录](./02_decisions/hardware_extension_decision_record.md)** - 硬件设备扩展的技术评估和决策
 
 ---
@@ -54,14 +40,13 @@
 ## 🚀 快速导航
 
 ### 👩‍💻 开发者快速入门
-1. **新手开发者**: 从 [插件开发者指南](./01_technical_design/plugin_developer_guide.md) 开始
-2. **架构了解**: 阅读 [连接器插件生态系统架构](./01_technical_design/connector_plugin_ecosystem_architecture.md)
-3. **环境搭建**: 参考 [Flutter开发环境设置](./01_technical_design/flutter_development_setup.md)
+1. **新手开发者**: 从项目根目录 README.md 开始
+2. **架构了解**: 阅读 [连接器开发标准](./01_technical_design/connector_internal_management_standards.md)
+3. **环境搭建**: 使用项目根目录的 `./dev.sh` 脚本
 
-### 🏢 运维和部署
-1. **生产部署**: [生产环境部署指南](./01_technical_design/production_deployment_guide.md)
-2. **监控运维**: [日志系统架构](./01_technical_design/logging_system/architecture.md)
-3. **性能优化**: [性能优化路线图](./01_technical_design/performance_optimization_roadmap.md)
+### 🏢 系统运维
+1. **日志系统**: [日志系统架构](./01_technical_design/logging_system/architecture.md)
+2. **监控运维**: 参考daemon架构设计文档
 
 ### 🎯 产品和策略
 1. **产品理解**: [产品愿景和策略](./00_vision_and_strategy/product_vision_and_strategy.md)
@@ -72,21 +57,20 @@
 ## 📊 文档状态
 
 ### ✅ 已完成的核心文档
-- 🔌 **连接器插件生态系统架构** - 完整的双模式插件架构设计
-- 👨‍💻 **插件开发者指南** - 从入门到生产的完整开发流程
-- 🚀 **生产环境部署指南** - 企业级部署和运维方案
-- 🏗️ **Daemon架构设计** - 后端服务的详细技术设计
-- 📱 **Flutter架构设计** - 跨平台UI应用的架构方案
+- 🏗️ **Daemon架构设计** - Python FastAPI后端服务的详细技术设计
+- 🔌 **连接器开发标准** - 简化的连接器架构和开发指南
+- 🎯 **产品愿景和策略** - 项目核心理念和发展路线
+- 📱 **Flutter架构设计** - 跨平台UI架构和状态管理
 
-### 🔄 正在更新的文档
-- 📊 **NER系统** - 智能实体识别系统设计 (90%完成)
-- 🔍 **API契约设计** - RESTful API完整规范 (80%完成)
-- ⚡ **性能优化路线图** - 系统性能提升策略 (85%完成)
+### ✅ 已完成的文档
+- 🔍 **API契约设计** - RESTful API完整规范
+- 📋 **重要架构决策** - Python+Flutter迁移等关键决策记录
+- 📊 **日志系统设计** - 结构化日志和监控体系
 
-### 📅 计划中的文档
-- 🤖 **AI服务集成指南** - 多AI提供者集成方案
+### 📅 后续规划文档
+- 🤖 **AI服务集成指南** - 多AI提供者集成方案（架构就绪）
 - 🔐 **安全架构设计** - 端到端安全保障体系
-- 📈 **数据分析架构** - 智能推荐和用户画像系统
+- 📈 **数据分析架构** - 智能推荐和用户画像系统优化
 
 ---
 
@@ -111,19 +95,20 @@
 
 ## 🌟 关键设计理念
 
-### 🎯 **双模式架构** 
-- **开发模式**: 源码直接执行，支持热重载和调试
-- **生产模式**: 二进制分发，支持在线发现和安装
+### 🎯 **简化架构设计** 
+- **开发优先**: Poetry环境，源码直接运行
+- **配置驱动**: 通过YAML配置管理连接器
+- **API集成**: RESTful API统一数据流
 
-### 🔌 **插件生态系统**
+### 🔌 **连接器生态系统**
 - **非侵入式**: 数据保持在用户原有应用中
-- **AI能力聚合**: 支持多AI提供者统一接入
-- **主动价值创造**: 智能推荐而非被动查询
+- **Python生态**: 充分利用丰富的第三方库
+- **简化设计**: Poetry统一管理，API驱动推送
 
-### 🛡️ **安全优先**
-- **多层验证**: 数字签名、权限审查、恶意代码扫描
-- **渐进授权**: 用户可逐步授予插件权限
-- **透明度**: 所有权限声明对用户可见
+### 🛡️ **隐私优先**
+- **本地处理**: 所有数据在本地处理，不上传云端
+- **用户控制**: 用户完全控制数据访问和处理
+- **透明运行**: 开源代码，运行逻辑完全透明
 
 ---
 

@@ -5,8 +5,8 @@ from enum import Enum
 
 
 class ConnectorStatus(Enum):
+    INSTALLED = "installed"
     RUNNING = "running"
-    STOPPED = "stopped"
     ERROR = "error"
 
 

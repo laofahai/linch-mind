@@ -31,7 +31,6 @@ def build_filesystem_connector():
         # 添加必要的Python包
         "--hidden-import=watchdog",
         "--hidden-import=httpx",
-        "--hidden-import=asyncio",
         # 包含数据文件 (如果需要)
         # '--add-data=config.yaml:.',
     ]

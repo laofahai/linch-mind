@@ -1,112 +1,16 @@
 config_version: '1.0'
 connector_types:
   clipboard:
-    author: Linch Mind Team
-    auto_discovery: false
-    category: system
-    config_schema:
-      properties:
-        check_interval:
-          default: 1.0
-          description: 剪贴板检查间隔（秒）
-          maximum: 10.0
-          minimum: 0.1
-          type: number
-        ignore_duplicates:
-          default: true
-          description: 忽略重复的剪贴板内容
-          type: boolean
-        ignore_passwords:
-          default: true
-          description: 自动检测并忽略密码内容
-          type: boolean
-        max_content_length:
-          default: 10000
-          description: 最大内容长度
-          maximum: 100000
-          minimum: 100
-          type: integer
-      type: object
-    default_config: {}
-    dependencies: []
-    description: 监控系统剪贴板变化，自动记录和索引复制的内容
-    display_name: 剪贴板连接器
-    entry_point: main.py
-    health_check: true
-    hot_config_reload: true
-    instance_templates: []
-    license: MIT
-    max_instances_per_user: 1
     name: 剪贴板连接器
-    permissions:
-    - system:clipboard
-    - network:daemon-api
-    python_version: '>=3.8'
-    supports_multiple_instances: false
-    ui_schema: {}
+    description: 监控系统剪贴板变化，自动记录和索引复制的内容
+    entry_point: main.py
     version: 0.0.1
   filesystem:
-    author: Linch Mind Team
-    auto_discovery: false
-    category: local_files
-    config_schema:
-      properties:
-        extensions:
-          default:
-          - .txt
-          - .md
-          - .py
-          - .js
-          - .json
-          description: 要监控的文件扩展名
-          items:
-            type: string
-          type: array
-        ignore_patterns:
-          default:
-          - '*.tmp'
-          - .*
-          - node_modules/*
-          - __pycache__/*
-          description: 忽略的文件模式
-          items:
-            type: string
-          type: array
-        max_file_size_mb:
-          default: 10
-          description: 最大文件大小（MB）
-          maximum: 1000
-          minimum: 1
-          type: integer
-        paths:
-          description: 要监控的目录路径列表
-          items:
-            type: string
-          minItems: 1
-          type: array
-      required:
-      - paths
-      type: object
-    default_config: {}
-    dependencies: []
-    description: 实时监控文件系统变化，支持多目录、多规则的智能文件索引
-    display_name: 文件系统连接器
-    entry_point: main.py
-    health_check: true
-    hot_config_reload: true
-    instance_templates: []
-    license: MIT
-    max_instances_per_user: 1
     name: 文件系统连接器
-    permissions:
-    - filesystem:read
-    - filesystem:watch
-    - network:daemon-api
-    python_version: '>=3.8'
-    supports_multiple_instances: true
-    ui_schema: {}
+    description: 实时监控文件系统变化，支持多目录、多规则的智能文件索引
+    entry_point: main.py
     version: 0.0.1
-last_updated: '2025-08-03T16:29:44.543161'
+last_updated: '2025-08-03T22:19:19.781128'
 metadata:
   connector_count: 2
   created_by: CoreConfigManager

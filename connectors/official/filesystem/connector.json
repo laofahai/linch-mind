@@ -3,7 +3,6 @@
   "id": "filesystem",
   "name": "文件系统连接器",
   "version": "0.0.1",
-  "type": "filesystem",
   "author": "Linch Mind Team",
   "description": "实时监控文件系统变化，支持多目录、多规则的智能文件索引",
   "license": "MIT",
@@ -49,41 +48,5 @@
     "post_build": "echo 'Build completed'"
   },
   
-  "config_schema": {
-    "type": "object",
-    "required": ["paths"],
-    "properties": {
-      "paths": {
-        "type": "array",
-        "description": "要监控的目录路径列表",
-        "items": {
-          "type": "string"
-        },
-        "minItems": 1
-      },
-      "extensions": {
-        "type": "array",
-        "description": "要监控的文件扩展名",
-        "items": {
-          "type": "string"
-        },
-        "default": [".txt", ".md", ".py", ".js", ".json"]
-      },
-      "ignore_patterns": {
-        "type": "array",
-        "description": "忽略的文件模式",
-        "items": {
-          "type": "string"
-        },
-        "default": ["*.tmp", ".*", "node_modules/*", "__pycache__/*"]
-      },
-      "max_file_size_mb": {
-        "type": "integer",
-        "description": "最大文件大小（MB）",
-        "default": 10,
-        "minimum": 1,
-        "maximum": 1000
-      }
-    }
-  }
+  "config_schema_source": "runtime"
 }

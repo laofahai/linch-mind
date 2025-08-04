@@ -239,9 +239,11 @@ class ModelManager {
 - **模型选择**: 用户可在设置中选择本地模型
 
 ### 技术架构文档
-- **本地AI集成**: `docs/01_technical_design/local_ai_integration.md` (待创建)
-- **模型管理系统**: `docs/01_technical_design/model_management_system.md` (待创建)
-- **Daemon架构**: `docs/01_technical_design/daemon_architecture.md` (标记为未来特性)
+- **Daemon架构**: `docs/01_technical_design/daemon_architecture.md` (✅ 已实现 - Python FastAPI架构)
+- **Flutter架构**: `docs/01_technical_design/flutter_architecture_design.md` (✅ 已实现 - 跨平台UI架构)
+- **连接器开发**: `docs/01_technical_design/connector_internal_management_standards.md` (✅ 已实现 - 开发标准)
+- **API契约**: `docs/01_technical_design/api_contract_design.md` (✅ 已实现 - RESTful API规范)
+- **日志系统**: `docs/01_technical_design/logging_system/` (✅ 已实现 - 结构化日志)
 
 ### 当前架构结构
 ```
@@ -456,7 +458,7 @@ implementation("org.jetbrains.kotlinx:kotlinx-datetime:$datetime_version")
 1. **技术风险过高**: 40-70%失败概率，违反YAGNI原则
 2. **市场需求未验证**: 可能是技术驱动的伪需求
 3. **资源配置优化**: 聚焦V1桌面应用完善产生更大用户价值
-4. **WebView约束**: 纯WebView方案被否决，增加硬件扩展复杂度
+4. **技术栈选择**: Flutter原生方案确定，专注核心功能开发
 
 **V3实施条件** (全部满足才重新考虑):
 - V1/V2用户满意度 > 85%
@@ -466,13 +468,12 @@ implementation("org.jetbrains.kotlinx:kotlinx-datetime:$datetime_version")
 
 **相关文档**:
 - `docs/02_decisions/hardware_extension_decision_record.md` - 完整决策分析
-- `docs/01_technical_design/hardware_device_extension_comprehensive_evaluation.md` - 技术评估
-- `docs/00_vision_and_strategy/product_vision_and_strategy_v4.md` - 产品战略
+- `docs/00_vision_and_strategy/product_vision_and_strategy.md` - 产品战略
 
-### WebView技术选择决策 (2025-07-25)
-**决策**: 否决纯WebView统一化方案，仅特殊场景使用
-**理由**: 保持Compose原生UI优势，降低技术栈复杂度
-**影响**: 图谱可视化等复杂交互可选择性使用WebView
+### UI技术栈选择决策 (2025-07-25)
+**决策**: 采用Flutter原生UI，移除WebView方案考虑
+**理由**: Flutter提供原生级性能和优秀的跨平台一致性
+**影响**: 图谱可视化等复杂交互使用Flutter原生组件实现
 
 ---
 
@@ -484,7 +485,7 @@ implementation("org.jetbrains.kotlinx:kotlinx-datetime:$datetime_version")
 - `/quick-fix [issue-type]` - 快速修复常见问题
 
 ### Quality Hooks
-- **Post-Edit Hook**: 编辑Kotlin文件后自动运行质量检查
+- **Post-Edit Hook**: 编辑Python/Dart文件后自动运行质量检查
 - **Pre-Write Hook**: 修改构建配置前显示警告
 - **Pre-Edit Hook**: 编辑文件前显示准备信息
 
@@ -502,6 +503,6 @@ implementation("org.jetbrains.kotlinx:kotlinx-datetime:$datetime_version")
 
 ---
 
-*版本: v6.2 | 创建时间: 2025-07-25 | 最后更新: 2025-08-03*  
-*重大更新: Session V62 架构清理完成 + 单一配置系统 + UI端口同步*  
-*Session V62 成果: 配置系统统一化 + API集成修复 + 端到端连接验证*
+*版本: v6.3 | 创建时间: 2025-07-25 | 最后更新: 2025-08-03*  
+*重大更新: 文档架构清理完成 + 过期文档移除 + 链接修复*  
+*Session V63 成果: docs目录精简 + README更新 + 技术栈文档对齐*
