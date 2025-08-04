@@ -10,7 +10,7 @@ import json
 from pathlib import Path
 from typing import Dict, Any, Optional, List, Union
 from dataclasses import dataclass, field, asdict
-from datetime import datetime
+from datetime import datetime, timezone
 
 from .error_handling import (
     get_logger, 
@@ -29,8 +29,8 @@ logger = get_logger(__name__)
 class ServerConfig:
     """服务器配置"""
     host: str = "0.0.0.0"
-    port: int = 58471
-    port_range: List[int] = field(default_factory=lambda: [8000, 9000])
+    port: int = 50001
+    port_range: List[int] = field(default_factory=lambda: [50001, 51000])
     reload: bool = True
     log_level: str = "info"
 
@@ -226,14 +226,9 @@ class CoreConfigManager:
         """保存配置文件 - 改进格式化"""
         config_dict = asdict(config)
         
-        # 添加文件头注释
-        yaml_content = f"""# Linch Mind Core Configuration
-# Session V61 - Simplified Configuration Management
-# Generated: {datetime.now().isoformat()}
-# Location: {config_path}
-# 
-# Environment variable overrides are supported for key settings
-# See documentation for supported environment variables
+        # 简化文件头
+        yaml_content = f"""# Linch Mind Configuration
+# Generated: {datetime.now(timezone.utc).isoformat()}
 
 """
         
@@ -253,24 +248,16 @@ class CoreConfigManager:
         self.config.database.sqlite_url = f"sqlite:///{self.db_dir}/linch_mind.db"
         self.config.database.chroma_persist_directory = str(self.db_dir / "chromadb")
         
-        # 设置连接器目录路径
+        # 设置连接器目录路径 - 使用用户目录
         if self.config.connectors.config_dir == "connectors":
-            self.config.connectors.config_dir = str(self.config_root / "connectors")
+            user_connectors_dir = self.app_data_dir / "connectors"
+            user_connectors_dir.mkdir(exist_ok=True)
+            self.config.connectors.config_dir = str(user_connectors_dir)
     
     def _apply_env_overrides(self):
-        """应用环境变量覆盖 - 简化版本，只保留必要的覆盖"""
-        # 只支持端口覆盖
-        if port := os.getenv("LINCH_SERVER_PORT"):
-            try:
-                self.config.server.port = int(port)
-                logger.info(f"Server port overridden by env: {port}")
-            except ValueError:
-                logger.warning(f"Invalid LINCH_SERVER_PORT value: {port}")
-        
-        # 调试模式
-        if debug := os.getenv("LINCH_DEBUG"):
-            self.config.debug = debug.lower() in ("true", "1", "yes")
-            logger.info(f"Debug mode overridden by env: {self.config.debug}")
+        """应用环境变量覆盖 - 移除，环境变量处理过度复杂"""
+        # 移除环境变量覆盖功能，简化配置管理
+        pass
     
     def save_config(self):
         """保存当前配置"""
@@ -310,7 +297,7 @@ class CoreConfigManager:
             "host": self.config.server.host,
             "port": self.config.server.port,
             "debug": self.config.debug,
-            "started_at": datetime.now().isoformat(),
+            "started_at": datetime.now(timezone.utc).isoformat(),
             "config_source": str(self._get_active_config_path())
         }
     

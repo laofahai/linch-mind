@@ -61,7 +61,7 @@ class TestCoreConfigManager:
             # 验证默认配置
             assert config_manager.config.app_name == "Linch Mind"
             assert config_manager.config.version == "0.1.0"
-            assert config_manager.config.server.port == 58471
+            assert config_manager.config.server.port == 50001
             assert config_manager.config.debug is False
             
             # 验证配置文件创建
@@ -206,7 +206,7 @@ class TestCoreConfigManager:
                 assert field in server_info
             
             assert server_info["app_name"] == "Linch Mind"
-            assert server_info["port"] == 58471
+            assert server_info["port"] == 50001
 
 
 class TestConfigValidation:

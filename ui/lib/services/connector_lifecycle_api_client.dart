@@ -6,7 +6,7 @@ import '../models/connector_lifecycle_models.dart';
 /// 专门的连接器生命周期API客户端
 /// 对应 daemon 的 /connector-lifecycle 端点
 class ConnectorLifecycleApiClient {
-  static const String baseUrl = 'http://127.0.0.1:58471';
+  static const String baseUrl = 'http://127.0.0.1:50001';
   
   late final Dio _dio;
 

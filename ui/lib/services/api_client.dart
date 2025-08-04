@@ -5,7 +5,7 @@ import '../models/api_models.dart';
 /// 通用API客户端 - 处理非连接器相关的API
 /// 连接器管理API已迁移到 ConnectorLifecycleApiClient
 class ApiClient {
-  static const String baseUrl = 'http://127.0.0.1:58471';
+  static const String baseUrl = 'http://127.0.0.1:50001';
   
   late final Dio _dio;
 
