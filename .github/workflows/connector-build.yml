@@ -1,530 +1,240 @@
-name: 🔌 Connector Build & Publish
+name: 🔗 Connector Build
 
 on:
   push:
-    branches: [main, develop]
-    paths: 
-      - 'connectors/official/**'
-      - '.github/workflows/connector-build.yml'
-  pull_request:
-    branches: [main]
+    branches: [ main ]
     paths:
       - 'connectors/official/**'
-  workflow_dispatch:
-    inputs:
-      connector_id:
-        description: 'Specific connector to build (leave empty for auto-detect)'
-        required: false
-        type: string
-
-env:
-  REGISTRY_URL: ${{ vars.REGISTRY_URL || 'http://localhost:8001' }}
-  DAEMON_URL: ${{ vars.DAEMON_URL || 'http://localhost:8000' }}
-  PYTHON_VERSION: "3.11"
 
 jobs:
-  detect-changes:
-    name: 🔍 Detect Changed Connectors
+  build:
     runs-on: ubuntu-latest
-    outputs:
-      connectors: ${{ steps.detect.outputs.connectors }}
-      has_changes: ${{ steps.detect.outputs.has_changes }}
-    
+    # 防止递归触发：如果是bot提交的版本更新，跳过
+    if: github.actor != 'github-actions[bot]'
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
-          fetch-depth: 2
-      
-      - name: Detect changed connectors
-        id: detect
-        run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ -n "${{ github.event.inputs.connector_id }}" ]; then
-            # 手动触发，构建指定连接器
-            CONNECTORS='["${{ github.event.inputs.connector_id }}"]'
-            echo "has_changes=true" >> $GITHUB_OUTPUT
-          else
-            # 自动检测变更
-            CHANGED_FILES=$(git diff --name-only HEAD~1 HEAD | grep '^connectors/official/' | cut -d'/' -f3 | sort -u)
-            if [ -z "$CHANGED_FILES" ]; then
-              echo "has_changes=false" >> $GITHUB_OUTPUT
-              CONNECTORS='[]'
-            else
-              echo "has_changes=true" >> $GITHUB_OUTPUT
-              CONNECTORS=$(echo "$CHANGED_FILES" | jq -R -s -c 'split("\n")[:-1]')
-            fi
-          fi
-          
-          echo "connectors=$CONNECTORS" >> $GITHUB_OUTPUT
-          echo "Detected connectors to build: $CONNECTORS"
+          token: ${{ secrets.GITHUB_TOKEN }}
 
-  quality-check:
-    name: 🔍 Quality Checks
-    runs-on: ubuntu-latest
-    needs: detect-changes
-    if: needs.detect-changes.outputs.has_changes == 'true'
-    
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-      
-      - name: Set up Python
+      - name: Setup Python
         uses: actions/setup-python@v4
         with:
-          python-version: ${{ env.PYTHON_VERSION }}
-      
+          python-version: '3.11'
+
       - name: Install dependencies
         run: |
           cd connectors
-          pip install -e .
-          pip install flake8 black isort safety bandit
-      
-      - name: Code style check
-        run: |
-          flake8 connectors/official/ --max-line-length=100 --ignore=E203,W503
-          black --check connectors/official/
-          isort --check-only connectors/official/
-      
-      - name: Security scan
-        run: |
-          safety check
-          bandit -r connectors/official/ -f json -o bandit-report.json || true
-      
-      - name: Validate connector configs
-        run: |
-          python scripts/validate_connector_configs.py
+          pip install poetry
+          poetry install
+          poetry add pyinstaller
 
-  build-connector:
-    name: 🔨 Build ${{ matrix.connector }} on ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
-    needs: [detect-changes, quality-check]
-    if: needs.detect-changes.outputs.has_changes == 'true'
-    
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
-        connector: ${{ fromJson(needs.detect-changes.outputs.connectors) }}
-    
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-      
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
-      
-      - name: Install build dependencies
+      - name: Detect changes and bump versions (MVP + Conventional Commits)
         run: |
-          pip install pyinstaller
           cd connectors
-          pip install -e .
-      
-      - name: Install connector dependencies
-        run: |
-          if [ -f "connectors/official/${{ matrix.connector }}/requirements.txt" ]; then
-            pip install -r "connectors/official/${{ matrix.connector }}/requirements.txt"
-          fi
-        shell: bash
-      
-      - name: Build executable
-        run: |
-          cd "connectors/official/${{ matrix.connector }}"
           
-          # 确定平台后缀
-          if [ "${{ runner.os }}" = "Windows" ]; then
-            EXEC_NAME="main.exe"
-            PLATFORM="windows"
-          elif [ "${{ runner.os }}" = "macOS" ]; then
-            EXEC_NAME="main"
-            PLATFORM="macos"
-          else
-            EXEC_NAME="main"
-            PLATFORM="linux"
+          # 检测变更的连接器
+          changed_files=$(git diff --name-only HEAD~1 HEAD | grep '^connectors/official/' || true)
+          
+          if [ -z "$changed_files" ]; then
+            echo "No connector changes detected"
+            exit 0
           fi
           
-          # 使用PyInstaller构建
-          pyinstaller \
-            --onefile \
-            --name="main" \
-            --distpath=. \
-            --workpath=build \
-            --specpath=build \
-            main.py
+          # 提取连接器名称
+          changed_connectors=$(echo "$changed_files" | grep -E '^connectors/official/[^/]+/' | sed 's|connectors/official/\([^/]*\)/.*|\1|' | sort -u)
           
-          # 验证构建结果
-          if [ ! -f "$EXEC_NAME" ]; then
-            echo "❌ Build failed: $EXEC_NAME not found"
-            exit 1
-          fi
+          echo "Changed connectors: $changed_connectors"
+          echo "CHANGED_CONNECTORS=$changed_connectors" >> $GITHUB_ENV
           
-          echo "✅ Built $EXEC_NAME ($(du -h $EXEC_NAME | cut -f1))"
-        shell: bash
-      
-      - name: Create package
-        run: |
-          cd "connectors/official/${{ matrix.connector }}"
-          
-          # 确定平台后缀
-          if [ "${{ runner.os }}" = "Windows" ]; then
-            EXEC_NAME="main.exe"
-            PLATFORM="windows"
-          elif [ "${{ runner.os }}" = "macOS" ]; then
-            EXEC_NAME="main"
-            PLATFORM="macos"
-          else
-            EXEC_NAME="main"
-            PLATFORM="linux"
-          fi
-          
-          # 读取版本信息
-          VERSION=$(python -c "
-          import json
-          with open('connector.json', 'r') as f:
-              data = json.load(f)
-              print(data['version'])
-          ")
-          
-          # 创建包目录
-          PACKAGE_NAME="${{ matrix.connector }}-${VERSION}-${PLATFORM}"
-          mkdir -p "$PACKAGE_NAME"
-          
-          # 复制文件
-          cp "$EXEC_NAME" "$PACKAGE_NAME/"
-          cp connector.json "$PACKAGE_NAME/"
-          cp README.md "$PACKAGE_NAME/"
-          
-          # 创建zip包
-          zip -r "${PACKAGE_NAME}.zip" "$PACKAGE_NAME"
-          
-          echo "✅ Created package: ${PACKAGE_NAME}.zip"
-          echo "PACKAGE_NAME=${PACKAGE_NAME}" >> $GITHUB_ENV
-        shell: bash
-      
-      - name: Upload build artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ matrix.connector }}-${{ runner.os }}
-          path: connectors/official/${{ matrix.connector }}/${{ env.PACKAGE_NAME }}.zip
-          retention-days: 30
-
-  publish-connector:
-    name: 📦 Publish to Registry
-    runs-on: ubuntu-latest
-    needs: [detect-changes, build-connector]
-    if: needs.detect-changes.outputs.has_changes == 'true' && github.ref == 'refs/heads/main'
-    
-    strategy:
-      matrix:
-        connector: ${{ fromJson(needs.detect-changes.outputs.connectors) }}
-    
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-      
-      - name: Download build artifacts
-        uses: actions/download-artifact@v4
-        with:
-          path: artifacts/
-      
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
-      
-      - name: Install publish dependencies
-        run: |
-          pip install requests
-      
-      - name: Start local registry (for testing)
-        run: |
-          cd scripts
-          python registry_server.py &
-          REGISTRY_PID=$!
-          echo "REGISTRY_PID=$REGISTRY_PID" >> $GITHUB_ENV
-          
-          # 等待服务启动
-          sleep 5
-          curl -f http://localhost:8001/ || (echo "Registry failed to start" && exit 1)
-      
-      - name: Publish packages
-        run: |
-          for PLATFORM in ubuntu-latest windows-latest macos-latest; do
-            ARTIFACT_DIR="artifacts/${{ matrix.connector }}-${PLATFORM/ubuntu-latest/Linux}${PLATFORM/windows-latest/Windows}${PLATFORM/macos-latest/macOS}"
-            
-            if [ -d "$ARTIFACT_DIR" ]; then
-              PACKAGE_FILE=$(find "$ARTIFACT_DIR" -name "*.zip" | head -1)
-              if [ -f "$PACKAGE_FILE" ]; then
-                echo "📦 Publishing $PACKAGE_FILE"
-                
-                curl -X POST \
-                  -F "file=@$PACKAGE_FILE" \
-                  ${{ env.REGISTRY_URL }}/v1/connectors/publish
-                
-                echo "✅ Published $(basename $PACKAGE_FILE)"
+          # 智能版本递增（基于Conventional Commits）
+          for connector in $changed_connectors; do
+            config_file="official/$connector/connector.json"
+            if [ -f "$config_file" ]; then
+              # 获取当前版本
+              current_version=$(python3 -c "
+import json
+with open('$config_file', 'r') as f:
+    data = json.load(f)
+    print(data.get('version', '0.0.1'))
+")
+              
+              # 分析最近的commit messages来判断版本类型
+              commit_messages=$(git log --oneline -10 --pretty=format:"%s" | head -10)
+              
+              # 判断版本递增类型（基于Conventional Commits）
+              version_bump="patch"  # 默认patch
+              
+              if echo "$commit_messages" | grep -qE "^feat(\(.+\))?!?:"; then
+                version_bump="minor"
+                echo "📦 Found feat: commit -> minor bump"
               fi
+              
+              if echo "$commit_messages" | grep -qE "BREAKING CHANGE|^.+!:"; then
+                version_bump="major"
+                echo "💥 Found BREAKING CHANGE -> major bump"
+              fi
+              
+              # 计算新版本
+              new_version=$(python3 -c "
+version = '$current_version'
+bump_type = '$version_bump'
+parts = list(map(int, version.split('.')))
+
+if len(parts) >= 3:
+    if bump_type == 'major':
+        parts[0] += 1
+        parts[1] = 0
+        parts[2] = 0
+    elif bump_type == 'minor':
+        parts[1] += 1
+        parts[2] = 0
+    else:  # patch
+        parts[2] += 1
+    print('.'.join(map(str, parts)))
+else:
+    print('0.0.2')
+")
+              
+              echo "🎯 Bumping $connector ($version_bump): $current_version -> $new_version"
+              
+              # 更新connector.json
+              python3 -c "
+import json
+with open('$config_file', 'r') as f:
+    data = json.load(f)
+data['version'] = '$new_version'
+with open('$config_file', 'w') as f:
+    json.dump(data, f, indent=2, ensure_ascii=False)
+"
+              
+              # 更新connectors.yaml
+              python3 -c "
+import yaml
+with open('connectors.yaml', 'r') as f:
+    data = yaml.safe_load(f)
+if 'connectors' in data and '$connector' in data['connectors']:
+    data['connectors']['$connector']['version'] = '$new_version'
+    with open('connectors.yaml', 'w') as f:
+        yaml.dump(data, f, default_flow_style=False, allow_unicode=True)
+"
             fi
           done
-      
-      - name: Update connector metadata
-        run: |
-          # 读取连接器信息
-          cd "connectors/official/${{ matrix.connector }}"
-          VERSION=$(python -c "
-          import json
-          with open('connector.json', 'r') as f:
-              data = json.load(f)
-              print(data['version'])
-          ")
-          
-          echo "🏷️ Published ${{ matrix.connector }} v$VERSION to registry"
 
-  update-registry:
-    name: 📋 Update Registry Metadata
-    runs-on: ubuntu-latest
-    needs: [detect-changes, publish-connector]
-    if: needs.detect-changes.outputs.has_changes == 'true' && github.ref == 'refs/heads/main'
-    
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          fetch-depth: 0
-      
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
-      
-      - name: Generate updated registry
+      - name: Build connectors
+        if: env.CHANGED_CONNECTORS != ''
         run: |
-          python << 'EOF'
-          import json
-          import os
-          from datetime import datetime
-          from pathlib import Path
+          cd connectors
           
-          # 扫描所有官方连接器
-          connectors_dir = Path("connectors/official")
-          registry_data = {
-              "registry": {
-                  "name": "Linch Mind Official Registry",
-                  "version": "1.0.0",
-                  "api_version": "v1", 
-                  "base_url": "https://registry.linch-mind.com/v1",
-                  "updated_at": datetime.utcnow().isoformat() + "Z"
-              },
-              "connectors": {},
-              "stats": {
-                  "total_connectors": 0,
-                  "total_downloads": 0,
-                  "last_updated": datetime.utcnow().isoformat() + "Z"
-              }
-          }
-          
-          for connector_path in connectors_dir.iterdir():
-              if not connector_path.is_dir():
-                  continue
-                  
-              connector_json = connector_path / "connector.json"
-              if not connector_json.exists():
-                  continue
-              
-              with open(connector_json, 'r', encoding='utf-8') as f:
-                  connector_info = json.load(f)
-              
-              connector_id = connector_info["id"]
-              version = connector_info["version"]
-              
-              # 构建版本信息
-              version_info = {
-                  "version": version,
-                  "published_at": datetime.utcnow().isoformat() + "Z",
-                  "download_url": f"https://registry.linch-mind.com/v1/connectors/{connector_id}/{version}/download",
-                  "size": 0,  # 将在实际发布时更新
-                  "checksum": "sha256:placeholder",  # 将在实际发布时更新
-                  "platforms": ["windows", "macos", "linux"],
-                  "requires": {
-                      "daemon_version": ">=1.0.0",
-                      "python_version": ">=3.8"
-                  },
-                  "permissions": connector_info.get("permissions", []),
-                  "changelog": f"Updated to version {version}"
-              }
-              
-              # 添加连接器信息
-              registry_data["connectors"][connector_id] = {
-                  "id": connector_id,
-                  "name": connector_info["name"],
-                  "description": connector_info["description"],
-                  "author": connector_info.get("author", "Linch Mind Team"),
-                  "category": connector_info.get("category", "local_files"),
-                  "homepage": connector_info.get("homepage", f"https://github.com/linch-mind/connectors/tree/main/{connector_id}"),
-                  "versions": {version: version_info},
-                  "latest": version,
-                  "deprecated": False
-              }
-          
-          registry_data["stats"]["total_connectors"] = len(registry_data["connectors"])
-          
-          # 保存registry.json
-          with open("connectors/registry.json", 'w', encoding='utf-8') as f:
-              json.dump(registry_data, f, indent=2, ensure_ascii=False)
-          
-          print(f"✅ Generated registry with {len(registry_data['connectors'])} connectors")
-          EOF
-      
-      - name: Generate connector marketplace
+          for connector in $CHANGED_CONNECTORS; do
+            echo "Building $connector..."
+            
+            cd "official/$connector"
+            
+            # 使用统一的构建命令（基于connector.json配置）
+            poetry run python3 -c "
+import PyInstaller.__main__
+import json
+from pathlib import Path
+
+config_file = 'connector.json'
+with open(config_file, 'r') as f:
+    config = json.load(f)
+
+connector_name = config['id']
+main_script = 'main.py'
+
+# 构建参数
+args = [
+    main_script,
+    '--onefile',
+    f'--name={connector_name}-connector',
+    '--distpath=../../dist',
+    '--clean',
+    '--noconfirm',
+]
+
+# 添加隐藏导入
+for imp in ['watchdog', 'httpx', 'pyperclip']:
+    args.extend(['--hidden-import', imp])
+
+PyInstaller.__main__.run(args)
+print(f'✅ Built {connector_name}')
+"
+            
+            cd ../..
+          done
+
+      - name: Update registry
+        if: env.CHANGED_CONNECTORS != ''
         run: |
-          python << 'EOF'
-          import json
-          from datetime import datetime
+          mkdir -p .github/registry
           
-          # 读取注册表
-          with open("connectors/registry.json", 'r', encoding='utf-8') as f:
-              registry = json.load(f)
-          
-          # 生成markdown目录
-          markdown = f"""# 🔌 Linch Mind 连接器市场
-          
-          > 自动生成于 {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')} UTC
-          
-          ## 📊 统计信息
-          
-          - **连接器总数**: {registry['stats']['total_connectors']}
-          - **最后更新**: {registry['registry']['updated_at']}
-          
-          ## 🔗 可用连接器
-          
-          """
-          
-          # 按类别分组
-          categories = {}
-          for connector_id, connector in registry['connectors'].items():
-              category = connector.get('category', 'other')
-              if category not in categories:
-                  categories[category] = []
-              categories[category].append(connector)
-          
-          # 类别图标映射
-          category_icons = {
-              'local_files': '📁',
-              'system': '⚙️',
-              'productivity': '💼',
-              'communication': '💬',
-              'cloud_services': '☁️',
-              'development': '🔧',
-              'other': '🔗'
-          }
-          
-          for category, connectors in sorted(categories.items()):
-              icon = category_icons.get(category, '🔗')
-              markdown += f"### {icon} {category.replace('_', ' ').title()}\n\n"
-              
-              for connector in sorted(connectors, key=lambda x: x['name']):
-                  markdown += f"#### {connector['name']}\n"
-                  markdown += f"- **ID**: `{connector['id']}`\n"
-                  markdown += f"- **描述**: {connector['description']}\n"
-                  markdown += f"- **作者**: {connector['author']}\n"
-                  markdown += f"- **最新版本**: {connector['latest']}\n"
-                  if connector['homepage']:
-                      markdown += f"- **主页**: {connector['homepage']}\n"
-                  markdown += f"- **安装命令**: `linch-cli install {connector['id']}`\n\n"
-          
-          markdown += """
-          ## 📋 安装说明
-          
-          ### 1. 通过CLI安装
-          ```bash
-          # 安装特定连接器
-          linch-cli install <connector-id>
-          
-          # 列出所有可用连接器
-          linch-cli list --available
-          
-          # 搜索连接器
-          linch-cli search <keyword>
-          ```
-          
-          ### 2. 通过API安装
-          ```bash
-          curl -X POST http://localhost:8000/api/v1/connectors/install/<connector-id>
-          ```
-          
-          ### 3. 手动下载
-          每个连接器都可以从注册表直接下载：
-          ```
-          https://registry.linch-mind.com/v1/connectors/<connector-id>/<version>/download
-          ```
-          
-          ---
-          
-          > 💡 **开发者**: 想要贡献新的连接器？查看 [连接器开发指南](docs/01_technical_design/plugin_developer_guide.md)
-          """
-          
-          # 保存markdown文件
-          with open("connectors/MARKETPLACE.md", 'w', encoding='utf-8') as f:
-              f.write(markdown)
-          
-          print("✅ Generated connector marketplace documentation")
-          EOF
-      
-      - name: Commit registry updates
+          # 生成注册表
+          python3 -c "
+import json
+import yaml
+import os
+from pathlib import Path
+from datetime import datetime
+
+# 读取connectors.yaml
+with open('connectors/connectors.yaml', 'r') as f:
+    connectors_config = yaml.safe_load(f)
+
+registry = {
+    'schema_version': '1.0',
+    'last_updated': datetime.utcnow().isoformat() + 'Z',
+    'connectors': {},
+    'metadata': {
+        'repository': '${{ github.repository }}',
+        'commit': '${{ github.sha }}'
+    }
+}
+
+# 遍历所有连接器
+for connector_id, connector_info in connectors_config.get('connectors', {}).items():
+    config_path = f'connectors/official/{connector_id}/connector.json'
+    if os.path.exists(config_path):
+        with open(config_path, 'r') as f:
+            config = json.load(f)
+        
+        registry['connectors'][connector_id] = {
+            'id': config['id'],
+            'name': config['name'],
+            'version': config['version'],
+            'description': config['description'],
+            'author': config['author'],
+            'category': config['category'],
+            'platforms': config.get('platforms', {}),
+            'permissions': config.get('permissions', []),
+            'capabilities': config.get('capabilities', {}),
+        }
+
+# 保存注册表
+with open('.github/registry/connectors.json', 'w') as f:
+    json.dump(registry, f, indent=2, ensure_ascii=False)
+
+print('✅ Registry updated')
+"
+
+      - name: Commit changes
+        if: env.CHANGED_CONNECTORS != ''
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
-          
-          git add connectors/registry.json connectors/MARKETPLACE.md
-          
-          if git diff --staged --quiet; then
-            echo "No changes to commit"
-          else
-            git commit -m "🤖 Auto-update connector registry
-            
-            - Updated registry.json with latest connector versions
-            - Regenerated marketplace documentation
-            - Total connectors: $(jq '.stats.total_connectors' connectors/registry.json)
-            
-            [skip ci]"
-            
-            git push origin main
-            echo "✅ Committed registry updates"
-          fi
-      
-      - name: Cleanup
-        if: always()
-        run: |
-          if [ -n "$REGISTRY_PID" ]; then
-            kill $REGISTRY_PID || true
-          fi
+          git add .
+          git commit -m "chore: auto-update connector versions [skip ci]
 
-  notify-completion:
-    name: 📢 Notify Completion
-    runs-on: ubuntu-latest
-    needs: [detect-changes, build-connector, publish-connector, update-registry]
-    if: always() && needs.detect-changes.outputs.has_changes == 'true'
-    
-    steps:
-      - name: Summary
-        run: |
-          echo "## 🔌 Connector Build Summary" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Connectors processed:** ${{ needs.detect-changes.outputs.connectors }}" >> $GITHUB_STEP_SUMMARY
-          echo "**Build status:** ${{ needs.build-connector.result }}" >> $GITHUB_STEP_SUMMARY
-          echo "**Publish status:** ${{ needs.publish-connector.result }}" >> $GITHUB_STEP_SUMMARY
-          echo "**Registry update:** ${{ needs.update-registry.result }}" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          
-          if [ "${{ needs.build-connector.result }}" = "success" ] && [ "${{ needs.update-registry.result }}" = "success" ]; then
-            echo "✅ Complete pipeline success: Built, published, and updated registry" >> $GITHUB_STEP_SUMMARY
-          elif [ "${{ needs.build-connector.result }}" = "success" ]; then
-            echo "⚠️ Build successful but registry update failed" >> $GITHUB_STEP_SUMMARY
-          else
-            echo "❌ Build pipeline failed" >> $GITHUB_STEP_SUMMARY
-          fi
-          
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "📋 **Registry**: Updated automatically with latest connector metadata" >> $GITHUB_STEP_SUMMARY
-          echo "🏪 **Marketplace**: Documentation regenerated at \`connectors/MARKETPLACE.md\`" >> $GITHUB_STEP_SUMMARY
+Updated connectors: $CHANGED_CONNECTORS
+
+🤖 Generated with [Claude Code](https://claude.ai/code)
+
+Co-Authored-By: Claude <noreply@anthropic.com>"
+          git push
+
+      - name: Upload artifacts
+        if: env.CHANGED_CONNECTORS != ''
+        uses: actions/upload-artifact@v3
+        with:
+          name: connectors
+          path: connectors/dist/
