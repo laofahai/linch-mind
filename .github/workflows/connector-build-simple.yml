@@ -1,0 +1,240 @@
+name: 🔗 Connector Build
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'connectors/official/**'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    # 防止递归触发：如果是bot提交的版本更新，跳过
+    if: github.actor != 'github-actions[bot]'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          cd connectors
+          pip install poetry
+          poetry install
+          poetry add pyinstaller
+
+      - name: Detect changes and bump versions (MVP + Conventional Commits)
+        run: |
+          cd connectors
+          
+          # 检测变更的连接器
+          changed_files=$(git diff --name-only HEAD~1 HEAD | grep '^connectors/official/' || true)
+          
+          if [ -z "$changed_files" ]; then
+            echo "No connector changes detected"
+            exit 0
+          fi
+          
+          # 提取连接器名称
+          changed_connectors=$(echo "$changed_files" | grep -E '^connectors/official/[^/]+/' | sed 's|connectors/official/\([^/]*\)/.*|\1|' | sort -u)
+          
+          echo "Changed connectors: $changed_connectors"
+          echo "CHANGED_CONNECTORS=$changed_connectors" >> $GITHUB_ENV
+          
+          # 智能版本递增（基于Conventional Commits）
+          for connector in $changed_connectors; do
+            config_file="official/$connector/connector.json"
+            if [ -f "$config_file" ]; then
+              # 获取当前版本
+              current_version=$(python3 -c "
+import json
+with open('$config_file', 'r') as f:
+    data = json.load(f)
+    print(data.get('version', '0.0.1'))
+")
+              
+              # 分析最近的commit messages来判断版本类型
+              commit_messages=$(git log --oneline -10 --pretty=format:"%s" | head -10)
+              
+              # 判断版本递增类型（基于Conventional Commits）
+              version_bump="patch"  # 默认patch
+              
+              if echo "$commit_messages" | grep -qE "^feat(\(.+\))?!?:"; then
+                version_bump="minor"
+                echo "📦 Found feat: commit -> minor bump"
+              fi
+              
+              if echo "$commit_messages" | grep -qE "BREAKING CHANGE|^.+!:"; then
+                version_bump="major"
+                echo "💥 Found BREAKING CHANGE -> major bump"
+              fi
+              
+              # 计算新版本
+              new_version=$(python3 -c "
+version = '$current_version'
+bump_type = '$version_bump'
+parts = list(map(int, version.split('.')))
+
+if len(parts) >= 3:
+    if bump_type == 'major':
+        parts[0] += 1
+        parts[1] = 0
+        parts[2] = 0
+    elif bump_type == 'minor':
+        parts[1] += 1
+        parts[2] = 0
+    else:  # patch
+        parts[2] += 1
+    print('.'.join(map(str, parts)))
+else:
+    print('0.0.2')
+")
+              
+              echo "🎯 Bumping $connector ($version_bump): $current_version -> $new_version"
+              
+              # 更新connector.json
+              python3 -c "
+import json
+with open('$config_file', 'r') as f:
+    data = json.load(f)
+data['version'] = '$new_version'
+with open('$config_file', 'w') as f:
+    json.dump(data, f, indent=2, ensure_ascii=False)
+"
+              
+              # 更新connectors.yaml
+              python3 -c "
+import yaml
+with open('connectors.yaml', 'r') as f:
+    data = yaml.safe_load(f)
+if 'connectors' in data and '$connector' in data['connectors']:
+    data['connectors']['$connector']['version'] = '$new_version'
+    with open('connectors.yaml', 'w') as f:
+        yaml.dump(data, f, default_flow_style=False, allow_unicode=True)
+"
+            fi
+          done
+
+      - name: Build connectors
+        if: env.CHANGED_CONNECTORS != ''
+        run: |
+          cd connectors
+          
+          for connector in $CHANGED_CONNECTORS; do
+            echo "Building $connector..."
+            
+            cd "official/$connector"
+            
+            # 使用统一的构建命令（基于connector.json配置）
+            poetry run python3 -c "
+import PyInstaller.__main__
+import json
+from pathlib import Path
+
+config_file = 'connector.json'
+with open(config_file, 'r') as f:
+    config = json.load(f)
+
+connector_name = config['id']
+main_script = 'main.py'
+
+# 构建参数
+args = [
+    main_script,
+    '--onefile',
+    f'--name={connector_name}-connector',
+    '--distpath=../../dist',
+    '--clean',
+    '--noconfirm',
+]
+
+# 添加隐藏导入
+for imp in ['watchdog', 'httpx', 'pyperclip']:
+    args.extend(['--hidden-import', imp])
+
+PyInstaller.__main__.run(args)
+print(f'✅ Built {connector_name}')
+"
+            
+            cd ../..
+          done
+
+      - name: Update registry
+        if: env.CHANGED_CONNECTORS != ''
+        run: |
+          mkdir -p .github/registry
+          
+          # 生成注册表
+          python3 -c "
+import json
+import yaml
+import os
+from pathlib import Path
+from datetime import datetime
+
+# 读取connectors.yaml
+with open('connectors/connectors.yaml', 'r') as f:
+    connectors_config = yaml.safe_load(f)
+
+registry = {
+    'schema_version': '1.0',
+    'last_updated': datetime.utcnow().isoformat() + 'Z',
+    'connectors': {},
+    'metadata': {
+        'repository': '${{ github.repository }}',
+        'commit': '${{ github.sha }}'
+    }
+}
+
+# 遍历所有连接器
+for connector_id, connector_info in connectors_config.get('connectors', {}).items():
+    config_path = f'connectors/official/{connector_id}/connector.json'
+    if os.path.exists(config_path):
+        with open(config_path, 'r') as f:
+            config = json.load(f)
+        
+        registry['connectors'][connector_id] = {
+            'id': config['id'],
+            'name': config['name'],
+            'version': config['version'],
+            'description': config['description'],
+            'author': config['author'],
+            'category': config['category'],
+            'platforms': config.get('platforms', {}),
+            'permissions': config.get('permissions', []),
+            'capabilities': config.get('capabilities', {}),
+        }
+
+# 保存注册表
+with open('.github/registry/connectors.json', 'w') as f:
+    json.dump(registry, f, indent=2, ensure_ascii=False)
+
+print('✅ Registry updated')
+"
+
+      - name: Commit changes
+        if: env.CHANGED_CONNECTORS != ''
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add .
+          git commit -m "chore: auto-update connector versions [skip ci]
+
+Updated connectors: $CHANGED_CONNECTORS
+
+🤖 Generated with [Claude Code](https://claude.ai/code)
+
+Co-Authored-By: Claude <noreply@anthropic.com>"
+          git push
+
+      - name: Upload artifacts
+        if: env.CHANGED_CONNECTORS != ''
+        uses: actions/upload-artifact@v3
+        with:
+          name: connectors
+          path: connectors/dist/

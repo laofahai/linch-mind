@@ -3,6 +3,8 @@
 Linch Mind 文件系统连接器
 独立进程，监控文件系统变化并推送数据到Daemon
 Session 3 核心实现 - 重构版本
+
+feat: 增加文件类型过滤功能，提升监控效率
 """
 
 import asyncio

@@ -16,12 +16,12 @@ class ResponsiveNavigation extends StatelessWidget {
     NavigationDestination(
       icon: Icon(Icons.psychology_outlined),
       selectedIcon: Icon(Icons.psychology),
-      label: 'My Mind',
+      label: 'Mind',
     ),
     NavigationDestination(
       icon: Icon(Icons.scatter_plot_outlined),
       selectedIcon: Icon(Icons.scatter_plot),
-      label: '知识星云',
+      label: '星云',
     ),
     NavigationDestination(
       icon: Icon(Icons.extension_outlined),
@@ -48,7 +48,7 @@ class ResponsiveNavigation extends StatelessWidget {
     final theme = Theme.of(context);
     
     return Container(
-      width: 80,
+      width: 78,
       decoration: BoxDecoration(
         color: theme.colorScheme.surface,
         border: Border(
@@ -63,8 +63,8 @@ class ResponsiveNavigation extends StatelessWidget {
           // 导航项
           Expanded(
             child: ListView.builder(
-              padding: const EdgeInsets.symmetric(vertical: 8),
-              itemCount: destinations.length - 1, // 设置项单独处理
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              itemCount: destinations.length, // 包含所有导航项
               itemBuilder: (context, index) {
                 final destination = destinations[index];
                 final isSelected = currentIndex == index;
@@ -78,16 +78,6 @@ class ResponsiveNavigation extends StatelessWidget {
               },
             ),
           ),
-          
-          // 设置项放在底部
-          const Divider(height: 1),
-          _buildSideNavigationItem(
-            context,
-            destinations.last, // 设置项
-            currentIndex == destinations.length - 1,
-            () => onDestinationSelected(destinations.length - 1),
-          ),
-          const SizedBox(height: 8),
         ],
       ),
     );
@@ -102,19 +92,19 @@ class ResponsiveNavigation extends StatelessWidget {
     final theme = Theme.of(context);
     
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+      margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       child: Material(
         color: Colors.transparent,
         child: InkWell(
           onTap: onTap,
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(8),
           child: Container(
-            padding: const EdgeInsets.symmetric(vertical: 12),
+            padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
             decoration: BoxDecoration(
               color: isSelected 
                 ? theme.colorScheme.secondaryContainer
                 : Colors.transparent,
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(8),
             ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -124,13 +114,13 @@ class ResponsiveNavigation extends StatelessWidget {
                     color: isSelected 
                       ? theme.colorScheme.onSecondaryContainer
                       : theme.colorScheme.onSurfaceVariant,
-                    size: 24,
+                    size: 20,
                   ),
                   child: isSelected 
                     ? (destination.selectedIcon ?? destination.icon)
                     : destination.icon,
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 2),
                 Text(
                   destination.label,
                   style: theme.textTheme.labelSmall?.copyWith(
@@ -138,6 +128,7 @@ class ResponsiveNavigation extends StatelessWidget {
                       ? theme.colorScheme.onSecondaryContainer
                       : theme.colorScheme.onSurfaceVariant,
                     fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                    fontSize: 10,
                   ),
                   textAlign: TextAlign.center,
                   maxLines: 1,

@@ -1,0 +1,65 @@
+{
+  "schema_version": "1.0",
+  "last_updated": "2025-08-04T00:00:00.000000Z",
+  "connectors": {
+    "filesystem": {
+      "id": "filesystem",
+      "name": "文件系统连接器",
+      "version": "0.0.1",
+      "description": "实时监控文件系统变化，支持多目录、多规则的智能文件索引",
+      "author": "Linch Mind Team",
+      "category": "local_files",
+      "license": "MIT",
+      "homepage": "https://github.com/linch-mind/connectors/filesystem",
+      "platforms": {
+        "windows": { "min_version": "10" },
+        "macos": { "min_version": "10.15" },
+        "linux": { "min_version": "ubuntu-20.04" }
+      },
+      "permissions": [
+        "filesystem:read",
+        "filesystem:watch",
+        "network:daemon-api"
+      ],
+      "capabilities": {
+        "supports_multiple_instances": true,
+        "max_instances": 10,
+        "hot_reload": true
+      },
+      "artifacts": {},
+      "last_built": null
+    },
+    "clipboard": {
+      "id": "clipboard",
+      "name": "剪贴板连接器",
+      "version": "0.0.1",
+      "description": "监控系统剪贴板变化，自动记录和索引复制的内容",
+      "author": "Linch Mind Team",
+      "category": "system",
+      "license": "MIT",
+      "homepage": "https://github.com/linch-mind/connectors/clipboard",
+      "platforms": {
+        "windows": { "min_version": "10" },
+        "macos": { "min_version": "10.15" },
+        "linux": { "min_version": "ubuntu-20.04" }
+      },
+      "permissions": [
+        "system:clipboard",
+        "network:daemon-api"
+      ],
+      "capabilities": {
+        "supports_multiple_instances": false,
+        "max_instances": 1,
+        "hot_reload": true
+      },
+      "artifacts": {},
+      "last_built": null
+    }
+  },
+  "metadata": {
+    "repository": "linch-mind/linch-mind",
+    "commit": "initial",
+    "build_number": "0",
+    "description": "Linch Mind 连接器注册表 - 统一管理连接器元数据和构建产物"
+  }
+}

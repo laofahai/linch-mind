@@ -38,7 +38,7 @@ void main() async {
     
     doWhenWindowReady(() {
       const initialSize = Size(1200, 800);
-      appWindow.minSize = const Size(800, 600);
+      appWindow.minSize = const Size(320, 568); // 移动端尺寸，方便调试响应式设计
       appWindow.size = initialSize;
       appWindow.alignment = Alignment.center;
       appWindow.show();

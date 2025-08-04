@@ -234,7 +234,7 @@ class _ThemeToggleButtonState extends ConsumerState<_ThemeToggleButton> {
         child: Tooltip(
           message: getTooltipText(),
           child: Container(
-            width: 46,
+            width: 56,
             height: 50,
             decoration: BoxDecoration(
               color: _isHovered 
@@ -243,7 +243,7 @@ class _ThemeToggleButtonState extends ConsumerState<_ThemeToggleButton> {
             ),
             child: Icon(
               getThemeIcon(),
-              size: 16,
+              size: 20,
               color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
             ),
           ),
@@ -453,7 +453,7 @@ class __WindowButtonState extends State<_WindowButton> {
       child: GestureDetector(
         onTap: widget.onPressed,
         child: Container(
-          width: 46,
+          width: 56,
           height: 50,
           decoration: BoxDecoration(
             color: _isHovered 
@@ -462,7 +462,7 @@ class __WindowButtonState extends State<_WindowButton> {
           ),
           child: Icon(
             widget.icon,
-            size: 16,
+            size: 20,
             color: _isHovered && widget.iconColorOnHover != null
               ? widget.iconColorOnHover
               : theme.colorScheme.onSurface.withValues(alpha: 0.7),
