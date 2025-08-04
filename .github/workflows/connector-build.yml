@@ -146,7 +146,7 @@ EOF
       - name: Update registry
         if: env.CHANGED_CONNECTORS != ''
         run: |
-          mkdir -p .github/registry
+          cd connectors
           
           python3 << 'EOF'
 import json
@@ -155,7 +155,7 @@ import os
 from datetime import datetime
 
 # 读取connectors.yaml
-with open('connectors/connectors.yaml', 'r') as f:
+with open('connectors.yaml', 'r') as f:
     connectors_config = yaml.safe_load(f)
 
 registry = {
@@ -170,7 +170,7 @@ registry = {
 
 # 遍历所有连接器
 for connector_id, connector_info in connectors_config.get('connectors', {}).items():
-    config_path = f'connectors/official/{connector_id}/connector.json'
+    config_path = f'official/{connector_id}/connector.json'
     if os.path.exists(config_path):
         with open(config_path, 'r') as f:
             config = json.load(f)
@@ -188,7 +188,7 @@ for connector_id, connector_info in connectors_config.get('connectors', {}).item
         }
 
 # 保存注册表
-with open('.github/registry/connectors.json', 'w') as f:
+with open('registry.json', 'w') as f:
     json.dump(registry, f, indent=2, ensure_ascii=False)
 
 print(f'✅ Registry updated with {len(registry["connectors"])} connectors')

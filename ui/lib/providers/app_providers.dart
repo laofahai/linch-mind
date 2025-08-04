@@ -50,13 +50,16 @@ final connectorsProvider = FutureProvider<List<ConnectorInfo>>((ref) async {
   return response.collectors;
 });
 
-// 健康检查提供者 - 简化版本，直接使用HTTP健康检查
+// 健康检查提供者 - 简化版本，直接检查API连通性
 final healthCheckProvider = FutureProvider<bool>((ref) async {
   try {
     final apiClient = ref.watch(connectorLifecycleApiProvider);
-    final response = await apiClient.getHealthCheck();
+    // 使用简单的连接器列表API来检查连通性，避免复杂的健康检查模型解析
+    final response = await apiClient.getConnectors();
+    print('[HealthCheck] Success: ${response.success}, Connectors: ${response.collectors.length}');
     return response.success;
   } catch (e) {
+    print('[HealthCheck] Error: $e');
     return false;
   }
 });

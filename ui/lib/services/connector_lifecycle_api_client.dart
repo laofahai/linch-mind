@@ -8,14 +8,21 @@ import 'daemon_port_service.dart';
 /// 专门的连接器生命周期API客户端
 /// 对应 daemon 的 /connector-lifecycle 端点
 class ConnectorLifecycleApiClient {
-  late final Dio _dio;
+  Dio? _dio;
   bool _isInitialized = false;
 
   ConnectorLifecycleApiClient();
 
+  /// 清理资源
+  void dispose() {
+    _dio?.close();
+    _dio = null;
+    _isInitialized = false;
+  }
+
   /// 异步初始化客户端（读取动态端口）
   Future<void> _ensureInitialized() async {
-    if (_isInitialized) return;
+    if (_isInitialized && _dio != null) return;
     
     final baseUrl = await DaemonPortService.instance.getDaemonBaseUrl();
     
@@ -67,6 +74,14 @@ class ConnectorLifecycleApiClient {
     _isInitialized = true;
   }
 
+  /// 获取已初始化的Dio实例
+  Dio get dio {
+    if (_dio == null) {
+      throw Exception('ConnectorLifecycleApiClient not initialized. Call _ensureInitialized() first.');
+    }
+    return _dio!;
+  }
+
   /// 获取友好的错误消息
   String _getFriendlyErrorMessage(DioException error) {
     switch (error.type) {
@@ -97,7 +112,7 @@ class ConnectorLifecycleApiClient {
   Future<DiscoveryResponse> discoverConnectors() async {
     await _ensureInitialized();
     try {
-      final response = await _dio.get('/connector-lifecycle/discovery');
+      final response = await dio.get('/connector-lifecycle/discovery');
       
       // 转换嵌套的data结构为平铺结构
       final responseData = response.data as Map<String, dynamic>;
@@ -119,7 +134,7 @@ class ConnectorLifecycleApiClient {
   Future<OperationResponse> createConnector(CreateConnectorRequest request) async {
     await _ensureInitialized();
     try {
-      final response = await _dio.post(
+      final response = await dio.post(
         '/connector-lifecycle/collectors',
         data: {
           'connector_id': request.connectorId,
@@ -146,7 +161,7 @@ class ConnectorLifecycleApiClient {
       if (connectorId != null) queryParams['connector_id'] = connectorId;
       if (state != null) queryParams['state'] = state;
       
-      final response = await _dio.get(
+      final response = await dio.get(
         '/connector-lifecycle/collectors',
         queryParameters: queryParams,
       );
@@ -171,7 +186,7 @@ class ConnectorLifecycleApiClient {
   Future<ConnectorDetailResponse> getConnector(String collectorId) async {
     await _ensureInitialized();
     try {
-      final response = await _dio.get('/connector-lifecycle/collectors/$collectorId');
+      final response = await dio.get('/connector-lifecycle/collectors/$collectorId');
       return ConnectorDetailResponse.fromJson(response.data);
     } catch (e) {
       throw ConnectorApiException('Failed to get connector $collectorId: $e');
@@ -182,7 +197,7 @@ class ConnectorLifecycleApiClient {
   Future<OperationResponse> startConnector(String collectorId) async {
     await _ensureInitialized();
     try {
-      final response = await _dio.post('/connector-lifecycle/collectors/$collectorId/start');
+      final response = await dio.post('/connector-lifecycle/collectors/$collectorId/start');
       return OperationResponse.fromJson(response.data);
     } catch (e) {
       throw ConnectorApiException('Failed to start connector $collectorId: $e');
@@ -194,7 +209,7 @@ class ConnectorLifecycleApiClient {
     await _ensureInitialized();
     try {
       final queryParams = force ? {'force': 'true'} : <String, String>{};
-      final response = await _dio.post(
+      final response = await dio.post(
         '/connector-lifecycle/collectors/$collectorId/stop',
         queryParameters: queryParams,
       );
@@ -208,7 +223,7 @@ class ConnectorLifecycleApiClient {
   Future<OperationResponse> restartConnector(String collectorId) async {
     await _ensureInitialized();
     try {
-      final response = await _dio.post('/connector-lifecycle/collectors/$collectorId/restart');
+      final response = await dio.post('/connector-lifecycle/collectors/$collectorId/restart');
       return OperationResponse.fromJson(response.data);
     } catch (e) {
       throw ConnectorApiException('Failed to restart connector $collectorId: $e');
@@ -218,7 +233,7 @@ class ConnectorLifecycleApiClient {
   /// 更新连接器配置
   Future<OperationResponse> updateConnectorConfig(String collectorId, UpdateConfigRequest request) async {
     try {
-      final response = await _dio.put(
+      final response = await dio.put(
         '/connector-lifecycle/collectors/$collectorId/config',
         data: {'config': request.config},
       );
@@ -232,7 +247,7 @@ class ConnectorLifecycleApiClient {
   Future<OperationResponse> deleteConnector(String collectorId, {bool force = false}) async {
     try {
       final queryParams = force ? {'force': 'true'} : <String, String>{};
-      final response = await _dio.delete(
+      final response = await dio.delete(
         '/connector-lifecycle/collectors/$collectorId',
         queryParameters: queryParams,
       );
@@ -245,7 +260,7 @@ class ConnectorLifecycleApiClient {
   /// 获取所有连接器状态概览
   Future<ConnectorStatesOverview> getStatesOverview() async {
     try {
-      final response = await _dio.get('/connector-lifecycle/states');
+      final response = await dio.get('/connector-lifecycle/states');
       return ConnectorStatesOverview.fromJson(response.data);
     } catch (e) {
       throw ConnectorApiException('Failed to get states overview: $e');
@@ -256,7 +271,7 @@ class ConnectorLifecycleApiClient {
   Future<ConnectorHealthResponse> getHealthCheck() async {
     await _ensureInitialized();
     try {
-      final response = await _dio.get('/connector-lifecycle/health');
+      final response = await dio.get('/connector-lifecycle/health');
       return ConnectorHealthResponse.fromJson(response.data);
     } catch (e) {
       throw ConnectorApiException('Failed to get health check: $e');
@@ -266,7 +281,7 @@ class ConnectorLifecycleApiClient {
   /// 关闭所有连接器实例
   Future<ConnectorApiResponse> shutdownAllConnectors() async {
     try {
-      final response = await _dio.post('/connector-lifecycle/shutdown-all');
+      final response = await dio.post('/connector-lifecycle/shutdown-all');
       return ConnectorApiResponse.fromJson(response.data);
     } catch (e) {
       throw ConnectorApiException('Failed to shutdown all connectors: $e');
@@ -276,7 +291,7 @@ class ConnectorLifecycleApiClient {
   /// 扫描指定目录寻找连接器
   Future<DiscoveryResponse> scanConnectorDirectory(String directoryPath) async {
     try {
-      final response = await _dio.post(
+      final response = await dio.post(
         '/connector-lifecycle/scan-directory',
         data: {'directory_path': directoryPath},
       );

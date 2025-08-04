@@ -18,7 +18,7 @@ import time
 import logging
 
 # 支持的文件类型扩展名（新增功能）
-SUPPORTED_EXTENSIONS = {'.txt', '.md', '.py', '.js', '.json', '.yaml', '.yml', '.html', '.css'}
+SUPPORTED_EXTENSIONS = {'.txt', '.md', '.py', '.js', '.json', '.yaml', '.yml', '.html', '.css', '.xml', '.csv'}
 
 
 # 导入基类
