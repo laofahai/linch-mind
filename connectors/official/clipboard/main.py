@@ -5,6 +5,7 @@ Linch Mind 剪贴板连接器
 Session 4 补充实现 - 重构版本
 
 fix: 修复剪贴板监控的内存泄漏问题，优化资源管理
+feat: 增加剪贴板历史记录功能
 """
 
 import asyncio
