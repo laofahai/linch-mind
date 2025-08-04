@@ -3,6 +3,8 @@
 Linch Mind 剪贴板连接器
 独立进程，监控剪贴板变化并推送数据到Daemon
 Session 4 补充实现 - 重构版本
+
+fix: 修复剪贴板监控的内存泄漏问题，优化资源管理
 """
 
 import asyncio
