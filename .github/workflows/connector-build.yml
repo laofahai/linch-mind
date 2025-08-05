@@ -6,6 +6,8 @@ on:
     paths:
       - 'connectors/official/**'
       - 'connectors/community/**'
+      - 'scripts/ci/**'
+      - 'scripts/build/**'
 
 jobs:
   build:
