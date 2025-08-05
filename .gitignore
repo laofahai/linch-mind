@@ -131,6 +131,8 @@ temp/
 *.sqlite
 *.sqlite3
 .git_backup/
+.daemon.pid
+*.pid
 
 # macOS specific
 .DS_Store
