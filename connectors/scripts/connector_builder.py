@@ -50,7 +50,7 @@ def build_connector(connector_path: str, output_dir: str = "dist", create_zip: b
     os.chdir(connector_dir)
     
     try:
-        # 构建参数
+        # 构建参数 - 优化文件大小
         args = [
             str(main_script.name),
             '--onefile',
@@ -58,9 +58,52 @@ def build_connector(connector_path: str, output_dir: str = "dist", create_zip: b
             f'--distpath=../../{output_dir}',
             '--clean',
             '--noconfirm',
+            '--strip',  # 去除调试信息
+            '--optimize=2',  # Python字节码优化
+            '--noupx',  # 禁用UPX压缩以避免兼容性问题
+            
+            # 必要的隐藏导入
             '--hidden-import=watchdog',
             '--hidden-import=httpx', 
             '--hidden-import=pyperclip',
+            
+            # 排除不必要的模块以减小文件大小
+            '--exclude-module=PIL',
+            '--exclude-module=matplotlib',
+            '--exclude-module=numpy',
+            '--exclude-module=pandas',
+            '--exclude-module=scipy',
+            '--exclude-module=sklearn',
+            '--exclude-module=tensorflow',
+            '--exclude-module=torch',
+            '--exclude-module=cv2',
+            '--exclude-module=tkinter',
+            '--exclude-module=PyQt5',
+            '--exclude-module=PyQt6',
+            '--exclude-module=PySide2',
+            '--exclude-module=PySide6',
+            '--exclude-module=wx',
+            '--exclude-module=kivy',
+            '--exclude-module=django',
+            '--exclude-module=flask',
+            '--exclude-module=fastapi',
+            '--exclude-module=jupyter',
+            '--exclude-module=ipython',
+            '--exclude-module=notebook',
+            '--exclude-module=pytest',
+            '--exclude-module=unittest',
+            '--exclude-module=doctest',
+            '--exclude-module=pdb',
+            '--exclude-module=cProfile',
+            '--exclude-module=profile',
+            
+            # 排除测试和开发工具
+            '--exclude-module=test',
+            '--exclude-module=tests',
+            '--exclude-module=distutils',
+            '--exclude-module=setuptools',
+            '--exclude-module=pip',
+            '--exclude-module=wheel',
         ]
         
         print(f"🔧 PyInstaller args: {args}")
