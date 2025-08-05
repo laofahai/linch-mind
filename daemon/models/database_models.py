@@ -115,7 +115,7 @@ class EntityMetadata(Base):
     name = Column(String, nullable=False)
     description = Column(Text)
     source_path = Column(String)  # 来源文件路径
-    metadata = Column(JSON)       # 扩展属性
+    entity_metadata = Column(JSON)       # 扩展属性
     embedding_id = Column(String) # 对应向量ID
     
     # 时间戳

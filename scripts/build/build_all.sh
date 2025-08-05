@@ -28,7 +28,7 @@ for connector_path in $CONNECTOR_LIST; do
     echo ""
     echo "=" "Building $connector_path" "="
     
-    if ./scripts/build/build_connector.sh "connectors/$connector_path" "$OUTPUT_DIR"; then
+    if ../scripts/build/build_connector.sh "$connector_path" "$OUTPUT_DIR"; then
         echo "✅ Successfully built $connector_path"
         ((success_count++))
     else

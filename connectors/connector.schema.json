@@ -161,13 +161,21 @@
     },
     "config_schema": {
       "type": "object",
-      "description": "JSON Schema for connector configuration (deprecated - use runtime schema from Python code)"
+      "description": "JSON Schema for connector configuration - language-agnostic static definition"
+    },
+    "config_ui_schema": {
+      "type": "object",
+      "description": "UI rendering hints for configuration form - controls widget types, layout, validation"
+    },
+    "config_default_values": {
+      "type": "object", 
+      "description": "Default values for configuration properties"
     },
     "config_schema_source": {
       "type": "string",
-      "enum": ["runtime", "static"],
-      "description": "Source of config schema: 'runtime' loads from Python code, 'static' uses connector.json",
-      "default": "runtime"
+      "enum": ["runtime", "static", "embedded"],
+      "description": "Source of config schema: 'static' uses connector.json (recommended), 'runtime' loads from code, 'embedded' for binary connectors",
+      "default": "static"
     }
   },
   "additionalProperties": false

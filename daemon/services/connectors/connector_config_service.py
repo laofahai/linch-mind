@@ -30,13 +30,19 @@ class ConnectorConfigService:
         self._runtime_schemas = {}  # 运行时注册的schema
     
     async def get_config_schema(self, connector_id: str) -> Optional[Dict[str, Any]]:
-        """获取连接器的配置schema"""
+        """获取连接器的配置schema - 语言无关版本，优先使用静态schema"""
         try:
-            # 1. 优先使用运行时注册的schema
+            # 1. 优先从connector.json读取静态schema（推荐方式）
+            static_schema = await self._load_static_schema_from_manifest(connector_id)
+            if static_schema:
+                return static_schema
+            
+            # 2. 向后兼容：使用运行时注册的schema
             if connector_id in self._runtime_schemas:
+                logger.info(f"使用运行时schema: {connector_id}")
                 return self._runtime_schemas[connector_id]
             
-            # 2. 从数据库获取存储的schema
+            # 3. 从数据库获取存储的schema
             with self.db_service.get_session() as session:
                 connector = session.query(Connector).filter_by(connector_id=connector_id).first()
                 if not connector:
@@ -45,6 +51,7 @@ class ConnectorConfigService:
                 
                 # 如果数据库中有schema，返回它
                 if connector.config_schema:
+                    logger.info(f"使用数据库存储schema: {connector_id}")
                     schema_data = {
                         "schema": connector.config_schema,
                         "ui_schema": connector.config.get("ui_schema", {}) if connector.config else {},
@@ -54,12 +61,13 @@ class ConnectorConfigService:
                     self._schema_cache[connector_id] = schema_data
                     return schema_data
             
-            # 3. 尝试从连接器代码动态加载schema
+            # 4. 向后兼容：尝试从连接器代码动态加载schema
             schema_data = await self._load_schema_from_connector(connector_id)
             if schema_data:
+                logger.info(f"使用代码动态schema: {connector_id}")
                 return schema_data
             
-            # 4. 生成默认基础schema
+            # 5. 生成默认基础schema
             logger.info(f"为连接器 {connector_id} 生成默认配置schema")
             return self._generate_default_schema(connector_id)
             
@@ -285,6 +293,56 @@ class ConnectorConfigService:
             logger.error(f"获取所有schema失败: {e}")
             return []
     
+    async def _load_static_schema_from_manifest(self, connector_id: str) -> Optional[Dict[str, Any]]:
+        """从connector.json读取静态配置schema - 语言无关方式"""
+        try:
+            # 查找连接器manifest文件
+            connector_path = self._find_connector_path(connector_id)
+            if not connector_path:
+                return None
+            
+            manifest_file = connector_path / "connector.json"
+            if not manifest_file.exists():
+                logger.debug(f"未找到manifest文件: {manifest_file}")
+                return None
+            
+            # 读取manifest
+            with open(manifest_file, 'r', encoding='utf-8') as f:
+                manifest = json.load(f)
+            
+            # 检查schema来源
+            schema_source = manifest.get("config_schema_source", "runtime")
+            if schema_source not in ["static", "embedded"]:
+                logger.debug(f"连接器 {connector_id} 使用 {schema_source} schema，跳过静态读取")
+                return None
+            
+            # 读取静态schema
+            config_schema = manifest.get("config_schema")
+            if not config_schema:
+                logger.debug(f"连接器 {connector_id} 没有定义config_schema")
+                return None
+            
+            # 构建完整schema数据
+            schema_data = {
+                "schema": config_schema,
+                "ui_schema": manifest.get("config_ui_schema", {}),
+                "default_values": manifest.get("config_default_values", {}),
+                "version": manifest.get("version", "1.0.0"),
+                "connector_name": manifest.get("name", connector_id),
+                "description": manifest.get("description", ""),
+                "source": f"static_manifest_{schema_source}"
+            }
+            
+            # 缓存schema
+            self._schema_cache[connector_id] = schema_data
+            
+            logger.info(f"成功从manifest读取静态schema: {connector_id}")
+            return schema_data
+            
+        except Exception as e:
+            logger.error(f"从manifest读取静态schema失败 {connector_id}: {e}")
+            return None
+
     async def _load_schema_from_connector(self, connector_id: str) -> Optional[Dict[str, Any]]:
         """从连接器Python代码动态加载schema"""
         try:

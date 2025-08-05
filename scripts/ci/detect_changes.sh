@@ -51,7 +51,7 @@ if [ -n "$changed_connectors" ]; then
     for connector_path in $changed_connectors; do
         if [ -f "$connector_path/connector.json" ]; then
             echo "   Updating $connector_path" >&2
-            python3 scripts/version_manager.py "$connector_path/connector.json" --bump patch
+            python3 scripts/version_manager.py "$connector_path/connector.json" --bump patch >&2
         else
             echo "   ⚠️ No connector.json found in $connector_path" >&2
         fi

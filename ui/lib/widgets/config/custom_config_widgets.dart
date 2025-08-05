@@ -11,6 +11,56 @@ class CustomConfigWidgetFactory {
     _customWidgets[widgetType] = builder;
   }
   
+  /// 根据字段schema自动推断widget类型
+  static String _inferWidgetType(Map<String, dynamic> fieldSchema) {
+    final String? type = fieldSchema['type'];
+    
+    switch (type) {
+      case 'boolean':
+        return 'switch';
+      
+      case 'integer':
+      case 'number':
+        // 如果有范围限制，使用slider
+        if (fieldSchema.containsKey('minimum') && fieldSchema.containsKey('maximum')) {
+          final min = fieldSchema['minimum'];
+          final max = fieldSchema['maximum'];
+          // 合理的范围使用slider，过大范围使用数字输入
+          if (min != null && max != null && (max - min) <= 1000) {
+            return 'slider';
+          }
+        }
+        return 'number_input';
+      
+      case 'array':
+        final items = fieldSchema['items'] as Map<String, dynamic>?;
+        if (items?['type'] == 'string') {
+          return 'tag_input';
+        }
+        return 'text_input';
+      
+      case 'string':
+        // 检查格式提示
+        final format = fieldSchema['format'];
+        if (format == 'email') return 'email_input';
+        if (format == 'uri') return 'url_input';
+        if (format == 'password') return 'password_input';
+        
+        // 检查枚举选项
+        if (fieldSchema.containsKey('enum')) {
+          return 'select';
+        }
+        
+        return 'text_input';
+      
+      case 'object':
+        return 'object_editor';
+      
+      default:
+        return 'text_input';
+    }
+  }
+  
   /// 构建配置字段组件
   static Widget buildConfigField({
     required String fieldName,
@@ -19,7 +69,10 @@ class CustomConfigWidgetFactory {
     required Function(dynamic) onChanged,
     required BuildContext context,
   }) {
-    final String widgetType = fieldSchema['widget'] ?? 'text_input';
+    // 优先使用UI schema中的widget类型，然后是schema中的widget，最后根据类型自动推断
+    String widgetType = fieldSchema['ui:widget'] ?? 
+                       fieldSchema['widget'] ?? 
+                       _inferWidgetType(fieldSchema);
     
     switch (widgetType) {
       case 'custom_widget':
@@ -361,6 +414,87 @@ class CustomConfigWidgetFactory {
           onChanged: onChanged,
         );
       
+      case 'slider':
+        final double minValue = (fieldSchema['minimum'] ?? 0).toDouble();
+        final double maxValue = (fieldSchema['maximum'] ?? 100).toDouble();
+        final double step = (fieldSchema['ui:step'] ?? 1.0).toDouble();
+        final String? unit = fieldSchema['ui:unit'];
+        
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(fieldSchema['title'] ?? fieldName, style: Theme.of(context).textTheme.titleSmall),
+            if (fieldSchema['help_text'] != null) ...[
+              const SizedBox(height: 4),
+              Text(fieldSchema['help_text'], style: Theme.of(context).textTheme.bodySmall),
+              const SizedBox(height: 8),
+            ],
+            Row(
+              children: [
+                Expanded(
+                  child: Slider(
+                    value: (currentValue ?? minValue).toDouble().clamp(minValue, maxValue),
+                    min: minValue,
+                    max: maxValue,
+                    divisions: ((maxValue - minValue) / step).round(),
+                    label: '${currentValue ?? minValue}${unit ?? ''}',
+                    onChanged: (value) => onChanged(value),
+                  ),
+                ),
+                Container(
+                  width: 80,
+                  child: TextFormField(
+                    initialValue: currentValue?.toString() ?? minValue.toString(),
+                    keyboardType: TextInputType.number,
+                    decoration: InputDecoration(
+                      suffix: unit != null ? Text(unit) : null,
+                      isDense: true,
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    ),
+                    onChanged: (value) {
+                      final numValue = double.tryParse(value);
+                      if (numValue != null) onChanged(numValue.clamp(minValue, maxValue));
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ],
+        );
+      
+      case 'tag_input':
+        return TagInputWidget(
+          fieldName: fieldName,
+          fieldSchema: fieldSchema,
+          currentValue: currentValue,
+          onChanged: onChanged,
+        );
+      
+      case 'number_input':
+        final int? minValue = fieldSchema['minimum'];
+        final int? maxValue = fieldSchema['maximum'];
+        
+        return TextFormField(
+          initialValue: currentValue?.toString() ?? '',
+          keyboardType: TextInputType.number,
+          decoration: InputDecoration(
+            labelText: fieldSchema['title'],
+            hintText: fieldSchema['placeholder'],
+            helperText: fieldSchema['help_text'],
+            suffixText: fieldSchema['ui:unit'],
+          ),
+          onChanged: (value) {
+            final numValue = fieldSchema['type'] == 'integer' 
+                ? int.tryParse(value) 
+                : double.tryParse(value);
+            if (numValue != null) {
+              if (minValue != null && numValue < minValue) return;
+              if (maxValue != null && numValue > maxValue) return;
+              onChanged(numValue);
+            }
+          },
+        );
+      
       // ... 其他基础组件实现
       
       default:
@@ -645,6 +779,152 @@ class _ApiEndpointBuilderWidgetState extends State<ApiEndpointBuilderWidget> {
         ),
       ],
     );
+  }
+}
+
+/// 标签输入组件
+class TagInputWidget extends StatefulWidget {
+  final String fieldName;
+  final Map<String, dynamic> fieldSchema;
+  final dynamic currentValue;
+  final Function(dynamic) onChanged;
+  
+  const TagInputWidget({
+    super.key,
+    required this.fieldName,
+    required this.fieldSchema,
+    required this.currentValue,
+    required this.onChanged,
+  });
+  
+  @override
+  State<TagInputWidget> createState() => _TagInputWidgetState();
+}
+
+class _TagInputWidgetState extends State<TagInputWidget> {
+  late List<String> _tags;
+  final TextEditingController _controller = TextEditingController();
+  final FocusNode _focusNode = FocusNode();
+  
+  @override
+  void initState() {
+    super.initState();
+    _tags = List<String>.from(widget.currentValue ?? []);
+  }
+  
+  void _addTag(String tag) {
+    final trimmed = tag.trim();
+    if (trimmed.isNotEmpty && !_tags.contains(trimmed)) {
+      setState(() {
+        _tags.add(trimmed);
+        widget.onChanged(_tags);
+      });
+      _controller.clear();
+    }
+  }
+  
+  void _removeTag(int index) {
+    setState(() {
+      _tags.removeAt(index);
+      widget.onChanged(_tags);
+    });
+  }
+  
+  @override
+  Widget build(BuildContext context) {
+    final predefinedTags = widget.fieldSchema['predefined_tags'] as List<dynamic>? ?? [];
+    final allowCustom = widget.fieldSchema['allow_custom'] as bool? ?? true;
+    final placeholder = widget.fieldSchema['placeholder'] as String? ?? '输入后按回车添加';
+    
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          widget.fieldSchema['title'] ?? widget.fieldName,
+          style: Theme.of(context).textTheme.titleSmall,
+        ),
+        if (widget.fieldSchema['help_text'] != null) ...[
+          const SizedBox(height: 4),
+          Text(
+            widget.fieldSchema['help_text'],
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+        ],
+        const SizedBox(height: 8),
+        
+        // 预定义标签
+        if (predefinedTags.isNotEmpty) ...[
+          Text('常用选项:', style: Theme.of(context).textTheme.bodySmall),
+          const SizedBox(height: 4),
+          Wrap(
+            spacing: 8,
+            runSpacing: 4,
+            children: predefinedTags.map<Widget>((tag) {
+              final isSelected = _tags.contains(tag);
+              return FilterChip(
+                label: Text(tag.toString()),
+                selected: isSelected,
+                onSelected: (selected) {
+                  if (selected) {
+                    _addTag(tag.toString());
+                  } else {
+                    _tags.remove(tag.toString());
+                    setState(() {
+                      widget.onChanged(_tags);
+                    });
+                  }
+                },
+              );
+            }).toList(),
+          ),
+          const SizedBox(height: 12),
+        ],
+        
+        // 自定义输入
+        if (allowCustom) ...[
+          TextFormField(
+            controller: _controller,
+            focusNode: _focusNode,
+            decoration: InputDecoration(
+              hintText: placeholder,
+              border: const OutlineInputBorder(),
+              suffixIcon: IconButton(
+                icon: const Icon(Icons.add),
+                onPressed: () => _addTag(_controller.text),
+              ),
+            ),
+            onFieldSubmitted: _addTag,
+          ),
+          const SizedBox(height: 8),
+        ],
+        
+        // 当前标签
+        if (_tags.isNotEmpty) ...[
+          Text('已选择:', style: Theme.of(context).textTheme.bodySmall),
+          const SizedBox(height: 4),
+          Wrap(
+            spacing: 8,
+            runSpacing: 4,
+            children: _tags.asMap().entries.map<Widget>((entry) {
+              final index = entry.key;
+              final tag = entry.value;
+              return Chip(
+                label: Text(tag),
+                deleteIcon: const Icon(Icons.close, size: 18),
+                onDeleted: () => _removeTag(index),
+              );
+            }).toList(),
+          ),
+        ],
+      ],
+    );
+  }
+  
+  @override
+  void dispose() {
+    _controller.dispose();
+    _focusNode.dispose();
+    super.dispose();
   }
 }
 

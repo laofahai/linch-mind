@@ -445,6 +445,7 @@ class CoreConfigManager:
     def _write_port_file(self, port: int):
         """写入简化的端口文件 格式: port:pid"""
         import os
+        import stat
         
         port_file = self.app_data_dir / "daemon.port"
         
@@ -452,9 +453,13 @@ class CoreConfigManager:
             # 简化格式：port:pid
             content = f"{port}:{os.getpid()}"
             
-            # 写入文件
-            with open(port_file, 'w') as f:
-                f.write(content)
+            # 创建文件时设置安全权限 (600)
+            old_umask = os.umask(0o077)  # 临时设置umask确保只有owner有权限
+            try:
+                with open(port_file, 'w') as f:
+                    f.write(content)
+            finally:
+                os.umask(old_umask)  # 恢复原始umask
             
             logger.debug(f"Port file written: {port_file} -> {content}")
         except Exception as e:
