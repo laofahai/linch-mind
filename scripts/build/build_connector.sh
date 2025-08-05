@@ -107,3 +107,6 @@ echo "✅ Build completed successfully!"
 echo "📁 Artifacts:"
 echo "   Binary: $FINAL_BINARY"
 echo "   Package: $OUTPUT_DIR/$ZIP_NAME"
+
+# Explicitly exit with success
+exit 0

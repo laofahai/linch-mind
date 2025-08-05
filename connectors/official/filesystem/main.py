@@ -49,81 +49,58 @@ class FileSystemConnector(BaseConnector, FileSystemEventHandler):
 
     @classmethod
     def get_config_schema(cls) -> Dict[str, Any]:
-        """文件系统连接器配置schema - 完整示例版本"""
+        """文件系统连接器配置schema - 简化实用版本"""
         return {
             "type": "object",
             "title": "文件系统连接器配置",
-            "description": "配置文件系统监控的全部参数，展示连接器配置系统的强大功能",
+            "description": "配置文件系统监控参数",
             "properties": {
-                # 基础配置
-                "global_settings": {
-                    "type": "object",
-                    "title": "全局配置",
-                    "description": "应用于所有监控目录的默认配置",
-                    "properties": {
-                        "supported_extensions": {
-                            "type": "array",
-                            "title": "默认支持的文件类型",
-                            "description": "所有目录默认监控的文件扩展名",
-                            "items": {"type": "string"},
-                            "default": [".txt", ".md", ".rtf", ".doc", ".docx"],
-                            "widget": "tag_input",
-                            "widget_config": {
-                                "predefined_tags": [".txt", ".md", ".rtf", ".doc", ".docx", ".pdf", ".odt", ".csv"],
-                                "allow_custom": True
-                            }
-                        },
-                        "max_file_size": {
-                            "type": "integer",
-                            "title": "默认最大文件大小 (MB)",
-                            "description": "默认文件大小限制",
-                            "default": 10,
-                            "minimum": 1,
-                            "maximum": 100
-                        },
-                        "ignore_patterns": {
-                            "type": "array",
-                            "title": "默认忽略模式",
-                            "description": "默认忽略的文件模式",
-                            "items": {"type": "string"},
-                            "default": ["*.tmp", ".*", "node_modules/*", "__pycache__/*", "*.log", ".git/*"]
-                        }
-                    }
+                # 连接器默认配置
+                "default_supported_extensions": {
+                    "type": "array",
+                    "title": "默认支持的文件类型",
+                    "description": "连接器默认监控的文件扩展名，单个目录可以覆盖此设置",
+                    "items": {"type": "string"},
+                    "default": [".txt", ".md", ".py", ".js", ".json", ".yaml", ".yml", ".html", ".css"],
+                    "widget": "tags_input"
                 },
+                "default_max_file_size": {
+                    "type": "integer",
+                    "title": "默认最大文件大小 (MB)",
+                    "description": "默认文件大小限制，超过此大小的文件将被忽略",
+                    "default": 10,
+                    "minimum": 1,
+                    "maximum": 100,
+                    "widget": "slider"
+                },
+                "default_ignore_patterns": {
+                    "type": "array",
+                    "title": "默认忽略模式",
+                    "description": "默认忽略的文件模式，支持通配符",
+                    "items": {"type": "string"},
+                    "default": ["*.tmp", ".*", "node_modules/*", "__pycache__/*", "*.log", ".git/*"],
+                    "widget": "tags_input"
+                },
+                
+                # 监控目录列表
                 "watch_directories": {
                     "type": "array",
-                    "title": "监控目录配置",
-                    "description": "每个目录的详细监控配置",
-                    "widget": "dynamic_list",
-                    "widget_config": {
-                        "add_button_text": "添加监控目录",
-                        "remove_button_text": "删除",
-                        "allow_reorder": true,
-                        "min_items": 1,
-                        "max_items": 20,
-                        "item_title_template": "{{name || path || '新目录'}}",
-                        "item_subtitle_template": "{{path}}",
-                        "collapse_items": true,
-                        "show_item_index": false
-                    },
+                    "title": "监控目录",
+                    "description": "要监控的目录列表",
                     "items": {
                         "type": "object",
-                        "title": "目录配置",
+                        "title": "监控目录配置",
                         "properties": {
                             "path": {
                                 "type": "string",
                                 "title": "目录路径",
                                 "description": "要监控的目录路径",
-                                "widget": "directory_picker",
-                                "widget_config": {
-                                    "show_hidden": false,
-                                    "allow_manual_input": true
-                                }
+                                "widget": "directory_picker"
                             },
                             "name": {
                                 "type": "string",
-                                "title": "配置名称",
-                                "description": "此目录配置的显示名称（可选）",
+                                "title": "显示名称",
+                                "description": "此目录的显示名称（可选）",
                                 "default": ""
                             },
                             "enabled": {
@@ -135,80 +112,58 @@ class FileSystemConnector(BaseConnector, FileSystemEventHandler):
                             },
                             "recursive": {
                                 "type": "boolean",
-                                "title": "递归监控",
-                                "description": "是否监控子目录",
+                                "title": "递归监控子目录",
+                                "description": "是否监控此目录下的所有子目录",
                                 "default": true,
                                 "widget": "switch"
                             },
+                            
+                            # 高级配置（折叠）
                             "use_custom_config": {
                                 "type": "boolean",
                                 "title": "使用自定义配置",
-                                "description": "是否为此目录使用单独的配置，关闭则使用全局配置",
+                                "description": "为此目录使用独立的文件类型和忽略规则",
                                 "default": false,
-                                "widget": "switch"
+                                "widget": "switch",
+                                "ui:help": "开启后可以为此目录单独设置支持的文件类型和忽略模式"
                             },
-                            "custom_config": {
-                                "type": "object",
-                                "title": "自定义配置",
-                                "description": "此目录的专用配置（仅当启用自定义配置时生效）",
-                                "widget": "conditional_section",
-                                "widget_config": {
-                                    "condition": {
-                                        "field": "use_custom_config",
-                                        "operator": "equals",
-                                        "value": true
-                                    },
-                                    "collapse_when_hidden": true
-                                },
-                                "properties": {
-                                    "supported_extensions": {
-                                        "type": "array",
-                                        "title": "支持的文件类型",
-                                        "description": "此目录监控的文件扩展名",
-                                        "items": {"type": "string"},
-                                        "default": [],
-                                        "widget": "tag_input",
-                                        "widget_config": {
-                                            "predefined_tags": [".txt", ".md", ".rtf", ".doc", ".docx", ".pdf", ".odt", ".csv"],
-                                            "allow_custom": True,
-                                            "placeholder": "留空使用全局配置"
-                                        }
-                                    },
-                                    "max_file_size": {
-                                        "type": "integer",
-                                        "title": "最大文件大小 (MB)",
-                                        "description": "此目录的文件大小限制，0表示使用全局配置",
-                                        "default": 0,
-                                        "minimum": 0,
-                                        "maximum": 100,
-                                        "widget": "slider",
-                                        "widget_config": {
-                                            "show_value": true,
-                                            "unit": "MB",
-                                            "special_values": {
-                                                "0": "使用全局配置"
-                                            }
-                                        }
-                                    },
-                                    "ignore_patterns": {
-                                        "type": "array",
-                                        "title": "额外忽略模式",
-                                        "description": "在全局忽略模式基础上，此目录额外忽略的文件模式",
-                                        "items": {"type": "string"},
-                                        "default": [],
-                                        "widget": "tag_input",
-                                        "widget_config": {
-                                            "placeholder": "此目录特有的忽略模式"
-                                        }
-                                    },
-                                    "priority": {
-                                        "type": "integer",
-                                        "title": "处理优先级",
-                                        "description": "此目录文件的处理优先级 (1-10，数字越大优先级越高)",
-                                        "default": 5,
-                                        "minimum": 1,
-                                        "maximum": 10,
-                                        "widget": "slider"
+                            "custom_supported_extensions": {
+                                "type": "array",
+                                "title": "自定义支持的文件类型",
+                                "description": "此目录专用的文件类型列表（留空使用默认配置）",
+                                "items": {"type": "string"},
+                                "default": [],
+                                "widget": "tags_input",
+                                "ui:conditional": {
+                                    "show_when": {
+                                        "use_custom_config": true
+                                    }
+                                }
+                            },
+                            "custom_max_file_size": {
+                                "type": "integer",
+                                "title": "自定义最大文件大小 (MB)",
+                                "description": "此目录的文件大小限制，0表示使用默认配置",
+                                "default": 0,
+                                "minimum": 0,
+                                "maximum": 100,
+                                "widget": "slider",
+                                "ui:conditional": {
+                                    "show_when": {
+                                        "use_custom_config": true
+                                    }
+                                }
+                            },
+                            "custom_ignore_patterns": {
+                                "type": "array",
+                                "title": "自定义忽略模式",
+                                "description": "此目录专用的忽略模式（在默认模式基础上额外忽略）",
+                                "items": {"type": "string"},
+                                "default": [],
+                                "widget": "tags_input",
+                                "ui:conditional": {
+                                    "show_when": {
+                                        "use_custom_config": true
                                     }
                                 }
                             }
@@ -222,7 +177,9 @@ class FileSystemConnector(BaseConnector, FileSystemEventHandler):
                             "enabled": true,
                             "recursive": true,
                             "use_custom_config": false,
-                            "custom_config": {}
+                            "custom_supported_extensions": [],
+                            "custom_max_file_size": 0,
+                            "custom_ignore_patterns": []
                         },
                         {
                             "path": "~/Documents",
@@ -230,217 +187,33 @@ class FileSystemConnector(BaseConnector, FileSystemEventHandler):
                             "enabled": true,
                             "recursive": true,
                             "use_custom_config": false,
-                            "custom_config": {}
+                            "custom_supported_extensions": [],
+                            "custom_max_file_size": 0,
+                            "custom_ignore_patterns": []
                         }
                     ],
+                    "widget": "dynamic_list"
                 },
                 
-                # 文件过滤配置
+                # 其他基础配置
                 "max_content_length": {
                     "type": "integer",
                     "title": "最大内容长度",
                     "description": "文件内容截断长度（字符数）",
                     "default": 50000,
                     "minimum": 1000,
-                    "maximum": 100000,
-                    "widget": "number_input",
-                    "widget_config": {
-                        "step": 1000,
-                        "format": "###,###"
-                    }
+                    "maximum": 200000,
+                    "widget": "number_input"
                 },
-                
-                # 高级配置
                 "monitoring_enabled": {
                     "type": "boolean",
-                    "title": "启用监控",
-                    "description": "是否启用文件系统监控",
-                    "default": True,
+                    "title": "启用文件监控",
+                    "description": "总开关，控制是否启用文件系统监控",
+                    "default": true,
                     "widget": "switch"
-                },
-                "real_time_processing": {
-                    "type": "boolean",
-                    "title": "实时处理",
-                    "description": "是否实时处理文件变化",
-                    "default": True,
-                    "widget": "switch"
-                },
-                "batch_processing": {
-                    "type": "object",
-                    "title": "批处理配置",
-                    "description": "批量处理文件变化的配置",
-                    "properties": {
-                        "enabled": {
-                            "type": "boolean",
-                            "title": "启用批处理",
-                            "default": False,
-                            "widget": "checkbox"
-                        },
-                        "batch_size": {
-                            "type": "integer",
-                            "title": "批处理大小",
-                            "default": 10,
-                            "minimum": 1,
-                            "maximum": 100
-                        },
-                        "batch_timeout": {
-                            "type": "integer",
-                            "title": "批处理超时 (秒)",
-                            "default": 30,
-                            "minimum": 5,
-                            "maximum": 300
-                        }
-                    }
-                },
-                
-                # 调度配置 - 使用Cron编辑器
-                "scan_schedule": {
-                    "type": "string",
-                    "title": "扫描调度",
-                    "description": "定期扫描文件的Cron表达式",
-                    "default": "0 */6 * * *",
-                    "widget": "cron_editor",
-                    "widget_config": {
-                        "show_preview": True,
-                        "presets": {
-                            "每小时": "0 * * * *",
-                            "每6小时": "0 */6 * * *",
-                            "每天凌晨": "0 0 * * *",
-                            "工作日": "0 9 * * 1-5"
-                        }
-                    }
-                },
-                
-                # 内容处理配置
-                "content_processing": {
-                    "type": "object",
-                    "title": "内容处理",
-                    "description": "文件内容处理相关配置",
-                    "properties": {
-                        "extract_metadata": {
-                            "type": "boolean",
-                            "title": "提取元数据",
-                            "description": "是否提取文件元数据",
-                            "default": True
-                        },
-                        "content_hash": {
-                            "type": "boolean",
-                            "title": "计算内容哈希",
-                            "description": "是否计算文件内容哈希",
-                            "default": False
-                        },
-                        "encoding_detection": {
-                            "type": "boolean",
-                            "title": "编码检测",
-                            "description": "是否自动检测文件编码",
-                            "default": True
-                        },
-                        "preprocessing_script": {
-                            "type": "string",
-                            "title": "预处理脚本",
-                            "description": "文件内容预处理的Python脚本",
-                            "default": "# 预处理脚本示例\ndef preprocess(content, metadata):\n    # 在这里添加预处理逻辑\n    return content",
-                            "widget": "code_editor",
-                            "widget_config": {
-                                "language": "python",
-                                "height": 200,
-                                "show_line_numbers": True
-                            }
-                        }
-                    }
-                },
-                
-                # API集成配置 - 使用API端点构建器
-                "webhook_config": {
-                    "type": "object",
-                    "title": "Webhook配置",
-                    "description": "文件变化时调用的Webhook配置",
-                    "widget": "api_endpoint_builder",
-                    "widget_config": {
-                        "default_method": "POST",
-                        "show_test_button": True,
-                        "support_auth": True
-                    },
-                    "properties": {
-                        "enabled": {
-                            "type": "boolean",
-                            "title": "启用Webhook",
-                            "default": False
-                        },
-                        "url": {
-                            "type": "string",
-                            "title": "Webhook URL",
-                            "format": "uri"
-                        },
-                        "method": {
-                            "type": "string",
-                            "title": "HTTP方法",
-                            "enum": ["GET", "POST", "PUT", "PATCH"],
-                            "default": "POST"
-                        },
-                        "headers": {
-                            "type": "object",
-                            "title": "请求头",
-                            "default": {
-                                "Content-Type": "application/json"
-                            }
-                        },
-                        "timeout": {
-                            "type": "integer",
-                            "title": "超时时间 (秒)",
-                            "default": 30,
-                            "minimum": 1,
-                            "maximum": 300
-                        }
-                    }
-                },
-                
-                # 通知配置 - 动态表单示例
-                "notifications": {
-                    "type": "object",
-                    "title": "通知配置",
-                    "description": "文件变化通知设置",
-                    "widget": "dynamic_form",
-                    "widget_config": {
-                        "template": "notification_config",
-                        "allow_add_fields": True
-                    },
-                    "properties": {
-                        "email_enabled": {
-                            "type": "boolean",
-                            "title": "启用邮件通知",
-                            "default": False
-                        },
-                        "email_recipients": {
-                            "type": "array",
-                            "title": "邮件接收者",
-                            "items": {"type": "string", "format": "email"},
-                            "default": []
-                        },
-                        "notification_threshold": {
-                            "type": "integer",
-                            "title": "通知阈值",
-                            "description": "当文件变化数量超过此值时发送通知",
-                            "default": 10,
-                            "minimum": 1
-                        }
-                    }
                 }
             },
-            "required": ["global_settings", "watch_directories", "monitoring_enabled"],
-            "dependencies": {
-                "batch_processing": {
-                    "properties": {
-                        "real_time_processing": {"const": False}
-                    }
-                },
-                "webhook_config": {
-                    "properties": {
-                        "webhook_config.enabled": {"const": True}
-                    },
-                    "required": ["webhook_config.url"]
-                }
-            }
+            "required": ["default_supported_extensions", "watch_directories", "monitoring_enabled"]
         }
 
     @classmethod
