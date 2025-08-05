@@ -26,12 +26,12 @@
 - **[API契约设计](./01_technical_design/api_contract_design.md)** - RESTful API接口规范
 
 #### 📊 专业领域设计
-- **[日志系统](./01_technical_design/logging_system/)** - 结构化日志和监控体系
+- **[连接器UI设计](./01_technical_design/connector_ui_redesign.md)** - 连接器管理界面设计
+- **[安全架构设计](./01_technical_design/security_architecture_design.md)** - 数据安全和隐私保护架构
 
 ### 📋 [架构决策记录](./02_decisions/)
 重要的技术决策和架构选择的记录
 
-- **[Flutter迁移决策记录](./02_decisions/flutter_migration_decision_record.md)** - 从Kotlin Multiplatform迁移到Flutter的决策分析
 - **[Python + Flutter最终架构决策](./02_decisions/python_flutter_architecture_final_decision.md)** - 最终技术架构选择的完整决策过程
 - **[硬件扩展决策记录](./02_decisions/hardware_extension_decision_record.md)** - 硬件设备扩展的技术评估和决策
 
@@ -45,8 +45,8 @@
 3. **环境搭建**: 使用项目根目录的 `./dev.sh` 脚本
 
 ### 🏢 系统运维
-1. **日志系统**: [日志系统架构](./01_technical_design/logging_system/architecture.md)
-2. **监控运维**: 参考daemon架构设计文档
+1. **架构理解**: [Daemon架构设计](./01_technical_design/daemon_architecture.md)
+2. **安全配置**: [安全架构设计](./01_technical_design/security_architecture_design.md)
 
 ### 🎯 产品和策略
 1. **产品理解**: [产品愿景和策略](./00_vision_and_strategy/product_vision_and_strategy.md)
@@ -64,27 +64,28 @@
 
 ### ✅ 已完成的文档
 - 🔍 **API契约设计** - RESTful API完整规范
-- 📋 **重要架构决策** - Python+Flutter迁移等关键决策记录
-- 📊 **日志系统设计** - 结构化日志和监控体系
+- 📋 **重要架构决策** - Python+Flutter最终架构等关键决策记录
+- 🎨 **连接器UI设计** - 连接器管理界面深度设计分析
+- 🔐 **安全架构设计** - 数据安全和隐私保护完整方案
 
 ### 📅 后续规划文档
 - 🤖 **AI服务集成指南** - 多AI提供者集成方案（架构就绪）
-- 🔐 **安全架构设计** - 端到端安全保障体系
 - 📈 **数据分析架构** - 智能推荐和用户画像系统优化
+- 🔧 **部署运维指南** - 生产环境部署和监控指南
 
 ---
 
 ## 🎯 文档使用指南
 
 ### 📚 阅读建议
-1. **产品新人**: 先读产品愿景 → 插件开发指南 → 架构设计
+1. **产品新人**: 先读产品愿景 → 连接器开发指南 → 架构设计
 2. **技术人员**: 直接从相关技术设计文档开始
-3. **运维人员**: 重点关注部署指南和日志系统文档
+3. **运维人员**: 重点关注Daemon架构和安全架构文档
 
 ### 🔄 文档更新
 - 所有重要架构变更都会更新相应文档
 - 文档版本跟随项目版本发布
-- 过时内容会移动到 `_archive/` 目录
+- 过时内容会及时清理和更新
 
 ### 🤝 贡献指南
 1. 技术文档修改请提交 PR

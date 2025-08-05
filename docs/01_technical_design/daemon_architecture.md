@@ -200,9 +200,9 @@ class DaemonWebSocketClient {
 
 ### 4.6. 相关文档
 
-- [Daemon架构最佳实践指南](daemon_architecture_best_practices.md) - 详细实施指南
-- [Session V12架构优化决策](../02_decisions/daemon_architecture_optimization_session_v12.md) - 决策记录
-- [Session V7架构决策](../02_decisions/daemon_architecture_decision_session_v7.md) - 原始架构决策
+- [Python + Flutter最终架构决策](../02_decisions/python_flutter_architecture_final_decision.md) - 技术架构选择决策
+- [连接器开发标准](connector_internal_management_standards.md) - 连接器开发指南  
+- [API契约设计](api_contract_design.md) - RESTful API规范
 
 ---
 

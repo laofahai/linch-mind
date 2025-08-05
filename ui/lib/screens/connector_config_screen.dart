@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../services/connector_config_api_client.dart';
@@ -67,11 +68,14 @@ class _ConnectorConfigScreenState extends ConsumerState<ConnectorConfigScreen>
       
       if (schemaResponse.success && configResponse.success) {
         setState(() {
-          _configSchema = schemaResponse.data['schema'] ?? {};
-          _uiSchema = schemaResponse.data['ui_schema'] ?? {};
-          _defaultConfig = schemaResponse.data['default_values'] ?? {};
+          final schemaData = schemaResponse.data as Map<String, dynamic>? ?? {};
+          final configData = configResponse.data as Map<String, dynamic>? ?? {};
           
-          _currentConfig = configResponse.data['config'] ?? {};
+          _configSchema = schemaData['schema'] as Map<String, dynamic>? ?? {};
+          _uiSchema = schemaData['ui_schema'] as Map<String, dynamic>? ?? {};
+          _defaultConfig = schemaData['default_values'] as Map<String, dynamic>? ?? {};
+          
+          _currentConfig = configData['config'] as Map<String, dynamic>? ?? {};
           _formData = Map<String, dynamic>.from(_currentConfig);
           
           _isLoading = false;
@@ -105,9 +109,10 @@ class _ConnectorConfigScreenState extends ConsumerState<ConnectorConfigScreen>
         _formData,
       );
       
-      if (!validationResponse.success || !validationResponse.data['valid']) {
+      final validationData = validationResponse.data as Map<String, dynamic>? ?? {};
+      if (!validationResponse.success || !(validationData['valid'] as bool? ?? false)) {
         setState(() {
-          _validationErrors = List<String>.from(validationResponse.data['errors'] ?? []);
+          _validationErrors = List<String>.from(validationData['errors'] as List? ?? []);
           _isSaving = false;
         });
         
@@ -129,8 +134,9 @@ class _ConnectorConfigScreenState extends ConsumerState<ConnectorConfigScreen>
           _isSaving = false;
         });
         
+        final saveData = saveResponse.data as Map<String, dynamic>? ?? {};
         _showSuccessSnackBar(
-          saveResponse.data['hot_reload_applied'] == true
+          (saveData['hot_reload_applied'] as bool? ?? false)
               ? '配置已保存并热重载成功'
               : '配置已保存，需要重启连接器生效'
         );
@@ -530,7 +536,7 @@ class _ConnectorConfigScreenState extends ConsumerState<ConnectorConfigScreen>
 
   String _formatConfigForPreview(Map<String, dynamic> config) {
     // 格式化配置为可读的JSON字符串
-    return const JsonEncoder.withIndent('  ').convert(config);
+    return JsonEncoder.withIndent('  ').convert(config);
   }
 
   String _getConfigDiff() {

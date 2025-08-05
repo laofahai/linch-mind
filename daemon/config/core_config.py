@@ -29,8 +29,8 @@ logger = get_logger(__name__)
 class ServerConfig:
     """服务器配置"""
     host: str = "0.0.0.0"
-    port: int = 50001
-    port_range: List[int] = field(default_factory=lambda: [50001, 51000])
+    port: int = 0  # 0表示使用随机端口
+    port_range: List[int] = field(default_factory=lambda: [49152, 65535])  # 使用标准动态端口范围
     reload: bool = True
     log_level: str = "info"
 
@@ -363,62 +363,108 @@ class CoreConfigManager:
             return False
     
     def get_available_port(self) -> int:
-        """获取可用端口，自动处理端口冲突
+        """获取可用端口，支持随机端口选择
         
         Returns:
             int: 可用的端口号
         """
-        # 首先尝试配置的端口
-        preferred_port = self.config.server.port
-        if self._is_port_available(preferred_port):
-            # 写入端口文件
-            self._write_port_file(preferred_port)
-            logger.info(f"Using preferred port: {preferred_port}")
-            return preferred_port
+        import socket
+        import random
         
-        # 如果配置端口不可用，在端口范围内查找
+        preferred_port = self.config.server.port
         port_range = self.config.server.port_range
         start_port, end_port = port_range[0], port_range[1]
         
-        logger.warning(f"Preferred port {preferred_port} is not available, searching in range {start_port}-{end_port}")
-        
-        for port in range(start_port, end_port + 1):
-            if self._is_port_available(port):
-                # 更新配置中的端口
-                self.config.server.port = port
-                # 写入端口文件
-                self._write_port_file(port)
-                logger.info(f"Found available port: {port}")
-                return port
+        # 如果配置端口为0，直接使用随机端口
+        if preferred_port == 0:
+            logger.info("Using random port selection from range")
+            selected_port = self._get_random_available_port(start_port, end_port)
+            if selected_port:
+                self.config.server.port = selected_port
+                self._write_port_file(selected_port)
+                logger.info(f"Selected random port: {selected_port}")
+                return selected_port
+        else:
+            # 首先尝试配置的端口
+            if self._is_port_available(preferred_port):
+                self._write_port_file(preferred_port)
+                logger.info(f"Using preferred port: {preferred_port}")
+                return preferred_port
+            
+            logger.warning(f"Preferred port {preferred_port} is not available, using random selection in range {start_port}-{end_port}")
+            selected_port = self._get_random_available_port(start_port, end_port)
+            if selected_port:
+                self.config.server.port = selected_port
+                self._write_port_file(selected_port)
+                logger.info(f"Found available port: {selected_port}")
+                return selected_port
         
         # 如果范围内没有可用端口，使用系统分配
-        import socket
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             s.bind(('localhost', 0))
             dynamic_port = s.getsockname()[1]
             
         # 更新配置
         self.config.server.port = dynamic_port
-        # 写入端口文件
         self._write_port_file(dynamic_port)
         logger.warning(f"Using system-assigned port: {dynamic_port}")
         return dynamic_port
     
+    def _get_random_available_port(self, start_port: int, end_port: int, max_attempts: int = 50) -> Optional[int]:
+        """在指定范围内随机选择可用端口
+        
+        Args:
+            start_port: 起始端口
+            end_port: 结束端口  
+            max_attempts: 最大尝试次数
+            
+        Returns:
+            Optional[int]: 可用端口号，如果找不到则返回None
+        """
+        import random
+        
+        attempted_ports = set()
+        
+        for _ in range(max_attempts):
+            # 随机选择端口
+            port = random.randint(start_port, end_port)
+            
+            # 避免重复尝试
+            if port in attempted_ports:
+                continue
+            attempted_ports.add(port)
+            
+            # 检查端口是否可用
+            if self._is_port_available(port):
+                logger.debug(f"Random port selection succeeded: {port} (attempts: {len(attempted_ports)})")
+                return port
+        
+        logger.warning(f"Failed to find available port after {max_attempts} random attempts in range {start_port}-{end_port}")
+        return None
+    
     def _write_port_file(self, port: int):
-        """写入端口文件供其他组件读取"""
+        """写入简化的端口文件 格式: port:pid"""
+        import os
+        
         port_file = self.app_data_dir / "daemon.port"
+        
         try:
+            # 简化格式：port:pid
+            content = f"{port}:{os.getpid()}"
+            
+            # 写入文件
             with open(port_file, 'w') as f:
-                f.write(str(port))
-            logger.debug(f"Port file written: {port_file} -> {port}")
+                f.write(content)
+            
+            logger.debug(f"Port file written: {port_file} -> {content}")
         except Exception as e:
             logger.error(f"Failed to write port file: {e}")
     
-    def read_port_file(self) -> Optional[int]:
-        """读取端口文件
+    def read_port_file(self) -> Optional[Dict[str, Any]]:
+        """读取简化端口文件并验证daemon
         
         Returns:
-            Optional[int]: 端口号，如果文件不存在或无效则返回None
+            Optional[Dict]: 包含端口和PID信息的字典，如果无效则返回None
         """
         port_file = self.app_data_dir / "daemon.port"
         if not port_file.exists():
@@ -426,12 +472,104 @@ class CoreConfigManager:
         
         try:
             with open(port_file, 'r') as f:
-                port = int(f.read().strip())
-            logger.debug(f"Read port from file: {port}")
-            return port
+                content = f.read().strip()
+            
+            # 解析格式: port:pid
+            if ':' not in content:
+                logger.warning("Port file format invalid, expected 'port:pid'")
+                self.cleanup_port_file()
+                return None
+            
+            port_str, pid_str = content.split(':', 1)
+            port = int(port_str)
+            pid = int(pid_str)
+            
+            # 1. 首先进行连接测试（最重要）
+            if self._test_daemon_connection(port):
+                return {
+                    'port': port,
+                    'pid': pid,
+                    'host': '127.0.0.1',
+                    'accessible': True
+                }
+            
+            # 2. 连接失败，检查进程是否存在
+            if self._process_exists(pid):
+                logger.warning(f"Daemon process {pid} exists but not responding, attempting cleanup")
+                self._kill_process(pid)
+                import time
+                time.sleep(1)
+            
+            # 3. 清理无效文件
+            logger.info("Cleaning up invalid daemon state")
+            self.cleanup_port_file()
+            return None
+            
         except (ValueError, IOError) as e:
             logger.warning(f"Failed to read port file: {e}")
+            self.cleanup_port_file()
             return None
+    
+    def _test_daemon_connection(self, port: int, timeout: float = 2.0) -> bool:
+        """测试daemon连接 - 最可靠的存活检查"""
+        try:
+            import requests
+            response = requests.get(f'http://127.0.0.1:{port}/health', timeout=timeout)
+            return response.status_code == 200
+        except Exception:
+            return False
+    
+    def _process_exists(self, pid: int) -> bool:
+        """跨平台进程存在检查"""
+        try:
+            import os
+            import signal
+            if os.name == 'nt':  # Windows
+                import subprocess
+                result = subprocess.run(['tasklist', '/FI', f'PID eq {pid}'], 
+                                      capture_output=True, text=True, timeout=5)
+                return str(pid) in result.stdout
+            else:  # Unix
+                os.kill(pid, 0)  # 发送信号0检查进程存在，不会杀死进程
+                return True
+        except (OSError, ProcessLookupError):
+            return False
+        except Exception:
+            # 捕获其他异常（如subprocess相关错误）
+            return False
+    
+    def _kill_process(self, pid: int):
+        """跨平台进程终止"""
+        try:
+            import os
+            import signal
+            import time
+            
+            if os.name == 'nt':  # Windows
+                import subprocess
+                subprocess.run(['taskkill', '/F', '/PID', str(pid)], timeout=10)
+                logger.info(f"Terminated Windows process {pid}")
+            else:  # Unix
+                try:
+                    os.kill(pid, signal.SIGTERM)  # 优雅终止
+                    time.sleep(2)
+                    
+                    # 检查是否仍然存在
+                    if self._process_exists(pid):
+                        os.kill(pid, signal.SIGKILL)  # 强制终止
+                        logger.info(f"Force killed process {pid}")
+                    else:
+                        logger.info(f"Gracefully terminated process {pid}")
+                        
+                except ProcessLookupError:
+                    logger.debug(f"Process {pid} already terminated")
+                    
+        except Exception as e:
+            logger.error(f"Failed to kill process {pid}: {e}")
+    
+    def _verify_daemon_process(self, pid: int) -> bool:
+        """验证daemon进程是否仍在运行 - 保留兼容性"""
+        return self._process_exists(pid)
     
     def cleanup_port_file(self):
         """清理端口文件"""

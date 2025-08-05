@@ -106,3 +106,98 @@ class ConnectorConfigTemplate(Base):
     updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 
 
+class EntityMetadata(Base):
+    """实体元数据表 - 知识图谱核心"""
+    __tablename__ = "entity_metadata"
+    
+    id = Column(String, primary_key=True)
+    entity_type = Column(String, nullable=False, index=True)
+    name = Column(String, nullable=False)
+    description = Column(Text)
+    source_path = Column(String)  # 来源文件路径
+    metadata = Column(JSON)       # 扩展属性
+    embedding_id = Column(String) # 对应向量ID
+    
+    # 时间戳
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+    last_accessed = Column(DateTime)
+    
+    # 统计信息
+    access_count = Column(Integer, default=0)
+    relevance_score = Column(Float, default=0.0)
+    
+    def __repr__(self):
+        return f"<EntityMetadata(id='{self.id}', name='{self.name}', type='{self.entity_type}')>"
+
+
+class UserBehavior(Base):
+    """用户行为追踪表 - 推荐算法基础"""
+    __tablename__ = "user_behaviors"
+    
+    id = Column(Integer, primary_key=True)
+    session_id = Column(String, nullable=False, index=True)
+    action_type = Column(String, nullable=False)  # search, view, click, create
+    target_entity = Column(String, index=True)
+    context_data = Column(JSON)  # 上下文信息
+    
+    # 行为特征
+    duration_ms = Column(Integer)
+    scroll_depth = Column(Float)
+    interaction_strength = Column(Float)
+    
+    # 时间信息
+    timestamp = Column(DateTime, default=lambda: datetime.now(timezone.utc), index=True)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    
+    def __repr__(self):
+        return f"<UserBehavior(id={self.id}, action='{self.action_type}', target='{self.target_entity}')>"
+
+
+class EntityRelationship(Base):
+    """实体关系表 - 知识图谱边"""
+    __tablename__ = "entity_relationships"
+    
+    id = Column(Integer, primary_key=True)
+    source_entity = Column(String, nullable=False, index=True)
+    target_entity = Column(String, nullable=False, index=True)
+    relationship_type = Column(String, nullable=False)
+    
+    # 关系属性
+    strength = Column(Float, default=1.0)
+    confidence = Column(Float, default=1.0)
+    relationship_data = Column(JSON)
+    
+    # 时间信息
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+    
+    def __repr__(self):
+        return f"<EntityRelationship(id={self.id}, {self.source_entity} -> {self.target_entity})>"
+
+
+class AIConversation(Base):
+    """AI对话历史表 - 极高敏感数据"""
+    __tablename__ = "ai_conversations"
+    
+    id = Column(Integer, primary_key=True)
+    session_id = Column(String, nullable=False, index=True)
+    
+    # 对话内容
+    user_message = Column(Text, nullable=False)
+    ai_response = Column(Text, nullable=False)
+    context_entities = Column(JSON)  # 相关实体
+    
+    # 对话特征
+    message_type = Column(String)  # question, command, chat
+    satisfaction_rating = Column(Integer)  # 用户反馈
+    processing_time_ms = Column(Integer)
+    
+    # 时间信息
+    timestamp = Column(DateTime, default=lambda: datetime.now(timezone.utc), index=True)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    
+    def __repr__(self):
+        return f"<AIConversation(id={self.id}, session='{self.session_id}', type='{self.message_type}')>"
+
+

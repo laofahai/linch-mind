@@ -176,9 +176,19 @@ app = create_app()
 
 
 def check_existing_process():
-    """检查是否已有进程在运行"""
-    pid_file = config_manager.get_paths()["app_data"] / "daemon.pid"
+    """检查是否已有进程在运行，使用增强的验证机制"""
+    # 检查端口文件中的进程信息
+    port_data = config_manager.read_port_file()
+    if port_data:
+        old_pid = port_data['pid']
+        old_port = port_data['port']
+        print(f"❌ Daemon 已在运行 (PID: {old_pid}, Port: {old_port})")
+        print(f"   API地址: http://127.0.0.1:{old_port}")
+        print(f"   请先停止现有进程: kill {old_pid}")
+        return False
     
+    # 额外检查PID文件（向后兼容）
+    pid_file = config_manager.get_paths()["app_data"] / "daemon.pid"
     if pid_file.exists():
         try:
             with open(pid_file, 'r') as f:
@@ -190,7 +200,7 @@ def check_existing_process():
                 try:
                     proc = psutil.Process(old_pid)
                     if 'python' in proc.name().lower() and ('main' in ' '.join(proc.cmdline()) or 'simple_main' in ' '.join(proc.cmdline())):
-                        print(f"❌ Daemon 已在运行 (PID: {old_pid})")
+                        print(f"❌ Daemon 已在运行 (PID: {old_pid}) - 来自旧PID文件")
                         print(f"   请先停止现有进程: kill {old_pid}")
                         return False
                 except (psutil.NoSuchProcess, psutil.AccessDenied):

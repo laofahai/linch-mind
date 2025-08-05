@@ -7,12 +7,13 @@ readme = "README.md"
 packages = [{include = "*"}]
 
 [tool.poetry.dependencies]
-python = "^3.11"
+python = "^3.12"
 fastapi = "^0.116.0"
 uvicorn = "^0.35.0"
 pydantic = "^2.11.0"
 pydantic-settings = "^2.5.0"
 sqlalchemy = "^2.0.0"
+pysqlcipher3 = "1.2.0"  # SQLCipher support
 watchdog = "^6.0.0"
 psutil = "^7.0.0"
 python-multipart = "^0.0.20"
@@ -21,6 +22,10 @@ aiohttp = "^3.12.15"
 cryptography = "^42.0.0"
 pyyaml = "^6.0.0"
 jsonschema = "^4.17.0"
+chromadb = "^0.5.0"  # Vector storage
+networkx = "^3.4.0"  # Graph analytics
+scikit-learn = "^1.6.0"  # For embedding utilities
+numpy = "^2.0.0"  # Mathematical operations
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.0.0"
@@ -38,5 +43,5 @@ requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
 
 [tool.poetry.scripts]
-linch-daemon = "api.daemon_main:main"
+linch-daemon = "api.main:main"
 test-daemon = "run_tests:main"

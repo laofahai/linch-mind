@@ -10,7 +10,7 @@ packages = [
 ]
 
 [tool.poetry.dependencies]
-python = ">=3.11,<3.13"
+python = ">=3.12,<3.14"
 # 连接器核心依赖
 httpx = "^0.27.0"
 watchdog = "^6.0.0"

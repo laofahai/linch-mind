@@ -331,7 +331,7 @@ class ConfigSchemaNotifier extends StateNotifier<AsyncValue<Map<String, dynamic>
     try {
       final response = await _apiClient.getConfigSchema(connectorId);
       if (response.success) {
-        state = AsyncValue.data(response.data ?? {});
+        state = AsyncValue.data(response.data as Map<String, dynamic>? ?? {});
       } else {
         state = AsyncValue.error(response.message ?? '加载失败', StackTrace.current);
       }
@@ -361,7 +361,8 @@ class CurrentConfigNotifier extends StateNotifier<AsyncValue<Map<String, dynamic
     try {
       final response = await _apiClient.getCurrentConfig(connectorId);
       if (response.success) {
-        state = AsyncValue.data(response.data?['config'] ?? {});
+        final data = response.data as Map<String, dynamic>? ?? {};
+        state = AsyncValue.data(data['config'] as Map<String, dynamic>? ?? {});
       } else {
         state = AsyncValue.error(response.message ?? '加载失败', StackTrace.current);
       }

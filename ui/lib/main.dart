@@ -7,6 +7,7 @@ import 'screens/connector_management_screen.dart';
 import 'screens/my_mind_screen.dart';
 import 'screens/knowledge_nebula_screen.dart';
 import 'screens/settings_screen.dart';
+import 'screens/app_initialization_screen.dart';
 import 'providers/app_providers.dart';
 import 'widgets/unified_app_bar.dart';
 import 'widgets/responsive_navigation.dart';
@@ -64,7 +65,7 @@ class LinchMindApp extends ConsumerWidget {
       theme: _buildLightTheme(),
       darkTheme: _buildDarkTheme(),
       themeMode: themeMode,
-      home: const MainApp(),
+      home: const AppInitializationWrapper(),
     );
   }
 
@@ -198,5 +199,23 @@ class _MainAppState extends ConsumerState<MainApp> {
         children: _pages,
       ),
     );
+  }
+}
+
+/// 应用初始化包装器
+class AppInitializationWrapper extends ConsumerWidget {
+  const AppInitializationWrapper({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final initState = ref.watch(initializationStateProvider);
+    
+    // 显示初始化屏幕直到准备就绪
+    if (initState != InitializationState.ready) {
+      return const AppInitializationScreen();
+    }
+    
+    // 初始化完成后显示主应用
+    return const MainApp();
   }
 }

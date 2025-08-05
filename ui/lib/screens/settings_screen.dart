@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/app_providers.dart';
+import '../providers/daemon_providers.dart';
+import '../services/daemon_lifecycle_service.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -32,15 +34,7 @@ class SettingsScreen extends ConsumerWidget {
             title: '连接',
             icon: Icons.link_outlined,
             children: [
-              _buildSettingsTile(
-                context,
-                title: 'Daemon 状态',
-                subtitle: '查看后端服务连接状态',
-                leading: Icons.cloud_outlined,
-                onTap: () {
-                  // TODO: 显示详细的连接状态
-                },
-              ),
+              _buildDaemonStatusTile(context, ref),
               _buildSettingsTile(
                 context,
                 title: '连接器管理',
@@ -215,6 +209,164 @@ class SettingsScreen extends ConsumerWidget {
         return '深色主题';
       case ThemeMode.system:
         return '跟随系统';
+    }
+  }
+  
+  Widget _buildDaemonStatusTile(BuildContext context, WidgetRef ref) {
+    final daemonState = ref.watch(daemonStateProvider);
+    
+    return ExpansionTile(
+      leading: Icon(
+        daemonState.isRunning ? Icons.cloud_done_outlined : Icons.cloud_off_outlined,
+        color: daemonState.isRunning ? Colors.green : Colors.orange,
+      ),
+      title: const Text('Daemon 状态'),
+      subtitle: Text(_getDaemonStatusText(daemonState)),
+      children: [
+        Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // 基本信息
+              _buildInfoRow('运行模式', _getModeText(daemonState.mode)),
+              _buildInfoRow('状态', daemonState.isRunning ? '运行中' : '未运行'),
+              
+              if (daemonState.daemonInfo != null) ...[
+                _buildInfoRow('地址', daemonState.daemonInfo!.baseUrl),
+                _buildInfoRow('进程ID', daemonState.daemonInfo!.pid.toString()),
+              ],
+              
+              // 错误信息
+              if (daemonState.error != null) ...[
+                const SizedBox(height: 8),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.errorContainer,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    daemonState.error!,
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.onErrorContainer,
+                    ),
+                  ),
+                ),
+              ],
+              
+              // 控制按钮
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  // 刷新按钮
+                  ElevatedButton.icon(
+                    onPressed: daemonState.isLoading ? null : () {
+                      ref.read(daemonStateProvider.notifier).refreshStatus();
+                    },
+                    icon: daemonState.isLoading 
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.refresh),
+                    label: const Text('刷新'),
+                  ),
+                  
+                  const SizedBox(width: 8),
+                  
+                  // 开发模式控制按钮
+                  if (daemonState.mode == RunMode.development) ...[
+                    if (!daemonState.isRunning) ...[
+                      ElevatedButton.icon(
+                        onPressed: daemonState.isLoading ? null : () async {
+                          await ref.read(daemonStateProvider.notifier).startDaemon();
+                        },
+                        icon: const Icon(Icons.play_arrow),
+                        label: const Text('启动'),
+                      ),
+                    ] else ...[
+                      ElevatedButton.icon(
+                        onPressed: daemonState.isLoading ? null : () async {
+                          await ref.read(daemonStateProvider.notifier).stopDaemon();
+                        },
+                        icon: const Icon(Icons.stop),
+                        label: const Text('停止'),
+                      ),
+                      const SizedBox(width: 8),
+                      ElevatedButton.icon(
+                        onPressed: daemonState.isLoading ? null : () async {
+                          await ref.read(daemonStateProvider.notifier).restartDaemon();
+                        },
+                        icon: const Icon(Icons.restart_alt),
+                        label: const Text('重启'),
+                      ),
+                    ],
+                  ],
+                ],
+              ),
+              
+              // 生产模式提示
+              if (daemonState.mode == RunMode.production) ...[
+                const SizedBox(height: 12),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.primaryContainer,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    '生产模式下daemon作为系统服务运行，不支持手动控制。',
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.onPrimaryContainer,
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+  
+  Widget _buildInfoRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 80,
+            child: Text(
+              '$label:',
+              style: const TextStyle(fontWeight: FontWeight.w500),
+            ),
+          ),
+          Expanded(
+            child: Text(value),
+          ),
+        ],
+      ),
+    );
+  }
+  
+  String _getDaemonStatusText(DaemonState state) {
+    if (state.isLoading) return '检查中...';
+    if (state.isRunning) return '服务正常运行';
+    if (state.error != null) return '连接异常';
+    return '服务未启动';
+  }
+  
+  String _getModeText(RunMode mode) {
+    switch (mode) {
+      case RunMode.development:
+        return '开发模式';
+      case RunMode.production:
+        return '生产模式';
     }
   }
 }
