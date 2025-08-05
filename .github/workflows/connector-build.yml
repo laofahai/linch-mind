@@ -38,13 +38,6 @@ jobs:
           
           pip3 install pyyaml
 
-      - name: Setup Go
-        uses: actions/setup-go@v4
-        with:
-          go-version: '1.21'
-
-      - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
 
       - name: Build connectors
         id: build
