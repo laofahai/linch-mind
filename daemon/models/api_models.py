@@ -1,7 +1,8 @@
-from pydantic import BaseModel
 from datetime import datetime
-from typing import List, Dict, Optional, Any
 from enum import Enum
+from typing import Any, Dict, Optional
+
+from pydantic import BaseModel
 
 
 class ConnectorStatus(Enum):
@@ -21,8 +22,6 @@ class ConnectorInfo(BaseModel):
     error_message: Optional[str] = None
 
 
-
-
 class ApiResponse(BaseModel):
     success: bool
     message: str
@@ -34,5 +33,3 @@ class ServerInfo(BaseModel):
     port: int
     started_at: datetime
     status: str = "running"
-
-

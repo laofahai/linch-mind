@@ -34,6 +34,10 @@ _$ConnectorDefinitionImpl _$$ConnectorDefinitionImplFromJson(
           json['default_config'] as Map<String, dynamic>? ?? const {},
       path: json['path'] as String?,
       isRegistered: json['is_registered'] as bool?,
+      downloadUrl: json['download_url'] as String?,
+      platforms: json['platforms'] as Map<String, dynamic>? ?? const {},
+      capabilities: json['capabilities'] as Map<String, dynamic>? ?? const {},
+      lastUpdated: json['last_updated'] as String?,
     );
 
 Map<String, dynamic> _$$ConnectorDefinitionImplToJson(
@@ -57,6 +61,10 @@ Map<String, dynamic> _$$ConnectorDefinitionImplToJson(
       'default_config': instance.defaultConfig,
       'path': instance.path,
       'is_registered': instance.isRegistered,
+      'download_url': instance.downloadUrl,
+      'platforms': instance.platforms,
+      'capabilities': instance.capabilities,
+      'last_updated': instance.lastUpdated,
     };
 
 _$InstanceTemplateImpl _$$InstanceTemplateImplFromJson(

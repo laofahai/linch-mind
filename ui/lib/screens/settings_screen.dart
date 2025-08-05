@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/app_providers.dart';
 import '../providers/daemon_providers.dart';
 import '../services/daemon_lifecycle_service.dart';
+import 'registry_settings_screen.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -42,6 +43,19 @@ class SettingsScreen extends ConsumerWidget {
                 leading: Icons.extension_outlined,
                 onTap: () {
                   // TODO: 导航到连接器页面
+                },
+              ),
+              _buildSettingsTile(
+                context,
+                title: 'Registry 设置',
+                subtitle: '管理连接器注册中心配置',
+                leading: Icons.hub_outlined,
+                onTap: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (context) => const RegistrySettingsScreen(),
+                    ),
+                  );
                 },
               ),
             ],

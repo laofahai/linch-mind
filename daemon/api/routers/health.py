@@ -4,11 +4,12 @@
 Session 5 架构重构 - 模块化路由
 """
 
-from fastapi import APIRouter, Depends
 from datetime import datetime
-from models.api_models import ServerInfo
+
 from api.dependencies import get_config_manager
 from config.core_config import CoreConfigManager
+from fastapi import APIRouter, Depends
+from models.api_models import ServerInfo
 
 router = APIRouter(prefix="", tags=["health"])
 
@@ -21,7 +22,7 @@ async def root(config: CoreConfigManager = Depends(get_config_manager)):
         "message": "Linch Mind API is running!",
         "version": server_info["version"],
         "port": server_info["port"],
-        "started_at": server_info["started_at"]
+        "started_at": server_info["started_at"],
     }
 
 
@@ -31,7 +32,7 @@ async def health_check():
     return {
         "status": "healthy",
         "timestamp": datetime.now().isoformat(),
-        "service": "linch-mind-daemon"
+        "service": "linch-mind-daemon",
     }
 
 
@@ -42,5 +43,9 @@ async def get_server_info(config: CoreConfigManager = Depends(get_config_manager
     return ServerInfo(
         version=info["version"],
         port=info["port"],
-        started_at=datetime.fromisoformat(info["started_at"]) if info["started_at"] else datetime.now()
+        started_at=(
+            datetime.fromisoformat(info["started_at"])
+            if info["started_at"]
+            else datetime.now()
+        ),
     )

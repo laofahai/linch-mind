@@ -1,6 +1,5 @@
 import 'dart:io';
 import 'dart:async';
-import 'dart:convert';
 
 /// Daemon信息数据类
 class DaemonInfo {

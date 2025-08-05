@@ -3,23 +3,24 @@
 pytest配置和共享fixtures
 """
 
-import pytest
-import tempfile
-import shutil
 import asyncio
-from pathlib import Path
-from unittest.mock import Mock, AsyncMock, patch
-import sys
 import os
+import shutil
+import sys
+import tempfile
+from pathlib import Path
+from unittest.mock import AsyncMock, Mock, patch
+
+import pytest
 
 # 添加项目路径到系统路径
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
+from config.core_config import CoreConfigManager
+from models.database_models import Base, Connector
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from models.database_models import Base, Connector
-from config.core_config import CoreConfigManager
 
 
 @pytest.fixture(scope="session")
@@ -41,7 +42,7 @@ def temp_dir():
 @pytest.fixture
 def mock_config_manager(temp_dir):
     """模拟配置管理器"""
-    with patch('pathlib.Path.home') as mock_home:
+    with patch("pathlib.Path.home") as mock_home:
         mock_home.return_value = temp_dir
         config_manager = CoreConfigManager()
         yield config_manager
@@ -53,12 +54,12 @@ def test_database(temp_dir):
     db_path = temp_dir / "test.db"
     engine = create_engine(f"sqlite:///{db_path}")
     Base.metadata.create_all(engine)
-    
+
     Session = sessionmaker(bind=engine)
     session = Session()
-    
+
     yield session
-    
+
     session.close()
     engine.dispose()
 
@@ -67,11 +68,11 @@ def test_database(temp_dir):
 def mock_database_service(test_database):
     """模拟数据库服务"""
     from services.database_service import DatabaseService
-    
+
     service = Mock(spec=DatabaseService)
     service.get_session.return_value.__enter__.return_value = test_database
     service.get_session.return_value.__exit__.return_value = None
-    
+
     return service
 
 
@@ -82,13 +83,10 @@ def sample_connector(test_database):
         connector_id="test_connector",
         name="Test Connector",
         description="A test connector",
-        config={
-            "path": "/test/path",
-            "entry_point": "main.py"
-        },
+        config={"path": "/test/path", "entry_point": "main.py"},
         status="configured",
         enabled=True,
-        auto_start=False
+        auto_start=False,
     )
     test_database.add(connector)
     test_database.commit()
@@ -99,26 +97,26 @@ def sample_connector(test_database):
 def mock_connector_manager():
     """模拟连接器管理器"""
     from services.connectors.connector_manager import ConnectorManager
-    
+
     manager = Mock(spec=ConnectorManager)
     manager.list_connectors.return_value = [
         {
             "connector_id": "filesystem",
             "name": "FileSystem Connector",
             "status": "running",
-            "pid": 1234
+            "pid": 1234,
         },
         {
             "connector_id": "clipboard",
-            "name": "Clipboard Connector", 
+            "name": "Clipboard Connector",
             "status": "configured",
-            "pid": None
-        }
+            "pid": None,
+        },
     ]
     manager.start_connector = AsyncMock(return_value=True)
     manager.stop_connector = AsyncMock(return_value=True)
     manager.scan_directory_for_connectors.return_value = []
-    
+
     return manager
 
 
@@ -126,7 +124,7 @@ def mock_connector_manager():
 def mock_process_manager():
     """模拟进程管理器"""
     from services.connectors.process_manager import ProcessManager
-    
+
     manager = Mock(spec=ProcessManager)
     manager.start_process = AsyncMock(return_value=1234)
     manager.stop_process = AsyncMock(return_value=True)
@@ -134,9 +132,9 @@ def mock_process_manager():
         "pid": 1234,
         "status": "running",
         "cpu_percent": 1.5,
-        "memory_percent": 2.0
+        "memory_percent": 2.0,
     }
-    
+
     return manager
 
 
@@ -144,17 +142,24 @@ def mock_process_manager():
 def client(mock_config_manager, mock_database_service, mock_connector_manager):
     """创建测试客户端"""
     from fastapi.testclient import TestClient
-    
+
     # 设置环境变量以跳过真实的数据库和服务初始化
     os.environ["TESTING"] = "true"
-    
+
     # 模拟依赖注入
-    with patch('services.database_service.get_database_service', return_value=mock_database_service):
-        with patch('services.connectors.connector_manager.get_connector_manager', return_value=mock_connector_manager):
+    with patch(
+        "services.database_service.get_database_service",
+        return_value=mock_database_service,
+    ):
+        with patch(
+            "services.connectors.connector_manager.get_connector_manager",
+            return_value=mock_connector_manager,
+        ):
             from api.main import app
+
             client = TestClient(app)
             yield client
-    
+
     # 清理环境变量
     os.environ.pop("TESTING", None)
 
@@ -162,10 +167,7 @@ def client(mock_config_manager, mock_database_service, mock_connector_manager):
 @pytest.fixture
 def api_headers():
     """API请求头"""
-    return {
-        "Content-Type": "application/json",
-        "Accept": "application/json"
-    }
+    return {"Content-Type": "application/json", "Accept": "application/json"}
 
 
 @pytest.fixture
@@ -174,11 +176,8 @@ def sample_connector_config():
     return {
         "connector_id": "test_connector",
         "display_name": "Test Connector",
-        "config": {
-            "watch_paths": ["/test/path"],
-            "interval": 60
-        },
-        "auto_start": True
+        "config": {"watch_paths": ["/test/path"], "interval": 60},
+        "auto_start": True,
     }
 
 
@@ -196,11 +195,11 @@ def sample_connector_discovery_response():
                     "description": "监控文件系统变化的连接器",
                     "category": "official",
                     "version": "1.0.0",
-                    "is_registered": False
+                    "is_registered": False,
                 }
             ],
-            "total": 1
-        }
+            "total": 1,
+        },
     }
 
 
@@ -214,10 +213,10 @@ def create_test_connector(session, **kwargs):
         "config": {},
         "status": "configured",
         "enabled": True,
-        "auto_start": False
+        "auto_start": False,
     }
     defaults.update(kwargs)
-    
+
     connector = Connector(**defaults)
     session.add(connector)
     session.commit()

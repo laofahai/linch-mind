@@ -19,6 +19,7 @@ dependencies:
 
   # 网络和数据
   dio: ^5.3.0
+  http: ^1.1.0
   sqflite: ^2.3.0
   shared_preferences: ^2.2.0
 
@@ -49,6 +50,9 @@ dev_dependencies:
   
   # 代码分析
   flutter_lints: ^3.0.0
+  
+  # 测试工具
+  mockito: ^5.4.0
 
 flutter:
   uses-material-design: true

@@ -121,7 +121,7 @@ class _ConnectorManagementScreenState
     try {
       // 使用真实的Registry API
       final registryConnectors = await RegistryApiClient.getMarketConnectors();
-      
+
       setState(() {
         _marketConnectors = registryConnectors;
         _marketLoading = false;
@@ -197,7 +197,7 @@ class _ConnectorManagementScreenState
     try {
       // 先刷新注册表
       await RegistryApiClient.refreshRegistry();
-      
+
       // 清空缓存并重新加载
       _marketConnectors.clear();
       await _loadMarketConnectors();

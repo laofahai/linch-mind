@@ -1,10 +1,15 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../models/connector_lifecycle_models.dart';
+import 'daemon_port_service.dart';
 
 /// Registry API客户端 - 连接器市场数据获取
 class RegistryApiClient {
-  static const String baseUrl = 'http://localhost:58471';
+  static final DaemonPortService _portService = DaemonPortService.instance;
+
+  static Future<String> get baseUrl async {
+    return await _portService.getDaemonBaseUrl();
+  }
 
   /// 获取市场连接器列表
   static Future<List<ConnectorDefinition>> getMarketConnectors({
@@ -22,7 +27,8 @@ class RegistryApiClient {
       }
 
       // 构建URL
-      final uri = Uri.parse('$baseUrl/api/system/config/registry/connectors')
+      final daemonBaseUrl = await baseUrl;
+      final uri = Uri.parse('$daemonBaseUrl/api/system/config/registry/connectors')
           .replace(
               queryParameters: queryParams.isNotEmpty ? queryParams : null);
 
@@ -34,7 +40,7 @@ class RegistryApiClient {
       if (response.statusCode == 200) {
         final List<dynamic> data = json.decode(response.body);
         return data
-            .map((item) => ConnectorDefinition.fromRegistryJson(item))
+            .map((item) => ConnectorDefinition.fromJson(item))
             .toList();
       } else {
         throw Exception('获取市场连接器失败: HTTP ${response.statusCode}');
@@ -50,9 +56,10 @@ class RegistryApiClient {
     String platform = 'macos-x64', // 默认当前平台
   }) async {
     try {
+      final daemonBaseUrl = await baseUrl;
       final response = await http.get(
         Uri.parse(
-            '$baseUrl/api/system/config/registry/connectors/$connectorId/download?platform=$platform'),
+            '$daemonBaseUrl/api/system/config/registry/connectors/$connectorId/download?platform=$platform'),
         headers: {'Content-Type': 'application/json'},
       );
 
@@ -71,8 +78,9 @@ class RegistryApiClient {
   /// 刷新注册表
   static Future<Map<String, dynamic>> refreshRegistry() async {
     try {
+      final daemonBaseUrl = await baseUrl;
       final response = await http.post(
-        Uri.parse('$baseUrl/api/system/config/registry/refresh'),
+        Uri.parse('$daemonBaseUrl/api/system/config/registry/refresh'),
         headers: {'Content-Type': 'application/json'},
       );
 
@@ -89,8 +97,9 @@ class RegistryApiClient {
   /// 获取注册表状态
   static Future<Map<String, dynamic>> getRegistryStatus() async {
     try {
+      final daemonBaseUrl = await baseUrl;
       final response = await http.get(
-        Uri.parse('$baseUrl/api/system/config/registry'),
+        Uri.parse('$daemonBaseUrl/api/system/config/registry'),
         headers: {'Content-Type': 'application/json'},
       );
 

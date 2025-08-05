@@ -495,7 +495,7 @@ class _RegistrySettingsScreenState
             if (value == null || value.isEmpty) {
               return '请输入注册表URL';
             }
-            if (!Uri.tryParse(value)?.hasAbsolutePath == true) {
+            if (Uri.tryParse(value)?.hasAbsolutePath != true) {
               return '请输入有效的URL';
             }
             return null;

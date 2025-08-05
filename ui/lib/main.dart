@@ -7,7 +7,6 @@ import 'screens/connector_management_screen.dart';
 import 'screens/my_mind_screen.dart';
 import 'screens/knowledge_nebula_screen.dart';
 import 'screens/settings_screen.dart';
-import 'screens/app_initialization_screen.dart';
 import 'providers/app_providers.dart';
 import 'widgets/unified_app_bar.dart';
 import 'widgets/responsive_navigation.dart';

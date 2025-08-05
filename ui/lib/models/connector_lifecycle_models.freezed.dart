@@ -47,7 +47,13 @@ mixin _$ConnectorDefinition {
       throw _privateConstructorUsedError; // 添加path字段来直接处理路径信息
   String? get path => throw _privateConstructorUsedError;
   @JsonKey(name: 'is_registered')
-  bool? get isRegistered => throw _privateConstructorUsedError;
+  bool? get isRegistered => throw _privateConstructorUsedError; // Registry 相关字段
+  @JsonKey(name: 'download_url')
+  String? get downloadUrl => throw _privateConstructorUsedError;
+  Map<String, dynamic> get platforms => throw _privateConstructorUsedError;
+  Map<String, dynamic> get capabilities => throw _privateConstructorUsedError;
+  @JsonKey(name: 'last_updated')
+  String? get lastUpdated => throw _privateConstructorUsedError;
 
   /// Serializes this ConnectorDefinition to a JSON map.
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
@@ -83,7 +89,11 @@ abstract class $ConnectorDefinitionCopyWith<$Res> {
       @JsonKey(name: 'config_schema') Map<String, dynamic> configSchema,
       @JsonKey(name: 'default_config') Map<String, dynamic> defaultConfig,
       String? path,
-      @JsonKey(name: 'is_registered') bool? isRegistered});
+      @JsonKey(name: 'is_registered') bool? isRegistered,
+      @JsonKey(name: 'download_url') String? downloadUrl,
+      Map<String, dynamic> platforms,
+      Map<String, dynamic> capabilities,
+      @JsonKey(name: 'last_updated') String? lastUpdated});
 }
 
 /// @nodoc
@@ -119,6 +129,10 @@ class _$ConnectorDefinitionCopyWithImpl<$Res, $Val extends ConnectorDefinition>
     Object? defaultConfig = null,
     Object? path = freezed,
     Object? isRegistered = freezed,
+    Object? downloadUrl = freezed,
+    Object? platforms = null,
+    Object? capabilities = null,
+    Object? lastUpdated = freezed,
   }) {
     return _then(_value.copyWith(
       connectorId: null == connectorId
@@ -193,6 +207,22 @@ class _$ConnectorDefinitionCopyWithImpl<$Res, $Val extends ConnectorDefinition>
           ? _value.isRegistered
           : isRegistered // ignore: cast_nullable_to_non_nullable
               as bool?,
+      downloadUrl: freezed == downloadUrl
+          ? _value.downloadUrl
+          : downloadUrl // ignore: cast_nullable_to_non_nullable
+              as String?,
+      platforms: null == platforms
+          ? _value.platforms
+          : platforms // ignore: cast_nullable_to_non_nullable
+              as Map<String, dynamic>,
+      capabilities: null == capabilities
+          ? _value.capabilities
+          : capabilities // ignore: cast_nullable_to_non_nullable
+              as Map<String, dynamic>,
+      lastUpdated: freezed == lastUpdated
+          ? _value.lastUpdated
+          : lastUpdated // ignore: cast_nullable_to_non_nullable
+              as String?,
     ) as $Val);
   }
 }
@@ -223,7 +253,11 @@ abstract class _$$ConnectorDefinitionImplCopyWith<$Res>
       @JsonKey(name: 'config_schema') Map<String, dynamic> configSchema,
       @JsonKey(name: 'default_config') Map<String, dynamic> defaultConfig,
       String? path,
-      @JsonKey(name: 'is_registered') bool? isRegistered});
+      @JsonKey(name: 'is_registered') bool? isRegistered,
+      @JsonKey(name: 'download_url') String? downloadUrl,
+      Map<String, dynamic> platforms,
+      Map<String, dynamic> capabilities,
+      @JsonKey(name: 'last_updated') String? lastUpdated});
 }
 
 /// @nodoc
@@ -257,6 +291,10 @@ class __$$ConnectorDefinitionImplCopyWithImpl<$Res>
     Object? defaultConfig = null,
     Object? path = freezed,
     Object? isRegistered = freezed,
+    Object? downloadUrl = freezed,
+    Object? platforms = null,
+    Object? capabilities = null,
+    Object? lastUpdated = freezed,
   }) {
     return _then(_$ConnectorDefinitionImpl(
       connectorId: null == connectorId
@@ -331,6 +369,22 @@ class __$$ConnectorDefinitionImplCopyWithImpl<$Res>
           ? _value.isRegistered
           : isRegistered // ignore: cast_nullable_to_non_nullable
               as bool?,
+      downloadUrl: freezed == downloadUrl
+          ? _value.downloadUrl
+          : downloadUrl // ignore: cast_nullable_to_non_nullable
+              as String?,
+      platforms: null == platforms
+          ? _value._platforms
+          : platforms // ignore: cast_nullable_to_non_nullable
+              as Map<String, dynamic>,
+      capabilities: null == capabilities
+          ? _value._capabilities
+          : capabilities // ignore: cast_nullable_to_non_nullable
+              as Map<String, dynamic>,
+      lastUpdated: freezed == lastUpdated
+          ? _value.lastUpdated
+          : lastUpdated // ignore: cast_nullable_to_non_nullable
+              as String?,
     ));
   }
 }
@@ -358,11 +412,17 @@ class _$ConnectorDefinitionImpl implements _ConnectorDefinition {
       @JsonKey(name: 'default_config')
       final Map<String, dynamic> defaultConfig = const {},
       this.path,
-      @JsonKey(name: 'is_registered') this.isRegistered})
+      @JsonKey(name: 'is_registered') this.isRegistered,
+      @JsonKey(name: 'download_url') this.downloadUrl,
+      final Map<String, dynamic> platforms = const {},
+      final Map<String, dynamic> capabilities = const {},
+      @JsonKey(name: 'last_updated') this.lastUpdated})
       : _dependencies = dependencies,
         _permissions = permissions,
         _configSchema = configSchema,
-        _defaultConfig = defaultConfig;
+        _defaultConfig = defaultConfig,
+        _platforms = platforms,
+        _capabilities = capabilities;
 
   factory _$ConnectorDefinitionImpl.fromJson(Map<String, dynamic> json) =>
       _$$ConnectorDefinitionImplFromJson(json);
@@ -440,10 +500,35 @@ class _$ConnectorDefinitionImpl implements _ConnectorDefinition {
   @override
   @JsonKey(name: 'is_registered')
   final bool? isRegistered;
+// Registry 相关字段
+  @override
+  @JsonKey(name: 'download_url')
+  final String? downloadUrl;
+  final Map<String, dynamic> _platforms;
+  @override
+  @JsonKey()
+  Map<String, dynamic> get platforms {
+    if (_platforms is EqualUnmodifiableMapView) return _platforms;
+    // ignore: implicit_dynamic_type
+    return EqualUnmodifiableMapView(_platforms);
+  }
+
+  final Map<String, dynamic> _capabilities;
+  @override
+  @JsonKey()
+  Map<String, dynamic> get capabilities {
+    if (_capabilities is EqualUnmodifiableMapView) return _capabilities;
+    // ignore: implicit_dynamic_type
+    return EqualUnmodifiableMapView(_capabilities);
+  }
+
+  @override
+  @JsonKey(name: 'last_updated')
+  final String? lastUpdated;
 
   @override
   String toString() {
-    return 'ConnectorDefinition(connectorId: $connectorId, name: $name, displayName: $displayName, description: $description, category: $category, version: $version, author: $author, license: $license, autoDiscovery: $autoDiscovery, hotConfigReload: $hotConfigReload, healthCheck: $healthCheck, entryPoint: $entryPoint, dependencies: $dependencies, permissions: $permissions, configSchema: $configSchema, defaultConfig: $defaultConfig, path: $path, isRegistered: $isRegistered)';
+    return 'ConnectorDefinition(connectorId: $connectorId, name: $name, displayName: $displayName, description: $description, category: $category, version: $version, author: $author, license: $license, autoDiscovery: $autoDiscovery, hotConfigReload: $hotConfigReload, healthCheck: $healthCheck, entryPoint: $entryPoint, dependencies: $dependencies, permissions: $permissions, configSchema: $configSchema, defaultConfig: $defaultConfig, path: $path, isRegistered: $isRegistered, downloadUrl: $downloadUrl, platforms: $platforms, capabilities: $capabilities, lastUpdated: $lastUpdated)';
   }
 
   @override
@@ -481,31 +566,44 @@ class _$ConnectorDefinitionImpl implements _ConnectorDefinition {
                 .equals(other._defaultConfig, _defaultConfig) &&
             (identical(other.path, path) || other.path == path) &&
             (identical(other.isRegistered, isRegistered) ||
-                other.isRegistered == isRegistered));
+                other.isRegistered == isRegistered) &&
+            (identical(other.downloadUrl, downloadUrl) ||
+                other.downloadUrl == downloadUrl) &&
+            const DeepCollectionEquality()
+                .equals(other._platforms, _platforms) &&
+            const DeepCollectionEquality()
+                .equals(other._capabilities, _capabilities) &&
+            (identical(other.lastUpdated, lastUpdated) ||
+                other.lastUpdated == lastUpdated));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
   @override
-  int get hashCode => Object.hash(
-      runtimeType,
-      connectorId,
-      name,
-      displayName,
-      description,
-      category,
-      version,
-      author,
-      license,
-      autoDiscovery,
-      hotConfigReload,
-      healthCheck,
-      entryPoint,
-      const DeepCollectionEquality().hash(_dependencies),
-      const DeepCollectionEquality().hash(_permissions),
-      const DeepCollectionEquality().hash(_configSchema),
-      const DeepCollectionEquality().hash(_defaultConfig),
-      path,
-      isRegistered);
+  int get hashCode => Object.hashAll([
+        runtimeType,
+        connectorId,
+        name,
+        displayName,
+        description,
+        category,
+        version,
+        author,
+        license,
+        autoDiscovery,
+        hotConfigReload,
+        healthCheck,
+        entryPoint,
+        const DeepCollectionEquality().hash(_dependencies),
+        const DeepCollectionEquality().hash(_permissions),
+        const DeepCollectionEquality().hash(_configSchema),
+        const DeepCollectionEquality().hash(_defaultConfig),
+        path,
+        isRegistered,
+        downloadUrl,
+        const DeepCollectionEquality().hash(_platforms),
+        const DeepCollectionEquality().hash(_capabilities),
+        lastUpdated
+      ]);
 
   /// Create a copy of ConnectorDefinition
   /// with the given fields replaced by the non-null parameter values.
@@ -543,8 +641,12 @@ abstract class _ConnectorDefinition implements ConnectorDefinition {
       @JsonKey(name: 'config_schema') final Map<String, dynamic> configSchema,
       @JsonKey(name: 'default_config') final Map<String, dynamic> defaultConfig,
       final String? path,
-      @JsonKey(name: 'is_registered')
-      final bool? isRegistered}) = _$ConnectorDefinitionImpl;
+      @JsonKey(name: 'is_registered') final bool? isRegistered,
+      @JsonKey(name: 'download_url') final String? downloadUrl,
+      final Map<String, dynamic> platforms,
+      final Map<String, dynamic> capabilities,
+      @JsonKey(name: 'last_updated')
+      final String? lastUpdated}) = _$ConnectorDefinitionImpl;
 
   factory _ConnectorDefinition.fromJson(Map<String, dynamic> json) =
       _$ConnectorDefinitionImpl.fromJson;
@@ -593,7 +695,17 @@ abstract class _ConnectorDefinition implements ConnectorDefinition {
   String? get path;
   @override
   @JsonKey(name: 'is_registered')
-  bool? get isRegistered;
+  bool? get isRegistered; // Registry 相关字段
+  @override
+  @JsonKey(name: 'download_url')
+  String? get downloadUrl;
+  @override
+  Map<String, dynamic> get platforms;
+  @override
+  Map<String, dynamic> get capabilities;
+  @override
+  @JsonKey(name: 'last_updated')
+  String? get lastUpdated;
 
   /// Create a copy of ConnectorDefinition
   /// with the given fields replaced by the non-null parameter values.
