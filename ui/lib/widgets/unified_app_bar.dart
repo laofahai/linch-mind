@@ -8,7 +8,7 @@ import 'status_indicator.dart';
 class UnifiedAppBar extends ConsumerWidget implements PreferredSizeWidget {
   final String title;
   final bool showBackButton;
-  
+
   const UnifiedAppBar({
     super.key,
     required this.title,
@@ -18,8 +18,8 @@ class UnifiedAppBar extends ConsumerWidget implements PreferredSizeWidget {
   bool get _isDesktop {
     if (kIsWeb) return false;
     return defaultTargetPlatform == TargetPlatform.macOS ||
-           defaultTargetPlatform == TargetPlatform.windows ||
-           defaultTargetPlatform == TargetPlatform.linux;
+        defaultTargetPlatform == TargetPlatform.windows ||
+        defaultTargetPlatform == TargetPlatform.linux;
   }
 
   @override
@@ -39,19 +39,22 @@ class UnifiedAppBar extends ConsumerWidget implements PreferredSizeWidget {
     );
 
     if (_isDesktop) {
-      return _buildDesktopTitleBar(context, statusWidget, currentThemeMode, theme, isDark);
+      return _buildDesktopTitleBar(
+          context, statusWidget, currentThemeMode, theme, isDark);
     } else {
-      return _buildMobileAppBar(context, statusWidget, currentThemeMode, theme, ref);
+      return _buildMobileAppBar(
+          context, statusWidget, currentThemeMode, theme, ref);
     }
   }
 
-  Widget _buildDesktopTitleBar(BuildContext context, Widget statusWidget, ThemeMode currentThemeMode, ThemeData theme, bool isDark) {
+  Widget _buildDesktopTitleBar(BuildContext context, Widget statusWidget,
+      ThemeMode currentThemeMode, ThemeData theme, bool isDark) {
     return Container(
       height: preferredSize.height,
       decoration: BoxDecoration(
-        color: isDark 
-          ? theme.colorScheme.surface.withValues(alpha: 0.95)
-          : theme.colorScheme.surface.withValues(alpha: 0.98),
+        color: isDark
+            ? theme.colorScheme.surface.withValues(alpha: 0.95)
+            : theme.colorScheme.surface.withValues(alpha: 0.98),
         border: Border(
           bottom: BorderSide(
             color: theme.colorScheme.outline.withValues(alpha: 0.2),
@@ -125,16 +128,16 @@ class UnifiedAppBar extends ConsumerWidget implements PreferredSizeWidget {
               ),
             ),
           ),
-          
+
           // 状态指示器
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 8),
             child: statusWidget,
           ),
-          
+
           // 主题切换按钮
           _ThemeToggleButton(currentThemeMode: currentThemeMode),
-          
+
           // 窗口控制按钮
           _WindowControls(),
         ],
@@ -142,7 +145,8 @@ class UnifiedAppBar extends ConsumerWidget implements PreferredSizeWidget {
     );
   }
 
-  Widget _buildMobileAppBar(BuildContext context, Widget statusWidget, ThemeMode currentThemeMode, ThemeData theme, WidgetRef ref) {
+  Widget _buildMobileAppBar(BuildContext context, Widget statusWidget,
+      ThemeMode currentThemeMode, ThemeData theme, WidgetRef ref) {
     return AppBar(
       title: Text(title),
       automaticallyImplyLeading: showBackButton,
@@ -153,7 +157,8 @@ class UnifiedAppBar extends ConsumerWidget implements PreferredSizeWidget {
         const SizedBox(width: 8),
         _MobileMenuButton(
           currentThemeMode: currentThemeMode,
-          onThemeChanged: (mode) => ref.read(themeModeProvider.notifier).setThemeMode(mode),
+          onThemeChanged: (mode) =>
+              ref.read(themeModeProvider.notifier).setThemeMode(mode),
         ),
         const SizedBox(width: 16),
       ],
@@ -175,7 +180,7 @@ class _ThemeToggleButton extends ConsumerStatefulWidget {
 
 class _ThemeToggleButtonState extends ConsumerState<_ThemeToggleButton> {
   bool _isHovered = false;
-  
+
   IconData getThemeIcon() {
     switch (widget.currentThemeMode) {
       case ThemeMode.light:
@@ -186,7 +191,7 @@ class _ThemeToggleButtonState extends ConsumerState<_ThemeToggleButton> {
         return Icons.brightness_auto;
     }
   }
-  
+
   String getTooltipText() {
     switch (widget.currentThemeMode) {
       case ThemeMode.light:
@@ -197,7 +202,7 @@ class _ThemeToggleButtonState extends ConsumerState<_ThemeToggleButton> {
         return '跟随系统 (点击切换到浅色)';
     }
   }
-  
+
   ThemeMode getNextThemeMode() {
     switch (widget.currentThemeMode) {
       case ThemeMode.light:
@@ -208,7 +213,7 @@ class _ThemeToggleButtonState extends ConsumerState<_ThemeToggleButton> {
         return ThemeMode.light;
     }
   }
-  
+
   void _toggleTheme() {
     final nextMode = getNextThemeMode();
     ref.read(themeModeProvider.notifier).setThemeMode(nextMode);
@@ -217,7 +222,7 @@ class _ThemeToggleButtonState extends ConsumerState<_ThemeToggleButton> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    
+
     return MouseRegion(
       onEnter: (_) => setState(() => _isHovered = true),
       onExit: (_) => setState(() => _isHovered = false),
@@ -230,9 +235,9 @@ class _ThemeToggleButtonState extends ConsumerState<_ThemeToggleButton> {
             width: 56,
             height: 50,
             decoration: BoxDecoration(
-              color: _isHovered 
-                ? theme.colorScheme.primary.withValues(alpha: 0.1)
-                : Colors.transparent,
+              color: _isHovered
+                  ? theme.colorScheme.primary.withValues(alpha: 0.1)
+                  : Colors.transparent,
             ),
             child: Icon(
               getThemeIcon(),
@@ -379,7 +384,7 @@ class __WindowControlsState extends State<_WindowControls> with WindowListener {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    
+
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -389,7 +394,7 @@ class __WindowControlsState extends State<_WindowControls> with WindowListener {
           onPressed: () => windowManager.minimize(),
           hoverColor: theme.colorScheme.primary.withValues(alpha: 0.1),
         ),
-        
+
         // 最大化/还原按钮
         _WindowButton(
           icon: _isMaximized ? Icons.crop_square : Icons.crop_din,
@@ -403,7 +408,7 @@ class __WindowControlsState extends State<_WindowControls> with WindowListener {
           },
           hoverColor: theme.colorScheme.primary.withValues(alpha: 0.1),
         ),
-        
+
         // 关闭按钮
         _WindowButton(
           icon: Icons.close,
@@ -439,7 +444,7 @@ class __WindowButtonState extends State<_WindowButton> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    
+
     return MouseRegion(
       onEnter: (_) => setState(() => _isHovered = true),
       onExit: (_) => setState(() => _isHovered = false),
@@ -449,16 +454,17 @@ class __WindowButtonState extends State<_WindowButton> {
           width: 56,
           height: 50,
           decoration: BoxDecoration(
-            color: _isHovered 
-              ? (widget.hoverColor ?? theme.colorScheme.primary.withValues(alpha: 0.1))
-              : Colors.transparent,
+            color: _isHovered
+                ? (widget.hoverColor ??
+                    theme.colorScheme.primary.withValues(alpha: 0.1))
+                : Colors.transparent,
           ),
           child: Icon(
             widget.icon,
             size: 20,
             color: _isHovered && widget.iconColorOnHover != null
-              ? widget.iconColorOnHover
-              : theme.colorScheme.onSurface.withValues(alpha: 0.7),
+                ? widget.iconColorOnHover
+                : theme.colorScheme.onSurface.withValues(alpha: 0.7),
           ),
         ),
       ),

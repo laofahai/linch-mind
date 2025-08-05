@@ -14,15 +14,14 @@ import 'widgets/responsive_navigation.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
+
   // 只在桌面端配置窗口管理
   if (defaultTargetPlatform == TargetPlatform.macOS ||
       defaultTargetPlatform == TargetPlatform.windows ||
       defaultTargetPlatform == TargetPlatform.linux) {
-    
     // 配置窗口管理
     await windowManager.ensureInitialized();
-    
+
     WindowOptions windowOptions = const WindowOptions(
       size: Size(1200, 800),
       center: true,
@@ -31,12 +30,12 @@ void main() async {
       titleBarStyle: TitleBarStyle.hidden,
       windowButtonVisibility: false,
     );
-    
+
     windowManager.waitUntilReadyToShow(windowOptions, () async {
       await windowManager.show();
       await windowManager.focus();
     });
-    
+
     doWhenWindowReady(() {
       const initialSize = Size(1200, 800);
       appWindow.minSize = const Size(800, 600);
@@ -59,7 +58,7 @@ class LinchMindApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final themeMode = ref.watch(themeModeProvider);
-    
+
     return MaterialApp(
       title: 'Linch Mind',
       theme: _buildLightTheme(),
@@ -100,11 +99,13 @@ class LinchMindApp extends ConsumerWidget {
       inputDecorationTheme: InputDecorationTheme(
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide(color: colorScheme.outline.withValues(alpha: 0.3)),
+          borderSide:
+              BorderSide(color: colorScheme.outline.withValues(alpha: 0.3)),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide(color: colorScheme.outline.withValues(alpha: 0.3)),
+          borderSide:
+              BorderSide(color: colorScheme.outline.withValues(alpha: 0.3)),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
@@ -147,11 +148,13 @@ class LinchMindApp extends ConsumerWidget {
       inputDecorationTheme: InputDecorationTheme(
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide(color: colorScheme.outline.withValues(alpha: 0.3)),
+          borderSide:
+              BorderSide(color: colorScheme.outline.withValues(alpha: 0.3)),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide(color: colorScheme.outline.withValues(alpha: 0.3)),
+          borderSide:
+              BorderSide(color: colorScheme.outline.withValues(alpha: 0.3)),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
@@ -210,7 +213,7 @@ class AppInitializationWrapper extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     // 启动后台daemon检查，但不阻塞UI
     ref.read(backgroundDaemonInitProvider);
-    
+
     // 直接显示主应用，daemon状态通过状态指示器显示
     return const MainApp();
   }

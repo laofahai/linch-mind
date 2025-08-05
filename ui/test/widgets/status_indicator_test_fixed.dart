@@ -6,7 +6,7 @@ import 'package:linch_mind/models/connector_lifecycle_models.dart';
 void main() {
   group('StatusIndicator Business Logic Tests', () {
     group('Status Display Accuracy', () {
-      testWidgets('should accurately display running connector status', 
+      testWidgets('should accurately display running connector status',
           (WidgetTester tester) async {
         // Given: StatusIndicator for a running connector
         await tester.pumpWidget(
@@ -20,7 +20,7 @@ void main() {
         // Then: Should display correct visual indicators for running state
         expect(find.byIcon(Icons.cloud_done), findsOneWidget);
         expect(find.text('Connected'), findsOneWidget);
-        
+
         // And: Should use appropriate color for positive status
         final container = tester.widget<Container>(
           find.ancestor(
@@ -36,7 +36,7 @@ void main() {
 
       testWidgets('should accurately display disconnected connector status',
           (WidgetTester tester) async {
-        // Given: StatusIndicator for a disconnected connector  
+        // Given: StatusIndicator for a disconnected connector
         await tester.pumpWidget(
           const MaterialApp(
             home: Scaffold(
@@ -48,7 +48,7 @@ void main() {
         // Then: Should display correct visual indicators for disconnected state
         expect(find.byIcon(Icons.cloud_off), findsOneWidget);
         expect(find.text('Disconnected'), findsOneWidget);
-        
+
         // And: Should visually distinguish from connected state
         final iconWidget = tester.widget<Icon>(find.byIcon(Icons.cloud_off));
         expect(iconWidget.icon, Icons.cloud_off);
@@ -58,7 +58,7 @@ void main() {
           (WidgetTester tester) async {
         // Given: Custom status message for specific user scenarios
         const customMessage = 'Reconnecting to server...';
-        
+
         await tester.pumpWidget(
           const MaterialApp(
             home: Scaffold(
@@ -83,7 +83,7 @@ void main() {
         // Given: StatusIndicator with tap callback for user interaction
         bool userTappedStatus = false;
         String? callbackContext;
-        
+
         await tester.pumpWidget(
           MaterialApp(
             home: Scaffold(
@@ -140,7 +140,7 @@ void main() {
         // Then: Should provide semantic information for assistive technology
         final tooltip = tester.widget<Tooltip>(find.byType(Tooltip));
         expect(tooltip.message, 'Connected');
-        
+
         // And: Should be findable by semantic labels
         expect(find.byTooltip('Connected'), findsOneWidget);
       });
@@ -160,10 +160,10 @@ void main() {
 
         // Then: Should have animation components for visual feedback
         expect(find.byType(AnimatedBuilder), findsAtLeastNWidgets(1));
-        
+
         // When: Animation progresses
         await tester.pump(const Duration(milliseconds: 500));
-        
+
         // Then: Should maintain animated visual feedback
         expect(find.byType(Transform), findsAtLeastNWidgets(1));
       });
@@ -207,7 +207,7 @@ void main() {
         // Then: Should display active visual state
         final container = tester.widget<Container>(find.byType(Container));
         final decoration = container.decoration as BoxDecoration;
-        
+
         expect(decoration.shape, BoxShape.circle);
         expect(decoration.boxShadow, isNotNull);
         expect(decoration.boxShadow!.isNotEmpty, true);
@@ -227,7 +227,7 @@ void main() {
         // Then: Should display inactive visual state
         final container = tester.widget<Container>(find.byType(Container));
         final decoration = container.decoration as BoxDecoration;
-        
+
         expect(decoration.shape, BoxShape.circle);
         expect(decoration.boxShadow, null); // No glow effect when inactive
       });
@@ -236,7 +236,7 @@ void main() {
           (WidgetTester tester) async {
         // Given: Custom sized status dot
         const customSize = 24.0;
-        
+
         await tester.pumpWidget(
           const MaterialApp(
             home: Scaffold(
@@ -275,15 +275,17 @@ void main() {
         expect(find.text('Database Connection Service'), findsOneWidget);
         expect(find.text('Healthy'), findsOneWidget);
         expect(find.byIcon(Icons.check_circle), findsOneWidget);
-        expect(find.textContaining('Last updated: 2 minutes ago'), findsOneWidget);
+        expect(
+            find.textContaining('Last updated: 2 minutes ago'), findsOneWidget);
         expect(find.byIcon(Icons.access_time), findsOneWidget);
       });
 
       testWidgets('should display error status with diagnostic information',
           (WidgetTester tester) async {
         // Given: Service in error state requiring user attention
-        const errorMessage = 'Connection timeout: Unable to reach database server at db.example.com:5432';
-        
+        const errorMessage =
+            'Connection timeout: Unable to reach database server at db.example.com:5432';
+
         await tester.pumpWidget(
           const MaterialApp(
             home: Scaffold(
@@ -303,16 +305,18 @@ void main() {
         expect(find.byIcon(Icons.error), findsOneWidget);
         expect(find.text(errorMessage), findsOneWidget);
         expect(find.byIcon(Icons.warning), findsOneWidget);
-        expect(find.textContaining('Last updated: 30 seconds ago'), findsOneWidget);
+        expect(find.textContaining('Last updated: 30 seconds ago'),
+            findsOneWidget);
       });
 
-      testWidgets('should provide user action buttons when callbacks are provided',
+      testWidgets(
+          'should provide user action buttons when callbacks are provided',
           (WidgetTester tester) async {
         // Given: Service status that allows user intervention
         bool retryTriggered = false;
         bool detailsViewed = false;
         String? retryContext;
-        
+
         await tester.pumpWidget(
           MaterialApp(
             home: Scaffold(
@@ -363,9 +367,10 @@ void main() {
         );
 
         // Then: Should render appropriately for light theme
-        final materialApp = tester.widget<MaterialApp>(find.byType(MaterialApp));
+        final materialApp =
+            tester.widget<MaterialApp>(find.byType(MaterialApp));
         expect(materialApp.theme?.brightness, Brightness.light);
-        
+
         // And: Status indicator should be visible and readable
         expect(find.byIcon(Icons.cloud_done), findsOneWidget);
         expect(find.text('Connected'), findsOneWidget);
@@ -384,9 +389,10 @@ void main() {
         );
 
         // Then: Should render appropriately for dark theme
-        final materialApp = tester.widget<MaterialApp>(find.byType(MaterialApp));
+        final materialApp =
+            tester.widget<MaterialApp>(find.byType(MaterialApp));
         expect(materialApp.theme?.brightness, Brightness.dark);
-        
+
         // And: Status indicator should maintain visibility
         expect(find.byIcon(Icons.cloud_done), findsOneWidget);
         expect(find.text('Connected'), findsOneWidget);
@@ -404,7 +410,7 @@ void main() {
 
         for (final size in screenSizes) {
           await tester.binding.setSurfaceSize(size);
-          
+
           await tester.pumpWidget(
             const MaterialApp(
               home: Scaffold(
@@ -416,7 +422,7 @@ void main() {
           // Then: Should render without overflow on all screen sizes
           expect(tester.takeException(), isNull);
           expect(find.byType(StatusIndicator), findsOneWidget);
-          
+
           // And: Should maintain core functionality
           expect(find.byIcon(Icons.cloud_done), findsOneWidget);
           expect(find.text('Connected'), findsOneWidget);
@@ -428,7 +434,8 @@ void main() {
     });
 
     group('Performance and Edge Cases', () {
-      testWidgets('should handle rapid status changes without performance degradation',
+      testWidgets(
+          'should handle rapid status changes without performance degradation',
           (WidgetTester tester) async {
         // Given: StatusIndicator that receives rapid updates
         await tester.pumpWidget(
@@ -441,18 +448,20 @@ void main() {
 
         // When: Triggering many rapid status changes
         final stopwatch = Stopwatch()..start();
-        
+
         for (int i = 0; i < 10; i++) {
           await tester.tap(find.byType(ElevatedButton));
-          await tester.pump(const Duration(milliseconds: 16)); // 60 FPS frame rate
+          await tester
+              .pump(const Duration(milliseconds: 16)); // 60 FPS frame rate
         }
-        
+
         stopwatch.stop();
 
         // Then: Should handle updates efficiently
         expect(stopwatch.elapsedMilliseconds, lessThan(1000)); // Under 1 second
-        expect(tester.takeException(), isNull); // No errors during rapid updates
-        
+        expect(
+            tester.takeException(), isNull); // No errors during rapid updates
+
         // And: Should settle to final state correctly
         await tester.pumpAndSettle();
         expect(find.byType(StatusIndicator), findsOneWidget);
@@ -495,7 +504,7 @@ void main() {
           (WidgetTester tester) async {
         // Given: StatusIndicator in a widget that rebuilds frequently
         int buildCount = 0;
-        
+
         await tester.pumpWidget(
           MaterialApp(
             home: Scaffold(

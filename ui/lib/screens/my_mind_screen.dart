@@ -6,7 +6,7 @@ class MyMindScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    
+
     return Scaffold(
       body: Center(
         child: Column(
@@ -46,10 +46,12 @@ class MyMindScreen extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 12),
-                    _buildFeatureItem(context, Icons.chat_bubble_outline, 'AI对话助手'),
+                    _buildFeatureItem(
+                        context, Icons.chat_bubble_outline, 'AI对话助手'),
                     _buildFeatureItem(context, Icons.lightbulb_outline, '智能推荐'),
                     _buildFeatureItem(context, Icons.insights_outlined, '个人洞察'),
-                    _buildFeatureItem(context, Icons.auto_awesome_outlined, '智能分析'),
+                    _buildFeatureItem(
+                        context, Icons.auto_awesome_outlined, '智能分析'),
                   ],
                 ),
               ),
@@ -62,7 +64,7 @@ class MyMindScreen extends StatelessWidget {
 
   Widget _buildFeatureItem(BuildContext context, IconData icon, String text) {
     final theme = Theme.of(context);
-    
+
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(

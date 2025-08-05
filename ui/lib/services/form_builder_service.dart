@@ -75,7 +75,7 @@ class FormBuilderService {
     // 长度验证
     final minLength = fieldSchema['minLength'] as int?;
     final maxLength = fieldSchema['maxLength'] as int?;
-    
+
     if (minLength != null) {
       validators.add(Validators.minLength(minLength));
     }
@@ -121,7 +121,7 @@ class FormBuilderService {
   ) {
     final minimum = fieldSchema['minimum'] as num?;
     final maximum = fieldSchema['maximum'] as num?;
-    
+
     if (minimum != null) {
       validators.add(Validators.min(minimum));
     }
@@ -131,12 +131,16 @@ class FormBuilderService {
 
     final isInteger = fieldSchema['type'] == 'integer';
     num? value;
-    
+
     if (initialValue != null) {
       if (isInteger) {
-        value = initialValue is int ? initialValue : int.tryParse(initialValue.toString());
+        value = initialValue is int
+            ? initialValue
+            : int.tryParse(initialValue.toString());
       } else {
-        value = initialValue is num ? initialValue : double.tryParse(initialValue.toString());
+        value = initialValue is num
+            ? initialValue
+            : double.tryParse(initialValue.toString());
       }
     }
 
@@ -154,7 +158,7 @@ class FormBuilderService {
   ) {
     final List<AbstractControl<dynamic>> controls = [];
     final items = fieldSchema['items'] as Map<String, dynamic>?;
-    
+
     if (initialValue is List) {
       for (final item in initialValue) {
         if (items != null) {
@@ -171,11 +175,11 @@ class FormBuilderService {
     // 数组长度验证 - 简化版本
     final minItems = fieldSchema['minItems'] as int?;
     final maxItems = fieldSchema['maxItems'] as int?;
-    
+
     if (minItems != null) {
       // TODO: 添加数组最小长度验证
     }
-    
+
     if (maxItems != null) {
       // TODO: 添加数组最大长度验证
     }
@@ -205,9 +209,10 @@ class FormBuilderService {
     Map<String, dynamic>? uiSchema,
   ) {
     final config = Map<String, dynamic>.from(fieldSchema);
-    
+
     // 合并UI schema配置
-    final fieldUIConfig = uiSchema?['properties']?[fieldName] as Map<String, dynamic>?;
+    final fieldUIConfig =
+        uiSchema?['properties']?[fieldName] as Map<String, dynamic>?;
     if (fieldUIConfig != null) {
       config.addAll(fieldUIConfig);
     }
@@ -237,11 +242,11 @@ class FormBuilderService {
     }
 
     final type = fieldSchema['type'] as String?;
-    
+
     switch (type) {
       case 'boolean':
         return 'switch';
-      
+
       case 'integer':
       case 'number':
         // 如果有范围限制且范围合理，使用slider
@@ -251,37 +256,37 @@ class FormBuilderService {
           return 'slider';
         }
         return 'number_input';
-      
+
       case 'array':
         final items = fieldSchema['items'] as Map<String, dynamic>?;
         if (items?['type'] == 'string') {
           return 'tag_input';
         }
         return 'array_input';
-      
+
       case 'string':
         // 检查格式提示
         final format = fieldSchema['format'] as String?;
         if (format == 'email') return 'email_input';
         if (format == 'uri') return 'url_input';
         if (format == 'password') return 'password_input';
-        
+
         // 检查枚举选项
         if (fieldSchema.containsKey('enum')) {
           return 'select';
         }
-        
+
         // 检查多行文本
         final multiline = fieldSchema['ui:multiline'] as bool?;
         if (multiline == true) {
           return 'textarea';
         }
-        
+
         return 'text_input';
-      
+
       case 'object':
         return 'object_editor';
-      
+
       default:
         return 'text_input';
     }
@@ -290,11 +295,11 @@ class FormBuilderService {
   /// 从FormGroup提取数据
   static Map<String, dynamic> extractFormData(FormGroup form) {
     final data = <String, dynamic>{};
-    
+
     for (final entry in form.controls.entries) {
       final key = entry.key;
       final control = entry.value;
-      
+
       if (control is FormGroup) {
         data[key] = extractFormData(control);
       } else if (control is FormArray) {
@@ -308,7 +313,7 @@ class FormBuilderService {
         data[key] = control.value;
       }
     }
-    
+
     return data;
   }
 }

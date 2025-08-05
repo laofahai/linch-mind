@@ -25,7 +25,10 @@ void main() {
           'properties': {
             'watchPath': {'type': 'string', 'required': true},
             'recursive': {'type': 'boolean', 'default': true},
-            'fileTypes': {'type': 'array', 'items': {'type': 'string'}},
+            'fileTypes': {
+              'type': 'array',
+              'items': {'type': 'string'}
+            },
           }
         },
         defaultConfig: {
@@ -42,12 +45,12 @@ void main() {
       expect(connector.category, 'data-collection');
       expect(connector.version, '2.1.0');
       expect(connector.author, 'Linch Mind Team');
-      
+
       // And: Should have proper default behaviors for operations
       expect(connector.autoDiscovery, true);
       expect(connector.hotConfigReload, true);
       expect(connector.healthCheck, true);
-      
+
       // And: Should have valid configuration structure
       expect(connector.configSchema, isNotEmpty);
       expect(connector.defaultConfig, isNotEmpty);
@@ -127,7 +130,10 @@ void main() {
               'type': 'object',
               'properties': {
                 'pattern': {'type': 'string'},
-                'action': {'type': 'string', 'enum': ['include', 'exclude']},
+                'action': {
+                  'type': 'string',
+                  'enum': ['include', 'exclude']
+                },
               }
             }
           },
@@ -190,29 +196,49 @@ void main() {
       // Given: Business rules for state transitions
       final validTransitions = {
         ConnectorState.available: [ConnectorState.installed],
-        ConnectorState.installed: [ConnectorState.configured, ConnectorState.uninstalling],
-        ConnectorState.configured: [ConnectorState.enabled, ConnectorState.uninstalling],
-        ConnectorState.enabled: [ConnectorState.running, ConnectorState.configured],
+        ConnectorState.installed: [
+          ConnectorState.configured,
+          ConnectorState.uninstalling
+        ],
+        ConnectorState.configured: [
+          ConnectorState.enabled,
+          ConnectorState.uninstalling
+        ],
+        ConnectorState.enabled: [
+          ConnectorState.running,
+          ConnectorState.configured
+        ],
         ConnectorState.running: [ConnectorState.stopping, ConnectorState.error],
         ConnectorState.stopping: [ConnectorState.enabled, ConnectorState.error],
-        ConnectorState.error: [ConnectorState.configured, ConnectorState.enabled, ConnectorState.uninstalling],
-        ConnectorState.updating: [ConnectorState.configured, ConnectorState.error],
-        ConnectorState.uninstalling: [ConnectorState.available, ConnectorState.error],
+        ConnectorState.error: [
+          ConnectorState.configured,
+          ConnectorState.enabled,
+          ConnectorState.uninstalling
+        ],
+        ConnectorState.updating: [
+          ConnectorState.configured,
+          ConnectorState.error
+        ],
+        ConnectorState.uninstalling: [
+          ConnectorState.available,
+          ConnectorState.error
+        ],
       };
 
       // Then: Each state should have logical next states
       for (final entry in validTransitions.entries) {
         final currentState = entry.key;
         final nextStates = entry.value;
-        
-        expect(nextStates, isNotEmpty, 
-               reason: 'State $currentState should have valid next states');
-        
+
+        expect(nextStates, isNotEmpty,
+            reason: 'State $currentState should have valid next states');
+
         // Verify business logic makes sense for each transition
         if (currentState != ConnectorState.uninstalling) {
           // Only uninstalling can go back to available
           expect(nextStates, isNot(contains(ConnectorState.available)),
-                 reason: 'Only uninstalling state should transition back to available');
+              reason:
+                  'Only uninstalling state should transition back to available');
         }
       }
     });
@@ -222,8 +248,8 @@ void main() {
       const terminalStates = [ConnectorState.error];
       const activeStates = [ConnectorState.running];
       const transitionalStates = [
-        ConnectorState.stopping, 
-        ConnectorState.updating, 
+        ConnectorState.stopping,
+        ConnectorState.updating,
         ConnectorState.uninstalling
       ];
       const configurationStates = [
@@ -286,7 +312,7 @@ void main() {
       expect(runningConnector.processId, 12345);
       expect(runningConnector.dataCount, 15420);
       expect(runningConnector.errorMessage, null);
-      
+
       // And: Should have proper configuration
       expect(runningConnector.config['watchPath'], '/data/important');
       expect(runningConnector.config['recursive'], true);
@@ -295,7 +321,8 @@ void main() {
 
     test('should handle error states with diagnostic information', () {
       // Given: Connector in error state
-      const errorMessage = 'Permission denied: Cannot access /protected/directory';
+      const errorMessage =
+          'Permission denied: Cannot access /protected/directory';
       final errorConnector = ConnectorInfo(
         collectorId: 'failed-filesystem-002',
         displayName: 'Failed File System Monitor',
@@ -320,7 +347,7 @@ void main() {
       expect(errorConnector.dataCount, 0);
       expect(errorConnector.errorMessage, errorMessage);
       expect(errorConnector.autoStart, false);
-      
+
       // And: Should preserve problematic configuration for diagnosis
       expect(errorConnector.config['watchPath'], '/protected/directory');
     });
@@ -349,11 +376,11 @@ void main() {
         // Running connector must have process ID
         (state: ConnectorState.running, processId: 1234, shouldBeValid: true),
         (state: ConnectorState.running, processId: null, shouldBeValid: false),
-        
+
         // Stopped connector should not have process ID
         (state: ConnectorState.enabled, processId: null, shouldBeValid: true),
         (state: ConnectorState.enabled, processId: 1234, shouldBeValid: false),
-        
+
         // Error state should not have process ID
         (state: ConnectorState.error, processId: null, shouldBeValid: true),
         (state: ConnectorState.error, processId: 1234, shouldBeValid: false),
@@ -369,8 +396,9 @@ void main() {
 
         final isValid = _validateConnectorState(connector);
         expect(isValid, testCase.shouldBeValid,
-               reason: 'State ${testCase.state} with processId ${testCase.processId} '
-                      'should be ${testCase.shouldBeValid ? "valid" : "invalid"}');
+            reason:
+                'State ${testCase.state} with processId ${testCase.processId} '
+                'should be ${testCase.shouldBeValid ? "valid" : "invalid"}');
       }
     });
   });
@@ -382,7 +410,8 @@ void main() {
         connectorId: 'production-database-v3',
         name: 'database',
         displayName: 'Production Database Connector v3',
-        description: 'High-performance database integration with advanced features',
+        description:
+            'High-performance database integration with advanced features',
         category: 'database',
         version: '3.2.1',
         author: 'Database Team <db-team@linch-mind.com>',
@@ -407,7 +436,10 @@ void main() {
           'properties': {
             'database_url': {'type': 'string', 'format': 'uri'},
             'pool_size': {'type': 'integer', 'minimum': 1, 'maximum': 100},
-            'ssl_mode': {'type': 'string', 'enum': ['disable', 'require', 'verify-full']},
+            'ssl_mode': {
+              'type': 'string',
+              'enum': ['disable', 'require', 'verify-full']
+            },
           },
           'required': ['database_url'],
         },
@@ -429,18 +461,18 @@ void main() {
       expect(json['version'], '3.2.1');
       expect(json['author'], 'Database Team <db-team@linch-mind.com>');
       expect(json['license'], 'Commercial');
-      
+
       // And: Should preserve operational settings
       expect(json['auto_discovery'], true);
       expect(json['hot_config_reload'], false);
       expect(json['health_check'], true);
       expect(json['entry_point'], 'db_connector_v3.py');
-      
+
       // And: Should preserve dependencies and permissions
       expect(json['dependencies'], isA<List>());
       expect(json['dependencies'], contains('sqlalchemy>=1.4.0'));
       expect(json['permissions'], contains('database.read'));
-      
+
       // And: Should preserve complex configuration schema
       expect(json['config_schema'], isA<Map>());
       expect(json['config_schema']['properties'], isA<Map>());
@@ -448,13 +480,15 @@ void main() {
       expect(json['default_config']['database_url'], isA<String>());
     });
 
-    test('should deserialize connector definition maintaining data integrity', () {
+    test('should deserialize connector definition maintaining data integrity',
+        () {
       // Given: Complete JSON representation
       final jsonData = {
         'connector_id': 'filesystem-advanced-v2',
         'name': 'filesystem-advanced',
         'display_name': 'Advanced File System Monitor v2',
-        'description': 'Advanced file system monitoring with ML-based pattern detection',
+        'description':
+            'Advanced file system monitoring with ML-based pattern detection',
         'category': 'file-monitoring',
         'version': '2.0.0-beta.3',
         'author': 'AI Team',
@@ -512,21 +546,22 @@ void main() {
       expect(connector.version, '2.0.0-beta.3');
       expect(connector.author, 'AI Team');
       expect(connector.license, 'Apache-2.0');
-      
+
       // And: Should preserve operational settings
       expect(connector.autoDiscovery, true);
       expect(connector.hotConfigReload, true);
       expect(connector.healthCheck, true);
       expect(connector.entryPoint, 'advanced_fs_monitor.py');
-      
+
       // And: Should preserve complex arrays and objects
       expect(connector.dependencies, hasLength(3));
       expect(connector.dependencies, contains('scikit-learn>=1.0.0'));
       expect(connector.permissions, contains('ml.predict'));
-      
+
       // And: Should preserve nested configuration structures
       expect(connector.configSchema['properties']['watch_paths'], isA<Map>());
-      expect(connector.configSchema['properties']['sensitivity']['minimum'], 0.0);
+      expect(
+          connector.configSchema['properties']['sensitivity']['minimum'], 0.0);
       expect(connector.defaultConfig['watch_paths'], isA<List>());
       expect(connector.defaultConfig['sensitivity'], 0.7);
     });
@@ -599,7 +634,7 @@ void main() {
           'display_name': 'Incomplete Connector',
           // Missing connector_id, description, category, version, author
         },
-        
+
         // Invalid field types
         {
           'connector_id': 123, // Should be string
@@ -610,7 +645,7 @@ void main() {
           'version': '1.0.0',
           'author': 'Test',
         },
-        
+
         // Invalid nested structures
         {
           'connector_id': 'invalid-nested',
@@ -629,7 +664,8 @@ void main() {
         expect(
           () => ConnectorDefinition.fromJson(malformedJson),
           throwsA(anything),
-          reason: 'Malformed JSON should throw some kind of error: $malformedJson',
+          reason:
+              'Malformed JSON should throw some kind of error: $malformedJson',
         );
       }
     });
@@ -639,8 +675,7 @@ void main() {
 // Helper functions for business logic validation
 bool _isValidSemanticVersion(String version) {
   final semanticVersionRegex = RegExp(
-    r'^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$'
-  );
+      r'^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$');
   return semanticVersionRegex.hasMatch(version);
 }
 
@@ -657,7 +692,11 @@ bool _isActiveState(ConnectorState state) {
 }
 
 bool _isStableState(ConnectorState state) {
-  return [ConnectorState.running, ConnectorState.enabled, ConnectorState.configured].contains(state);
+  return [
+    ConnectorState.running,
+    ConnectorState.enabled,
+    ConnectorState.configured
+  ].contains(state);
 }
 
 bool _isTransitionalState(ConnectorState state) {
@@ -682,11 +721,12 @@ bool _validateConnectorState(ConnectorInfo connector) {
   if (connector.state == ConnectorState.running) {
     return connector.processId != null;
   }
-  
+
   // Business rule: Non-running connectors should not have a process ID
-  if ([ConnectorState.enabled, ConnectorState.configured, ConnectorState.error].contains(connector.state)) {
+  if ([ConnectorState.enabled, ConnectorState.configured, ConnectorState.error]
+      .contains(connector.state)) {
     return connector.processId == null;
   }
-  
+
   return true; // Other states are flexible
 }

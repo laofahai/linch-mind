@@ -29,7 +29,8 @@ void main() {
       );
 
       expect(updatedState.isConnected, true);
-      expect(updatedState.errorMessage, 'Test error'); // Should remain the same since we didn't override it
+      expect(updatedState.errorMessage,
+          'Test error'); // Should remain the same since we didn't override it
       expect(updatedState.lastUpdate, now); // Should remain the same
     });
   });
@@ -49,7 +50,7 @@ void main() {
 
     test('should initialize with disconnected state', () {
       final state = container.read(appStateProvider);
-      
+
       expect(state.isConnected, false);
       expect(state.errorMessage, null);
       expect(state.lastUpdate, isA<DateTime>());
@@ -57,7 +58,7 @@ void main() {
 
     test('should set connected state', () {
       notifier.setConnected(true);
-      
+
       final state = container.read(appStateProvider);
       expect(state.isConnected, true);
       expect(state.errorMessage, null);
@@ -65,7 +66,7 @@ void main() {
 
     test('should set disconnected state with error message', () {
       notifier.setConnected(false);
-      
+
       final state = container.read(appStateProvider);
       expect(state.isConnected, false);
       expect(state.errorMessage, 'Connection lost');
@@ -74,7 +75,7 @@ void main() {
     test('should set error message', () {
       const errorMessage = 'Network error occurred';
       notifier.setError(errorMessage);
-      
+
       final state = container.read(appStateProvider);
       expect(state.isConnected, false);
       expect(state.errorMessage, errorMessage);
@@ -85,7 +86,7 @@ void main() {
       notifier.setError('Test error');
       var currentState = container.read(appStateProvider);
       expect(currentState.errorMessage, 'Test error');
-      
+
       // Then clear it
       notifier.clearError();
       currentState = container.read(appStateProvider);
@@ -95,12 +96,12 @@ void main() {
     test('should update lastUpdate timestamp on state changes', () async {
       final initialState = container.read(appStateProvider);
       final initialTime = initialState.lastUpdate;
-      
+
       // Wait a small amount to ensure timestamp difference
       await Future.delayed(const Duration(milliseconds: 10));
-      
+
       notifier.setConnected(true);
-      
+
       final updatedState = container.read(appStateProvider);
       expect(updatedState.lastUpdate.isAfter(initialTime), true);
     });
@@ -109,11 +110,12 @@ void main() {
   group('Provider dependencies', () {
     test('should provide correct instances', () {
       final container = ProviderContainer();
-      
+
       // Test that providers can be read without throwing
       expect(() => container.read(appStateProvider), returnsNormally);
-      expect(() => container.read(connectorLifecycleApiProvider), returnsNormally);
-      
+      expect(
+          () => container.read(connectorLifecycleApiProvider), returnsNormally);
+
       container.dispose();
     });
 
@@ -121,10 +123,10 @@ void main() {
       // This test would be more meaningful with actual mock implementations
       // For now, we just verify the structure
       final container = ProviderContainer();
-      
+
       final appState = container.read(appStateProvider);
       expect(appState, isA<AppState>());
-      
+
       container.dispose();
     });
   });

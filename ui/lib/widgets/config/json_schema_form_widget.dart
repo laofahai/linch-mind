@@ -6,13 +6,13 @@ import 'dynamic_list_widget.dart';
 class JsonSchemaFormWidget extends StatefulWidget {
   /// JSON Schema定义
   final Map<String, dynamic> schema;
-  
+
   /// 当前表单数据
   final Map<String, dynamic> data;
-  
+
   /// 数据变更回调
   final ValueChanged<Map<String, dynamic>> onChanged;
-  
+
   /// 是否只读模式
   final bool readOnly;
 
@@ -47,14 +47,15 @@ class _JsonSchemaFormWidgetState extends State<JsonSchemaFormWidget> {
 
   @override
   Widget build(BuildContext context) {
-    final properties = widget.schema['properties'] as Map<String, dynamic>? ?? {};
-    
+    final properties =
+        widget.schema['properties'] as Map<String, dynamic>? ?? {};
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: properties.entries.map((entry) {
         final fieldName = entry.key;
         final fieldSchema = entry.value as Map<String, dynamic>;
-        
+
         return Padding(
           padding: const EdgeInsets.only(bottom: 16),
           child: _buildFormField(fieldName, fieldSchema, _data[fieldName]),
@@ -76,27 +77,37 @@ class _JsonSchemaFormWidgetState extends State<JsonSchemaFormWidget> {
     // 根据widget类型或fieldType选择合适的UI组件
     switch (widget ?? _getDefaultWidget(fieldType)) {
       case 'dynamic_list':
-        return _buildDynamicListField(fieldName, title, description, fieldSchema, currentValue);
+        return _buildDynamicListField(
+            fieldName, title, description, fieldSchema, currentValue);
       case 'conditional_section':
-        return _buildConditionalSectionField(fieldName, title, description, fieldSchema, currentValue);
+        return _buildConditionalSectionField(
+            fieldName, title, description, fieldSchema, currentValue);
       case 'collapsible_section':
-        return _buildCollapsibleSectionField(fieldName, title, description, fieldSchema, currentValue);
+        return _buildCollapsibleSectionField(
+            fieldName, title, description, fieldSchema, currentValue);
       case 'tabbed_section':
-        return _buildTabbedSectionField(fieldName, title, description, fieldSchema, currentValue);
+        return _buildTabbedSectionField(
+            fieldName, title, description, fieldSchema, currentValue);
       case 'nested_object':
-        return _buildNestedObjectField(fieldName, title, description, fieldSchema, currentValue);
+        return _buildNestedObjectField(
+            fieldName, title, description, fieldSchema, currentValue);
       case 'switch':
         return _buildSwitchField(fieldName, title, description, currentValue);
       case 'tags_input':
-        return _buildTagsInputField(fieldName, title, description, fieldSchema, currentValue);
+        return _buildTagsInputField(
+            fieldName, title, description, fieldSchema, currentValue);
       case 'slider':
-        return _buildSliderField(fieldName, title, description, fieldSchema, currentValue);
+        return _buildSliderField(
+            fieldName, title, description, fieldSchema, currentValue);
       case 'select':
-        return _buildSelectField(fieldName, title, description, fieldSchema, currentValue);
+        return _buildSelectField(
+            fieldName, title, description, fieldSchema, currentValue);
       case 'number_input':
-        return _buildNumberInputField(fieldName, title, description, fieldSchema, currentValue);
+        return _buildNumberInputField(
+            fieldName, title, description, fieldSchema, currentValue);
       default:
-        return _buildTextInputField(fieldName, title, description, currentValue);
+        return _buildTextInputField(
+            fieldName, title, description, currentValue);
     }
   }
 
@@ -109,15 +120,16 @@ class _JsonSchemaFormWidgetState extends State<JsonSchemaFormWidget> {
   ) {
     final items = List<Map<String, dynamic>>.from(currentValue ?? []);
     final itemSchema = fieldSchema['items'] as Map<String, dynamic>? ?? {};
-    final widgetConfig = fieldSchema['widget_config'] as Map<String, dynamic>? ?? {};
-    
+    final widgetConfig =
+        fieldSchema['widget_config'] as Map<String, dynamic>? ?? {};
+
     // 合并标题和描述到widgetConfig
     final enhancedWidgetConfig = {
       'title': title,
       'description': description,
       ...widgetConfig,
     };
-    
+
     return DynamicListWidget(
       items: items,
       itemSchema: itemSchema,
@@ -133,20 +145,23 @@ class _JsonSchemaFormWidgetState extends State<JsonSchemaFormWidget> {
     Map<String, dynamic> fieldSchema,
     dynamic currentValue,
   ) {
-    final widgetConfig = fieldSchema['widget_config'] as Map<String, dynamic>? ?? {};
+    final widgetConfig =
+        fieldSchema['widget_config'] as Map<String, dynamic>? ?? {};
     final condition = widgetConfig['condition'] as Map<String, dynamic>? ?? {};
     final conditionField = condition['field'] as String? ?? '';
     final conditionOperator = condition['operator'] as String? ?? 'equals';
     final conditionValue = condition['value'];
-    
+
     // 检查条件是否满足
-    final shouldShow = _evaluateCondition(_data[conditionField], conditionOperator, conditionValue);
-    
+    final shouldShow = _evaluateCondition(
+        _data[conditionField], conditionOperator, conditionValue);
+
     if (!shouldShow) {
       return const SizedBox.shrink();
     }
-    
-    return _buildNestedObjectField(fieldName, title, description, fieldSchema, currentValue);
+
+    return _buildNestedObjectField(
+        fieldName, title, description, fieldSchema, currentValue);
   }
 
   Widget _buildCollapsibleSectionField(
@@ -156,10 +171,11 @@ class _JsonSchemaFormWidgetState extends State<JsonSchemaFormWidget> {
     Map<String, dynamic> fieldSchema,
     dynamic currentValue,
   ) {
-    final widgetConfig = fieldSchema['widget_config'] as Map<String, dynamic>? ?? {};
+    final widgetConfig =
+        fieldSchema['widget_config'] as Map<String, dynamic>? ?? {};
     final collapsed = widgetConfig['collapsed'] ?? false;
     final properties = fieldSchema['properties'] as Map<String, dynamic>? ?? {};
-    
+
     return Card(
       child: ExpansionTile(
         title: Text(title),
@@ -172,8 +188,9 @@ class _JsonSchemaFormWidgetState extends State<JsonSchemaFormWidget> {
               children: properties.entries.map((entry) {
                 final subFieldName = entry.key;
                 final subFieldSchema = entry.value as Map<String, dynamic>;
-                final subCurrentValue = (currentValue as Map<String, dynamic>?)?[subFieldName];
-                
+                final subCurrentValue =
+                    (currentValue as Map<String, dynamic>?)?[subFieldName];
+
                 return Padding(
                   padding: const EdgeInsets.only(bottom: 16),
                   child: _buildFormField(
@@ -199,7 +216,7 @@ class _JsonSchemaFormWidgetState extends State<JsonSchemaFormWidget> {
   ) {
     final properties = fieldSchema['properties'] as Map<String, dynamic>? ?? {};
     final tabTitles = properties.keys.toList();
-    
+
     return DefaultTabController(
       length: tabTitles.length,
       child: Column(
@@ -217,8 +234,9 @@ class _JsonSchemaFormWidgetState extends State<JsonSchemaFormWidget> {
             child: TabBarView(
               children: tabTitles.map((tabTitle) {
                 final tabSchema = properties[tabTitle] as Map<String, dynamic>;
-                final tabCurrentValue = (currentValue as Map<String, dynamic>?)?[tabTitle];
-                
+                final tabCurrentValue =
+                    (currentValue as Map<String, dynamic>?)?[tabTitle];
+
                 return Padding(
                   padding: const EdgeInsets.all(16),
                   child: _buildFormField(
@@ -243,7 +261,7 @@ class _JsonSchemaFormWidgetState extends State<JsonSchemaFormWidget> {
     dynamic currentValue,
   ) {
     final properties = fieldSchema['properties'] as Map<String, dynamic>? ?? {};
-    
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
@@ -263,8 +281,9 @@ class _JsonSchemaFormWidgetState extends State<JsonSchemaFormWidget> {
           ...properties.entries.map((entry) {
             final subFieldName = entry.key;
             final subFieldSchema = entry.value as Map<String, dynamic>;
-            final subCurrentValue = (currentValue as Map<String, dynamic>?)?[subFieldName];
-            
+            final subCurrentValue =
+                (currentValue as Map<String, dynamic>?)?[subFieldName];
+
             return Padding(
               padding: const EdgeInsets.only(bottom: 16),
               child: _buildFormField(
@@ -279,16 +298,19 @@ class _JsonSchemaFormWidgetState extends State<JsonSchemaFormWidget> {
     );
   }
 
-  Widget _buildSwitchField(String fieldName, String title, String? description, dynamic currentValue) {
+  Widget _buildSwitchField(String fieldName, String title, String? description,
+      dynamic currentValue) {
     return SwitchListTile(
       title: Text(title),
       subtitle: description != null ? Text(description) : null,
       value: currentValue ?? false,
-      onChanged: widget.readOnly ? null : (value) => _updateData(fieldName, value),
+      onChanged:
+          widget.readOnly ? null : (value) => _updateData(fieldName, value),
     );
   }
 
-  Widget _buildTextInputField(String fieldName, String title, String? description, dynamic currentValue) {
+  Widget _buildTextInputField(String fieldName, String title,
+      String? description, dynamic currentValue) {
     return TextFormField(
       initialValue: currentValue?.toString() ?? '',
       decoration: InputDecoration(
@@ -297,7 +319,8 @@ class _JsonSchemaFormWidgetState extends State<JsonSchemaFormWidget> {
         border: const OutlineInputBorder(),
       ),
       readOnly: widget.readOnly,
-      onChanged: widget.readOnly ? null : (value) => _updateData(fieldName, value),
+      onChanged:
+          widget.readOnly ? null : (value) => _updateData(fieldName, value),
     );
   }
 
@@ -310,21 +333,24 @@ class _JsonSchemaFormWidgetState extends State<JsonSchemaFormWidget> {
   ) {
     final minimum = fieldSchema['minimum'];
     final maximum = fieldSchema['maximum'];
-    
+
     return TextFormField(
       initialValue: currentValue?.toString() ?? '',
       decoration: InputDecoration(
         labelText: title,
         hintText: description,
         border: const OutlineInputBorder(),
-        suffixText: minimum != null && maximum != null ? '($minimum-$maximum)' : null,
+        suffixText:
+            minimum != null && maximum != null ? '($minimum-$maximum)' : null,
       ),
       keyboardType: TextInputType.number,
       readOnly: widget.readOnly,
-      onChanged: widget.readOnly ? null : (value) {
-        final numValue = int.tryParse(value) ?? double.tryParse(value);
-        _updateData(fieldName, numValue);
-      },
+      onChanged: widget.readOnly
+          ? null
+          : (value) {
+              final numValue = int.tryParse(value) ?? double.tryParse(value);
+              _updateData(fieldName, numValue);
+            },
     );
   }
 
@@ -336,7 +362,7 @@ class _JsonSchemaFormWidgetState extends State<JsonSchemaFormWidget> {
     dynamic currentValue,
   ) {
     final options = fieldSchema['options'] as List<dynamic>? ?? [];
-    
+
     return DropdownButtonFormField<dynamic>(
       value: currentValue,
       decoration: InputDecoration(
@@ -347,51 +373,59 @@ class _JsonSchemaFormWidgetState extends State<JsonSchemaFormWidget> {
       items: options.map((option) {
         final value = option is Map ? option['value'] : option;
         final label = option is Map ? option['label'] : option.toString();
-        
+
         return DropdownMenuItem<dynamic>(
           value: value,
           child: Text(label),
         );
       }).toList(),
-      onChanged: widget.readOnly ? null : (value) => _updateData(fieldName, value),
+      onChanged:
+          widget.readOnly ? null : (value) => _updateData(fieldName, value),
     );
   }
 
   Widget _buildTagsInputField(
     String fieldName,
     String title,
-    String? description, 
+    String? description,
     Map<String, dynamic> fieldSchema,
     dynamic currentValue,
   ) {
     final tags = List<String>.from(currentValue ?? []);
-    final widgetConfig = fieldSchema['widget_config'] as Map<String, dynamic>? ?? {};
-    final predefinedTags = List<String>.from(widgetConfig['predefined_tags'] ?? []);
+    final widgetConfig =
+        fieldSchema['widget_config'] as Map<String, dynamic>? ?? {};
+    final predefinedTags =
+        List<String>.from(widgetConfig['predefined_tags'] ?? []);
     final allowCustom = widgetConfig['allow_custom'] ?? true;
-    
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(title, style: const TextStyle(fontWeight: FontWeight.w500)),
         if (description != null)
-          Text(description, style: TextStyle(color: Colors.grey.shade600, fontSize: 12)),
+          Text(description,
+              style: TextStyle(color: Colors.grey.shade600, fontSize: 12)),
         const SizedBox(height: 8),
         Wrap(
           spacing: 8,
           runSpacing: 4,
           children: [
             ...tags.map((tag) => Chip(
-              label: Text(tag),
-              deleteIcon: widget.readOnly ? null : const Icon(Icons.close, size: 16),
-              onDeleted: widget.readOnly ? null : () => _removeTag(fieldName, tag, tags),
-            )),
-            if (!widget.readOnly) ...[
-              ...predefinedTags.where((tag) => !tags.contains(tag)).map((tag) => 
-                ActionChip(
                   label: Text(tag),
-                  onPressed: () => _addTag(fieldName, tag, tags),
-                ),
-              ),
+                  deleteIcon: widget.readOnly
+                      ? null
+                      : const Icon(Icons.close, size: 16),
+                  onDeleted: widget.readOnly
+                      ? null
+                      : () => _removeTag(fieldName, tag, tags),
+                )),
+            if (!widget.readOnly) ...[
+              ...predefinedTags.where((tag) => !tags.contains(tag)).map(
+                    (tag) => ActionChip(
+                      label: Text(tag),
+                      onPressed: () => _addTag(fieldName, tag, tags),
+                    ),
+                  ),
               if (allowCustom)
                 ActionChip(
                   label: const Text('+ 自定义'),
@@ -415,28 +449,33 @@ class _JsonSchemaFormWidgetState extends State<JsonSchemaFormWidget> {
     final max = (fieldSchema['maximum'] ?? 100).toDouble();
     final divisions = fieldSchema['divisions'] as int?;
     final value = (currentValue ?? min).toDouble();
-    final widgetConfig = fieldSchema['widget_config'] as Map<String, dynamic>? ?? {};
+    final widgetConfig =
+        fieldSchema['widget_config'] as Map<String, dynamic>? ?? {};
     final unit = widgetConfig['unit'] ?? '';
-    
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(title, style: const TextStyle(fontWeight: FontWeight.w500)),
         if (description != null)
-          Text(description, style: TextStyle(color: Colors.grey.shade600, fontSize: 12)),
+          Text(description,
+              style: TextStyle(color: Colors.grey.shade600, fontSize: 12)),
         Slider(
           value: value.clamp(min, max),
           min: min,
           max: max,
           divisions: divisions,
           label: '${value.round()}$unit',
-          onChanged: widget.readOnly ? null : (newValue) => _updateData(fieldName, newValue.round()),
+          onChanged: widget.readOnly
+              ? null
+              : (newValue) => _updateData(fieldName, newValue.round()),
         ),
       ],
     );
   }
 
-  bool _evaluateCondition(dynamic fieldValue, String operator, dynamic expectedValue) {
+  bool _evaluateCondition(
+      dynamic fieldValue, String operator, dynamic expectedValue) {
     switch (operator) {
       case 'equals':
         return fieldValue == expectedValue;
@@ -447,7 +486,8 @@ class _JsonSchemaFormWidgetState extends State<JsonSchemaFormWidget> {
       case 'less_than':
         return (fieldValue ?? 0) < expectedValue;
       case 'contains':
-        return fieldValue?.toString().contains(expectedValue.toString()) ?? false;
+        return fieldValue?.toString().contains(expectedValue.toString()) ??
+            false;
       default:
         return false;
     }
@@ -455,12 +495,17 @@ class _JsonSchemaFormWidgetState extends State<JsonSchemaFormWidget> {
 
   String _getDefaultWidget(String fieldType) {
     switch (fieldType) {
-      case 'boolean': return 'switch';
+      case 'boolean':
+        return 'switch';
       case 'integer':
-      case 'number': return 'number_input';
-      case 'array': return 'tags_input';
-      case 'object': return 'nested_object';
-      default: return 'text_input';
+      case 'number':
+        return 'number_input';
+      case 'array':
+        return 'tags_input';
+      case 'object':
+        return 'nested_object';
+      default:
+        return 'text_input';
     }
   }
 
@@ -470,13 +515,13 @@ class _JsonSchemaFormWidgetState extends State<JsonSchemaFormWidget> {
       if (fieldName.contains('.')) {
         final parts = fieldName.split('.');
         Map<String, dynamic> current = _data;
-        
+
         // 导航到嵌套对象
         for (int i = 0; i < parts.length - 1; i++) {
           current[parts[i]] ??= <String, dynamic>{};
           current = current[parts[i]] as Map<String, dynamic>;
         }
-        
+
         // 设置最终值
         current[parts.last] = value;
       } else {
@@ -498,7 +543,7 @@ class _JsonSchemaFormWidgetState extends State<JsonSchemaFormWidget> {
 
   void _showAddTagDialog(String fieldName, List<String> currentTags) {
     final controller = TextEditingController();
-    
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(

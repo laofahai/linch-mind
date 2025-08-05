@@ -18,24 +18,25 @@ class ConnectorConfigScreen extends ConsumerStatefulWidget {
   });
 
   @override
-  ConsumerState<ConnectorConfigScreen> createState() => _ConnectorConfigScreenState();
+  ConsumerState<ConnectorConfigScreen> createState() =>
+      _ConnectorConfigScreenState();
 }
 
 class _ConnectorConfigScreenState extends ConsumerState<ConnectorConfigScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
-  
+
   FormGroup? _form;
   Map<String, dynamic> _configSchema = {};
   Map<String, dynamic> _uiSchema = {};
   Map<String, dynamic> _currentConfig = {};
   Map<String, dynamic> _defaultConfig = {};
-  
+
   bool _isLoading = true;
   bool _isSaving = false;
   String? _errorMessage;
   List<String> _validationErrors = [];
-  
+
   @override
   void initState() {
     super.initState();
@@ -58,38 +59,40 @@ class _ConnectorConfigScreenState extends ConsumerState<ConnectorConfigScreen>
 
     try {
       final configService = ref.read(connectorConfigApiClientProvider);
-      
+
       // 并行加载schema和当前配置
       final results = await Future.wait([
         configService.getConfigSchema(widget.connectorId),
         configService.getCurrentConfig(widget.connectorId),
       ]);
-      
+
       final schemaResponse = results[0];
       final configResponse = results[1];
-      
+
       if (schemaResponse.success && configResponse.success) {
         final schemaData = schemaResponse.data as Map<String, dynamic>? ?? {};
         final configData = configResponse.data as Map<String, dynamic>? ?? {};
-        
+
         _configSchema = schemaData['schema'] as Map<String, dynamic>? ?? {};
         _uiSchema = schemaData['ui_schema'] as Map<String, dynamic>? ?? {};
-        _defaultConfig = schemaData['default_values'] as Map<String, dynamic>? ?? {};
+        _defaultConfig =
+            schemaData['default_values'] as Map<String, dynamic>? ?? {};
         _currentConfig = configData['config'] as Map<String, dynamic>? ?? {};
-        
+
         // 构建reactive form
         _form = FormBuilderService.buildFormFromSchema(
           schema: _configSchema,
           initialData: _currentConfig,
           uiSchema: _uiSchema,
         );
-        
+
         setState(() {
           _isLoading = false;
         });
       } else {
         setState(() {
-          _errorMessage = schemaResponse.message ?? configResponse.message ?? '加载配置失败';
+          _errorMessage =
+              schemaResponse.message ?? configResponse.message ?? '加载配置失败';
           _isLoading = false;
         });
       }
@@ -118,44 +121,45 @@ class _ConnectorConfigScreenState extends ConsumerState<ConnectorConfigScreen>
     try {
       final configService = ref.read(connectorConfigApiClientProvider);
       final formData = FormBuilderService.extractFormData(_form!);
-      
+
       // 先验证配置
       final validationResponse = await configService.validateConfig(
         widget.connectorId,
         formData,
       );
-      
-      final validationData = validationResponse.data as Map<String, dynamic>? ?? {};
-      if (!validationResponse.success || !(validationData['valid'] as bool? ?? false)) {
+
+      final validationData =
+          validationResponse.data as Map<String, dynamic>? ?? {};
+      if (!validationResponse.success ||
+          !(validationData['valid'] as bool? ?? false)) {
         setState(() {
-          _validationErrors = List<String>.from(validationData['errors'] as List? ?? []);
+          _validationErrors =
+              List<String>.from(validationData['errors'] as List? ?? []);
           _isSaving = false;
         });
-        
+
         _showValidationErrorDialog();
         return;
       }
-      
+
       // 保存配置
       final saveResponse = await configService.updateConfig(
         widget.connectorId,
         formData,
         changeReason: '用户界面更新',
       );
-      
+
       if (saveResponse.success) {
         // 更新当前配置
         setState(() {
           _currentConfig = Map<String, dynamic>.from(formData);
           _isSaving = false;
         });
-        
+
         final saveData = saveResponse.data as Map<String, dynamic>? ?? {};
-        _showSuccessSnackBar(
-          (saveData['hot_reload_applied'] as bool? ?? false)
-              ? '配置已保存并热重载成功'
-              : '配置已保存，需要重启连接器生效'
-        );
+        _showSuccessSnackBar((saveData['hot_reload_applied'] as bool? ?? false)
+            ? '配置已保存并热重载成功'
+            : '配置已保存，需要重启连接器生效');
       } else {
         setState(() {
           _errorMessage = saveResponse.message ?? '保存配置失败';
@@ -172,9 +176,9 @@ class _ConnectorConfigScreenState extends ConsumerState<ConnectorConfigScreen>
 
   List<String> _extractValidationErrors() {
     if (_form == null) return [];
-    
+
     final errors = <String>[];
-    
+
     void collectErrors(AbstractControl control, String path) {
       if (control.hasErrors) {
         for (final error in control.errors.entries) {
@@ -215,7 +219,7 @@ class _ConnectorConfigScreenState extends ConsumerState<ConnectorConfigScreen>
           }
         }
       }
-      
+
       if (control is FormGroup) {
         for (final entry in control.controls.entries) {
           final childPath = path.isEmpty ? entry.key : '$path.${entry.key}';
@@ -228,7 +232,7 @@ class _ConnectorConfigScreenState extends ConsumerState<ConnectorConfigScreen>
         }
       }
     }
-    
+
     collectErrors(_form!, '');
     return errors;
   }
@@ -238,7 +242,7 @@ class _ConnectorConfigScreenState extends ConsumerState<ConnectorConfigScreen>
       '重置配置',
       '确定要将配置重置为默认值吗？此操作不可撤销。',
     );
-    
+
     if (confirmed && _form != null) {
       // 重新构建表单使用默认值
       _form!.dispose();
@@ -263,16 +267,16 @@ class _ConnectorConfigScreenState extends ConsumerState<ConnectorConfigScreen>
             const Text('请修复以下错误：'),
             const SizedBox(height: 8),
             ..._validationErrors.map((error) => Padding(
-              padding: const EdgeInsets.only(bottom: 4),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Icon(Icons.error, color: Colors.red, size: 16),
-                  const SizedBox(width: 8),
-                  Expanded(child: Text(error)),
-                ],
-              ),
-            )),
+                  padding: const EdgeInsets.only(bottom: 4),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Icon(Icons.error, color: Colors.red, size: 16),
+                      const SizedBox(width: 8),
+                      Expanded(child: Text(error)),
+                    ],
+                  ),
+                )),
           ],
         ),
         actions: [
@@ -424,7 +428,7 @@ class _ConnectorConfigScreenState extends ConsumerState<ConnectorConfigScreen>
 
   Widget _buildConfigTab() {
     final sections = _uiSchema['ui:sections'] as Map<String, dynamic>? ?? {};
-    
+
     if (sections.isEmpty) {
       return _buildBasicConfigForm();
     }
@@ -439,14 +443,15 @@ class _ConnectorConfigScreenState extends ConsumerState<ConnectorConfigScreen>
         children: sections.entries.map((entry) {
           final sectionId = entry.key;
           final sectionConfig = entry.value as Map<String, dynamic>;
-          
+
           return _buildConfigSection(sectionId, sectionConfig);
         }).toList(),
       ),
     );
   }
 
-  Widget _buildConfigSection(String sectionId, Map<String, dynamic> sectionConfig) {
+  Widget _buildConfigSection(
+      String sectionId, Map<String, dynamic> sectionConfig) {
     final title = sectionConfig['ui:title'] as String? ?? sectionId;
     final description = sectionConfig['ui:description'] as String?;
     final collapsible = sectionConfig['ui:collapsible'] as bool? ?? false;
@@ -456,15 +461,17 @@ class _ConnectorConfigScreenState extends ConsumerState<ConnectorConfigScreen>
     Widget content = Column(
       children: fields.entries.map((fieldEntry) {
         final fieldName = fieldEntry.key;
-        final fieldSchema = _configSchema['properties']?[fieldName] as Map<String, dynamic>? ?? {};
-        
+        final fieldSchema =
+            _configSchema['properties']?[fieldName] as Map<String, dynamic>? ??
+                {};
+
         // 合并schema和UI配置
         final mergedConfig = FormBuilderService.getFieldUIConfig(
           fieldName,
           fieldSchema,
           _uiSchema,
         );
-        
+
         return Padding(
           padding: const EdgeInsets.only(bottom: 16),
           child: ReactiveConfigWidgets.buildFieldWidget(
@@ -515,21 +522,22 @@ class _ConnectorConfigScreenState extends ConsumerState<ConnectorConfigScreen>
   }
 
   Widget _buildBasicConfigForm() {
-    final properties = _configSchema['properties'] as Map<String, dynamic>? ?? {};
-    
+    final properties =
+        _configSchema['properties'] as Map<String, dynamic>? ?? {};
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
         children: properties.entries.map((entry) {
           final fieldName = entry.key;
           final fieldSchema = entry.value as Map<String, dynamic>;
-          
+
           final mergedConfig = FormBuilderService.getFieldUIConfig(
             fieldName,
             fieldSchema,
             _uiSchema,
           );
-          
+
           return Padding(
             padding: const EdgeInsets.only(bottom: 16),
             child: ReactiveConfigWidgets.buildFieldWidget(
@@ -549,7 +557,7 @@ class _ConnectorConfigScreenState extends ConsumerState<ConnectorConfigScreen>
     }
 
     final currentData = FormBuilderService.extractFormData(_form!);
-    
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -577,7 +585,7 @@ class _ConnectorConfigScreenState extends ConsumerState<ConnectorConfigScreen>
             ),
           ),
           const SizedBox(height: 24),
-          
+
           // 配置差异对比
           if (_hasConfigChanges()) ...[
             Text(
@@ -602,7 +610,7 @@ class _ConnectorConfigScreenState extends ConsumerState<ConnectorConfigScreen>
               ),
             ),
           ],
-          
+
           // 表单验证状态
           const SizedBox(height: 24),
           Text(
@@ -642,7 +650,8 @@ class _ConnectorConfigScreenState extends ConsumerState<ConnectorConfigScreen>
                         child: Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Icon(Icons.error, color: Colors.red, size: 16),
+                            const Icon(Icons.error,
+                                color: Colors.red, size: 16),
                             const SizedBox(width: 8),
                             Expanded(child: Text(error)),
                           ],
@@ -665,27 +674,27 @@ class _ConnectorConfigScreenState extends ConsumerState<ConnectorConfigScreen>
     }
 
     final hasChanges = _hasConfigChanges();
-    
+
     if (!hasChanges) {
       return const SizedBox.shrink();
     }
 
     return FloatingActionButton.extended(
       onPressed: _isSaving ? null : _validateAndSaveConfig,
-      icon: _isSaving 
+      icon: _isSaving
           ? const SizedBox(
               width: 16,
-                  height: 16,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                )
-              : const Icon(Icons.save),
-          label: Text(_isSaving ? '保存中...' : '保存配置'),
-        );
+              height: 16,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            )
+          : const Icon(Icons.save),
+      label: Text(_isSaving ? '保存中...' : '保存配置'),
+    );
   }
 
   bool _hasConfigChanges() {
     if (_form == null) return false;
-    
+
     final currentData = FormBuilderService.extractFormData(_form!);
     return currentData.toString() != _currentConfig.toString();
   }
@@ -696,23 +705,23 @@ class _ConnectorConfigScreenState extends ConsumerState<ConnectorConfigScreen>
 
   String _getConfigDiff() {
     if (_form == null) return '无变更';
-    
+
     final formData = FormBuilderService.extractFormData(_form!);
     final changes = <String>[];
-    
+
     for (final key in formData.keys) {
       if (formData[key] != _currentConfig[key]) {
         changes.add('$key: ${_currentConfig[key]} → ${formData[key]}');
       }
     }
-    
+
     // 检查删除的键
     for (final key in _currentConfig.keys) {
       if (!formData.containsKey(key)) {
         changes.add('$key: ${_currentConfig[key]} → (已删除)');
       }
     }
-    
+
     return changes.isEmpty ? '无变更' : changes.join('\n');
   }
 

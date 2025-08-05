@@ -46,27 +46,30 @@ class ConnectorManagementScreen extends ConsumerStatefulWidget {
   const ConnectorManagementScreen({super.key});
 
   @override
-  ConsumerState<ConnectorManagementScreen> createState() => _ConnectorManagementScreenState();
+  ConsumerState<ConnectorManagementScreen> createState() =>
+      _ConnectorManagementScreenState();
 }
 
-class _ConnectorManagementScreenState extends ConsumerState<ConnectorManagementScreen> with TickerProviderStateMixin {
+class _ConnectorManagementScreenState
+    extends ConsumerState<ConnectorManagementScreen>
+    with TickerProviderStateMixin {
   final _apiClient = ConnectorLifecycleApiService.instance;
-  
+
   // Tab控制器
   late TabController _tabController;
-  
+
   // 已安装连接器数据
   List<ConnectorInfo> _installedConnectors = [];
   bool _installedLoading = true;
   String? _installedErrorMessage;
   String _installedSearchQuery = '';
-  
+
   // 市场连接器数据
   List<ConnectorDefinition> _marketConnectors = [];
   bool _marketLoading = false;
   String? _marketErrorMessage;
   String _marketSearchQuery = '';
-  
+
   // 筛选器
   InstalledConnectorFilter _installedFilter = InstalledConnectorFilter.all;
   InstalledConnectorSort _installedSort = InstalledConnectorSort.status;
@@ -108,7 +111,7 @@ class _ConnectorManagementScreenState extends ConsumerState<ConnectorManagementS
 
   Future<void> _loadMarketConnectors() async {
     if (_marketConnectors.isNotEmpty) return; // 已加载过
-    
+
     setState(() {
       _marketLoading = true;
       _marketErrorMessage = null;
@@ -119,7 +122,7 @@ class _ConnectorManagementScreenState extends ConsumerState<ConnectorManagementS
       // 临时使用mock数据
       await Future.delayed(const Duration(seconds: 1));
       final mockMarketConnectors = _generateMockMarketConnectors();
-      
+
       setState(() {
         _marketConnectors = mockMarketConnectors;
         _marketLoading = false;
@@ -206,14 +209,14 @@ class _ConnectorManagementScreenState extends ConsumerState<ConnectorManagementS
           return false;
         }
       }
-      
+
       // 状态过滤
       switch (_installedFilter) {
         case InstalledConnectorFilter.running:
           if (connector.state != ConnectorState.running) return false;
           break;
         case InstalledConnectorFilter.stopped:
-          if (connector.state != ConnectorState.configured && 
+          if (connector.state != ConnectorState.configured &&
               connector.state != ConnectorState.enabled) {
             return false;
           }
@@ -230,7 +233,7 @@ class _ConnectorManagementScreenState extends ConsumerState<ConnectorManagementS
         case InstalledConnectorFilter.all:
           break;
       }
-      
+
       return true;
     }).toList();
 
@@ -239,7 +242,7 @@ class _ConnectorManagementScreenState extends ConsumerState<ConnectorManagementS
       switch (_installedSort) {
         case InstalledConnectorSort.status:
           const stateOrder = {
-            ConnectorState.error: 0,      // 错误优先
+            ConnectorState.error: 0, // 错误优先
             ConnectorState.running: 1,
             ConnectorState.enabled: 2,
             ConnectorState.configured: 3,
@@ -263,13 +266,13 @@ class _ConnectorManagementScreenState extends ConsumerState<ConnectorManagementS
           if (result != 0) return result;
           break;
       }
-      
+
       return a.displayName.compareTo(b.displayName);
     });
 
     return filtered;
   }
-  
+
   List<ConnectorDefinition> get _filteredMarketConnectors {
     var filtered = _marketConnectors.where((connector) {
       // 搜索过滤
@@ -281,15 +284,17 @@ class _ConnectorManagementScreenState extends ConsumerState<ConnectorManagementS
           return false;
         }
       }
-      
+
       // 分类过滤
       if (_marketCategory != MarketConnectorCategory.all) {
         final categoryName = _getMarketCategoryName(_marketCategory);
-        if (!connector.category.toLowerCase().contains(categoryName.toLowerCase())) {
+        if (!connector.category
+            .toLowerCase()
+            .contains(categoryName.toLowerCase())) {
           return false;
         }
       }
-      
+
       return true;
     }).toList();
 
@@ -298,8 +303,10 @@ class _ConnectorManagementScreenState extends ConsumerState<ConnectorManagementS
       switch (_marketSort) {
         case MarketConnectorSort.recommended:
           // Mock: 官方的排前面
-          if (a.author == 'Linch Mind Team' && b.author != 'Linch Mind Team') return -1;
-          if (b.author == 'Linch Mind Team' && a.author != 'Linch Mind Team') return 1;
+          if (a.author == 'Linch Mind Team' && b.author != 'Linch Mind Team')
+            return -1;
+          if (b.author == 'Linch Mind Team' && a.author != 'Linch Mind Team')
+            return 1;
           break;
         case MarketConnectorSort.newest:
           // Mock: 按版本号排序
@@ -314,7 +321,7 @@ class _ConnectorManagementScreenState extends ConsumerState<ConnectorManagementS
 
     return filtered;
   }
-  
+
   String _getMarketCategoryName(MarketConnectorCategory category) {
     switch (category) {
       case MarketConnectorCategory.filesystem:
@@ -384,7 +391,7 @@ class _ConnectorManagementScreenState extends ConsumerState<ConnectorManagementS
       ],
     );
   }
-  
+
   Widget _buildMarketConnectorsTab() {
     return Column(
       children: [
@@ -478,7 +485,7 @@ class _ConnectorManagementScreenState extends ConsumerState<ConnectorManagementS
       ),
     );
   }
-  
+
   Widget _buildMarketSearchAndCategory() {
     return Container(
       padding: const EdgeInsets.all(16),
@@ -559,12 +566,19 @@ class _ConnectorManagementScreenState extends ConsumerState<ConnectorManagementS
     if (_installedLoading || _installedConnectors.isEmpty) {
       return const SizedBox.shrink();
     }
-    
-    final runningCount = _installedConnectors.where((c) => c.state == ConnectorState.running).length;
-    final errorCount = _installedConnectors.where((c) => c.state == ConnectorState.error).length;
-    final stoppedCount = _installedConnectors.where((c) => 
-        c.state == ConnectorState.configured || c.state == ConnectorState.enabled).length;
-    
+
+    final runningCount = _installedConnectors
+        .where((c) => c.state == ConnectorState.running)
+        .length;
+    final errorCount = _installedConnectors
+        .where((c) => c.state == ConnectorState.error)
+        .length;
+    final stoppedCount = _installedConnectors
+        .where((c) =>
+            c.state == ConnectorState.configured ||
+            c.state == ConnectorState.enabled)
+        .length;
+
     return Container(
       padding: const EdgeInsets.all(16),
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -595,8 +609,9 @@ class _ConnectorManagementScreenState extends ConsumerState<ConnectorManagementS
       ),
     );
   }
-  
-  Widget _buildStatusIndicator({required IconData icon, required String label, required Color color}) {
+
+  Widget _buildStatusIndicator(
+      {required IconData icon, required String label, required Color color}) {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -605,13 +620,13 @@ class _ConnectorManagementScreenState extends ConsumerState<ConnectorManagementS
         Text(
           label,
           style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-            fontWeight: FontWeight.w500,
-          ),
+                fontWeight: FontWeight.w500,
+              ),
         ),
       ],
     );
   }
-  
+
   Widget _buildMarketCategoryNavigation() {
     final categories = [
       (MarketConnectorCategory.all, Icons.apps, '全部'),
@@ -621,7 +636,7 @@ class _ConnectorManagementScreenState extends ConsumerState<ConnectorManagementS
       (MarketConnectorCategory.development, Icons.code, '开发'),
       (MarketConnectorCategory.productivity, Icons.trending_up, '效率'),
     ];
-    
+
     return Container(
       height: 60,
       padding: const EdgeInsets.symmetric(vertical: 8),
@@ -632,7 +647,7 @@ class _ConnectorManagementScreenState extends ConsumerState<ConnectorManagementS
         itemBuilder: (context, index) {
           final (category, icon, label) = categories[index];
           final isSelected = _marketCategory == category;
-          
+
           return Padding(
             padding: const EdgeInsets.only(right: 12),
             child: FilterChip(
@@ -650,7 +665,7 @@ class _ConnectorManagementScreenState extends ConsumerState<ConnectorManagementS
       ),
     );
   }
-  
+
   Widget _buildInstalledContent() {
     if (_installedLoading) {
       return const Center(
@@ -672,8 +687,8 @@ class _ConnectorManagementScreenState extends ConsumerState<ConnectorManagementS
             Text(
               _installedErrorMessage!,
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                color: Theme.of(context).colorScheme.error,
-              ),
+                    color: Theme.of(context).colorScheme.error,
+                  ),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 16),
@@ -702,20 +717,25 @@ class _ConnectorManagementScreenState extends ConsumerState<ConnectorManagementS
             Text(
               _installedConnectors.isEmpty ? '还没有安装连接器' : '没有找到匹配的连接器',
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                color: Theme.of(context).disabledColor,
-              ),
+                    color: Theme.of(context).disabledColor,
+                  ),
             ),
             const SizedBox(height: 8),
             Text(
-              _installedConnectors.isEmpty ? '试试从"发现更多"中安装，或添加本地连接器' : '调整搜索条件或筛选器',
+              _installedConnectors.isEmpty
+                  ? '试试从"发现更多"中安装，或添加本地连接器'
+                  : '调整搜索条件或筛选器',
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: Theme.of(context).disabledColor,
-              ),
+                    color: Theme.of(context).disabledColor,
+                  ),
             ),
             const SizedBox(height: 16),
             ElevatedButton.icon(
-              onPressed: _installedConnectors.isEmpty ? () => _tabController.animateTo(1) : _refreshInstalledConnectors,
-              icon: Icon(_installedConnectors.isEmpty ? Icons.store : Icons.refresh),
+              onPressed: _installedConnectors.isEmpty
+                  ? () => _tabController.animateTo(1)
+                  : _refreshInstalledConnectors,
+              icon: Icon(
+                  _installedConnectors.isEmpty ? Icons.store : Icons.refresh),
               label: Text(_installedConnectors.isEmpty ? '发现连接器' : '刷新列表'),
             ),
           ],
@@ -735,7 +755,7 @@ class _ConnectorManagementScreenState extends ConsumerState<ConnectorManagementS
       ),
     );
   }
-  
+
   Widget _buildMarketContent() {
     if (_marketLoading) {
       return const Center(
@@ -764,8 +784,8 @@ class _ConnectorManagementScreenState extends ConsumerState<ConnectorManagementS
             Text(
               _marketErrorMessage!,
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                color: Theme.of(context).colorScheme.error,
-              ),
+                    color: Theme.of(context).colorScheme.error,
+                  ),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 16),
@@ -794,15 +814,15 @@ class _ConnectorManagementScreenState extends ConsumerState<ConnectorManagementS
             Text(
               '没有找到匹配的连接器',
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                color: Theme.of(context).disabledColor,
-              ),
+                    color: Theme.of(context).disabledColor,
+                  ),
             ),
             const SizedBox(height: 8),
             Text(
               '尝试调整搜索词或选择不同的分类',
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: Theme.of(context).disabledColor,
-              ),
+                    color: Theme.of(context).disabledColor,
+                  ),
             ),
           ],
         ),
@@ -825,7 +845,7 @@ class _ConnectorManagementScreenState extends ConsumerState<ConnectorManagementS
   Widget _buildInstalledConnectorCard(ConnectorInfo connector) {
     final isRunning = connector.state == ConnectorState.running;
     final hasError = connector.state == ConnectorState.error;
-    
+
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       child: Padding(
@@ -838,11 +858,13 @@ class _ConnectorManagementScreenState extends ConsumerState<ConnectorManagementS
               height: 12,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: hasError ? Colors.red : (isRunning ? Colors.green : Colors.grey),
+                color: hasError
+                    ? Colors.red
+                    : (isRunning ? Colors.green : Colors.grey),
               ),
             ),
             const SizedBox(width: 16),
-            
+
             // 连接器信息
             Expanded(
               child: Column(
@@ -851,15 +873,19 @@ class _ConnectorManagementScreenState extends ConsumerState<ConnectorManagementS
                   Text(
                     connector.displayName,
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
+                          fontWeight: FontWeight.w600,
+                        ),
                   ),
                   const SizedBox(height: 4),
                   Text(
                     _getConnectorDescription(connector),
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: Theme.of(context).textTheme.bodySmall?.color?.withValues(alpha: 0.7),
-                    ),
+                          color: Theme.of(context)
+                              .textTheme
+                              .bodySmall
+                              ?.color
+                              ?.withValues(alpha: 0.7),
+                        ),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -878,17 +904,19 @@ class _ConnectorManagementScreenState extends ConsumerState<ConnectorManagementS
                 ],
               ),
             ),
-            
+
             const SizedBox(width: 16),
-            
+
             // 快速启动/停用开关
             Switch(
               value: isRunning,
-              onChanged: hasError ? null : (enabled) => _toggleConnector(connector, enabled),
+              onChanged: hasError
+                  ? null
+                  : (enabled) => _toggleConnector(connector, enabled),
             ),
-            
+
             const SizedBox(width: 8),
-            
+
             // 设置按钮
             IconButton(
               icon: const Icon(Icons.settings),
@@ -902,8 +930,9 @@ class _ConnectorManagementScreenState extends ConsumerState<ConnectorManagementS
   }
 
   Widget _buildMarketConnectorCard(ConnectorDefinition connector) {
-    final isInstalled = _installedConnectors.any((c) => c.collectorId == connector.connectorId);
-    
+    final isInstalled =
+        _installedConnectors.any((c) => c.collectorId == connector.connectorId);
+
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       child: Padding(
@@ -933,15 +962,16 @@ class _ConnectorManagementScreenState extends ConsumerState<ConnectorManagementS
                     children: [
                       Text(
                         connector.displayName,
-                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w600,
-                        ),
+                        style:
+                            Theme.of(context).textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                ),
                       ),
                       Text(
                         '${connector.category} • v${connector.version}',
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: Theme.of(context).disabledColor,
-                        ),
+                              color: Theme.of(context).disabledColor,
+                            ),
                       ),
                     ],
                   ),
@@ -949,7 +979,8 @@ class _ConnectorManagementScreenState extends ConsumerState<ConnectorManagementS
                 if (connector.author == 'Linch Mind Team')
                   Chip(
                     label: const Text('官方', style: TextStyle(fontSize: 12)),
-                    backgroundColor: Theme.of(context).colorScheme.secondaryContainer,
+                    backgroundColor:
+                        Theme.of(context).colorScheme.secondaryContainer,
                     materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   ),
               ],
@@ -967,37 +998,34 @@ class _ConnectorManagementScreenState extends ConsumerState<ConnectorManagementS
                 Text(
                   'by ${connector.author}',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Theme.of(context).disabledColor,
-                  ),
+                        color: Theme.of(context).disabledColor,
+                      ),
                 ),
                 const Spacer(),
-                if (isInstalled) ...
-                  [
-                    Icon(
-                      Icons.check_circle,
-                      size: 16,
-                      color: Colors.green,
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      '已安装',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: Colors.green,
-                      ),
-                    ),
-                  ]
-                else ...
-                  [
-                    TextButton(
-                      onPressed: () => _showMarketConnectorDetails(connector),
-                      child: const Text('查看详情'),
-                    ),
-                    const SizedBox(width: 8),
-                    ElevatedButton(
-                      onPressed: () => _installMarketConnector(connector),
-                      child: const Text('安装'),
-                    ),
-                  ],
+                if (isInstalled) ...[
+                  Icon(
+                    Icons.check_circle,
+                    size: 16,
+                    color: Colors.green,
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    '已安装',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: Colors.green,
+                        ),
+                  ),
+                ] else ...[
+                  TextButton(
+                    onPressed: () => _showMarketConnectorDetails(connector),
+                    child: const Text('查看详情'),
+                  ),
+                  const SizedBox(width: 8),
+                  ElevatedButton(
+                    onPressed: () => _installMarketConnector(connector),
+                    child: const Text('安装'),
+                  ),
+                ],
               ],
             ),
           ],
@@ -1006,7 +1034,6 @@ class _ConnectorManagementScreenState extends ConsumerState<ConnectorManagementS
     );
   }
 
-  
   IconData _getCategoryIcon(String category) {
     switch (category.toLowerCase()) {
       case '文件':
@@ -1026,7 +1053,7 @@ class _ConnectorManagementScreenState extends ConsumerState<ConnectorManagementS
         return Icons.extension;
     }
   }
-  
+
   String _getInstalledFilterName(InstalledConnectorFilter filter) {
     switch (filter) {
       case InstalledConnectorFilter.all:
@@ -1043,7 +1070,7 @@ class _ConnectorManagementScreenState extends ConsumerState<ConnectorManagementS
         return '无数据';
     }
   }
-  
+
   String _getInstalledSortName(InstalledConnectorSort sort) {
     switch (sort) {
       case InstalledConnectorSort.status:
@@ -1056,7 +1083,7 @@ class _ConnectorManagementScreenState extends ConsumerState<ConnectorManagementS
         return '按最后活跃';
     }
   }
-  
+
   String _getMarketCategoryDisplayName(MarketConnectorCategory category) {
     switch (category) {
       case MarketConnectorCategory.all:
@@ -1073,7 +1100,7 @@ class _ConnectorManagementScreenState extends ConsumerState<ConnectorManagementS
         return '效率工具';
     }
   }
-  
+
   String _getMarketSortName(MarketConnectorSort sort) {
     switch (sort) {
       case MarketConnectorSort.recommended:
@@ -1086,8 +1113,6 @@ class _ConnectorManagementScreenState extends ConsumerState<ConnectorManagementS
         return '评分最高';
     }
   }
-
-
 
   Future<void> _showAddConnectorDialog() async {
     String? selectedPath;
@@ -1113,8 +1138,8 @@ class _ConnectorManagementScreenState extends ConsumerState<ConnectorManagementS
                     Text(
                       '支持选择连接器根目录或具体连接器目录\n例如: connectors/ 或 connectors/official/filesystem',
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: Theme.of(context).disabledColor,
-                      ),
+                            color: Theme.of(context).disabledColor,
+                          ),
                     ),
                     const SizedBox(height: 12),
                     Row(
@@ -1123,58 +1148,71 @@ class _ConnectorManagementScreenState extends ConsumerState<ConnectorManagementS
                           child: Text(
                             selectedPath ?? '未选择目录',
                             style: TextStyle(
-                              color: selectedPath != null 
-                                ? Theme.of(context).textTheme.bodyMedium?.color 
-                                : Theme.of(context).disabledColor,
+                              color: selectedPath != null
+                                  ? Theme.of(context)
+                                      .textTheme
+                                      .bodyMedium
+                                      ?.color
+                                  : Theme.of(context).disabledColor,
                             ),
                           ),
                         ),
                         ElevatedButton(
-                          onPressed: isScanning ? null : () async {
-                            try {
-                              String? directoryPath = await FilePicker.platform.getDirectoryPath(
-                                dialogTitle: '选择连接器目录（支持根目录或具体连接器目录）',
-                              );
-                              
-                              if (directoryPath != null) {
-                                setDialogState(() {
-                                  selectedPath = directoryPath;
-                                  errorMessage = null;
-                                });
-                                
-                                // 自动触发扫描
-                                if (selectedPath != null) {
-                                  Future.delayed(const Duration(milliseconds: 100), () async {
-                                    setDialogState(() {
-                                      isScanning = true;
-                                      errorMessage = null;
-                                      availableConnectors = [];
-                                    });
+                          onPressed: isScanning
+                              ? null
+                              : () async {
+                                  try {
+                                    String? directoryPath = await FilePicker
+                                        .platform
+                                        .getDirectoryPath(
+                                      dialogTitle: '选择连接器目录（支持根目录或具体连接器目录）',
+                                    );
 
-                                    try {
-                                      final response = await _apiClient.scanConnectorDirectory(selectedPath!);
+                                    if (directoryPath != null) {
                                       setDialogState(() {
-                                        availableConnectors = response.connectors;
-                                        isScanning = false;
-                                        if (availableConnectors.isEmpty) {
-                                          errorMessage = '该目录中未发现有效的连接器。\n请确保所选目录包含 connector.json 文件，或选择包含连接器子目录的父目录。';
-                                        }
+                                        selectedPath = directoryPath;
+                                        errorMessage = null;
                                       });
-                                    } catch (e) {
-                                      setDialogState(() {
-                                        errorMessage = '扫描目录失败: $e';
-                                        isScanning = false;
-                                      });
+
+                                      // 自动触发扫描
+                                      if (selectedPath != null) {
+                                        Future.delayed(
+                                            const Duration(milliseconds: 100),
+                                            () async {
+                                          setDialogState(() {
+                                            isScanning = true;
+                                            errorMessage = null;
+                                            availableConnectors = [];
+                                          });
+
+                                          try {
+                                            final response = await _apiClient
+                                                .scanConnectorDirectory(
+                                                    selectedPath!);
+                                            setDialogState(() {
+                                              availableConnectors =
+                                                  response.connectors;
+                                              isScanning = false;
+                                              if (availableConnectors.isEmpty) {
+                                                errorMessage =
+                                                    '该目录中未发现有效的连接器。\n请确保所选目录包含 connector.json 文件，或选择包含连接器子目录的父目录。';
+                                              }
+                                            });
+                                          } catch (e) {
+                                            setDialogState(() {
+                                              errorMessage = '扫描目录失败: $e';
+                                              isScanning = false;
+                                            });
+                                          }
+                                        });
+                                      }
                                     }
-                                  });
-                                }
-                              }
-                            } catch (e) {
-                              setDialogState(() {
-                                errorMessage = '选择目录失败: $e';
-                              });
-                            }
-                          },
+                                  } catch (e) {
+                                    setDialogState(() {
+                                      errorMessage = '选择目录失败: $e';
+                                    });
+                                  }
+                                },
                           child: const Text('选择目录'),
                         ),
                       ],
@@ -1217,9 +1255,11 @@ class _ConnectorManagementScreenState extends ConsumerState<ConnectorManagementS
                             return Card(
                               child: ListTile(
                                 title: Text(type.displayName),
-                                subtitle: Text('ID: ${type.connectorId}\n版本: ${type.version}'),
+                                subtitle: Text(
+                                    'ID: ${type.connectorId}\n版本: ${type.version}'),
                                 trailing: ElevatedButton(
-                                  onPressed: () => _createConnectorInstance(type),
+                                  onPressed: () =>
+                                      _createConnectorInstance(type),
                                   child: const Text('创建'),
                                 ),
                               ),
@@ -1247,11 +1287,11 @@ class _ConnectorManagementScreenState extends ConsumerState<ConnectorManagementS
   Future<void> _createConnectorInstance(ConnectorDefinition type) async {
     try {
       final config = <String, dynamic>{};
-      
+
       if (type.path != null) {
         config['path'] = type.path;
       }
-      
+
       final request = CreateConnectorRequest(
         connectorId: type.connectorId,
         displayName: type.displayName,
@@ -1260,7 +1300,7 @@ class _ConnectorManagementScreenState extends ConsumerState<ConnectorManagementS
       );
 
       await _apiClient.createConnector(request);
-      
+
       if (mounted) {
         Navigator.of(context).pop();
         ScaffoldMessenger.of(context).showSnackBar(
@@ -1279,13 +1319,14 @@ class _ConnectorManagementScreenState extends ConsumerState<ConnectorManagementS
       }
     }
   }
-  
-  Future<void> _showMarketConnectorDetails(ConnectorDefinition connector) async {
+
+  Future<void> _showMarketConnectorDetails(
+      ConnectorDefinition connector) async {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text('${connector.displayName} 详情功能开发中...')),
     );
   }
-  
+
   Future<void> _installMarketConnector(ConnectorDefinition connector) async {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text('安装 ${connector.displayName} 功能开发中...')),
@@ -1346,9 +1387,8 @@ class _ConnectorManagementScreenState extends ConsumerState<ConnectorManagementS
         ),
       ),
     );
-    
+
     // 配置界面返回后刷新连接器列表
     await _refreshInstalledConnectors();
   }
-
 }

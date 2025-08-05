@@ -45,8 +45,12 @@ class ConnectorDefinition with _$ConnectorDefinition {
     @JsonKey(name: 'entry_point') @Default('main.py') String entryPoint,
     @Default([]) List<String> dependencies,
     @Default([]) List<String> permissions,
-    @JsonKey(name: 'config_schema') @Default({}) Map<String, dynamic> configSchema,
-    @JsonKey(name: 'default_config') @Default({}) Map<String, dynamic> defaultConfig,
+    @JsonKey(name: 'config_schema')
+    @Default({})
+    Map<String, dynamic> configSchema,
+    @JsonKey(name: 'default_config')
+    @Default({})
+    Map<String, dynamic> defaultConfig,
     // 添加path字段来直接处理路径信息
     String? path,
     @JsonKey(name: 'is_registered') bool? isRegistered,
@@ -204,7 +208,9 @@ class ConnectorStatesOverview with _$ConnectorStatesOverview {
   const factory ConnectorStatesOverview({
     required bool success,
     required StateOverview overview,
-    @JsonKey(name: 'running_instances') @Default([]) List<String> runningInstances,
+    @JsonKey(name: 'running_instances')
+    @Default([])
+    List<String> runningInstances,
   }) = _ConnectorStatesOverview;
 
   factory ConnectorStatesOverview.fromJson(Map<String, dynamic> json) =>
@@ -217,7 +223,8 @@ class StateOverview with _$StateOverview {
   const factory StateOverview({
     @JsonKey(name: 'total_instances') required int totalInstances,
     @JsonKey(name: 'running_instances') required int runningInstances,
-    @JsonKey(name: 'state_distribution') required Map<String, int> stateDistribution,
+    @JsonKey(name: 'state_distribution')
+    required Map<String, int> stateDistribution,
   }) = _StateOverview;
 
   factory StateOverview.fromJson(Map<String, dynamic> json) =>
@@ -244,7 +251,9 @@ class DiscoveryResponse with _$DiscoveryResponse {
   const factory DiscoveryResponse({
     required bool success,
     required String message,
-    @JsonKey(name: 'connectors') @Default([]) List<ConnectorDefinition> connectors,
+    @JsonKey(name: 'connectors')
+    @Default([])
+    List<ConnectorDefinition> connectors,
   }) = _DiscoveryResponse;
 
   factory DiscoveryResponse.fromJson(Map<String, dynamic> json) =>
@@ -275,7 +284,6 @@ class ConnectorDetailResponse with _$ConnectorDetailResponse {
   factory ConnectorDetailResponse.fromJson(Map<String, dynamic> json) =>
       _$ConnectorDetailResponseFromJson(json);
 }
-
 
 /// 操作响应（启动、停止、重启等）
 @freezed

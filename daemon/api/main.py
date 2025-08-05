@@ -24,6 +24,7 @@ from api.dependencies import get_config_manager, cleanup_services
 from api.routers import health
 from api.routers.connector_lifecycle_api import router as connector_lifecycle_router
 from api.routers.connector_config_api import router as connector_config_router
+from api.routers.system_config_api import router as system_config_router
 
 # 初始化配置和日志
 config_manager = get_config_manager()
@@ -162,11 +163,13 @@ def create_app() -> FastAPI:
     app.include_router(health.router)
     app.include_router(connector_lifecycle_router)  # 连接器生命周期API
     app.include_router(connector_config_router)     # 连接器配置管理API
+    app.include_router(system_config_router)        # 系统配置API (包括Registry)
     
     logger.info("📍 路由注册完成:")
     logger.info("   - Health: / /health /server/info")
     logger.info("   - Connector Lifecycle: /connector-lifecycle/*")
     logger.info("   - Connector Config: /connector-config/*")
+    logger.info("   - System Config: /api/system/config/*")
 
     return app
 

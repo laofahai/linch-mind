@@ -6,7 +6,8 @@ import '../services/connector_lifecycle_api_client.dart';
 import '../services/daemon_lifecycle_service.dart';
 
 // 主题管理提供者
-final themeModeProvider = StateNotifierProvider<ThemeModeNotifier, ThemeMode>((ref) {
+final themeModeProvider =
+    StateNotifierProvider<ThemeModeNotifier, ThemeMode>((ref) {
   return ThemeModeNotifier();
 });
 
@@ -33,12 +34,14 @@ class ThemeModeNotifier extends StateNotifier<ThemeMode> {
 }
 
 // 连接器生命周期API客户端提供者
-final connectorLifecycleApiProvider = Provider<ConnectorLifecycleApiClient>((ref) {
+final connectorLifecycleApiProvider =
+    Provider<ConnectorLifecycleApiClient>((ref) {
   return ConnectorLifecycleApiService.instance;
 });
 
 // 连接器定义提供者
-final connectorDefinitionsProvider = FutureProvider<List<ConnectorDefinition>>((ref) async {
+final connectorDefinitionsProvider =
+    FutureProvider<List<ConnectorDefinition>>((ref) async {
   final apiClient = ref.watch(connectorLifecycleApiProvider);
   final response = await apiClient.discoverConnectors();
   return response.connectors;
@@ -56,7 +59,7 @@ final backgroundDaemonInitProvider = FutureProvider<bool>((ref) async {
   try {
     final daemonService = DaemonLifecycleService.instance;
     print('[BackgroundInit] 开始后台daemon初始化');
-    
+
     final result = await daemonService.ensureDaemonRunning();
     if (result.success) {
       print('[BackgroundInit] Daemon启动成功');
@@ -65,7 +68,9 @@ final backgroundDaemonInitProvider = FutureProvider<bool>((ref) async {
       return true;
     } else {
       print('[BackgroundInit] Daemon启动失败: ${result.error}');
-      ref.read(appStateProvider.notifier).setError(result.error ?? 'Daemon启动失败');
+      ref
+          .read(appStateProvider.notifier)
+          .setError(result.error ?? 'Daemon启动失败');
       return false;
     }
   } catch (e) {
@@ -81,7 +86,8 @@ final healthCheckProvider = FutureProvider<bool>((ref) async {
     final apiClient = ref.watch(connectorLifecycleApiProvider);
     // 使用简单的连接器列表API来检查连通性，避免复杂的健康检查模型解析
     final response = await apiClient.getConnectors();
-    print('[HealthCheck] Success: ${response.success}, Connectors: ${response.collectors.length}');
+    print(
+        '[HealthCheck] Success: ${response.success}, Connectors: ${response.collectors.length}');
     return response.success;
   } catch (e) {
     print('[HealthCheck] Error: $e');
@@ -90,7 +96,8 @@ final healthCheckProvider = FutureProvider<bool>((ref) async {
 });
 
 // 应用状态提供者
-final appStateProvider = StateNotifierProvider<AppStateNotifier, AppState>((ref) {
+final appStateProvider =
+    StateNotifierProvider<AppStateNotifier, AppState>((ref) {
   return AppStateNotifier();
 });
 
@@ -121,10 +128,11 @@ class AppState {
 
 // 应用状态通知器
 class AppStateNotifier extends StateNotifier<AppState> {
-  AppStateNotifier() : super(AppState(
-    isConnected: false,
-    lastUpdate: DateTime.now(),
-  ));
+  AppStateNotifier()
+      : super(AppState(
+          isConnected: false,
+          lastUpdate: DateTime.now(),
+        ));
 
   void setConnected(bool connected) {
     state = state.copyWith(
@@ -151,8 +159,12 @@ class AppStateNotifier extends StateNotifier<AppState> {
 }
 
 // 连接器实例状态管理提供者
-final connectorInstanceStateProvider = StateNotifierProvider.family<ConnectorInstanceStateNotifier, ConnectorInstanceState, String>((ref, instanceId) {
-  return ConnectorInstanceStateNotifier(ref.watch(connectorLifecycleApiProvider), instanceId);
+final connectorInstanceStateProvider = StateNotifierProvider.family<
+    ConnectorInstanceStateNotifier,
+    ConnectorInstanceState,
+    String>((ref, instanceId) {
+  return ConnectorInstanceStateNotifier(
+      ref.watch(connectorLifecycleApiProvider), instanceId);
 });
 
 class ConnectorInstanceState {
@@ -182,14 +194,16 @@ class ConnectorInstanceState {
   }
 }
 
-class ConnectorInstanceStateNotifier extends StateNotifier<ConnectorInstanceState> {
+class ConnectorInstanceStateNotifier
+    extends StateNotifier<ConnectorInstanceState> {
   final ConnectorLifecycleApiClient apiClient;
   final String instanceId;
 
-  ConnectorInstanceStateNotifier(this.apiClient, this.instanceId) : super(ConnectorInstanceState(
-    instanceId: instanceId,
-    state: ConnectorState.configured,
-  ));
+  ConnectorInstanceStateNotifier(this.apiClient, this.instanceId)
+      : super(ConnectorInstanceState(
+          instanceId: instanceId,
+          state: ConnectorState.configured,
+        ));
 
   Future<void> startInstance() async {
     state = state.copyWith(isLoading: true, errorMessage: null);

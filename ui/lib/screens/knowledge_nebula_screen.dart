@@ -6,7 +6,7 @@ class KnowledgeNebulaScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    
+
     return Scaffold(
       body: Center(
         child: Column(
@@ -46,10 +46,12 @@ class KnowledgeNebulaScreen extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 12),
-                    _buildFeatureItem(context, Icons.account_tree_outlined, '知识图谱可视化'),
+                    _buildFeatureItem(
+                        context, Icons.account_tree_outlined, '知识图谱可视化'),
                     _buildFeatureItem(context, Icons.hub_outlined, '关系网络分析'),
                     _buildFeatureItem(context, Icons.explore_outlined, '交互式探索'),
-                    _buildFeatureItem(context, Icons.timeline_outlined, '时间轴视图'),
+                    _buildFeatureItem(
+                        context, Icons.timeline_outlined, '时间轴视图'),
                   ],
                 ),
               ),
@@ -62,7 +64,7 @@ class KnowledgeNebulaScreen extends StatelessWidget {
 
   Widget _buildFeatureItem(BuildContext context, IconData icon, String text) {
     final theme = Theme.of(context);
-    
+
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(

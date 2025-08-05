@@ -60,16 +60,12 @@ class _StatusIndicatorState extends State<StatusIndicator>
 
   @override
   Widget build(BuildContext context) {
-    final statusColor = widget.isConnected 
-        ? Colors.green 
-        : Colors.red;
-    
-    final statusText = widget.customMessage ?? 
+    final statusColor = widget.isConnected ? Colors.green : Colors.red;
+
+    final statusText = widget.customMessage ??
         (widget.isConnected ? 'Connected' : 'Disconnected');
-    
-    final statusIcon = widget.isConnected 
-        ? Icons.cloud_done 
-        : Icons.cloud_off;
+
+    final statusIcon = widget.isConnected ? Icons.cloud_done : Icons.cloud_off;
 
     return GestureDetector(
       onTap: widget.onTap,
@@ -105,9 +101,9 @@ class _StatusIndicatorState extends State<StatusIndicator>
               Text(
                 statusText,
                 style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  color: statusColor,
-                  fontWeight: FontWeight.w600,
-                ),
+                      color: statusColor,
+                      fontWeight: FontWeight.w600,
+                    ),
               ),
             ],
           ),
@@ -143,13 +139,15 @@ class StatusDot extends StatelessWidget {
       decoration: BoxDecoration(
         color: isActive ? active : inactive,
         shape: BoxShape.circle,
-        boxShadow: isActive ? [
-          BoxShadow(
-            color: active.withValues(alpha: 0.5),
-            blurRadius: 4,
-            spreadRadius: 1,
-          ),
-        ] : null,
+        boxShadow: isActive
+            ? [
+                BoxShadow(
+                  color: active.withValues(alpha: 0.5),
+                  blurRadius: 4,
+                  spreadRadius: 1,
+                ),
+              ]
+            : null,
       ),
     );
   }
@@ -178,7 +176,8 @@ class ResponsiveStatusIndicator extends StatelessWidget {
           return GestureDetector(
             onTap: onTap ?? () => _showStatusSnackBar(context),
             child: Tooltip(
-              message: customMessage ?? (isConnected ? 'Connected' : 'Disconnected'),
+              message:
+                  customMessage ?? (isConnected ? 'Connected' : 'Disconnected'),
               child: StatusDot(
                 isActive: isConnected,
                 size: 12,
@@ -190,11 +189,13 @@ class ResponsiveStatusIndicator extends StatelessWidget {
           return GestureDetector(
             onTap: onTap ?? () => _showStatusSnackBar(context),
             child: Tooltip(
-              message: customMessage ?? (isConnected ? 'Connected' : 'Disconnected'),
+              message:
+                  customMessage ?? (isConnected ? 'Connected' : 'Disconnected'),
               child: Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: (isConnected ? Colors.green : Colors.red).withValues(alpha: 0.1),
+                  color: (isConnected ? Colors.green : Colors.red)
+                      .withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Icon(
@@ -218,7 +219,8 @@ class ResponsiveStatusIndicator extends StatelessWidget {
   }
 
   void _showStatusSnackBar(BuildContext context) {
-    final statusText = customMessage ?? (isConnected ? 'Connected' : 'Disconnected');
+    final statusText =
+        customMessage ?? (isConnected ? 'Connected' : 'Disconnected');
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Row(
@@ -283,7 +285,8 @@ class StatusCard extends StatelessWidget {
                   ),
                 ),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
                     color: statusColor.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(12),
@@ -300,9 +303,9 @@ class StatusCard extends StatelessWidget {
                       Text(
                         statusText,
                         style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                          color: statusColor,
-                          fontWeight: FontWeight.w600,
-                        ),
+                              color: statusColor,
+                              fontWeight: FontWeight.w600,
+                            ),
                       ),
                     ],
                   ),
@@ -334,8 +337,8 @@ class StatusCard extends StatelessWidget {
                       child: Text(
                         errorMessage!,
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: Colors.red,
-                        ),
+                              color: Colors.red,
+                            ),
                       ),
                     ),
                   ],
@@ -356,8 +359,8 @@ class StatusCard extends StatelessWidget {
                   Text(
                     'Last updated: $lastUpdateTime',
                     style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    ),
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
                   ),
                 ],
               ),

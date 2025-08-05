@@ -64,7 +64,7 @@ void main() {
       // Then: Original should be unchanged (immutability)
       expect(original.isConnected, false);
       expect(original.errorMessage, 'Original error');
-      
+
       // And: Updated should have new values but inherit unchanged fields
       expect(updated.isConnected, true);
       expect(updated.errorMessage, 'Original error'); // Inherited
@@ -88,7 +88,7 @@ void main() {
     test('should initialize with correct business defaults', () {
       // Given: Fresh notifier
       final state = container.read(appStateProvider);
-      
+
       // Then: Should start in disconnected state (business requirement)
       expect(state.isConnected, false);
       expect(state.errorMessage, null);
@@ -96,7 +96,8 @@ void main() {
       expect(state.hasError, false);
     });
 
-    test('should handle connection state changes with proper error clearing', () {
+    test('should handle connection state changes with proper error clearing',
+        () {
       // Given: Initial disconnected state
       var state = container.read(appStateProvider);
       expect(state.isConnected, false);
@@ -113,7 +114,7 @@ void main() {
     test('should set error message when connection fails', () {
       // Given: Connected state
       notifier.setConnected(true);
-      
+
       // When: Connection fails
       notifier.setConnected(false);
       final state = container.read(appStateProvider);
@@ -126,7 +127,7 @@ void main() {
     test('should handle explicit error scenarios', () {
       // Given: Normal state
       const errorMessage = 'API authentication failed';
-      
+
       // When: Setting explicit error
       notifier.setError(errorMessage);
       final state = container.read(appStateProvider);
@@ -141,14 +142,14 @@ void main() {
       // Given: State with an error
       const errorMessage = 'Test error for clearing';
       notifier.setError(errorMessage);
-      
+
       var state = container.read(appStateProvider);
       expect(state.errorMessage, errorMessage);
       expect(state.hasError, true);
 
       // When: Clearing the error
       notifier.clearError();
-      
+
       // Then: Error should be completely cleared
       state = container.read(appStateProvider);
       expect(state.errorMessage, null);
@@ -159,13 +160,13 @@ void main() {
       // Given: Initial state
       final initialState = container.read(appStateProvider);
       final initialTime = initialState.lastUpdate;
-      
+
       // Wait to ensure timestamp difference
       await Future.delayed(const Duration(milliseconds: 10));
-      
+
       // When: Making any state change
       notifier.setConnected(true);
-      
+
       // Then: Timestamp should be updated
       final updatedState = container.read(appStateProvider);
       expect(updatedState.lastUpdate.isAfter(initialTime), true);
@@ -174,14 +175,14 @@ void main() {
     test('should handle rapid state changes gracefully', () async {
       // Given: Initial state
       final initialTime = DateTime.now();
-      
+
       // When: Making rapid state changes
       notifier.setConnected(true);
       notifier.setError('Error 1');
       notifier.clearError();
       notifier.setConnected(false);
       notifier.setError('Error 2');
-      
+
       // Then: Should end in consistent final state
       final finalState = container.read(appStateProvider);
       expect(finalState.isConnected, false);
@@ -210,7 +211,7 @@ void main() {
     test('should provide correct API client instance', () {
       // Given: Container with overridden provider
       final apiClient = container.read(connectorLifecycleApiProvider);
-      
+
       // Then: Should return the mocked instance
       expect(apiClient, equals(mockApiClient));
     });
@@ -262,7 +263,8 @@ void main() {
       );
 
       // When: Reading connector definitions
-      final definitions = await container.read(connectorDefinitionsProvider.future);
+      final definitions =
+          await container.read(connectorDefinitionsProvider.future);
 
       // Then: Should return correct definitions
       expect(definitions, equals(mockDefinitions));
@@ -314,9 +316,8 @@ void main() {
 
     test('should initialize with correct default state', () {
       // Given: Fresh connector instance notifier
-      final state = container.read(
-        connectorInstanceStateProvider(testInstanceId)
-      );
+      final state =
+          container.read(connectorInstanceStateProvider(testInstanceId));
 
       // Then: Should have correct initial state
       expect(state.instanceId, testInstanceId);
@@ -328,20 +329,18 @@ void main() {
     test('should handle start connector operation', () async {
       // Given: Stopped connector instance
       when(mockApiClient.startConnector(testInstanceId))
-        .thenAnswer((_) async => {});
+          .thenAnswer((_) async => {});
 
       // When: Starting the connector
-      final notifier = container.read(
-        connectorInstanceStateProvider(testInstanceId).notifier
-      );
-      
+      final notifier = container
+          .read(connectorInstanceStateProvider(testInstanceId).notifier);
+
       // Should show loading state initially
       final startFuture = notifier.startInstance();
       await Future.delayed(const Duration(milliseconds: 1));
-      
-      var state = container.read(
-        connectorInstanceStateProvider(testInstanceId)
-      );
+
+      var state =
+          container.read(connectorInstanceStateProvider(testInstanceId));
       expect(state.isLoading, true);
       expect(state.errorMessage, null);
 
@@ -349,9 +348,7 @@ void main() {
       await startFuture;
 
       // Then: Should be in running state
-      state = container.read(
-        connectorInstanceStateProvider(testInstanceId)
-      );
+      state = container.read(connectorInstanceStateProvider(testInstanceId));
       expect(state.state, ConnectorState.running);
       expect(state.isLoading, false);
       expect(state.errorMessage, null);
@@ -363,18 +360,16 @@ void main() {
       // Given: API that fails to start connector
       const errorMessage = 'Failed to start connector';
       when(mockApiClient.startConnector(testInstanceId))
-        .thenThrow(Exception(errorMessage));
+          .thenThrow(Exception(errorMessage));
 
       // When: Attempting to start connector
-      final notifier = container.read(
-        connectorInstanceStateProvider(testInstanceId).notifier
-      );
+      final notifier = container
+          .read(connectorInstanceStateProvider(testInstanceId).notifier);
       await notifier.startInstance();
 
       // Then: Should be in error state
-      final state = container.read(
-        connectorInstanceStateProvider(testInstanceId)
-      );
+      final state =
+          container.read(connectorInstanceStateProvider(testInstanceId));
       expect(state.state, ConnectorState.error);
       expect(state.isLoading, false);
       expect(state.errorMessage, contains(errorMessage));
@@ -383,18 +378,16 @@ void main() {
     test('should handle stop connector operation', () async {
       // Given: Running connector instance
       when(mockApiClient.stopConnector(testInstanceId))
-        .thenAnswer((_) async => {});
+          .thenAnswer((_) async => {});
 
       // When: Stopping the connector
-      final notifier = container.read(
-        connectorInstanceStateProvider(testInstanceId).notifier
-      );
+      final notifier = container
+          .read(connectorInstanceStateProvider(testInstanceId).notifier);
       await notifier.stopInstance();
 
       // Then: Should be in enabled state
-      final state = container.read(
-        connectorInstanceStateProvider(testInstanceId)
-      );
+      final state =
+          container.read(connectorInstanceStateProvider(testInstanceId));
       expect(state.state, ConnectorState.enabled);
       expect(state.isLoading, false);
       expect(state.errorMessage, null);
@@ -405,18 +398,16 @@ void main() {
     test('should handle restart connector operation', () async {
       // Given: Running connector that needs restart
       when(mockApiClient.restartConnector(testInstanceId))
-        .thenAnswer((_) async => {});
+          .thenAnswer((_) async => {});
 
       // When: Restarting the connector
-      final notifier = container.read(
-        connectorInstanceStateProvider(testInstanceId).notifier
-      );
+      final notifier = container
+          .read(connectorInstanceStateProvider(testInstanceId).notifier);
       await notifier.restartInstance();
 
       // Then: Should be back in running state
-      final state = container.read(
-        connectorInstanceStateProvider(testInstanceId)
-      );
+      final state =
+          container.read(connectorInstanceStateProvider(testInstanceId));
       expect(state.state, ConnectorState.running);
       expect(state.isLoading, false);
       expect(state.errorMessage, null);

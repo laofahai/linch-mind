@@ -6,13 +6,13 @@ import 'package:file_picker/file_picker.dart';
 class DynamicListWidget extends StatefulWidget {
   /// 列表数据
   final List<Map<String, dynamic>> items;
-  
+
   /// 列表项的JSON Schema定义
   final Map<String, dynamic> itemSchema;
-  
+
   /// Widget配置
   final Map<String, dynamic> widgetConfig;
-  
+
   /// 数据变更回调
   final ValueChanged<List<Map<String, dynamic>>> onChanged;
 
@@ -51,7 +51,7 @@ class _DynamicListWidgetState extends State<DynamicListWidget> {
         // 标题栏
         _buildHeader(config, maxItems),
         const SizedBox(height: 16),
-        
+
         // 列表内容
         if (_items.isEmpty)
           _buildEmptyState(config)
@@ -77,12 +77,12 @@ class _DynamicListWidgetState extends State<DynamicListWidget> {
               Text(
                 config['description'],
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: Colors.grey.shade600,
-                ),
+                      color: Colors.grey.shade600,
+                    ),
               ),
           ],
         ),
-        
+
         // 添加按钮
         if (_items.length < maxItems)
           ElevatedButton.icon(
@@ -102,7 +102,8 @@ class _DynamicListWidgetState extends State<DynamicListWidget> {
       width: double.infinity,
       padding: const EdgeInsets.all(32),
       decoration: BoxDecoration(
-        border: Border.all(color: Colors.grey.shade300, style: BorderStyle.solid),
+        border:
+            Border.all(color: Colors.grey.shade300, style: BorderStyle.solid),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Column(
@@ -115,7 +116,8 @@ class _DynamicListWidgetState extends State<DynamicListWidget> {
           ),
           const SizedBox(height: 8),
           Text(
-            config['empty_hint'] ?? '点击"${config['add_button_text'] ?? '添加项目'}"开始配置',
+            config['empty_hint'] ??
+                '点击"${config['add_button_text'] ?? '添加项目'}"开始配置',
             style: TextStyle(color: Colors.grey.shade500, fontSize: 12),
           ),
         ],
@@ -131,24 +133,28 @@ class _DynamicListWidgetState extends State<DynamicListWidget> {
         itemCount: _items.length,
         onReorder: _reorderItems,
         itemBuilder: (context, index) => _buildItemCard(
-          index, 
-          _items[index], 
+          index,
+          _items[index],
           collapseItems,
           key: ValueKey('item_$index'),
         ),
       );
     } else {
       return Column(
-        children: _items.asMap().entries.map(
-          (entry) => _buildItemCard(entry.key, entry.value, collapseItems),
-        ).toList(),
+        children: _items
+            .asMap()
+            .entries
+            .map(
+              (entry) => _buildItemCard(entry.key, entry.value, collapseItems),
+            )
+            .toList(),
       );
     }
   }
 
   Widget _buildItemCard(
-    int index, 
-    Map<String, dynamic> item, 
+    int index,
+    Map<String, dynamic> item,
     bool collapsible, {
     Key? key,
   }) {
@@ -156,25 +162,25 @@ class _DynamicListWidgetState extends State<DynamicListWidget> {
     final titleTemplate = config['item_title_template'] ?? '';
     final subtitleTemplate = config['item_subtitle_template'] ?? '';
     final showIndex = config['show_item_index'] ?? true;
-    
+
     // 渲染标题和副标题模板
-    final title = _renderTemplate(titleTemplate, item) ?? 
-                  (showIndex ? '项目 ${index + 1}' : '项目');
+    final title = _renderTemplate(titleTemplate, item) ??
+        (showIndex ? '项目 ${index + 1}' : '项目');
     final subtitle = _renderTemplate(subtitleTemplate, item);
 
     return Card(
       key: key,
       margin: const EdgeInsets.only(bottom: 12),
-      child: collapsible 
-        ? _buildCollapsibleItem(index, item, title, subtitle)
-        : _buildExpandedItem(index, item, title, subtitle),
+      child: collapsible
+          ? _buildCollapsibleItem(index, item, title, subtitle)
+          : _buildExpandedItem(index, item, title, subtitle),
     );
   }
 
   Widget _buildCollapsibleItem(
-    int index, 
-    Map<String, dynamic> item, 
-    String title, 
+    int index,
+    Map<String, dynamic> item,
+    String title,
     String? subtitle,
   ) {
     return ExpansionTile(
@@ -203,9 +209,9 @@ class _DynamicListWidgetState extends State<DynamicListWidget> {
   }
 
   Widget _buildExpandedItem(
-    int index, 
-    Map<String, dynamic> item, 
-    String title, 
+    int index,
+    Map<String, dynamic> item,
+    String title,
     String? subtitle,
   ) {
     return Padding(
@@ -264,19 +270,20 @@ class _DynamicListWidgetState extends State<DynamicListWidget> {
   }
 
   Widget _buildItemForm(int index, Map<String, dynamic> item) {
-    final properties = widget.itemSchema['properties'] as Map<String, dynamic>? ?? {};
-    
+    final properties =
+        widget.itemSchema['properties'] as Map<String, dynamic>? ?? {};
+
     return Column(
       children: properties.entries.map((entry) {
         final fieldName = entry.key;
         final fieldSchema = entry.value as Map<String, dynamic>;
-        
+
         return Padding(
           padding: const EdgeInsets.only(bottom: 16),
           child: _buildFormField(
-            index, 
-            fieldName, 
-            fieldSchema, 
+            index,
+            fieldName,
+            fieldSchema,
             item[fieldName],
           ),
         );
@@ -297,21 +304,28 @@ class _DynamicListWidgetState extends State<DynamicListWidget> {
 
     switch (widget ?? _getDefaultWidget(fieldType)) {
       case 'switch':
-        return _buildSwitchField(index, fieldName, title, description, currentValue);
+        return _buildSwitchField(
+            index, fieldName, title, description, currentValue);
       case 'directory_picker':
-        return _buildDirectoryPickerField(index, fieldName, title, description, currentValue, fieldSchema['widget_config']);
+        return _buildDirectoryPickerField(index, fieldName, title, description,
+            currentValue, fieldSchema['widget_config']);
       case 'tags_input':
-        return _buildTagsInputField(index, fieldName, title, description, currentValue, fieldSchema);
+        return _buildTagsInputField(
+            index, fieldName, title, description, currentValue, fieldSchema);
       case 'slider':
-        return _buildSliderField(index, fieldName, title, description, currentValue, fieldSchema);
+        return _buildSliderField(
+            index, fieldName, title, description, currentValue, fieldSchema);
       case 'conditional_section':
-        return _buildConditionalSection(index, fieldName, title, description, currentValue, fieldSchema);
+        return _buildConditionalSection(
+            index, fieldName, title, description, currentValue, fieldSchema);
       default:
-        return _buildTextInputField(index, fieldName, title, description, currentValue);
+        return _buildTextInputField(
+            index, fieldName, title, description, currentValue);
     }
   }
 
-  Widget _buildSwitchField(int index, String fieldName, String title, String? description, dynamic currentValue) {
+  Widget _buildSwitchField(int index, String fieldName, String title,
+      String? description, dynamic currentValue) {
     return SwitchListTile(
       title: Text(title),
       subtitle: description != null ? Text(description) : null,
@@ -320,7 +334,8 @@ class _DynamicListWidgetState extends State<DynamicListWidget> {
     );
   }
 
-  Widget _buildTextInputField(int index, String fieldName, String title, String? description, dynamic currentValue) {
+  Widget _buildTextInputField(int index, String fieldName, String title,
+      String? description, dynamic currentValue) {
     return TextFormField(
       initialValue: currentValue?.toString() ?? '',
       decoration: InputDecoration(
@@ -333,10 +348,10 @@ class _DynamicListWidgetState extends State<DynamicListWidget> {
   }
 
   Widget _buildDirectoryPickerField(
-    int index, 
-    String fieldName, 
-    String title, 
-    String? description, 
+    int index,
+    String fieldName,
+    String title,
+    String? description,
     dynamic currentValue,
     Map<String, dynamic>? widgetConfig,
   ) {
@@ -364,39 +379,42 @@ class _DynamicListWidgetState extends State<DynamicListWidget> {
   }
 
   Widget _buildTagsInputField(
-    int index, 
-    String fieldName, 
-    String title, 
-    String? description, 
+    int index,
+    String fieldName,
+    String title,
+    String? description,
     dynamic currentValue,
     Map<String, dynamic> fieldSchema,
   ) {
     final tags = List<String>.from(currentValue ?? []);
-    final widgetConfig = fieldSchema['widget_config'] as Map<String, dynamic>? ?? {};
-    final predefinedTags = List<String>.from(widgetConfig['predefined_tags'] ?? []);
-    
+    final widgetConfig =
+        fieldSchema['widget_config'] as Map<String, dynamic>? ?? {};
+    final predefinedTags =
+        List<String>.from(widgetConfig['predefined_tags'] ?? []);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(title, style: const TextStyle(fontWeight: FontWeight.w500)),
         if (description != null)
-          Text(description, style: TextStyle(color: Colors.grey.shade600, fontSize: 12)),
+          Text(description,
+              style: TextStyle(color: Colors.grey.shade600, fontSize: 12)),
         const SizedBox(height: 8),
         Wrap(
           spacing: 8,
           runSpacing: 4,
           children: [
             ...tags.map((tag) => Chip(
-              label: Text(tag),
-              deleteIcon: const Icon(Icons.close, size: 16),
-              onDeleted: () => _removeTag(index, fieldName, tag, tags),
-            )),
-            ...predefinedTags.where((tag) => !tags.contains(tag)).map((tag) => 
-              ActionChip(
-                label: Text(tag),
-                onPressed: () => _addTag(index, fieldName, tag, tags),
-              ),
-            ),
+                  label: Text(tag),
+                  deleteIcon: const Icon(Icons.close, size: 16),
+                  onDeleted: () => _removeTag(index, fieldName, tag, tags),
+                )),
+            ...predefinedTags.where((tag) => !tags.contains(tag)).map(
+                  (tag) => ActionChip(
+                    label: Text(tag),
+                    onPressed: () => _addTag(index, fieldName, tag, tags),
+                  ),
+                ),
             ActionChip(
               label: const Text('+ 自定义'),
               onPressed: () => _showAddTagDialog(index, fieldName, tags),
@@ -408,10 +426,10 @@ class _DynamicListWidgetState extends State<DynamicListWidget> {
   }
 
   Widget _buildSliderField(
-    int index, 
-    String fieldName, 
-    String title, 
-    String? description, 
+    int index,
+    String fieldName,
+    String title,
+    String? description,
     dynamic currentValue,
     Map<String, dynamic> fieldSchema,
   ) {
@@ -419,9 +437,11 @@ class _DynamicListWidgetState extends State<DynamicListWidget> {
     final max = (fieldSchema['maximum'] ?? 100).toDouble();
     final divisions = fieldSchema['divisions'] as int?;
     final value = (currentValue ?? min).toDouble();
-    final widgetConfig = fieldSchema['widget_config'] as Map<String, dynamic>? ?? {};
-    final specialValues = widgetConfig['special_values'] as Map<String, dynamic>? ?? {};
-    
+    final widgetConfig =
+        fieldSchema['widget_config'] as Map<String, dynamic>? ?? {};
+    final specialValues =
+        widgetConfig['special_values'] as Map<String, dynamic>? ?? {};
+
     String getLabel(double val) {
       final intVal = val.round();
       if (specialValues.containsKey(intVal.toString())) {
@@ -430,47 +450,50 @@ class _DynamicListWidgetState extends State<DynamicListWidget> {
       final unit = widgetConfig['unit'] ?? '';
       return '$intVal$unit';
     }
-    
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(title, style: const TextStyle(fontWeight: FontWeight.w500)),
         if (description != null)
-          Text(description, style: TextStyle(color: Colors.grey.shade600, fontSize: 12)),
+          Text(description,
+              style: TextStyle(color: Colors.grey.shade600, fontSize: 12)),
         Slider(
           value: value.clamp(min, max),
           min: min,
           max: max,
           divisions: divisions,
           label: getLabel(value),
-          onChanged: (newValue) => _updateItem(index, {fieldName: newValue.round()}),
+          onChanged: (newValue) =>
+              _updateItem(index, {fieldName: newValue.round()}),
         ),
       ],
     );
   }
 
   Widget _buildConditionalSection(
-    int index, 
-    String fieldName, 
-    String title, 
-    String? description, 
+    int index,
+    String fieldName,
+    String title,
+    String? description,
     dynamic currentValue,
     Map<String, dynamic> fieldSchema,
   ) {
-    final widgetConfig = fieldSchema['widget_config'] as Map<String, dynamic>? ?? {};
+    final widgetConfig =
+        fieldSchema['widget_config'] as Map<String, dynamic>? ?? {};
     final condition = widgetConfig['condition'] as Map<String, dynamic>? ?? {};
     final conditionField = condition['field'] as String? ?? '';
     final conditionValue = condition['value'];
-    
+
     // 检查条件是否满足
     final shouldShow = _items[index][conditionField] == conditionValue;
-    
+
     if (!shouldShow) {
       return const SizedBox.shrink();
     }
-    
+
     final properties = fieldSchema['properties'] as Map<String, dynamic>? ?? {};
-    
+
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -496,14 +519,16 @@ class _DynamicListWidgetState extends State<DynamicListWidget> {
           ),
           if (description != null) ...[
             const SizedBox(height: 4),
-            Text(description, style: TextStyle(color: Colors.blue.shade600, fontSize: 12)),
+            Text(description,
+                style: TextStyle(color: Colors.blue.shade600, fontSize: 12)),
           ],
           const SizedBox(height: 12),
           ...properties.entries.map((entry) {
             final subFieldName = entry.key;
             final subFieldSchema = entry.value as Map<String, dynamic>;
-            final subCurrentValue = (currentValue as Map<String, dynamic>?)?[subFieldName];
-            
+            final subCurrentValue =
+                (currentValue as Map<String, dynamic>?)?[subFieldName];
+
             return Padding(
               padding: const EdgeInsets.only(bottom: 12),
               child: _buildFormField(
@@ -521,26 +546,30 @@ class _DynamicListWidgetState extends State<DynamicListWidget> {
 
   String _getDefaultWidget(String fieldType) {
     switch (fieldType) {
-      case 'boolean': return 'switch';
+      case 'boolean':
+        return 'switch';
       case 'integer':
-      case 'number': return 'number_input';
-      case 'array': return 'tags_input';
-      default: return 'text_input';
+      case 'number':
+        return 'number_input';
+      case 'array':
+        return 'tags_input';
+      default:
+        return 'text_input';
     }
   }
 
   String? _renderTemplate(String template, Map<String, dynamic> item) {
     if (template.isEmpty) return null;
-    
+
     String result = template;
     final regex = RegExp(r'\{\{([^}]+)\}\}');
-    
+
     for (final match in regex.allMatches(template)) {
       final expression = match.group(1)?.trim() ?? '';
       final value = _evaluateExpression(expression, item);
       result = result.replaceAll(match.group(0)!, value?.toString() ?? '');
     }
-    
+
     return result.isNotEmpty ? result : null;
   }
 
@@ -557,20 +586,21 @@ class _DynamicListWidgetState extends State<DynamicListWidget> {
         }
       }
     }
-    
+
     return item[expression];
   }
 
   void _addItem() {
     final defaultValues = <String, dynamic>{};
-    final properties = widget.itemSchema['properties'] as Map<String, dynamic>? ?? {};
-    
+    final properties =
+        widget.itemSchema['properties'] as Map<String, dynamic>? ?? {};
+
     // 根据schema设置默认值
     for (final entry in properties.entries) {
       final fieldSchema = entry.value as Map<String, dynamic>;
       defaultValues[entry.key] = fieldSchema['default'];
     }
-    
+
     setState(() {
       _items.add(defaultValues);
     });
@@ -600,13 +630,13 @@ class _DynamicListWidgetState extends State<DynamicListWidget> {
         if (entry.key.contains('.')) {
           final parts = entry.key.split('.');
           Map<String, dynamic> current = _items[index];
-          
+
           // 导航到嵌套对象
           for (int i = 0; i < parts.length - 1; i++) {
             current[parts[i]] ??= <String, dynamic>{};
             current = current[parts[i]] as Map<String, dynamic>;
           }
-          
+
           // 设置最终值
           current[parts.last] = entry.value;
         } else {
@@ -624,19 +654,22 @@ class _DynamicListWidgetState extends State<DynamicListWidget> {
     }
   }
 
-  void _addTag(int index, String fieldName, String tag, List<String> currentTags) {
+  void _addTag(
+      int index, String fieldName, String tag, List<String> currentTags) {
     final newTags = [...currentTags, tag];
     _updateItem(index, {fieldName: newTags});
   }
 
-  void _removeTag(int index, String fieldName, String tag, List<String> currentTags) {
+  void _removeTag(
+      int index, String fieldName, String tag, List<String> currentTags) {
     final newTags = currentTags.where((t) => t != tag).toList();
     _updateItem(index, {fieldName: newTags});
   }
 
-  void _showAddTagDialog(int index, String fieldName, List<String> currentTags) {
+  void _showAddTagDialog(
+      int index, String fieldName, List<String> currentTags) {
     final controller = TextEditingController();
-    
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(

@@ -46,7 +46,7 @@ class ResponsiveNavigation extends StatelessWidget {
 
   Widget _buildSideNavigation(BuildContext context) {
     final theme = Theme.of(context);
-    
+
     return Container(
       width: 78,
       decoration: BoxDecoration(
@@ -68,7 +68,7 @@ class ResponsiveNavigation extends StatelessWidget {
               itemBuilder: (context, index) {
                 final destination = destinations[index];
                 final isSelected = currentIndex == index;
-                
+
                 return _buildSideNavigationItem(
                   context,
                   destination,
@@ -90,7 +90,7 @@ class ResponsiveNavigation extends StatelessWidget {
     VoidCallback onTap,
   ) {
     final theme = Theme.of(context);
-    
+
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       child: Material(
@@ -101,9 +101,9 @@ class ResponsiveNavigation extends StatelessWidget {
           child: Container(
             padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
             decoration: BoxDecoration(
-              color: isSelected 
-                ? theme.colorScheme.secondaryContainer
-                : Colors.transparent,
+              color: isSelected
+                  ? theme.colorScheme.secondaryContainer
+                  : Colors.transparent,
               borderRadius: BorderRadius.circular(8),
             ),
             child: Column(
@@ -111,22 +111,22 @@ class ResponsiveNavigation extends StatelessWidget {
               children: [
                 IconTheme(
                   data: IconThemeData(
-                    color: isSelected 
-                      ? theme.colorScheme.onSecondaryContainer
-                      : theme.colorScheme.onSurfaceVariant,
+                    color: isSelected
+                        ? theme.colorScheme.onSecondaryContainer
+                        : theme.colorScheme.onSurfaceVariant,
                     size: 20,
                   ),
-                  child: isSelected 
-                    ? (destination.selectedIcon ?? destination.icon)
-                    : destination.icon,
+                  child: isSelected
+                      ? (destination.selectedIcon ?? destination.icon)
+                      : destination.icon,
                 ),
                 const SizedBox(height: 2),
                 Text(
                   destination.label,
                   style: theme.textTheme.labelSmall?.copyWith(
-                    color: isSelected 
-                      ? theme.colorScheme.onSecondaryContainer
-                      : theme.colorScheme.onSurfaceVariant,
+                    color: isSelected
+                        ? theme.colorScheme.onSecondaryContainer
+                        : theme.colorScheme.onSurfaceVariant,
                     fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
                     fontSize: 10,
                   ),
@@ -172,7 +172,7 @@ class ResponsiveLayout extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         final isDesktop = constraints.maxWidth >= 800;
-        
+
         if (isDesktop) {
           // 桌面端：侧边导航
           return Scaffold(

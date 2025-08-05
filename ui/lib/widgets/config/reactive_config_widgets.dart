@@ -12,7 +12,7 @@ class ReactiveConfigWidgets {
     required BuildContext context,
   }) {
     final widgetType = FormBuilderService.inferWidgetType(fieldConfig);
-    
+
     switch (widgetType) {
       case 'text_input':
         return _buildTextInput(fieldName, fieldConfig);
@@ -84,18 +84,19 @@ class ReactiveConfigWidgets {
   }
 
   /// 数字输入框
-  static Widget _buildNumberInput(String fieldName, Map<String, dynamic> config) {
+  static Widget _buildNumberInput(
+      String fieldName, Map<String, dynamic> config) {
     final isInteger = config['type'] == 'integer';
-    
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         ReactiveTextField<num>(
           formControlName: fieldName,
-          keyboardType: isInteger 
-              ? TextInputType.number 
+          keyboardType: isInteger
+              ? TextInputType.number
               : const TextInputType.numberWithOptions(decimal: true),
-          inputFormatters: isInteger 
+          inputFormatters: isInteger
               ? [FilteringTextInputFormatter.digitsOnly]
               : [FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*'))],
           decoration: InputDecoration(
@@ -128,7 +129,7 @@ class ReactiveConfigWidgets {
     final maximum = (config['maximum'] ?? 100).toDouble();
     final step = (config['ui:step'] ?? 1.0).toDouble();
     final unit = config['ui:unit'] as String?;
-    
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -149,7 +150,8 @@ class ReactiveConfigWidgets {
           min: minimum,
           max: maximum,
           divisions: ((maximum - minimum) / step).round(),
-          labelBuilder: (value) => '${value.toStringAsFixed(step < 1 ? 1 : 0)}${unit ?? ''}',
+          labelBuilder: (value) =>
+              '${value.toStringAsFixed(step < 1 ? 1 : 0)}${unit ?? ''}',
         ),
         // 数字输入框用于精确输入
         Row(
@@ -159,7 +161,8 @@ class ReactiveConfigWidgets {
               width: 100,
               child: ReactiveTextField<num>(
                 formControlName: fieldName,
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                keyboardType:
+                    const TextInputType.numberWithOptions(decimal: true),
                 decoration: InputDecoration(
                   isDense: true,
                   suffixText: unit,
@@ -178,7 +181,7 @@ class ReactiveConfigWidgets {
   static Widget _buildSelect(String fieldName, Map<String, dynamic> config) {
     final enumValues = config['enum'] as List? ?? [];
     final enumNames = config['enumNames'] as List? ?? enumValues;
-    
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -194,8 +197,8 @@ class ReactiveConfigWidgets {
               .entries
               .map((entry) => DropdownMenuItem<String>(
                     value: entry.value.toString(),
-                    child: Text(enumNames.length > entry.key 
-                        ? enumNames[entry.key].toString() 
+                    child: Text(enumNames.length > entry.key
+                        ? enumNames[entry.key].toString()
                         : entry.value.toString()),
                   ))
               .toList(),
@@ -214,7 +217,8 @@ class ReactiveConfigWidgets {
   }
 
   /// 邮箱输入框
-  static Widget _buildEmailInput(String fieldName, Map<String, dynamic> config) {
+  static Widget _buildEmailInput(
+      String fieldName, Map<String, dynamic> config) {
     return ReactiveTextField<String>(
       formControlName: fieldName,
       keyboardType: TextInputType.emailAddress,
@@ -246,7 +250,8 @@ class ReactiveConfigWidgets {
   }
 
   /// 密码输入框
-  static Widget _buildPasswordInput(String fieldName, Map<String, dynamic> config) {
+  static Widget _buildPasswordInput(
+      String fieldName, Map<String, dynamic> config) {
     return _ReactivePasswordField(
       formControlName: fieldName,
       fieldConfig: config,
@@ -254,7 +259,8 @@ class ReactiveConfigWidgets {
   }
 
   /// 数组输入组件
-  static Widget _buildArrayInput(String fieldName, Map<String, dynamic> config) {
+  static Widget _buildArrayInput(
+      String fieldName, Map<String, dynamic> config) {
     return _ReactiveArrayInput(
       formControlName: fieldName,
       fieldConfig: config,
@@ -262,7 +268,8 @@ class ReactiveConfigWidgets {
   }
 
   /// 对象编辑器
-  static Widget _buildObjectEditor(String fieldName, Map<String, dynamic> config) {
+  static Widget _buildObjectEditor(
+      String fieldName, Map<String, dynamic> config) {
     return _ReactiveObjectEditor(
       formControlName: fieldName,
       fieldConfig: config,
@@ -362,9 +369,10 @@ class _TagInputWidgetState extends State<_TagInputWidget> {
 
   @override
   Widget build(BuildContext context) {
-    final predefinedTags = widget.fieldConfig['predefined_tags'] as List<dynamic>? ?? [];
+    final predefinedTags =
+        widget.fieldConfig['predefined_tags'] as List<dynamic>? ?? [];
     final allowCustom = widget.fieldConfig['allow_custom'] as bool? ?? true;
-    
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -372,15 +380,17 @@ class _TagInputWidgetState extends State<_TagInputWidget> {
           widget.fieldConfig['title'] ?? '标签',
           style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
         ),
-        if (widget.fieldConfig['description'] != null || widget.fieldConfig['help_text'] != null) ...[
+        if (widget.fieldConfig['description'] != null ||
+            widget.fieldConfig['help_text'] != null) ...[
           const SizedBox(height: 4),
           Text(
-            widget.fieldConfig['description'] ?? widget.fieldConfig['help_text'],
+            widget.fieldConfig['description'] ??
+                widget.fieldConfig['help_text'],
             style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
           ),
         ],
         const SizedBox(height: 8),
-        
+
         // 预定义标签
         if (predefinedTags.isNotEmpty) ...[
           Text('常用选项:', style: Theme.of(context).textTheme.bodySmall),
@@ -408,7 +418,7 @@ class _TagInputWidgetState extends State<_TagInputWidget> {
           ),
           const SizedBox(height: 12),
         ],
-        
+
         // 自定义输入
         if (allowCustom) ...[
           TextField(
@@ -430,7 +440,7 @@ class _TagInputWidgetState extends State<_TagInputWidget> {
           ),
           const SizedBox(height: 8),
         ],
-        
+
         // 当前标签
         if (_tags.isNotEmpty) ...[
           Text('已选择:', style: Theme.of(context).textTheme.bodySmall),
@@ -529,7 +539,8 @@ class _PasswordInputWidgetState extends State<_PasswordInputWidget> {
       decoration: InputDecoration(
         labelText: widget.fieldConfig['title'],
         hintText: widget.fieldConfig['placeholder'],
-        helperText: widget.fieldConfig['description'] ?? widget.fieldConfig['help_text'],
+        helperText: widget.fieldConfig['description'] ??
+            widget.fieldConfig['help_text'],
         prefixIcon: const Icon(Icons.lock),
         suffixIcon: IconButton(
           icon: Icon(_obscureText ? Icons.visibility : Icons.visibility_off),
@@ -553,7 +564,8 @@ class _PasswordInputWidgetState extends State<_PasswordInputWidget> {
 }
 
 /// 数组输入组件
-class _ReactiveArrayInput extends ReactiveFormField<List<dynamic>, List<dynamic>> {
+class _ReactiveArrayInput
+    extends ReactiveFormField<List<dynamic>, List<dynamic>> {
   final Map<String, dynamic> fieldConfig;
 
   _ReactiveArrayInput({
@@ -612,10 +624,10 @@ class _ArrayInputWidgetState extends State<_ArrayInputWidget> {
   void _addItem() {
     setState(() {
       final items = widget.fieldConfig['items'] as Map<String, dynamic>?;
-      final defaultValue = items?['type'] == 'string' 
-          ? '' 
-          : items?['type'] == 'number' 
-              ? 0 
+      final defaultValue = items?['type'] == 'string'
+          ? ''
+          : items?['type'] == 'number'
+              ? 0
               : null;
       _items.add(defaultValue);
       widget.onChanged(_items);
@@ -654,20 +666,22 @@ class _ArrayInputWidgetState extends State<_ArrayInputWidget> {
             ),
           ],
         ),
-        if (widget.fieldConfig['description'] != null || widget.fieldConfig['help_text'] != null) ...[
+        if (widget.fieldConfig['description'] != null ||
+            widget.fieldConfig['help_text'] != null) ...[
           const SizedBox(height: 4),
           Text(
-            widget.fieldConfig['description'] ?? widget.fieldConfig['help_text'],
+            widget.fieldConfig['description'] ??
+                widget.fieldConfig['help_text'],
             style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
           ),
         ],
         const SizedBox(height: 8),
-        
+
         // 数组项
         ..._items.asMap().entries.map((entry) {
           final index = entry.key;
           final item = entry.value;
-          
+
           return Card(
             margin: const EdgeInsets.only(bottom: 8),
             child: Padding(
@@ -676,7 +690,8 @@ class _ArrayInputWidgetState extends State<_ArrayInputWidget> {
                 children: [
                   Expanded(
                     child: TextField(
-                      controller: TextEditingController(text: item?.toString() ?? ''),
+                      controller:
+                          TextEditingController(text: item?.toString() ?? ''),
                       onChanged: (value) => _updateItem(index, value),
                       decoration: InputDecoration(
                         hintText: '项目 ${index + 1}',
@@ -695,7 +710,7 @@ class _ArrayInputWidgetState extends State<_ArrayInputWidget> {
             ),
           );
         }),
-        
+
         if (widget.errorText != null) ...[
           const SizedBox(height: 8),
           Text(
@@ -712,7 +727,8 @@ class _ArrayInputWidgetState extends State<_ArrayInputWidget> {
 }
 
 /// 对象编辑器
-class _ReactiveObjectEditor extends ReactiveFormField<Map<String, dynamic>, Map<String, dynamic>> {
+class _ReactiveObjectEditor
+    extends ReactiveFormField<Map<String, dynamic>, Map<String, dynamic>> {
   final Map<String, dynamic> fieldConfig;
 
   _ReactiveObjectEditor({
@@ -810,20 +826,22 @@ class _ObjectEditorWidgetState extends State<_ObjectEditorWidget> {
             ),
           ],
         ),
-        if (widget.fieldConfig['description'] != null || widget.fieldConfig['help_text'] != null) ...[
+        if (widget.fieldConfig['description'] != null ||
+            widget.fieldConfig['help_text'] != null) ...[
           const SizedBox(height: 4),
           Text(
-            widget.fieldConfig['description'] ?? widget.fieldConfig['help_text'],
+            widget.fieldConfig['description'] ??
+                widget.fieldConfig['help_text'],
             style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
           ),
         ],
         const SizedBox(height: 8),
-        
+
         // 对象属性
         ..._data.entries.map((entry) {
           final key = entry.key;
           final value = entry.value;
-          
+
           return Card(
             margin: const EdgeInsets.only(bottom: 8),
             child: Padding(
@@ -834,7 +852,8 @@ class _ObjectEditorWidgetState extends State<_ObjectEditorWidget> {
                     flex: 2,
                     child: TextField(
                       controller: TextEditingController(text: key),
-                      onChanged: (newKey) => _updateProperty(key, newKey, value),
+                      onChanged: (newKey) =>
+                          _updateProperty(key, newKey, value),
                       decoration: const InputDecoration(
                         labelText: '属性名',
                         border: OutlineInputBorder(),
@@ -846,8 +865,10 @@ class _ObjectEditorWidgetState extends State<_ObjectEditorWidget> {
                   Expanded(
                     flex: 3,
                     child: TextField(
-                      controller: TextEditingController(text: value?.toString() ?? ''),
-                      onChanged: (newValue) => _updateProperty(key, key, newValue),
+                      controller:
+                          TextEditingController(text: value?.toString() ?? ''),
+                      onChanged: (newValue) =>
+                          _updateProperty(key, key, newValue),
                       decoration: const InputDecoration(
                         labelText: '值',
                         border: OutlineInputBorder(),
@@ -865,7 +886,7 @@ class _ObjectEditorWidgetState extends State<_ObjectEditorWidget> {
             ),
           );
         }),
-        
+
         if (widget.errorText != null) ...[
           const SizedBox(height: 8),
           Text(

@@ -11,7 +11,7 @@ class SettingsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final currentThemeMode = ref.watch(themeModeProvider);
-    
+
     return Scaffold(
       body: ListView(
         padding: const EdgeInsets.all(16),
@@ -25,9 +25,9 @@ class SettingsScreen extends ConsumerWidget {
               _buildThemeSetting(context, ref, currentThemeMode),
             ],
           ),
-          
+
           const SizedBox(height: 24),
-          
+
           // 连接设置
           _buildSettingsSection(
             context,
@@ -46,9 +46,9 @@ class SettingsScreen extends ConsumerWidget {
               ),
             ],
           ),
-          
+
           const SizedBox(height: 24),
-          
+
           // 数据设置
           _buildSettingsSection(
             context,
@@ -75,9 +75,9 @@ class SettingsScreen extends ConsumerWidget {
               ),
             ],
           ),
-          
+
           const SizedBox(height: 24),
-          
+
           // 关于
           _buildSettingsSection(
             context,
@@ -116,7 +116,7 @@ class SettingsScreen extends ConsumerWidget {
     required List<Widget> children,
   }) {
     final theme = Theme.of(context);
-    
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -166,17 +166,21 @@ class SettingsScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildThemeSetting(BuildContext context, WidgetRef ref, ThemeMode currentThemeMode) {
+  Widget _buildThemeSetting(
+      BuildContext context, WidgetRef ref, ThemeMode currentThemeMode) {
     final theme = Theme.of(context);
-    
+
     return ExpansionTile(
       leading: const Icon(Icons.brightness_6_outlined),
       title: const Text('主题模式'),
       subtitle: Text(_getThemeText(currentThemeMode)),
       children: [
-        _buildThemeOption(context, ref, ThemeMode.light, '浅色主题', Icons.light_mode),
-        _buildThemeOption(context, ref, ThemeMode.dark, '深色主题', Icons.dark_mode),
-        _buildThemeOption(context, ref, ThemeMode.system, '跟随系统', Icons.brightness_auto),
+        _buildThemeOption(
+            context, ref, ThemeMode.light, '浅色主题', Icons.light_mode),
+        _buildThemeOption(
+            context, ref, ThemeMode.dark, '深色主题', Icons.dark_mode),
+        _buildThemeOption(
+            context, ref, ThemeMode.system, '跟随系统', Icons.brightness_auto),
       ],
     );
   }
@@ -190,11 +194,12 @@ class SettingsScreen extends ConsumerWidget {
   ) {
     final currentThemeMode = ref.watch(themeModeProvider);
     final isSelected = currentThemeMode == mode;
-    
+
     return ListTile(
       leading: Icon(icon),
       title: Text(title),
-      trailing: isSelected ? const Icon(Icons.check, color: Colors.green) : null,
+      trailing:
+          isSelected ? const Icon(Icons.check, color: Colors.green) : null,
       onTap: () {
         ref.read(themeModeProvider.notifier).setThemeMode(mode);
       },
@@ -211,13 +216,15 @@ class SettingsScreen extends ConsumerWidget {
         return '跟随系统';
     }
   }
-  
+
   Widget _buildDaemonStatusTile(BuildContext context, WidgetRef ref) {
     final daemonState = ref.watch(daemonStateProvider);
-    
+
     return ExpansionTile(
       leading: Icon(
-        daemonState.isRunning ? Icons.cloud_done_outlined : Icons.cloud_off_outlined,
+        daemonState.isRunning
+            ? Icons.cloud_done_outlined
+            : Icons.cloud_off_outlined,
         color: daemonState.isRunning ? Colors.green : Colors.orange,
       ),
       title: const Text('Daemon 状态'),
@@ -231,12 +238,12 @@ class SettingsScreen extends ConsumerWidget {
               // 基本信息
               _buildInfoRow('运行模式', _getModeText(daemonState.mode)),
               _buildInfoRow('状态', daemonState.isRunning ? '运行中' : '未运行'),
-              
+
               if (daemonState.daemonInfo != null) ...[
                 _buildInfoRow('地址', daemonState.daemonInfo!.baseUrl),
                 _buildInfoRow('进程ID', daemonState.daemonInfo!.pid.toString()),
               ],
-              
+
               // 错误信息
               if (daemonState.error != null) ...[
                 const SizedBox(height: 8),
@@ -255,17 +262,21 @@ class SettingsScreen extends ConsumerWidget {
                   ),
                 ),
               ],
-              
+
               // 控制按钮
               const SizedBox(height: 16),
               Row(
                 children: [
                   // 刷新按钮
                   ElevatedButton.icon(
-                    onPressed: daemonState.isLoading ? null : () {
-                      ref.read(daemonStateProvider.notifier).refreshStatus();
-                    },
-                    icon: daemonState.isLoading 
+                    onPressed: daemonState.isLoading
+                        ? null
+                        : () {
+                            ref
+                                .read(daemonStateProvider.notifier)
+                                .refreshStatus();
+                          },
+                    icon: daemonState.isLoading
                         ? const SizedBox(
                             width: 16,
                             height: 16,
@@ -274,32 +285,44 @@ class SettingsScreen extends ConsumerWidget {
                         : const Icon(Icons.refresh),
                     label: const Text('刷新'),
                   ),
-                  
+
                   const SizedBox(width: 8),
-                  
+
                   // 开发模式控制按钮
                   if (daemonState.mode == RunMode.development) ...[
                     if (!daemonState.isRunning) ...[
                       ElevatedButton.icon(
-                        onPressed: daemonState.isLoading ? null : () async {
-                          await ref.read(daemonStateProvider.notifier).startDaemon();
-                        },
+                        onPressed: daemonState.isLoading
+                            ? null
+                            : () async {
+                                await ref
+                                    .read(daemonStateProvider.notifier)
+                                    .startDaemon();
+                              },
                         icon: const Icon(Icons.play_arrow),
                         label: const Text('启动'),
                       ),
                     ] else ...[
                       ElevatedButton.icon(
-                        onPressed: daemonState.isLoading ? null : () async {
-                          await ref.read(daemonStateProvider.notifier).stopDaemon();
-                        },
+                        onPressed: daemonState.isLoading
+                            ? null
+                            : () async {
+                                await ref
+                                    .read(daemonStateProvider.notifier)
+                                    .stopDaemon();
+                              },
                         icon: const Icon(Icons.stop),
                         label: const Text('停止'),
                       ),
                       const SizedBox(width: 8),
                       ElevatedButton.icon(
-                        onPressed: daemonState.isLoading ? null : () async {
-                          await ref.read(daemonStateProvider.notifier).restartDaemon();
-                        },
+                        onPressed: daemonState.isLoading
+                            ? null
+                            : () async {
+                                await ref
+                                    .read(daemonStateProvider.notifier)
+                                    .restartDaemon();
+                              },
                         icon: const Icon(Icons.restart_alt),
                         label: const Text('重启'),
                       ),
@@ -307,7 +330,7 @@ class SettingsScreen extends ConsumerWidget {
                   ],
                 ],
               ),
-              
+
               // 生产模式提示
               if (daemonState.mode == RunMode.production) ...[
                 const SizedBox(height: 12),
@@ -332,7 +355,7 @@ class SettingsScreen extends ConsumerWidget {
       ],
     );
   }
-  
+
   Widget _buildInfoRow(String label, String value) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 2),
@@ -353,14 +376,14 @@ class SettingsScreen extends ConsumerWidget {
       ),
     );
   }
-  
+
   String _getDaemonStatusText(DaemonState state) {
     if (state.isLoading) return '检查中...';
     if (state.isRunning) return '服务正常运行';
     if (state.error != null) return '连接异常';
     return '服务未启动';
   }
-  
+
   String _getModeText(RunMode mode) {
     switch (mode) {
       case RunMode.development:
