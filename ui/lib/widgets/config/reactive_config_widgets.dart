@@ -298,7 +298,7 @@ class _ReactiveTagInput extends ReactiveFormField<List<String>, List<String>> {
               value: field.value ?? [],
               onChanged: field.didChange,
               fieldConfig: fieldConfig,
-              hasError: field.invalid,
+              hasError: field.control.invalid,
               errorText: field.errorText,
             );
           },
@@ -474,7 +474,7 @@ class _ReactivePasswordField extends ReactiveFormField<String, String> {
               value: field.value ?? '',
               onChanged: field.didChange,
               fieldConfig: fieldConfig,
-              hasError: field.invalid,
+              hasError: field.control.invalid,
               errorText: field.errorText,
             );
           },
@@ -566,7 +566,7 @@ class _ReactiveArrayInput extends ReactiveFormField<List<dynamic>, List<dynamic>
               value: field.value ?? [],
               onChanged: field.didChange,
               fieldConfig: fieldConfig,
-              hasError: field.invalid,
+              hasError: field.control.invalid,
               errorText: field.errorText,
             );
           },
@@ -725,7 +725,7 @@ class _ReactiveObjectEditor extends ReactiveFormField<Map<String, dynamic>, Map<
               value: field.value ?? {},
               onChanged: field.didChange,
               fieldConfig: fieldConfig,
-              hasError: field.invalid,
+              hasError: field.control.invalid,
               errorText: field.errorText,
             );
           },

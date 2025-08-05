@@ -664,27 +664,23 @@ class _ConnectorConfigScreenState extends ConsumerState<ConnectorConfigScreen>
       return null;
     }
 
-    return ReactiveFormConsumer(
-      builder: (context, form, child) {
-        final hasChanges = _hasConfigChanges();
-        
-        if (!hasChanges) {
-          return const SizedBox.shrink();
-        }
+    final hasChanges = _hasConfigChanges();
+    
+    if (!hasChanges) {
+      return const SizedBox.shrink();
+    }
 
-        return FloatingActionButton.extended(
-          onPressed: _isSaving ? null : _validateAndSaveConfig,
-          icon: _isSaving 
-              ? const SizedBox(
-                  width: 16,
+    return FloatingActionButton.extended(
+      onPressed: _isSaving ? null : _validateAndSaveConfig,
+      icon: _isSaving 
+          ? const SizedBox(
+              width: 16,
                   height: 16,
                   child: CircularProgressIndicator(strokeWidth: 2),
                 )
               : const Icon(Icons.save),
           label: Text(_isSaving ? '保存中...' : '保存配置'),
         );
-      },
-    );
   }
 
   bool _hasConfigChanges() {

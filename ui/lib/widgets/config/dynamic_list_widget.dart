@@ -102,7 +102,7 @@ class _DynamicListWidgetState extends State<DynamicListWidget> {
       width: double.infinity,
       padding: const EdgeInsets.all(32),
       decoration: BoxDecoration(
-        border: Border.all(color: Colors.grey.shade300, style: BorderStyle.dashed),
+        border: Border.all(color: Colors.grey.shade300, style: BorderStyle.solid),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Column(

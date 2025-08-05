@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "last_updated": "2025-08-05T07:27:49.257340+00:00",
+  "last_updated": "2025-08-05T07:39:22.116775+00:00",
   "connectors": {
     "clipboard": {
       "id": "clipboard",
@@ -31,8 +31,8 @@
         "hot_reload": true
       },
       "config_path": "official/clipboard/connector.json",
-      "last_updated": "2025-08-05T07:27:49.257719+00:00",
-      "action": "updated",
+      "last_updated": "2025-08-05T07:39:22.117615+00:00",
+      "action": "kept",
       "download_url": "https://github.com/unknown/unknown/releases/download/connectors-v124/clipboard-connector.zip"
     },
     "filesystem": {
@@ -65,7 +65,7 @@
         "hot_reload": true
       },
       "config_path": "official/filesystem/connector.json",
-      "last_updated": "2025-08-05T07:27:49.257625+00:00",
+      "last_updated": "2025-08-05T07:39:22.117503+00:00",
       "action": "kept",
       "download_url": "https://github.com/unknown/unknown/releases/download/connectors-v124/filesystem-connector.zip"
     }
