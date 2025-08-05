@@ -1,11 +1,41 @@
 {
   "schema_version": "1.0",
-  "last_updated": "2025-08-04T13:41:08.570270Z",
+  "last_updated": "2025-08-05T00:46:22.664456+00:00",
   "connectors": {
+    "clipboard": {
+      "id": "clipboard",
+      "name": "剪贴板连接器",
+      "version": "0.1.1",
+      "description": "监控系统剪贴板变化，自动记录和索引复制的内容",
+      "author": "Linch Mind Team",
+      "category": "system",
+      "type": "official",
+      "platforms": {
+        "windows": {
+          "min_version": "10"
+        },
+        "macos": {
+          "min_version": "10.15"
+        },
+        "linux": {
+          "min_version": "ubuntu-20.04"
+        }
+      },
+      "permissions": [
+        "system:clipboard",
+        "network:daemon-api"
+      ],
+      "capabilities": {
+        "supports_multiple_instances": false,
+        "max_instances": 1,
+        "hot_reload": true
+      },
+      "config_path": "official/clipboard/connector.json"
+    },
     "filesystem": {
       "id": "filesystem",
       "name": "文件系统连接器",
-      "version": "0.0.2",
+      "version": "0.0.5",
       "description": "实时监控文件系统变化，支持多目录、多规则的智能文件索引",
       "author": "Linch Mind Team",
       "category": "local_files",
@@ -32,41 +62,11 @@
         "hot_reload": true
       },
       "config_path": "official/filesystem/connector.json"
-    },
-    "clipboard": {
-      "id": "clipboard",
-      "name": "剪贴板连接器",
-      "version": "0.1.0",
-      "description": "监控系统剪贴板变化，自动记录和索引复制的内容",
-      "author": "Linch Mind Team",
-      "category": "system",
-      "type": "official",
-      "platforms": {
-        "windows": {
-          "min_version": "10"
-        },
-        "macos": {
-          "min_version": "10.15"
-        },
-        "linux": {
-          "min_version": "ubuntu-20.04"
-        }
-      },
-      "permissions": [
-        "system:clipboard",
-        "network:daemon-api"
-      ],
-      "capabilities": {
-        "supports_multiple_instances": false,
-        "max_instances": 1,
-        "hot_reload": true
-      },
-      "config_path": "official/clipboard/connector.json"
     }
   },
   "metadata": {
-    "repository": "unknown",
-    "commit": "unknown",
+    "repository": "laofahai/linch-mind",
+    "commit": "befe711ef5b55db55209cbf67d5a573daf0d6fc9",
     "total_count": 2
   }
 }
