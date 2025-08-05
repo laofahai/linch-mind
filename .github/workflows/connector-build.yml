@@ -108,7 +108,7 @@ jobs:
 
       - name: Upload artifacts
         if: steps.detect.outputs.changed_connectors != ''
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: connectors-release
           path: |
