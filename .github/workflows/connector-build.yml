@@ -103,89 +103,14 @@ jobs:
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
           git add connectors/
-          git commit -m "chore: auto-update connector versions [skip ci]
-
-Updated connectors: ${{ steps.detect.outputs.changed_connectors }}
-
-🤖 Generated with [Claude Code](https://claude.ai/code)
-
-Co-Authored-By: Claude <noreply@anthropic.com>"
+          git commit -m "chore: auto-update connector versions [skip ci] - Updated: ${{ steps.detect.outputs.changed_connectors }}"
           git push
 
-      - name: Create release tag
-        if: steps.detect.outputs.changed_connectors != ''
-        id: tag
-        run: |
-          # 生成基于时间戳的release标签
-          timestamp=$(date +%Y%m%d-%H%M%S)
-          release_tag="connectors-v${timestamp}"
-          echo "release_tag=$release_tag" >> $GITHUB_OUTPUT
-          
-          # 生成release备注
-          release_notes="# 🔗 连接器发布 v${timestamp}
-          
-          ## 📦 更新的连接器
-          ${{ steps.detect.outputs.changed_connectors }}
-          
-          ## 📋 包含内容
-          - 连接器可执行文件 (各平台)
-          - 连接器注册表 (registry.json)
-          - 版本更新和变更记录
-          
-          ## 🚀 使用方法
-          下载对应平台的连接器可执行文件，按照文档配置即可使用。
-          
-          ---
-          🤖 Generated with [Claude Code](https://claude.ai/code)"
-          
-          echo "release_notes<<EOF" >> $GITHUB_OUTPUT
-          echo "$release_notes" >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
-
-      - name: Create GitHub Release
-        if: steps.detect.outputs.changed_connectors != ''
-        id: create_release
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: ${{ steps.tag.outputs.release_tag }}
-          release_name: "🔗 连接器发布 ${{ steps.tag.outputs.release_tag }}"
-          body: ${{ steps.tag.outputs.release_notes }}
-          draft: false
-          prerelease: false
-
-      - name: Upload release assets
-        if: steps.detect.outputs.changed_connectors != ''
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: connectors/release/registry.json
-          asset_name: registry.json
-          asset_content_type: application/json
-
-      - name: Upload connector binaries
-        if: steps.detect.outputs.changed_connectors != ''
-        run: |
-          # 上传所有构建的连接器二进制文件
-          if [ -d "connectors/release/dist" ]; then
-            for binary in connectors/release/dist/*; do
-              if [ -f "$binary" ]; then
-                echo "📦 Uploading binary: $(basename "$binary")"
-                gh release upload ${{ steps.tag.outputs.release_tag }} "$binary" --clobber
-              fi
-            done
-          fi
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Upload artifacts (backup)
+      - name: Upload artifacts
         if: steps.detect.outputs.changed_connectors != ''
         uses: actions/upload-artifact@v3
         with:
-          name: connectors-release-${{ steps.tag.outputs.release_tag }}
+          name: connectors-release
           path: |
             connectors/release/dist/
             connectors/release/registry.json
