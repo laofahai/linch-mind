@@ -1,0 +1,22 @@
+[flake8]
+max-line-length = 88
+extend-ignore = 
+    E203,  # whitespace before ':'
+    W503,  # line break before binary operator
+    E402,  # module level import not at top of file (common in sys.path modifications)
+    F401,  # imported but unused (may be needed for type checking or future use)
+    E722,  # do not use bare 'except' (sometimes necessary)
+    W291,  # trailing whitespace
+    W293,  # blank line contains whitespace
+    F541,  # f-string is missing placeholders
+    F811,  # redefinition of unused name
+    F841,  # local variable is assigned to but never used
+    E712   # comparison to True should be 'if cond is True:' or 'if cond:'
+exclude = 
+    .git,
+    __pycache__,
+    .pytest_cache,
+    .venv,
+    venv,
+    build,
+    dist
