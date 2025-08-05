@@ -30,10 +30,10 @@ for connector_path in $CONNECTOR_LIST; do
     
     if ../scripts/build/build_connector.sh "$connector_path" "$OUTPUT_DIR"; then
         echo "✅ Successfully built $connector_path"
-        ((success_count++))
+        success_count=$((success_count + 1))
     else
         echo "❌ Failed to build $connector_path"
-        ((fail_count++))
+        fail_count=$((fail_count + 1))
         failed_connectors="$failed_connectors $connector_path"
     fi
 done

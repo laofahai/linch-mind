@@ -2,7 +2,7 @@
 
 高性能C++版本的剪贴板监控连接器，实现从8MB Python版本到50-200KB的大幅度体积优化。
 
-**最新更新**: 修复CI/CD构建流程，确保构建成功状态正确返回。已修复build.sh、build_all.sh和zip命令的exit code问题。
+**最新更新**: 修复CI/CD构建流程，确保构建成功状态正确返回。已修复build.sh、build_all.sh、zip命令和算术运算的exit code问题。
 
 ## 🎯 性能优化成果
 
