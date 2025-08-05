@@ -28,14 +28,21 @@ for connector_path in $CONNECTOR_LIST; do
     echo ""
     echo "=" "Building $connector_path" "="
     
-    if ../scripts/build/build_connector.sh "$connector_path" "$OUTPUT_DIR"; then
+    echo "🔍 DEBUG: About to build connector: $connector_path"
+    ../scripts/build/build_connector.sh "$connector_path" "$OUTPUT_DIR"
+    build_result=$?
+    echo "🔍 DEBUG: Build connector script returned: $build_result"
+    
+    if [ $build_result -eq 0 ]; then
         echo "✅ Successfully built $connector_path"
         ((success_count++))
     else
-        echo "❌ Failed to build $connector_path"
+        echo "❌ Failed to build $connector_path (exit code: $build_result)"
         ((fail_count++))
         failed_connectors="$failed_connectors $connector_path"
     fi
+    
+    echo "🔍 DEBUG: Current counts - success: $success_count, fail: $fail_count"
 done
 
 echo ""
