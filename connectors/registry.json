@@ -1,78 +1,78 @@
 {
-  "schema_version": "1.0",
-  "last_updated": "2025-08-05T06:52:16.421443+00:00",
   "connectors": {
-    "filesystem": {
-      "id": "filesystem",
-      "name": "文件系统连接器",
-      "version": "0.0.5",
-      "description": "实时监控文件系统变化，支持多目录、多规则的智能文件索引",
+    "clipboard": {
+      "action": "updated",
       "author": "Linch Mind Team",
-      "category": "local_files",
-      "type": "official",
+      "capabilities": {
+        "hot_reload": true,
+        "max_instances": 1,
+        "supports_multiple_instances": false
+      },
+      "category": "system",
+      "config_path": "official/clipboard/connector.json",
+      "description": "高性能C++版本剪贴板监控连接器，体积小巧，资源占用低，监控系统剪贴板变化并自动记录和索引复制的内容",
+      "download_url": "https://github.com/laofahai/linch-mind/releases/download/connectors-v999/clipboard-connector.zip",
+      "id": "clipboard",
+      "last_updated": "2025-08-05T08:34:52Z",
+      "name": "剪贴板连接器",
+      "permissions": [
+        "system:clipboard",
+        "network:daemon-api"
+      ],
       "platforms": {
-        "windows": {
-          "min_version": "10"
+        "linux": {
+          "min_version": "ubuntu-20.04"
         },
         "macos": {
           "min_version": "10.15"
         },
-        "linux": {
-          "min_version": "ubuntu-20.04"
+        "windows": {
+          "min_version": "10"
         }
       },
+      "type": "official",
+      "version": "0.1.11"
+    },
+    "filesystem": {
+      "action": "updated",
+      "author": "Linch Mind Team",
+      "capabilities": {
+        "hot_reload": true,
+        "max_instances": 10,
+        "supports_multiple_instances": true
+      },
+      "category": "local_files",
+      "config_path": "official/filesystem/connector.json",
+      "description": "实时监控文件系统变化，支持多目录、多规则的智能文件索引 (C++版本)",
+      "download_url": "https://github.com/laofahai/linch-mind/releases/download/connectors-v999/filesystem-connector.zip",
+      "id": "filesystem",
+      "last_updated": "2025-08-05T08:34:52Z",
+      "name": "文件系统连接器",
       "permissions": [
         "filesystem:read",
         "filesystem:watch",
         "network:daemon-api"
       ],
-      "capabilities": {
-        "supports_multiple_instances": true,
-        "max_instances": 10,
-        "hot_reload": true
-      },
-      "config_path": "official/filesystem/connector.json",
-      "last_updated": "2025-08-05T06:52:16.422080+00:00",
-      "action": "kept",
-      "download_url": "https://github.com/laofahai/linch-mind/releases/download/connectors-v999/filesystem-connector.zip"
-    },
-    "clipboard": {
-      "id": "clipboard",
-      "name": "剪贴板连接器",
-      "version": "0.1.2",
-      "description": "高性能C++版本剪贴板监控连接器，体积小巧，资源占用低，监控系统剪贴板变化并自动记录和索引复制的内容",
-      "author": "Linch Mind Team",
-      "category": "system",
-      "type": "official",
       "platforms": {
-        "windows": {
-          "min_version": "10"
+        "linux": {
+          "min_version": "ubuntu-20.04"
         },
         "macos": {
           "min_version": "10.15"
         },
-        "linux": {
-          "min_version": "ubuntu-20.04"
+        "windows": {
+          "min_version": "10"
         }
       },
-      "permissions": [
-        "system:clipboard",
-        "network:daemon-api"
-      ],
-      "capabilities": {
-        "supports_multiple_instances": false,
-        "max_instances": 1,
-        "hot_reload": true
-      },
-      "config_path": "official/clipboard/connector.json",
-      "last_updated": "2025-08-05T06:52:16.422344+00:00",
-      "action": "kept",
-      "download_url": "https://github.com/laofahai/linch-mind/releases/download/connectors-v999/clipboard-connector.zip"
+      "type": "official",
+      "version": "0.1.0"
     }
   },
+  "last_updated": "2025-08-05T08:34:52Z",
   "metadata": {
-    "repository": "laofahai/linch-mind",
     "commit": "unknown",
+    "repository": "laofahai/linch-mind",
     "total_count": 2
-  }
+  },
+  "schema_version": "1.0"
 }

@@ -2,25 +2,23 @@
   "$schema": "../../connector.schema.json",
   "id": "filesystem",
   "name": "文件系统连接器",
-  "version": "0.0.5",
+  "version": "0.1.0",
   "author": "Linch Mind Team",
-  "description": "实时监控文件系统变化，支持多目录、多规则的智能文件索引",
+  "description": "实时监控文件系统变化，支持多目录、多规则的智能文件索引 (C++版本)",
   "license": "MIT",
   "homepage": "https://github.com/linch-mind/connectors/filesystem",
   "category": "local_files",
   "icon": "folder",
   "entry": {
     "development": {
-      "command": "python3",
-      "args": [
-        "main.py"
-      ],
-      "working_dir": "."
+      "command": "./filesystem-connector",
+      "args": [],
+      "working_dir": "./build"
     },
     "production": {
-      "windows": "filesystem-connector.exe",
-      "macos": "filesystem-connector",
-      "linux": "filesystem-connector"
+      "windows": "dist/bin/filesystem-connector.exe",
+      "macos": "dist/bin/filesystem-connector",
+      "linux": "dist/bin/filesystem-connector"
     }
   },
   "permissions": [
@@ -45,9 +43,16 @@
     "hot_reload": true
   },
   "build": {
-    "pre_build": "pip install -r requirements.txt",
-    "build_command": "pyinstaller --onefile --name filesystem-connector main.py",
-    "post_build": "echo 'Build completed'"
+    "pre_build": "echo 'Installing dependencies...'",
+    "build_command": "./build.sh",
+    "post_build": "echo 'C++ Filesystem connector build completed'"
   },
-  "config_schema_source": "runtime"
+  "config_schema_source": "runtime",
+  "dependencies": {
+    "system": {
+      "macos": ["nlohmann-json", "curl"],
+      "linux": ["nlohmann-json3-dev", "libcurl4-openssl-dev", "uuid-dev"],
+      "windows": ["vcpkg:nlohmann-json", "vcpkg:curl"]
+    }
+  }
 }
