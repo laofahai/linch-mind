@@ -221,3 +221,6 @@ fi
 
 echo ""
 echo "🚀 Ready to deploy!"
+
+# Explicitly exit with success
+exit 0
