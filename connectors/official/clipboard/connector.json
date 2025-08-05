@@ -1,5 +1,8 @@
 {
   "$schema": "../../connector.schema.json",
+  "id": "clipboard",
+  "name": "剪贴板连接器",
+  "version": "0.1.12",
   "author": "Linch Mind Team",
   "build": {
     "build_command": "./build.sh",
