@@ -109,11 +109,83 @@ jobs:
           git commit -m "chore: auto-update connector versions [skip ci] - Updated: ${{ steps.detect.outputs.changed_connectors }}"
           git push
 
-      - name: Upload artifacts
+      - name: Create GitHub Release
+        if: steps.detect.outputs.changed_connectors != ''
+        run: |
+          # 生成release信息
+          RELEASE_TAG="connectors-v${{ github.run_number }}"
+          RELEASE_TITLE="🔗 Connectors Release v${{ github.run_number }}"
+          
+          # 创建Release描述
+          cat > release_notes.md << 'EOF'
+          📦 **连接器自动发布**
+          
+          **更新的连接器**: ${{ steps.detect.outputs.changed_connectors }}
+          
+          **提交信息**: ${{ github.event.head_commit.message }}
+          
+          ---
+          
+          ### 📥 下载说明
+          - 下载对应连接器的ZIP文件
+          - ZIP包含可执行文件和配置文件
+          - 解压后按照README说明使用
+          
+          ### 🔧 构建信息
+          - **分支**: ${{ github.ref_name }}
+          - **提交**: ${{ github.sha }}
+          - **构建号**: ${{ github.run_number }}
+          - **构建时间**: $(date -u '+%Y-%m-%d %H:%M:%S UTC')
+          EOF
+          
+          # 创建Release
+          gh release create "$RELEASE_TAG" \
+            --title "$RELEASE_TITLE" \
+            --notes-file release_notes.md \
+            --latest
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload ZIP packages to Release
+        if: steps.detect.outputs.changed_connectors != ''
+        run: |
+          cd connectors/release/dist
+          
+          # 上传所有ZIP文件到Release
+          for zip_file in *.zip; do
+            if [ -f "$zip_file" ]; then
+              echo "📤 Uploading $zip_file to release..."
+              gh release upload "connectors-v${{ github.run_number }}" "$zip_file" --clobber
+            fi
+          done
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Update registry with download URLs
+        if: steps.detect.outputs.changed_connectors != ''
+        run: |
+          cd connectors
+          
+          # 更新注册表中的下载URL
+          python scripts/registry_generator.py \
+            --update-urls "connectors-v${{ github.run_number }}" \
+            --output release/registry.json
+
+      - name: Upload registry to Release
+        if: steps.detect.outputs.changed_connectors != ''
+        run: |
+          cd connectors
+          
+          echo "📋 Uploading updated registry.json to release..."
+          gh release upload "connectors-v${{ github.run_number }}" release/registry.json --clobber
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload artifacts (backup)
         if: steps.detect.outputs.changed_connectors != ''
         uses: actions/upload-artifact@v4
         with:
-          name: connectors-release
+          name: connectors-release-v${{ github.run_number }}
           path: |
             connectors/release/dist/
             connectors/release/registry.json

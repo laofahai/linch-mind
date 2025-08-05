@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "last_updated": "2025-08-05T00:46:22.664456+00:00",
+  "last_updated": "2025-08-05T01:08:17.518732+00:00",
   "connectors": {
     "clipboard": {
       "id": "clipboard",
@@ -30,7 +30,8 @@
         "max_instances": 1,
         "hot_reload": true
       },
-      "config_path": "official/clipboard/connector.json"
+      "config_path": "official/clipboard/connector.json",
+      "download_url": "https://github.com/unknown/unknown/releases/download/connectors-v124/clipboard-connector.zip"
     },
     "filesystem": {
       "id": "filesystem",
@@ -61,12 +62,14 @@
         "max_instances": 10,
         "hot_reload": true
       },
-      "config_path": "official/filesystem/connector.json"
+      "config_path": "official/filesystem/connector.json",
+      "download_url": "https://github.com/unknown/unknown/releases/download/connectors-v124/filesystem-connector.zip"
     }
   },
   "metadata": {
     "repository": "laofahai/linch-mind",
     "commit": "befe711ef5b55db55209cbf67d5a573daf0d6fc9",
-    "total_count": 2
+    "total_count": 2,
+    "release_tag": "connectors-v124"
   }
 }

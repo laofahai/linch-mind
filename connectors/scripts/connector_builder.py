@@ -9,16 +9,19 @@ import json
 import sys
 import os
 import argparse
+import zipfile
+import shutil
 from pathlib import Path
 
 
-def build_connector(connector_path: str, output_dir: str = "dist") -> bool:
+def build_connector(connector_path: str, output_dir: str = "dist", create_zip: bool = True) -> bool:
     """
     构建单个连接器
     
     Args:
         connector_path: 连接器目录路径 (如 official/filesystem)
         output_dir: 输出目录
+        create_zip: 是否创建ZIP包
     
     Returns:
         构建是否成功
@@ -71,6 +74,20 @@ def build_connector(connector_path: str, output_dir: str = "dist") -> bool:
             for built_file in built_files:
                 size_mb = built_file.stat().st_size / 1024 / 1024
                 print(f"📦 Built: {built_file.name} ({size_mb:.1f} MB)")
+            
+            # 创建ZIP包
+            if create_zip:
+                # 获取原始配置文件路径（相对于当前工作目录）
+                original_config = Path(f"../../{connector_path}/connector.json")
+                success = create_connector_zip(
+                    connector_name, 
+                    original_config, 
+                    built_files[0], 
+                    output_path
+                )
+                if not success:
+                    print(f"⚠️ ZIP creation failed for {connector_name}, but binary build succeeded")
+            
             print(f"✅ Successfully built {connector_name}")
             return True
         else:
@@ -84,11 +101,57 @@ def build_connector(connector_path: str, output_dir: str = "dist") -> bool:
         os.chdir(original_dir)
 
 
+def create_connector_zip(connector_name: str, config_file: Path, executable_file: Path, output_dir: Path) -> bool:
+    """
+    创建连接器ZIP包，包含可执行文件和配置文件
+    
+    Args:
+        connector_name: 连接器名称
+        config_file: connector.json文件路径
+        executable_file: 可执行文件路径
+        output_dir: 输出目录
+    
+    Returns:
+        创建是否成功
+    """
+    try:
+        zip_filename = f"{connector_name}-connector.zip"
+        zip_path = output_dir / zip_filename
+        
+        print(f"📦 Creating ZIP package: {zip_filename}")
+        
+        with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
+            # 添加可执行文件
+            zipf.write(executable_file, executable_file.name)
+            print(f"   ✅ Added: {executable_file.name}")
+            
+            # 添加connector.json配置文件
+            zipf.write(config_file, 'connector.json')
+            print(f"   ✅ Added: connector.json")
+            
+            # 检查是否有README文件
+            readme_file = config_file.parent / 'README.md'
+            if readme_file.exists():
+                zipf.write(readme_file, 'README.md')
+                print(f"   ✅ Added: README.md")
+        
+        # 检查ZIP文件大小
+        zip_size_mb = zip_path.stat().st_size / 1024 / 1024
+        print(f"📋 ZIP package created: {zip_filename} ({zip_size_mb:.1f} MB)")
+        
+        return True
+        
+    except Exception as e:
+        print(f"❌ Failed to create ZIP package: {e}")
+        return False
+
+
 def main():
     parser = argparse.ArgumentParser(description='连接器构建工具')
     parser.add_argument('connector_path', help='连接器路径 (如 official/filesystem)')
     parser.add_argument('--output', default='dist', help='输出目录')
     parser.add_argument('--verbose', action='store_true', help='详细输出')
+    parser.add_argument('--no-zip', action='store_true', help='不创建ZIP包')
     
     args = parser.parse_args()
     
@@ -96,7 +159,7 @@ def main():
         print(f"❌ 连接器目录不存在: {args.connector_path}")
         sys.exit(1)
     
-    success = build_connector(args.connector_path, args.output)
+    success = build_connector(args.connector_path, args.output, create_zip=not args.no_zip)
     sys.exit(0 if success else 1)
 
 
