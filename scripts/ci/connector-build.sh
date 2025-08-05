@@ -32,7 +32,7 @@ echo "📦 Will build connectors: $CHANGED_CONNECTORS"
 echo ""
 echo "Step 2: Building connectors..."
 cd ..
-./connectors/scripts/build/build_all.sh "$CHANGED_CONNECTORS"
+./scripts/build/build_all.sh "$CHANGED_CONNECTORS"
 
 # Step 3: Generate registry
 echo ""
