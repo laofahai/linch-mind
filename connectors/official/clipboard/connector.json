@@ -187,8 +187,8 @@
   "description": "高性能C++版本剪贴板监控连接器，体积小巧，资源占用低，监控系统剪贴板变化并自动记录和索引复制的内容",
   "entry": {
     "development": {
-      "args": [],
-      "command": "./clipboard-connector",
+      "command": "bash",
+      "args": ["-c", "[[ ! -f clipboard-connector || src/main.cpp -nt clipboard-connector ]] && echo '🔨 Quick build needed...' && ./build.sh > /dev/null 2>&1 || true; ./clipboard-connector"],
       "working_dir": "."
     },
     "production": {
@@ -199,9 +199,7 @@
   },
   "homepage": "https://github.com/linch-mind/connectors/clipboard",
   "icon": "clipboard",
-  "id": "clipboard",
   "license": "MIT",
-  "name": "剪贴板连接器",
   "permissions": [
     "system:clipboard",
     "network:daemon-api"
@@ -216,6 +214,5 @@
     "windows": {
       "min_version": "10"
     }
-  },
-  "version": "0.1.12"
+  }
 }

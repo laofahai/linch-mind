@@ -171,14 +171,34 @@ bool updateDownloadUrls(const std::string& registryFile, const std::string& rele
         
         int updatedCount = 0;
         for (auto& [connectorId, connectorInfo] : registry["connectors"].items()) {
-            std::string zipFilename = connectorId + "-connector.zip";
-            std::string downloadUrl = finalBaseUrl + "/" + zipFilename;
+            // Support multi-platform downloads
+            json platforms = json::object();
             
-            std::string oldUrl = connectorInfo.value("download_url", "");
-            connectorInfo["download_url"] = downloadUrl;
+            // Check for platform-specific packages
+            std::vector<std::string> supportedPlatforms = {"linux-x64", "macos-x64", "windows-x64"};
             
-            if (oldUrl != downloadUrl) {
-                std::cout << "🔗 Updated download URL for " << connectorId << std::endl;
+            for (const std::string& platform : supportedPlatforms) {
+                std::string zipFilename = connectorId + "-connector-" + platform + ".zip";
+                std::string downloadUrl = finalBaseUrl + "/" + zipFilename;
+                
+                platforms[platform] = {
+                    {"download_url", downloadUrl},
+                    {"supported", true},
+                    {"last_updated", getCurrentTimestamp()}
+                };
+            }
+            
+            // Update connector info with platform support
+            json oldPlatforms = connectorInfo.value("platforms", json::object());
+            connectorInfo["platforms"] = platforms;
+            
+            // Keep backward compatibility with single download_url
+            std::string defaultZip = connectorId + "-connector-linux-x64.zip";
+            std::string defaultUrl = finalBaseUrl + "/" + defaultZip;
+            connectorInfo["download_url"] = defaultUrl;
+            
+            if (oldPlatforms != platforms) {
+                std::cout << "🔗 Updated platform URLs for " << connectorId << std::endl;
                 updatedCount++;
             }
         }

@@ -8,90 +8,31 @@
 #include <fstream>
 #include <sstream>
 #include <nlohmann/json.hpp>
-#include <uuid/uuid.h>
 #include <filesystem>
 
+// 使用shared库
+#include <linch_connector/daemon_discovery.hpp>
+#include <linch_connector/config_manager.hpp>
+#include <linch_connector/http_client.hpp>
+#include <linch_connector/utils.hpp>
+
+// 本地头文件
 #include "filesystem_monitor.hpp"
-#include "http_client.hpp"
-#include "config_manager.hpp"
 
 using json = nlohmann::json;
+using namespace linch_connector;
 namespace fs = std::filesystem;
 
-// Global flag for signal handling
+// 全局标志位用于信号处理
 volatile sig_atomic_t g_shouldStop = 0;
 
-// Signal handler
+// 信号处理器
 void signalHandler(int signum) {
     std::cout << "\n📁 Received signal " << signum << ", stopping filesystem monitor..." << std::endl;
     g_shouldStop = 1;
 }
 
-// Generate UUID
-std::string generateUUID() {
-    uuid_t uuid;
-    uuid_generate(uuid);
-    char uuid_str[37];
-    uuid_unparse_lower(uuid, uuid_str);
-    return std::string(uuid_str);
-}
-
-// Get current timestamp in ISO format
-std::string getCurrentTimestamp() {
-    auto now = std::chrono::system_clock::now();
-    auto time_t = std::chrono::system_clock::to_time_t(now);
-    char buffer[100];
-    strftime(buffer, sizeof(buffer), "%Y-%m-%dT%H:%M:%S", gmtime(&time_t));
-    
-    // Add milliseconds
-    auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(
-        now.time_since_epoch()).count() % 1000;
-    
-    return std::string(buffer) + "." + std::to_string(ms) + "Z";
-}
-
-// Detect content type
-std::string detectContentType(const std::string& content) {
-    std::string content_lower = content;
-    std::transform(content_lower.begin(), content_lower.end(), content_lower.begin(), ::tolower);
-    
-    if (content_lower.find("def ") == 0 || content_lower.find("function ") == 0 || 
-        content_lower.find("class ") == 0 || content_lower.find("import ") == 0) {
-        return "code";
-    } else if (content_lower.find("# ") == 0 || content_lower.find("## ") == 0) {
-        return "markdown";
-    } else if (content.find("{") != std::string::npos && content.find("}") != std::string::npos) {
-        return "json_or_config";
-    } else if (content_lower.find("todo") != std::string::npos || 
-               content_lower.find("fixme") != std::string::npos ||
-               content_lower.find("note") != std::string::npos) {
-        return "notes_or_todos";
-    }
-    
-    return "text";
-}
-
-// Create data item for daemon
-json createDataItem(const std::string& filePath, const std::string& content) {
-    fs::path path(filePath);
-    json item;
-    item["id"] = "filesystem_" + generateUUID();
-    item["content"] = content;
-    item["source_connector"] = "filesystem";
-    item["timestamp"] = getCurrentTimestamp();
-    item["metadata"] = {
-        {"file_path", filePath},
-        {"file_name", path.filename().string()},
-        {"file_extension", path.extension().string()},
-        {"directory", path.parent_path().string()},
-        {"content_length", content.length()},
-        {"content_type", detectContentType(content)}
-    };
-    
-    return item;
-}
-
-// Register config schema with daemon
+// 注册配置schema到daemon
 bool registerConfigSchema(HttpClient& client, const std::string& daemonUrl) {
     json schema = {
         {"type", "object"},
@@ -132,58 +73,6 @@ bool registerConfigSchema(HttpClient& client, const std::string& daemonUrl) {
                 {"default", {"*.tmp", ".*", "node_modules/*", "__pycache__/*", "*.log", ".git/*", "build/*", "dist/*"}},
                 {"ui_component", "tags_input"}
             }},
-            {"watch_directories", {
-                {"type", "array"},
-                {"title", "监控目录"},
-                {"description", "要监控的目录列表"},
-                {"items", {
-                    {"type", "object"},
-                    {"properties", {
-                        {"path", {
-                            {"type", "string"},
-                            {"title", "目录路径"},
-                            {"description", "要监控的目录路径"},
-                            {"ui_component", "directory_picker"}
-                        }},
-                        {"name", {
-                            {"type", "string"},
-                            {"title", "显示名称"},
-                            {"description", "此目录的显示名称（可选）"},
-                            {"default", ""}
-                        }},
-                        {"enabled", {
-                            {"type", "boolean"},
-                            {"title", "启用监控"},
-                            {"description", "是否监控此目录"},
-                            {"default", true},
-                            {"ui_component", "switch"}
-                        }},
-                        {"recursive", {
-                            {"type", "boolean"},
-                            {"title", "递归监控子目录"},
-                            {"description", "是否监控此目录下的所有子目录"},
-                            {"default", true},
-                            {"ui_component", "switch"}
-                        }}
-                    }},
-                    {"required", {"path"}}
-                }},
-                {"default", {
-                    {
-                        {"path", "~/Downloads"},
-                        {"name", "下载目录"},
-                        {"enabled", true},
-                        {"recursive", true}
-                    },
-                    {
-                        {"path", "~/Documents"},
-                        {"name", "文档目录"},
-                        {"enabled", true},
-                        {"recursive", true}
-                    }
-                }},
-                {"ui_component", "dynamic_list"}
-            }},
             {"max_content_length", {
                 {"type", "integer"},
                 {"title", "最大内容长度"},
@@ -201,7 +90,7 @@ bool registerConfigSchema(HttpClient& client, const std::string& daemonUrl) {
                 {"ui_component", "switch"}
             }}
         }},
-        {"required", {"poll_interval", "watch_directories", "monitoring_enabled"}}
+        {"required", {"poll_interval", "monitoring_enabled"}}
     };
 
     json payload = {
@@ -226,40 +115,31 @@ bool registerConfigSchema(HttpClient& client, const std::string& daemonUrl) {
     }
 }
 
-// Test daemon connection
-bool testDaemonConnection(HttpClient& client, const std::string& daemonUrl) {
-    auto response = client.get(daemonUrl + "/");
-    if (response.isSuccess()) {
-        std::cout << "✅ Daemon connection successful" << std::endl;
-        return true;
-    } else {
-        std::cerr << "❌ Cannot connect to daemon: HTTP " << response.statusCode << std::endl;
-        return false;
-    }
-}
-
-// Load watch configurations from config manager
+// 从配置管理器加载监控配置
 std::vector<FileSystemMonitor::WatchConfig> loadWatchConfigs(ConfigManager& config) {
     std::vector<FileSystemMonitor::WatchConfig> watchConfigs;
     
-    // For now, use simple configuration parsing
-    // In a real implementation, you'd parse the JSON array from config
+    // 简化的配置解析（实际项目中可以扩展为完整的JSON数组解析）
     std::string watchPaths = config.getConfigValue("watch_paths", "~/Downloads,~/Documents");
     std::string supportedExts = config.getConfigValue("supported_extensions", ".txt,.md,.py,.js,.json,.yaml,.yml,.html,.css,.cpp,.hpp,.c,.h");
     std::string ignorePatterns = config.getConfigValue("ignore_patterns", "*.tmp,.*,node_modules/*,__pycache__/*,*.log,.git/*,build/*,dist/*");
     int maxFileSize = std::stoi(config.getConfigValue("max_file_size_mb", "10"));
     
-    // Parse watch paths (comma-separated)
+    // 解析监控路径（逗号分隔）
     std::stringstream ss(watchPaths);
     std::string path;
     while (std::getline(ss, path, ',')) {
-        // Trim whitespace
+        // 去除空白字符
         path.erase(0, path.find_first_not_of(" \t"));
         path.erase(path.find_last_not_of(" \t") + 1);
         
-        // Expand ~ to home directory
+        // 展开 ~ 为用户主目录
         if (path.substr(0, 2) == "~/") {
-            path = std::string(std::getenv("HOME")) + path.substr(1);
+            const char* homeDir = std::getenv("HOME");
+            if (!homeDir) homeDir = std::getenv("USERPROFILE"); // Windows
+            if (homeDir) {
+                path = std::string(homeDir) + path.substr(1);
+            }
         }
         
         if (!path.empty() && fs::exists(path) && fs::is_directory(path)) {
@@ -267,9 +147,9 @@ std::vector<FileSystemMonitor::WatchConfig> loadWatchConfigs(ConfigManager& conf
             watchConfig.name = fs::path(path).filename().string();
             watchConfig.enabled = true;
             watchConfig.recursive = true;
-            watchConfig.maxFileSize = maxFileSize * 1024 * 1024; // Convert to bytes
+            watchConfig.maxFileSize = maxFileSize * 1024 * 1024; // 转换为字节
             
-            // Parse supported extensions
+            // 解析支持的扩展名
             std::stringstream extSs(supportedExts);
             std::string ext;
             while (std::getline(extSs, ext, ',')) {
@@ -280,7 +160,7 @@ std::vector<FileSystemMonitor::WatchConfig> loadWatchConfigs(ConfigManager& conf
                 }
             }
             
-            // Parse ignore patterns
+            // 解析忽略模式
             std::stringstream ignoreSs(ignorePatterns);
             std::string pattern;
             while (std::getline(ignoreSs, pattern, ',')) {
@@ -298,12 +178,12 @@ std::vector<FileSystemMonitor::WatchConfig> loadWatchConfigs(ConfigManager& conf
     return watchConfigs;
 }
 
-// Process filesystem event
+// 处理文件系统事件
 void processFilesystemEvent(const FileSystemMonitor::FileEvent& event, 
                            HttpClient& client, ConfigManager& config) {
     std::cout << "📁 Processing file event: " << event.eventType << " - " << event.path << std::endl;
     
-    // For created and modified events, read the file content
+    // 对于创建和修改事件，读取文件内容
     if (event.eventType == "created" || event.eventType == "modified") {
         try {
             std::ifstream file(event.path);
@@ -315,21 +195,32 @@ void processFilesystemEvent(const FileSystemMonitor::FileEvent& event,
             std::string content((std::istreambuf_iterator<char>(file)),
                                std::istreambuf_iterator<char>());
             
-            // Limit content length
+            // 限制内容长度
             int maxContent = std::stoi(config.getConfigValue("max_content_length", "50000"));
             if (content.length() > static_cast<size_t>(maxContent)) {
                 content = content.substr(0, maxContent) + "\n... (内容已截断)";
             }
             
-            // Create and send data item
-            json dataItem = createDataItem(event.path, content);
+            // 创建数据项
+            std::string itemId = "filesystem_" + utils::generateUUID();
+            fs::path filePath(event.path);
+            
+            // 创建元数据
+            json metadata = {
+                {"file_path", event.path},
+                {"file_name", filePath.filename().string()},
+                {"file_extension", filePath.extension().string()},
+                {"directory", filePath.parent_path().string()},
+                {"event_type", event.eventType}
+            };
+            
+            std::string dataItem = utils::createDataItem(itemId, content, "filesystem", metadata.dump());
             
             client.addHeader("Content-Type", "application/json");
-            auto response = client.post(config.getDaemonUrl() + "/api/v1/data/ingest", 
-                                       dataItem.dump());
+            auto response = client.post(config.getDaemonUrl() + "/api/v1/data/ingest", dataItem);
             
             if (response.isSuccess()) {
-                std::cout << "✅ Processed file event: " << fs::path(event.path).filename().string() 
+                std::cout << "✅ Processed file event: " << filePath.filename().string() 
                          << " (" << content.length() << " chars)" << std::endl;
             } else {
                 std::cerr << "❌ Failed to push file data: HTTP " << response.statusCode << std::endl;
@@ -339,68 +230,70 @@ void processFilesystemEvent(const FileSystemMonitor::FileEvent& event,
             std::cerr << "❌ Error processing file: " << e.what() << std::endl;
         }
     } else {
-        // For deleted events, just log
+        // 对于删除事件，仅记录日志
         std::cout << "🗑️  File deleted: " << fs::path(event.path).filename().string() << std::endl;
     }
 }
 
 int main(int, char*[]) {
-    std::cout << "🚀 Starting Linch Mind Filesystem Connector (C++ Edition)" << std::endl;
+    std::cout << "🚀 Starting Linch Mind Filesystem Connector (C++ Edition with Shared Library)" << std::endl;
     
-    // Setup signal handlers
+    // 设置信号处理器
     signal(SIGINT, signalHandler);
     signal(SIGTERM, signalHandler);
     
-    // Get daemon URL from environment or use default
-    std::string daemonUrl = std::getenv("DAEMON_URL") ? std::getenv("DAEMON_URL") : "http://localhost:58471";
-    std::cout << "📡 Daemon URL: " << daemonUrl << std::endl;
+    // 发现daemon
+    DaemonDiscovery discovery;
+    std::cout << "🔍 Discovering daemon..." << std::endl;
     
-    // Initialize components
-    HttpClient httpClient;
-    httpClient.setTimeout(30);
-    
-    ConfigManager configManager(daemonUrl, "filesystem");
-    FileSystemMonitor filesystemMonitor;
-    
-    // Test daemon connection
-    if (!testDaemonConnection(httpClient, daemonUrl)) {
-        std::cerr << "❌ Failed to connect to daemon. Exiting..." << std::endl;
+    auto daemonInfo = discovery.waitForDaemon(std::chrono::seconds(30));
+    if (!daemonInfo) {
+        std::cerr << "❌ Failed to discover daemon. Exiting..." << std::endl;
         return 1;
     }
     
-    // Register config schema
-    registerConfigSchema(httpClient, daemonUrl);
+    std::cout << "📡 Found daemon at: " << daemonInfo->getBaseUrl() << " (PID: " << daemonInfo->pid << ")" << std::endl;
     
-    // Load initial configuration
+    // 初始化组件
+    HttpClient httpClient;
+    httpClient.setTimeout(30);
+    
+    ConfigManager configManager(daemonInfo->getBaseUrl(), "filesystem");
+    FileSystemMonitor filesystemMonitor;
+    
+    // 注册配置schema
+    registerConfigSchema(httpClient, daemonInfo->getBaseUrl());
+    
+    // 加载初始配置
     if (!configManager.loadFromDaemon()) {
         std::cerr << "⚠️  Failed to load configuration from daemon, using defaults" << std::endl;
     }
     
-    // Start config monitoring
+    // 开始配置监控
     configManager.startConfigMonitoring(30);
     
-    // Check if monitoring is enabled
+    // 检查监控是否启用
     bool monitoringEnabled = configManager.getConfigValue("monitoring_enabled", "true") == "true";
     if (!monitoringEnabled) {
         std::cout << "⚠️  Filesystem monitoring is disabled in configuration" << std::endl;
         return 0;
     }
     
-    // Load watch configurations
+    // 加载监控配置
     auto watchConfigs = loadWatchConfigs(configManager);
     if (watchConfigs.empty()) {
         std::cerr << "❌ No valid watch directories configured" << std::endl;
         return 1;
     }
     
-    // Add watch configurations to monitor
+    // 添加监控配置到监控器
     for (const auto& watchConfig : watchConfigs) {
         if (!filesystemMonitor.addWatch(watchConfig)) {
             std::cerr << "⚠️  Failed to add watch for: " << watchConfig.path << std::endl;
         }
     }
     
-    // Start filesystem monitoring
+    // 开始文件系统监控
     double pollInterval = std::stod(configManager.getConfigValue("poll_interval", "2.0"));
     int pollIntervalMs = static_cast<int>(pollInterval * 1000);
     
@@ -415,12 +308,12 @@ int main(int, char*[]) {
         return 1;
     }
     
-    // Main loop
+    // 主循环
     while (!g_shouldStop) {
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
     
-    // Cleanup
+    // 清理
     std::cout << "🛑 Stopping filesystem connector..." << std::endl;
     filesystemMonitor.stopMonitoring();
     configManager.stopConfigMonitoring();

@@ -11,9 +11,9 @@
   "icon": "folder",
   "entry": {
     "development": {
-      "command": "./filesystem-connector",
-      "args": [],
-      "working_dir": "./build"
+      "command": "bash",
+      "args": ["-c", "[[ ! -f filesystem-connector || src/main.cpp -nt filesystem-connector ]] && echo '🔨 Quick build needed...' && ./build.sh > /dev/null 2>&1 || true; ./filesystem-connector"],
+      "working_dir": "."
     },
     "production": {
       "windows": "dist/bin/filesystem-connector.exe",

@@ -32,8 +32,8 @@ migrate_working_dir/
 .pub/
 /build/
 ui/build/
-# Allow scripts/build directory
-!scripts/build/
+# Allow scripts/build-tools directory
+!scripts/build-tools/
 
 # Symbolication related
 app.*.symbols
@@ -53,8 +53,8 @@ __pycache__/
 *.so
 .Python
 build/
-# Allow scripts/build directory (override Python build/ ignore)
-!scripts/build/
+# Allow scripts/build-tools directory (override Python build/ ignore)
+!scripts/build-tools/
 develop-eggs/
 dist/
 downloads/
@@ -173,3 +173,23 @@ registry_backup_*.json
 
 # Claude Code
 .claude/settings.local.json
+
+# C/C++ Build artifacts
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+install_manifest.txt
+Makefile
+*.o
+*.o.d
+build_info.hpp
+
+# Connectors build outputs
+connectors/**/build/
+connectors/**/dist/
+connectors/**/*-connector
+connectors/scripts/registry_generator
+connectors/scripts/version_manager
+
+# Test files
+connectors/**/test_trigger.txt

@@ -4,85 +4,30 @@
 #include <thread>
 #include <signal.h>
 #include <cstdlib>
-#include <algorithm>
 #include <nlohmann/json.hpp>
-#include <uuid/uuid.h>
 
+// 使用shared库
+#include <linch_connector/daemon_discovery.hpp>
+#include <linch_connector/config_manager.hpp>
+#include <linch_connector/http_client.hpp>
+#include <linch_connector/utils.hpp>
+
+// 本地头文件
 #include "clipboard_monitor.hpp"
-#include "http_client.hpp"
-#include "config_manager.hpp"
 
 using json = nlohmann::json;
+using namespace linch_connector;
 
-// Global flag for signal handling
+// 全局标志位用于信号处理
 volatile sig_atomic_t g_shouldStop = 0;
 
-// Signal handler
+// 信号处理器
 void signalHandler(int signum) {
     std::cout << "\n📋 Received signal " << signum << ", stopping clipboard monitor..." << std::endl;
     g_shouldStop = 1;
 }
 
-// Generate UUID
-std::string generateUUID() {
-    uuid_t uuid;
-    uuid_generate(uuid);
-    char uuid_str[37];
-    uuid_unparse_lower(uuid, uuid_str);
-    return std::string(uuid_str);
-}
-
-// Get current timestamp in ISO format
-std::string getCurrentTimestamp() {
-    auto now = std::chrono::system_clock::now();
-    auto time_t = std::chrono::system_clock::to_time_t(now);
-    char buffer[100];
-    strftime(buffer, sizeof(buffer), "%Y-%m-%dT%H:%M:%S", gmtime(&time_t));
-    
-    // Add milliseconds
-    auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(
-        now.time_since_epoch()).count() % 1000;
-    
-    return std::string(buffer) + "." + std::to_string(ms) + "Z";
-}
-
-// Detect content type
-std::string detectContentType(const std::string& content) {
-    std::string content_lower = content;
-    std::transform(content_lower.begin(), content_lower.end(), content_lower.begin(), ::tolower);
-    
-    if (content_lower.find("http://") == 0 || content_lower.find("https://") == 0) {
-        return "url";
-    } else if (content_lower.find("def ") == 0 || content_lower.find("function ") == 0 || 
-               content_lower.find("class ") == 0 || content_lower.find("import ") == 0) {
-        return "code";
-    } else if (content.find("@") != std::string::npos && content.find(".") != std::string::npos) {
-        return "email_or_contact";
-    } else if (content_lower.find("todo") != std::string::npos || 
-               content_lower.find("task") != std::string::npos ||
-               content_lower.find("deadline") != std::string::npos) {
-        return "task_or_reminder";
-    }
-    
-    return "text";
-}
-
-// Create data item for daemon
-json createDataItem(const std::string& content) {
-    json item;
-    item["id"] = "clipboard_" + generateUUID();
-    item["content"] = content;
-    item["source_connector"] = "clipboard";
-    item["timestamp"] = getCurrentTimestamp();
-    item["metadata"] = {
-        {"content_length", content.length()},
-        {"content_type", detectContentType(content)}
-    };
-    
-    return item;
-}
-
-// Register config schema with daemon
+// 注册配置schema到daemon
 bool registerConfigSchema(HttpClient& client, const std::string& daemonUrl) {
     json schema = {
         {"type", "object"},
@@ -162,22 +107,10 @@ bool registerConfigSchema(HttpClient& client, const std::string& daemonUrl) {
     }
 }
 
-// Test daemon connection
-bool testDaemonConnection(HttpClient& client, const std::string& daemonUrl) {
-    auto response = client.get(daemonUrl + "/");
-    if (response.isSuccess()) {
-        std::cout << "✅ Daemon connection successful" << std::endl;
-        return true;
-    } else {
-        std::cerr << "❌ Cannot connect to daemon: HTTP " << response.statusCode << std::endl;
-        return false;
-    }
-}
-
-// Process clipboard change
+// 处理剪贴板变化
 void processClipboardChange(const std::string& content, HttpClient& client, 
                           ConfigManager& config) {
-    // Check content length
+    // 检查内容长度
     int minLength = config.getMinContentLength();
     if (content.length() < static_cast<size_t>(minLength)) {
         std::cout << "📋 Skipping short clipboard content" << std::endl;
@@ -191,12 +124,13 @@ void processClipboardChange(const std::string& content, HttpClient& client,
         std::cout << "📋 Clipboard content truncated" << std::endl;
     }
     
-    // Create and send data item
-    json dataItem = createDataItem(processedContent);
+    // 创建数据项
+    std::string itemId = "clipboard_" + utils::generateUUID();
+    std::string metadata = R"({"source": "system_clipboard"})";
+    std::string dataItem = utils::createDataItem(itemId, processedContent, "clipboard", metadata);
     
     client.addHeader("Content-Type", "application/json");
-    auto response = client.post(config.getDaemonUrl() + "/api/v1/data/ingest", 
-                               dataItem.dump());
+    auto response = client.post(config.getDaemonUrl() + "/api/v1/data/ingest", dataItem);
     
     if (response.isSuccess()) {
         std::cout << "✅ Processed clipboard change: " << content.length() << " chars" << std::endl;
@@ -206,41 +140,43 @@ void processClipboardChange(const std::string& content, HttpClient& client,
 }
 
 int main(int argc, char* argv[]) {
-    std::cout << "🚀 Starting Linch Mind Clipboard Connector (C++ Edition)" << std::endl;
+    std::cout << "🚀 Starting Linch Mind Clipboard Connector (C++ Edition with Shared Library)" << std::endl;
     
-    // Setup signal handlers
+    // 设置信号处理器
     signal(SIGINT, signalHandler);
     signal(SIGTERM, signalHandler);
     
-    // Get daemon URL from environment or use default
-    std::string daemonUrl = std::getenv("DAEMON_URL") ? std::getenv("DAEMON_URL") : "http://localhost:58471";
-    std::cout << "📡 Daemon URL: " << daemonUrl << std::endl;
+    // 发现daemon
+    DaemonDiscovery discovery;
+    std::cout << "🔍 Discovering daemon..." << std::endl;
     
-    // Initialize components
-    HttpClient httpClient;
-    httpClient.setTimeout(30);
-    
-    ConfigManager configManager(daemonUrl);
-    ClipboardMonitor clipboardMonitor;
-    
-    // Test daemon connection
-    if (!testDaemonConnection(httpClient, daemonUrl)) {
-        std::cerr << "❌ Failed to connect to daemon. Exiting..." << std::endl;
+    auto daemonInfo = discovery.waitForDaemon(std::chrono::seconds(30));
+    if (!daemonInfo) {
+        std::cerr << "❌ Failed to discover daemon. Exiting..." << std::endl;
         return 1;
     }
     
-    // Register config schema
-    registerConfigSchema(httpClient, daemonUrl);
+    std::cout << "📡 Found daemon at: " << daemonInfo->getBaseUrl() << " (PID: " << daemonInfo->pid << ")" << std::endl;
     
-    // Load initial configuration
+    // 初始化组件
+    HttpClient httpClient;
+    httpClient.setTimeout(30);
+    
+    ConfigManager configManager(daemonInfo->getBaseUrl(), "clipboard");
+    ClipboardMonitor clipboardMonitor;
+    
+    // 注册配置schema
+    registerConfigSchema(httpClient, daemonInfo->getBaseUrl());
+    
+    // 加载初始配置
     if (!configManager.loadFromDaemon()) {
         std::cerr << "⚠️  Failed to load configuration from daemon, using defaults" << std::endl;
     }
     
-    // Start config monitoring
+    // 开始配置监控
     configManager.startConfigMonitoring(30);
     
-    // Start clipboard monitoring
+    // 开始剪贴板监控
     double checkInterval = configManager.getCheckInterval();
     int intervalMs = static_cast<int>(checkInterval * 1000);
     
@@ -255,12 +191,12 @@ int main(int argc, char* argv[]) {
         return 1;
     }
     
-    // Main loop
+    // 主循环
     while (!g_shouldStop) {
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
     
-    // Cleanup
+    // 清理
     std::cout << "🛑 Stopping clipboard connector..." << std::endl;
     clipboardMonitor.stopMonitoring();
     configManager.stopConfigMonitoring();

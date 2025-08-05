@@ -7,12 +7,56 @@ on:
       - 'connectors/official/**'
       - 'connectors/community/**'
       - 'scripts/ci/**'
-      - 'scripts/build/**'
+      - 'scripts/build-tools/**'
 
 jobs:
-  build:
+  # 检测变更 - 只在一个平台运行
+  detect-changes:
     runs-on: ubuntu-latest
     if: github.actor != 'github-actions[bot]'
+    outputs:
+      changed_connectors: ${{ steps.detect.outputs.changed_connectors }}
+      has_changes: ${{ steps.detect.outputs.has_changes }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 2
+      
+      - name: Detect connector changes
+        id: detect
+        run: |
+          cd connectors
+          CHANGED_CONNECTORS=$(../scripts/ci/detect_changes.sh)
+          if [ -n "$CHANGED_CONNECTORS" ]; then
+            echo "changed_connectors=$CHANGED_CONNECTORS" >> $GITHUB_OUTPUT
+            echo "has_changes=true" >> $GITHUB_OUTPUT
+            echo "📦 Will build connectors: $CHANGED_CONNECTORS"
+          else
+            echo "has_changes=false" >> $GITHUB_OUTPUT
+            echo "✅ No connector changes detected"
+          fi
+
+  # 多平台构建
+  build:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.has_changes == 'true'
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            platform: linux
+            arch: x64
+            artifact_suffix: linux-x64
+          - os: macos-latest
+            platform: macos
+            arch: x64
+            artifact_suffix: macos-x64
+          - os: windows-latest
+            platform: windows
+            arch: x64
+            artifact_suffix: windows-x64
+    runs-on: ${{ matrix.os }}
     permissions:
       contents: write
     steps:
@@ -21,9 +65,9 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           fetch-depth: 2
 
-      - name: Setup build environment
+      - name: Setup build environment (Linux)
+        if: matrix.platform == 'linux'
         run: |
-          # Install C++ build tools
           sudo apt-get update
           sudo apt-get install -y \
             build-essential \
@@ -34,45 +78,79 @@ jobs:
             libx11-dev \
             upx-ucl \
             jq
-          
-          # Build C++ script tools
-          cd connectors/scripts
-          ./build.sh
+          cd connectors/scripts && ./build.sh
 
+      - name: Setup build environment (macOS)
+        if: matrix.platform == 'macos'
+        run: |
+          brew install cmake curl nlohmann-json upx jq
+          cd connectors/scripts && ./build.sh
 
-      - name: Build connectors
+      - name: Setup build environment (Windows)
+        if: matrix.platform == 'windows'
+        run: |
+          choco install cmake curl jq
+          # vcpkg install nlohmann-json curl
+          cd connectors/scripts && ./build.sh
+        shell: bash
+
+      - name: Build connectors for ${{ matrix.platform }}
         id: build
         run: |
-          export GITHUB_OUTPUT="${GITHUB_OUTPUT}"
-          ./scripts/ci/connector-build.sh
+          export PLATFORM="${{ matrix.platform }}"
+          export ARCH="${{ matrix.arch }}"
+          export ARTIFACT_SUFFIX="${{ matrix.artifact_suffix }}"
+          export CHANGED_CONNECTORS="${{ needs.detect-changes.outputs.changed_connectors }}"
+          ./scripts/ci/connector-build-multiplatform.sh
+        shell: bash
 
+      - name: Upload platform artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: connectors-${{ matrix.artifact_suffix }}-v${{ github.run_number }}
+          path: |
+            connectors/release/dist-${{ matrix.artifact_suffix }}/
+            connectors/release/registry-${{ matrix.artifact_suffix }}.json
+
+  # 合并所有平台的构建结果并发布
+  release:
+    needs: [detect-changes, build]
+    if: needs.detect-changes.outputs.has_changes == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 2
+
+      - name: Download all platform artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts/
+
+      - name: Merge platform builds and create releases
+        run: |
+          export CHANGED_CONNECTORS="${{ needs.detect-changes.outputs.changed_connectors }}"
+          ./scripts/ci/merge-platform-builds.sh
+          
       - name: Commit version updates
-        if: steps.build.outputs.changed_connectors != ''
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
           git add connectors/
           git commit -m "chore: auto-update connector versions [skip ci]
           
-          Updated connectors: ${{ steps.build.outputs.changed_connectors }}"
+          Updated connectors: ${{ needs.detect-changes.outputs.changed_connectors }}"
           git push
 
       - name: Create GitHub Release
-        if: steps.build.outputs.changed_connectors != ''
         run: |
-          ./scripts/release/create-github-release.sh "${{ steps.build.outputs.changed_connectors }}"
+          ./scripts/release/create-github-release.sh "${{ needs.detect-changes.outputs.changed_connectors }}"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_RUN_NUMBER: ${{ github.run_number }}
           GITHUB_REF_NAME: ${{ github.ref_name }}
           GITHUB_SHA: ${{ github.sha }}
           GITHUB_EVENT_HEAD_COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
-
-      - name: Upload artifacts (backup)
-        if: steps.build.outputs.changed_connectors != ''
-        uses: actions/upload-artifact@v4
-        with:
-          name: connectors-release-v${{ github.run_number }}
-          path: |
-            connectors/release/dist/
-            connectors/release/registry.json

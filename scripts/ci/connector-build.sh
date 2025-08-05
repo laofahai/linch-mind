@@ -33,7 +33,7 @@ echo ""
 echo "Step 2: Building connectors..."
 # Stay in connectors directory for build_all.sh
 echo "DEBUG: About to call build_all.sh"
-../scripts/build/build_all.sh "$CHANGED_CONNECTORS"
+../scripts/build-tools/build_all.sh "$CHANGED_CONNECTORS"
 echo "DEBUG: build_all.sh returned with exit code: $?"
 
 # Step 3: Generate registry
