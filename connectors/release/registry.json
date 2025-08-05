@@ -1,11 +1,11 @@
 {
   "schema_version": "1.0",
-  "last_updated": "2025-08-05T07:39:22.116775+00:00",
+  "last_updated": "2025-08-05T08:15:28.372863+00:00",
   "connectors": {
     "clipboard": {
       "id": "clipboard",
       "name": "剪贴板连接器",
-      "version": "0.1.10",
+      "version": "0.1.11",
       "description": "高性能C++版本剪贴板监控连接器，体积小巧，资源占用低，监控系统剪贴板变化并自动记录和索引复制的内容",
       "author": "Linch Mind Team",
       "category": "system",
@@ -31,8 +31,8 @@
         "hot_reload": true
       },
       "config_path": "official/clipboard/connector.json",
-      "last_updated": "2025-08-05T07:39:22.117615+00:00",
-      "action": "kept",
+      "last_updated": "2025-08-05T08:15:28.372986+00:00",
+      "action": "updated",
       "download_url": "https://github.com/unknown/unknown/releases/download/connectors-v124/clipboard-connector.zip"
     },
     "filesystem": {
@@ -65,14 +65,14 @@
         "hot_reload": true
       },
       "config_path": "official/filesystem/connector.json",
-      "last_updated": "2025-08-05T07:39:22.117503+00:00",
+      "last_updated": "2025-08-05T08:15:28.373052+00:00",
       "action": "kept",
       "download_url": "https://github.com/unknown/unknown/releases/download/connectors-v124/filesystem-connector.zip"
     }
   },
   "metadata": {
     "repository": "laofahai/linch-mind",
-    "commit": "unknown",
+    "commit": "578a0a9176b73071b4b7a55f48e93fbe2b26339e",
     "total_count": 2
   }
 }
