@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/connector_lifecycle_models.dart';
 import '../services/connector_lifecycle_api_client.dart';
+import '../services/daemon_lifecycle_service.dart';
 
 // 主题管理提供者
 final themeModeProvider = StateNotifierProvider<ThemeModeNotifier, ThemeMode>((ref) {
@@ -48,6 +49,30 @@ final connectorsProvider = FutureProvider<List<ConnectorInfo>>((ref) async {
   final apiClient = ref.watch(connectorLifecycleApiProvider);
   final response = await apiClient.getConnectors();
   return response.collectors;
+});
+
+// 后台daemon初始化提供者 - 不阻塞UI启动
+final backgroundDaemonInitProvider = FutureProvider<bool>((ref) async {
+  try {
+    final daemonService = DaemonLifecycleService.instance;
+    print('[BackgroundInit] 开始后台daemon初始化');
+    
+    final result = await daemonService.ensureDaemonRunning();
+    if (result.success) {
+      print('[BackgroundInit] Daemon启动成功');
+      // 更新应用状态
+      ref.read(appStateProvider.notifier).setConnected(true);
+      return true;
+    } else {
+      print('[BackgroundInit] Daemon启动失败: ${result.error}');
+      ref.read(appStateProvider.notifier).setError(result.error ?? 'Daemon启动失败');
+      return false;
+    }
+  } catch (e) {
+    print('[BackgroundInit] 后台初始化异常: $e');
+    ref.read(appStateProvider.notifier).setError('后台初始化失败: $e');
+    return false;
+  }
 });
 
 // 健康检查提供者 - 简化版本，直接检查API连通性

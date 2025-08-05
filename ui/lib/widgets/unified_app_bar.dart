@@ -24,25 +24,18 @@ class UnifiedAppBar extends ConsumerWidget implements PreferredSizeWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final healthCheckAsync = ref.watch(healthCheckProvider);
+    final appState = ref.watch(appStateProvider);
     final currentThemeMode = ref.watch(themeModeProvider);
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
-    final statusWidget = healthCheckAsync.when(
-      data: (isHealthy) => ResponsiveStatusIndicator(
-        isConnected: isHealthy,
-        onTap: () => ref.refresh(healthCheckProvider),
-      ),
-      loading: () => const SizedBox(
-        width: 20,
-        height: 20,
-        child: CircularProgressIndicator(strokeWidth: 2),
-      ),
-      error: (_, __) => ResponsiveStatusIndicator(
-        isConnected: false,
-        onTap: () => ref.refresh(healthCheckProvider),
-      ),
+    final statusWidget = ResponsiveStatusIndicator(
+      isConnected: appState.isConnected,
+      customMessage: appState.errorMessage,
+      onTap: () {
+        // 刷新后台daemon状态
+        ref.refresh(backgroundDaemonInitProvider);
+      },
     );
 
     if (_isDesktop) {

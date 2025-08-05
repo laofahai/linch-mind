@@ -208,14 +208,10 @@ class AppInitializationWrapper extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final initState = ref.watch(initializationStateProvider);
+    // 启动后台daemon检查，但不阻塞UI
+    ref.read(backgroundDaemonInitProvider);
     
-    // 显示初始化屏幕直到准备就绪
-    if (initState != InitializationState.ready) {
-      return const AppInitializationScreen();
-    }
-    
-    // 初始化完成后显示主应用
+    // 直接显示主应用，daemon状态通过状态指示器显示
     return const MainApp();
   }
 }
