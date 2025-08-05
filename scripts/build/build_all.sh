@@ -64,4 +64,5 @@ fi
 echo ""
 echo "🎉 All builds completed successfully!"
 
+echo "DEBUG: About to exit with 0"
 exit 0
