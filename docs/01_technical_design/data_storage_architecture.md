@@ -10,36 +10,48 @@
 
 Linch Mind作为"隐私至上"的个人AI助手，需要处理用户最敏感的个人数据。本文档设计了一个**实用主义**的数据存储架构，在保证数据安全的前提下，优化性能和开发复杂度。
 
-### 1.1 设计原则
+### 1.1 设计原则 (用户价值优先版)
 
-- **安全至上**: 所有敏感数据采用SQLCipher加密存储
+- **SQLCipher First**: SQLCipher AES-256是主要防线，简化安全架构
+- **智能功能优先**: 存储设计优先保证AI推荐和关联分析的完整性
 - **本地优先**: 100%本地存储，用户完全控制数据
+- **用户透明选择**: 支持不同安全级别，让用户理解和选择
 - **轻量高效**: 零配置部署，最小化系统资源占用
-- **智能索引**: 支持语义搜索、关系推理、行为分析
-- **简化架构**: 避免过度复杂的多层存储设计
-- **渐进增强**: 支持从基础功能向高级特性演进
+- **完整智能索引**: 支持无损的语义搜索、关系推理、行为分析
+- **简化架构**: 避免过度工程化，专注核心价值交付
 
 ## 2. 存储需求分析
 
-### 2.1 数据类型与敏感性分级
+### 2.1 重新定义的数据类型与存储策略
+
+基于用户价值优先的数据分类：
 
 ```
-🔴 极高敏感 (SECRET) - 必须加密
-├── AI对话历史: 用户完整思考过程、价值观
-├── 个人知识图谱: 认知指纹、兴趣模型  
-├── 跨应用行为: 数字生活轨迹、使用模式
-└── 用户生成内容: 笔记、想法、创意
+🔴 真正的机密 (SECRETS) - SQLCipher + 额外加密
+├── 系统密码: 主密码、API密钥、OAuth token
+├── 金融信息: 信用卡号、银行账户
+├── 法律敏感: 身份证号、护照号
+└── 存储策略: 额外应用层加密，不参与智能分析
 
-🟡 高敏感 (PRIVATE) - 建议加密
-├── 文件内容索引: 工作文档、研究成果
-├── 通信数据分析: 邮件语义、社交关系
-└── 个人偏好配置: 推荐设置、界面偏好
+🟡 个人智能数据 (PERSONAL-INTELLIGENT) - SQLCipher保护下完整智能分析
+├── AI对话历史: 用户思考过程、价值观 → 推荐算法的核心输入
+├── 个人知识图谱: 认知指纹、兴趣模型 → 跨应用关联的基础
+├── 跨应用行为: 数字生活轨迹 → 主动推荐的数据源
+├── 工作文档内容: 研究成果、商业计划 → 智能整理的对象
+├── 通信数据: 邮件语义、社交关系 → 人际网络分析
+└── 存储策略: SQLCipher保护，允许完整的向量化和图分析
 
-🟢 中等敏感 (INTERNAL) - 可选加密
-├── 系统配置: 连接器设置、API配置
+🟢 系统运行数据 (OPERATIONAL) - SQLCipher标准保护
+├── 系统配置: 连接器设置、用户偏好
 ├── 使用统计: 功能使用频率、性能指标
-└── 缓存数据: 临时计算结果、预处理数据
+├── 缓存数据: 临时计算结果、预处理数据
+└── 存储策略: 标准SQLCipher保护，支持所有智能功能
 ```
+
+**核心存储哲学变化**:
+- **智能数据不脱敏**: 个人智能数据是Linch Mind价值的源泉，在SQLCipher保护下应享受完整分析
+- **机密数据严保护**: 只有真正的机密（密码、密钥）才需要额外保护
+- **用户价值最大化**: 存储策略服务于智能推荐的准确性和完整性
 
 ### 2.2 数据规模预估
 
@@ -61,25 +73,48 @@ Linch Mind作为"隐私至上"的个人AI助手，需要处理用户最敏感的
 
 ## 3. 存储架构设计
 
-### 3.1 简化的三层架构
+### 3.1 用户价值优先的三层架构
 
 ```python
-# 实用主义存储架构
-class LinchMindDataStack:
+# 用户价值优先存储架构
+class IntelligentDataStack:
     """
-    三层存储架构 - 简化版本
-    避免过度复杂的多层设计
+    三层存储架构 - 用户价值优先版本
+    优先保证智能功能的完整性和准确性
     """
     
-    # Layer 1: 主存储层 (SQLCipher)
-    primary_storage: SQLCipherDatabase
+    # Layer 1: SQLCipher统一主存储 (核心防线)
+    primary_storage: SQLCipherDatabaseService    # 所有数据的核心保护
     
-    # Layer 2: 向量搜索层 (ChromaDB)  
-    vector_storage: ChromaDatabaseLocal
+    # Layer 2: 完整向量搜索层 (智能分析基础)  
+    vector_storage: IntelligentVectorService     # 无脱敏的语义搜索
     
-    # Layer 3: 图分析层 (NetworkX + SQLite持久化)
-    graph_storage: NetworkXGraphDatabase
+    # Layer 3: 完整图分析层 (关联发现引擎)
+    graph_storage: IntelligentGraphService       # 完整的关系推理
+    
+    # 统一管理层 (协调三层存储)
+    unified_manager: IntelligentDataManager      # 智能数据协调器
+    
+    # 用户安全控制层 (透明化选择)
+    security_controller: UserSecurityPreferences # 用户可选安全级别
 ```
+
+**新架构的核心特点**:
+
+1. **SQLCipher一元化保护**
+   - 所有三层的敏感数据都通过SQLCipher获得AES-256保护
+   - 简化了安全架构，避免多层加密的复杂性
+   - 性能开销控制在15-18%
+
+2. **智能功能完整性保证**
+   - 向量层: 存储完整内容，保证语义搜索准确性
+   - 图层: 分析完整关系，发现隐性关联模式
+   - 主存储: 保留所有上下文，支持深度推荐
+
+3. **用户透明化控制**
+   - 用户可选择Performance/Balanced/Paranoid三种模式
+   - 清晰展示每种模式对智能功能的影响
+   - 默认推荐Balanced模式，平衡安全与功能
 
 ### 3.2 SQLCipher主存储层 (核心)
 
@@ -684,27 +719,57 @@ class NetworkXGraphStorageService:
 
 ## 4. 数据管理服务层
 
-### 4.1 统一数据管理器
+### 4.1 智能数据管理器 (用户价值优先版)
 
 ```python
-# daemon/services/unified_data_manager.py
-class UnifiedDataManager:
-    """统一数据管理器 - 协调三个存储层"""
+# daemon/services/intelligent_data_manager.py
+class IntelligentDataManager:
+    """智能数据管理器 - 优先保证智能功能完整性"""
     
-    def __init__(self, config: dict):
+    def __init__(self, config: dict, user_security_level: str = 'balanced'):
         self.config = config
+        self.user_security_level = user_security_level
+        self.security_config = self._get_security_config(user_security_level)
         
         # 初始化三个存储服务
         self.database_service = None
         self.vector_service = None
         self.graph_service = None
         
-        # 数据同步状态
-        self.sync_status = {
-            'last_sync': None,
-            'sync_in_progress': False,
-            'sync_errors': []
+        # 智能分析状态
+        self.intelligence_status = {
+            'semantic_search_enabled': self.security_config['vector_storage_full'],
+            'graph_analysis_enabled': self.security_config['graph_analysis_full'],
+            'recommendation_accuracy': self.security_config['expected_accuracy'],
+            'last_optimization': None
         }
+    
+    def _get_security_config(self, level: str) -> dict:
+        """根据用户安全级别获取配置"""
+        configs = {
+            'performance': {
+                'vector_storage_full': True,
+                'graph_analysis_full': True,
+                'enable_data_sanitization': False,
+                'expected_accuracy': '90%+',
+                'description': '最佳智能体验'
+            },
+            'balanced': {
+                'vector_storage_full': True,
+                'graph_analysis_full': True,
+                'enable_data_sanitization': False,  # 关键改变：不脱敏
+                'expected_accuracy': '80%+',
+                'description': 'SQLCipher保护 + 完整智能功能'
+            },
+            'paranoid': {
+                'vector_storage_full': False,
+                'graph_analysis_full': False,
+                'enable_data_sanitization': True,
+                'expected_accuracy': '40-60%',
+                'description': '最高安全，智能功能受限'
+            }
+        }
+        return configs.get(level, configs['balanced'])
     
     async def initialize_all_storage(self, master_password: str):
         """初始化所有存储服务"""
@@ -729,51 +794,145 @@ class UnifiedDataManager:
             logger.error(f"存储服务初始化失败: {e}")
             raise
     
-    async def add_knowledge_entity(self, entity_data: dict) -> str:
-        """添加知识实体 - 跨存储层操作"""
+    async def add_knowledge_entity_intelligently(self, entity_data: dict) -> str:
+        """智能地添加知识实体 - 优先保证智能功能"""
         entity_id = entity_data.get('id') or self._generate_entity_id()
+        data_type = entity_data.get('type', 'unknown')
         
         try:
-            # 1. 添加到SQLite主存储
+            # 确定智能处理策略
+            processing_strategy = self._get_intelligent_processing_strategy(data_type)
+            
+            # 1. 添加到SQLCipher主存储 (所有数据的核心防线)
             session = self.database_service.get_session()
+            
+            # 只对真正的机密进行额外加密
+            processed_data = entity_data.copy()
+            if processing_strategy['requires_additional_encryption']:
+                processed_data = await self._encrypt_secrets_only(processed_data)
+            
             entity = EntityMetadata(
                 id=entity_id,
-                name=entity_data['name'],
-                entity_type=entity_data['type'],
-                description=entity_data.get('description', ''),
-                source_path=entity_data.get('source_path'),
-                metadata=entity_data.get('metadata', {})
+                name=processed_data['name'],
+                entity_type=processed_data['type'],
+                description=processed_data.get('description', ''),
+                source_path=processed_data.get('source_path'),
+                metadata=processed_data.get('metadata', {})
             )
             session.add(entity)
             session.commit()
             session.close()
             
-            # 2. 添加到向量存储 (如果有内容)
-            if 'content' in entity_data:
+            # 2. 智能向量存储 - 根据用户安全级别和数据类型决定
+            if (processing_strategy['allow_vector_storage'] and 
+                'content' in entity_data and 
+                self.security_config['vector_storage_full']):
+                
+                # 关键改变：不脱敏个人智能数据，保证搜索准确性
+                content_to_store = entity_data['content']  # 完整内容
+                
                 await self.vector_service.add_document_embedding(
                     entity_id,
-                    entity_data['content'],
+                    content_to_store,
                     {
                         'name': entity_data['name'],
                         'type': entity_data['type'],
-                        'source': entity_data.get('source_path', '')
+                        'source': entity_data.get('source_path', ''),
+                        'intelligence_enabled': True  # 标记为智能分析启用
                     }
                 )
             
-            # 3. 添加到图存储
-            self.graph_service.add_entity(
-                entity_id,
-                entity_data['name'],
-                entity_data['type'],
-                entity_data.get('metadata', {})
-            )
+            # 3. 智能图存储 - 支持完整关联分析
+            if (processing_strategy['allow_graph_analysis'] and 
+                self.security_config['graph_analysis_full']):
+                
+                self.graph_service.add_entity(
+                    entity_id,
+                    entity_data['name'],
+                    entity_data['type'],
+                    entity_data.get('metadata', {})
+                )
             
-            logger.info(f"添加知识实体成功: {entity_id}")
+            # 4. 更新智能分析状态
+            self._update_intelligence_metrics(entity_data)
+            
+            logger.info(f"智能添加实体成功: {entity_id} (策略: {processing_strategy['level']})")
             return entity_id
             
         except Exception as e:
-            logger.error(f"添加知识实体失败: {e}")
+            logger.error(f"智能添加实体失败: {e}")
             raise
+    
+    def _get_intelligent_processing_strategy(self, data_type: str) -> dict:
+        """获取智能处理策略"""
+        # 真正的机密 - 需要额外保护，不参与智能分析
+        if data_type in ['password', 'api_key', 'credit_card', 'ssn', 'oauth_token']:
+            return {
+                'level': 'secret',
+                'requires_additional_encryption': True,
+                'allow_vector_storage': False,
+                'allow_graph_analysis': False,
+                'description': '真正机密，额外加密保护'
+            }
+        
+        # 个人智能数据 - 核心价值源泉，允许完整分析
+        elif data_type in ['ai_conversation', 'personal_note', 'work_document', 'email_content']:
+            return {
+                'level': 'intelligent',
+                'requires_additional_encryption': False,  # SQLCipher已足够
+                'allow_vector_storage': True,
+                'allow_graph_analysis': True,
+                'description': '个人智能数据，完整智能分析'
+            }
+        
+        # 系统运行数据 - 标准处理
+        else:
+            return {
+                'level': 'standard',
+                'requires_additional_encryption': False,
+                'allow_vector_storage': True,
+                'allow_graph_analysis': True,
+                'description': '标准数据，支持智能功能'
+            }
+    
+    async def _encrypt_secrets_only(self, data: dict) -> dict:
+        """仅对真正的机密进行额外加密"""
+        try:
+            from cryptography.fernet import Fernet
+            
+            # 生成机密专用密钥
+            secrets_key = self._derive_secrets_key()
+            cipher = Fernet(secrets_key)
+            
+            # 只加密机密字段
+            secret_fields = ['password', 'api_key', 'token', 'key', 'credential']
+            encrypted_data = data.copy()
+            
+            for field in secret_fields:
+                if field in encrypted_data and encrypted_data[field]:
+                    plaintext = str(encrypted_data[field]).encode('utf-8')
+                    encrypted_data[field] = cipher.encrypt(plaintext).decode('ascii')
+                    encrypted_data[f'{field}_encrypted'] = True
+            
+            return encrypted_data
+            
+        except Exception as e:
+            logger.error(f"机密加密失败: {e}")
+            return data  # 失败时返回原数据，依赖SQLCipher保护
+    
+    def _update_intelligence_metrics(self, entity_data: dict):
+        """更新智能分析指标"""
+        data_type = entity_data.get('type', 'unknown')
+        
+        if data_type in ['ai_conversation', 'personal_note', 'work_document']:
+            # 记录智能数据处理情况
+            logger.info(f"智能数据处理: {data_type}, 向量存储: {self.intelligence_status['semantic_search_enabled']}, "
+                       f"图分析: {self.intelligence_status['graph_analysis_enabled']}")
+            
+            # 预估推荐准确率影响
+            if (self.intelligence_status['semantic_search_enabled'] and 
+                self.intelligence_status['graph_analysis_enabled']):
+                logger.info(f"预期推荐准确率: {self.intelligence_status['recommendation_accuracy']}")
     
     async def semantic_search_entities(self, query: str, limit: int = 10) -> List[dict]:
         """语义搜索实体"""

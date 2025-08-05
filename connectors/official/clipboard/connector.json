@@ -2,7 +2,7 @@
   "$schema": "../../connector.schema.json",
   "id": "clipboard",
   "name": "剪贴板连接器",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "author": "Linch Mind Team",
   "description": "监控系统剪贴板变化，自动记录和索引复制的内容",
   "license": "MIT",
