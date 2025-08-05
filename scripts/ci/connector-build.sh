@@ -32,12 +32,12 @@ echo "📦 Will build connectors: $CHANGED_CONNECTORS"
 echo ""
 echo "Step 2: Building connectors..."
 cd ..
-./scripts/build/build_all.sh "$CHANGED_CONNECTORS"
+./connectors/scripts/build/build_all.sh "$CHANGED_CONNECTORS"
 
 # Step 3: Generate registry
 echo ""
 echo "Step 3: Generating registry..."
-python3 scripts/registry_generator.py --output release/registry.json --format
+cd connectors && python3 scripts/registry_generator.py --output release/registry.json --format
 
 echo ""
 echo "🎉 Connector build pipeline completed successfully!"
