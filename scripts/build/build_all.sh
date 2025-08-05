@@ -50,7 +50,11 @@ fi
 # List built artifacts
 echo ""
 echo "📦 Built artifacts:"
-ls -lh "$OUTPUT_DIR"/ || echo "No artifacts found"
+if [ -d "$OUTPUT_DIR" ] && [ "$(ls -A "$OUTPUT_DIR" 2>/dev/null)" ]; then
+    ls -lh "$OUTPUT_DIR"/
+else
+    echo "No artifacts found"
+fi
 
 # Exit with error if any builds failed
 if [ $fail_count -gt 0 ]; then
