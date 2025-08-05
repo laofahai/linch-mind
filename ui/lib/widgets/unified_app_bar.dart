@@ -1,11 +1,15 @@
+import 'dart:developer' as developer;
 import 'package:flutter/foundation.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:window_manager/window_manager.dart';
 import '../providers/app_providers.dart';
 import 'status_indicator.dart';
 
-class UnifiedAppBar extends ConsumerStatefulWidget implements PreferredSizeWidget {
+class UnifiedAppBar extends ConsumerStatefulWidget
+    implements PreferredSizeWidget {
   final String title;
   final bool showBackButton;
 
@@ -23,7 +27,6 @@ class UnifiedAppBar extends ConsumerStatefulWidget implements PreferredSizeWidge
 }
 
 class _UnifiedAppBarState extends ConsumerState<UnifiedAppBar> {
-  int _lastTapTime = 0;
 
   bool get _isDesktop {
     if (kIsWeb) return false;
@@ -52,14 +55,33 @@ class _UnifiedAppBarState extends ConsumerState<UnifiedAppBar> {
       return _buildDesktopTitleBar(
           context, statusWidget, currentThemeMode, theme, isDark);
     } else {
-      return _buildMobileAppBar(
-          context, statusWidget, currentThemeMode, theme);
+      return _buildMobileAppBar(context, statusWidget, currentThemeMode, theme);
     }
   }
 
   Widget _buildDesktopTitleBar(BuildContext context, Widget statusWidget,
       ThemeMode currentThemeMode, ThemeData theme, bool isDark) {
-    return Container(
+    return Shortcuts(
+      shortcuts: <LogicalKeySet, Intent>{
+        LogicalKeySet(
+          defaultTargetPlatform == TargetPlatform.macOS
+              ? LogicalKeyboardKey.meta
+              : LogicalKeyboardKey.control,
+          LogicalKeyboardKey.keyW,
+        ): const _CloseWindowIntent(),
+        LogicalKeySet(
+          defaultTargetPlatform == TargetPlatform.macOS
+              ? LogicalKeyboardKey.meta
+              : LogicalKeyboardKey.control,
+          LogicalKeyboardKey.keyM,
+        ): const _MinimizeWindowIntent(),
+      },
+      child: Actions(
+        actions: <Type, Action<Intent>>{
+          _CloseWindowIntent: _CloseWindowAction(),
+          _MinimizeWindowIntent: _MinimizeWindowAction(),
+        },
+        child: Container(
       height: widget.preferredSize.height,
       decoration: BoxDecoration(
         color: isDark
@@ -138,8 +160,9 @@ class _UnifiedAppBarState extends ConsumerState<UnifiedAppBar> {
             padding: const EdgeInsets.only(right: 8),
             child: _WindowControls(),
           ),
-
         ],
+      ),
+        ),
       ),
     );
   }
@@ -165,6 +188,80 @@ class _UnifiedAppBarState extends ConsumerState<UnifiedAppBar> {
   }
 }
 
+// 键盘快捷键Intent定义
+class _CloseWindowIntent extends Intent {
+  const _CloseWindowIntent();
+}
+
+class _MinimizeWindowIntent extends Intent {
+  const _MinimizeWindowIntent();
+}
+
+// 键盘快捷键Action定义
+class _CloseWindowAction extends Action<_CloseWindowIntent> {
+  @override
+  Object? invoke(_CloseWindowIntent intent) {
+    windowManager.close().catchError((e) {
+      developer.log('Failed to close window via shortcut: $e');
+    });
+    return null;
+  }
+}
+
+class _MinimizeWindowAction extends Action<_MinimizeWindowIntent> {
+  @override
+  Object? invoke(_MinimizeWindowIntent intent) {
+    windowManager.minimize().catchError((e) {
+      developer.log('Failed to minimize window via shortcut: $e');
+    });
+    return null;
+  }
+}
+
+class _DraggableTitleBar extends StatefulWidget {
+  final Widget child;
+
+  const _DraggableTitleBar({required this.child});
+
+  @override
+  State<_DraggableTitleBar> createState() => _DraggableTitleBarState();
+}
+
+class _DraggableTitleBarState extends State<_DraggableTitleBar> {
+  @override
+  Widget build(BuildContext context) {
+    return Listener(
+      // 使用Listener来捕获原始指针事件，更好地处理macOS手势
+      onPointerDown: (event) {
+        // 对于macOS，让系统处理三指拖动，我们只处理鼠标左键拖动
+        if (defaultTargetPlatform == TargetPlatform.macOS) {
+          if (event.kind == PointerDeviceKind.mouse && event.buttons == 1) {
+            windowManager.startDragging();
+          }
+        } else {
+          // 其他平台保持原有逻辑
+          windowManager.startDragging();
+        }
+      },
+      child: GestureDetector(
+        onDoubleTap: () async {
+          final isMaximized = await windowManager.isMaximized();
+          if (isMaximized) {
+            await windowManager.unmaximize();
+          } else {
+            await windowManager.maximize();
+          }
+        },
+        behavior: HitTestBehavior.translucent,
+        child: MouseRegion(
+          cursor: SystemMouseCursors.move,
+          child: widget.child,
+        ),
+      ),
+    );
+  }
+}
+
 class _WindowControls extends StatefulWidget {
   const _WindowControls();
 
@@ -172,21 +269,63 @@ class _WindowControls extends StatefulWidget {
   State<_WindowControls> createState() => _WindowControlsState();
 }
 
-class _WindowControlsState extends State<_WindowControls> {
+class _WindowControlsState extends State<_WindowControls> with WindowListener {
   bool _isMaximized = false;
 
   @override
   void initState() {
     super.initState();
+    windowManager.addListener(this);
+    _checkMaximizeState();
+  }
+
+  @override
+  void dispose() {
+    windowManager.removeListener(this);
+    super.dispose();
+  }
+
+  @override
+  void onWindowMaximize() {
+    _checkMaximizeState();
+  }
+
+  @override
+  void onWindowUnmaximize() {
     _checkMaximizeState();
   }
 
   Future<void> _checkMaximizeState() async {
-    final isMaximized = await windowManager.isMaximized();
-    if (mounted) {
-      setState(() {
-        _isMaximized = isMaximized;
-      });
+    try {
+      final isMaximized = await windowManager.isMaximized();
+      if (mounted) {
+        setState(() {
+          _isMaximized = isMaximized;
+        });
+      }
+    } catch (e) {
+      developer.log('Failed to check window maximize state: $e');
+    }
+  }
+
+  Future<void> _safeWindowOperation(Future<void> Function() operation) async {
+    try {
+      await operation();
+    } catch (e) {
+      developer.log('Window operation failed: $e');
+    }
+  }
+
+  Future<void> _safeToggleMaximize() async {
+    try {
+      if (_isMaximized) {
+        await windowManager.unmaximize();
+      } else {
+        await windowManager.maximize();
+      }
+      await _checkMaximizeState();
+    } catch (e) {
+      developer.log('Failed to toggle window maximize state: $e');
     }
   }
 
@@ -204,32 +343,25 @@ class _WindowControlsState extends State<_WindowControls> {
           icon: Icons.remove,
           color: buttonColor,
           size: buttonSize,
-          onPressed: () => windowManager.minimize(),
+          onPressed: () => _safeWindowOperation(windowManager.minimize),
           tooltip: '最小化',
         ),
-        
+
         // 最大化/还原按钮
         _WindowControlButton(
           icon: _isMaximized ? Icons.fullscreen_exit : Icons.fullscreen,
           color: buttonColor,
           size: buttonSize,
-          onPressed: () async {
-            if (_isMaximized) {
-              await windowManager.unmaximize();
-            } else {
-              await windowManager.maximize();
-            }
-            await _checkMaximizeState();
-          },
+          onPressed: () => _safeToggleMaximize(),
           tooltip: _isMaximized ? '还原' : '最大化',
         ),
-        
+
         // 关闭按钮
         _WindowControlButton(
           icon: Icons.close,
           color: buttonColor,
           size: buttonSize,
-          onPressed: () => windowManager.close(),
+          onPressed: () => _safeWindowOperation(windowManager.close),
           tooltip: '关闭',
           isCloseButton: true,
         ),
@@ -265,7 +397,7 @@ class _WindowControlButtonState extends State<_WindowControlButton> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    
+
     return MouseRegion(
       onEnter: (_) => setState(() => _isHovered = true),
       onExit: (_) => setState(() => _isHovered = false),
@@ -278,7 +410,7 @@ class _WindowControlButtonState extends State<_WindowControlButton> {
             height: widget.size,
             decoration: BoxDecoration(
               color: _isHovered
-                  ? (widget.isCloseButton 
+                  ? (widget.isCloseButton
                       ? Colors.red.withValues(alpha: 0.9)
                       : theme.colorScheme.primary.withValues(alpha: 0.1))
                   : Colors.transparent,
@@ -368,10 +500,23 @@ class _ThemeToggleButtonState extends ConsumerState<_ThemeToggleButton> {
                   ? theme.colorScheme.primary.withValues(alpha: 0.1)
                   : Colors.transparent,
             ),
-            child: Icon(
-              getThemeIcon(),
-              size: 20,
-              color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
+            child: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 300),
+              transitionBuilder: (child, animation) {
+                return ScaleTransition(
+                  scale: animation,
+                  child: FadeTransition(
+                    opacity: animation,
+                    child: child,
+                  ),
+                );
+              },
+              child: Icon(
+                getThemeIcon(),
+                key: ValueKey(widget.currentThemeMode),
+                size: 20,
+                color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
+              ),
             ),
           ),
         ),
@@ -465,4 +610,3 @@ class _MobileMenuButton extends StatelessWidget {
     );
   }
 }
-

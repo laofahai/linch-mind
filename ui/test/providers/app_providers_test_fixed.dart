@@ -218,8 +218,8 @@ void main() {
 
     test('should handle health check provider correctly', () async {
       // Given: Mock API with health check response
-      when(mockApiClient.getHealthCheck()).thenAnswer(
-        (_) async => HealthCheckResponse(success: true),
+      when(mockApiClient.getConnectors()).thenAnswer(
+        (_) async => ConnectorListResponse(success: true, collectors: []),
       );
 
       // When: Reading health check provider
@@ -227,12 +227,12 @@ void main() {
 
       // Then: Should return correct health status
       expect(healthCheck, true);
-      verify(mockApiClient.getHealthCheck()).called(1);
+      verify(mockApiClient.getConnectors()).called(1);
     });
 
     test('should handle health check failures', () async {
       // Given: Mock API that throws exception
-      when(mockApiClient.getHealthCheck()).thenThrow(
+      when(mockApiClient.getConnectors()).thenThrow(
         Exception('Health check failed'),
       );
 
@@ -241,7 +241,7 @@ void main() {
 
       // Then: Should return false for failed health check
       expect(healthCheck, false);
-      verify(mockApiClient.getHealthCheck()).called(1);
+      verify(mockApiClient.getConnectors()).called(1);
     });
 
     test('should handle connector definitions provider', () async {
@@ -259,7 +259,8 @@ void main() {
       ];
 
       when(mockApiClient.discoverConnectors()).thenAnswer(
-        (_) async => ConnectorDiscoveryResponse(connectors: mockDefinitions),
+        (_) async => DiscoveryResponse(
+            success: true, message: 'Success', connectors: mockDefinitions),
       );
 
       // When: Reading connector definitions
@@ -284,7 +285,8 @@ void main() {
       ];
 
       when(mockApiClient.getConnectors()).thenAnswer(
-        (_) async => ConnectorListResponse(collectors: mockConnectors),
+        (_) async =>
+            ConnectorListResponse(success: true, collectors: mockConnectors),
       );
 
       // When: Reading connectors
@@ -328,8 +330,14 @@ void main() {
 
     test('should handle start connector operation', () async {
       // Given: Stopped connector instance
-      when(mockApiClient.startConnector(testInstanceId))
-          .thenAnswer((_) async => {});
+      when(mockApiClient.startConnector(testInstanceId)).thenAnswer((_) async {
+        await Future.delayed(const Duration(milliseconds: 50));
+        return OperationResponse(
+            success: true,
+            message: 'Started',
+            instanceId: testInstanceId,
+            state: ConnectorState.running);
+      });
 
       // When: Starting the connector
       final notifier = container
@@ -377,8 +385,12 @@ void main() {
 
     test('should handle stop connector operation', () async {
       // Given: Running connector instance
-      when(mockApiClient.stopConnector(testInstanceId))
-          .thenAnswer((_) async => {});
+      when(mockApiClient.stopConnector(testInstanceId)).thenAnswer((_) async =>
+          OperationResponse(
+              success: true,
+              message: 'Stopped',
+              instanceId: testInstanceId,
+              state: ConnectorState.enabled));
 
       // When: Stopping the connector
       final notifier = container
@@ -397,8 +409,12 @@ void main() {
 
     test('should handle restart connector operation', () async {
       // Given: Running connector that needs restart
-      when(mockApiClient.restartConnector(testInstanceId))
-          .thenAnswer((_) async => {});
+      when(mockApiClient.restartConnector(testInstanceId)).thenAnswer(
+          (_) async => OperationResponse(
+              success: true,
+              message: 'Restarted',
+              instanceId: testInstanceId,
+              state: ConnectorState.running));
 
       // When: Restarting the connector
       final notifier = container
@@ -415,18 +431,4 @@ void main() {
   });
 }
 
-// Mock response classes for testing
-class HealthCheckResponse {
-  final bool success;
-  HealthCheckResponse({required this.success});
-}
-
-class ConnectorDiscoveryResponse {
-  final List<ConnectorDefinition> connectors;
-  ConnectorDiscoveryResponse({required this.connectors});
-}
-
-class ConnectorListResponse {
-  final List<ConnectorInfo> collectors;
-  ConnectorListResponse({required this.collectors});
-}
+// Import the actual response models - no need for custom mock classes

@@ -6,6 +6,7 @@
 
 import logging
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any, Dict
 
 from fastapi import APIRouter, HTTPException
@@ -278,12 +279,122 @@ async def restart_connector(collector_id: str):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.post("/install")
+async def install_connector(request: Dict[str, Any]):
+    """安装连接器 - 从registry下载"""
+    try:
+        connector_id = request.get("connector_id")
+        if not connector_id:
+            raise HTTPException(status_code=400, detail="connector_id is required")
+        
+        # 从registry获取连接器信息
+        import json
+        
+        registry_path = Path("../connectors/registry.json")
+        if not registry_path.exists():
+            raise HTTPException(status_code=404, detail="Registry not found")
+        
+        with open(registry_path, "r", encoding="utf-8") as f:
+            registry = json.load(f)
+        
+        connector_info = registry.get("connectors", {}).get(connector_id)
+        if not connector_info:
+            raise HTTPException(status_code=404, detail=f"Connector {connector_id} not found in registry")
+        
+        # 检查是否已安装
+        from services.database_service import get_database_service
+        db_service = get_database_service()
+        
+        with db_service.get_session() as session:
+            from models.database_models import Connector
+            existing = session.query(Connector).filter_by(connector_id=connector_id).first()
+            if existing:
+                raise HTTPException(status_code=409, detail=f"Connector {connector_id} already installed")
+        
+        # 简化安装：直接引用本地连接器目录
+        local_connector_path = Path(f"../connectors/official/{connector_id}")
+        
+        if not local_connector_path.exists():
+            raise HTTPException(status_code=404, detail=f"Connector {connector_id} not found locally")
+        
+        # 创建连接器记录 - 直接使用本地路径
+        config = {
+            "path": str(local_connector_path),
+            "entry_point": f"{connector_id}-connector", 
+            "executable_path": str(local_connector_path / f"{connector_id}-connector"),
+            "version": connector_info.get("version", "1.0.0")
+        }
+        
+        with db_service.get_session() as session:
+            connector = Connector(
+                connector_id=connector_id,
+                name=connector_info.get("name", connector_id),
+                description=connector_info.get("description", ""),
+                config=config,
+                status="installed",
+                enabled=True,
+                auto_start=False,
+            )
+            session.add(connector)
+            session.commit()
+        
+        return {
+            "success": True,
+            "data": {
+                "connector_id": connector_id,
+                "name": connector_info.get("name", connector_id),
+                "status": "installed",
+                "install_path": str(local_connector_path)
+            },
+            "message": f"Connector {connector_id} downloaded and installed successfully"
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to install connector: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.delete("/collectors/{collector_id}")
 async def delete_connector(collector_id: str, force: bool = False):
-    """删除连接器 - 暂未实现"""
-    raise HTTPException(
-        status_code=501, detail="Delete functionality not implemented yet"
-    )
+    """删除连接器"""
+    try:
+        from services.database_service import get_database_service
+        db_service = get_database_service()
+        
+        with db_service.get_session() as session:
+            from models.database_models import Connector
+            connector = session.query(Connector).filter_by(connector_id=collector_id).first()
+            if not connector:
+                raise HTTPException(status_code=404, detail=f"Connector {collector_id} not found")
+            
+            # 如果连接器正在运行，先停止
+            if connector.status == "running":
+                if not force:
+                    raise HTTPException(
+                        status_code=400, 
+                        detail=f"Connector {collector_id} is running. Stop it first or use force=true"
+                    )
+                # 强制停止
+                manager = get_connector_manager()
+                await manager.stop_connector(collector_id)
+            
+            # 删除数据库记录
+            session.delete(connector)
+            session.commit()
+            
+        return {
+            "success": True,
+            "data": {"connector_id": collector_id},
+            "message": f"Connector {collector_id} deleted successfully"
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to delete connector {collector_id}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.get("/states")

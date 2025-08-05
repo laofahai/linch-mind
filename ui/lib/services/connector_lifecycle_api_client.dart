@@ -256,6 +256,7 @@ class ConnectorLifecycleApiClient {
   /// 删除连接器
   Future<OperationResponse> deleteConnector(String collectorId,
       {bool force = false}) async {
+    await _ensureInitialized();
     try {
       final queryParams = force ? {'force': 'true'} : <String, String>{};
       final response = await dio.delete(
@@ -322,6 +323,20 @@ class ConnectorLifecycleApiClient {
     } catch (e) {
       throw ConnectorApiException(
           'Failed to scan directory $directoryPath: $e');
+    }
+  }
+
+  /// 安装连接器
+  Future<OperationResponse> installConnector(String connectorId) async {
+    await _ensureInitialized();
+    try {
+      final response = await dio.post(
+        '/connector-lifecycle/install',
+        data: {'connector_id': connectorId},
+      );
+      return OperationResponse.fromJson(response.data);
+    } catch (e) {
+      throw ConnectorApiException('Failed to install connector $connectorId: $e');
     }
   }
 

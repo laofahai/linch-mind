@@ -33,6 +33,12 @@ void main() async {
       await windowManager.focus();
       await windowManager.setAsFrameless();
       await windowManager.setHasShadow(true);
+
+      // 确保支持macOS原生手势（三指拖动等）
+      if (defaultTargetPlatform == TargetPlatform.macOS) {
+        await windowManager.setMovable(true);
+        await windowManager.setResizable(true);
+      }
     });
   }
 
