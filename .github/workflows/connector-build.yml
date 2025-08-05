@@ -70,9 +70,24 @@ jobs:
           cd connectors
           mkdir -p release/dist
           
-          # 构建功能暂时跳过，等待Python版本兼容性问题解决
-          echo "🚧 Building skipped due to Python version compatibility"
-          echo "Changed connectors: ${{ steps.detect.outputs.changed_connectors }}"
+          # 构建变更的连接器
+          for connector_path in ${{ steps.detect.outputs.changed_connectors }}; do
+            echo "🚀 Building connector: $connector_path"
+            
+            if [ -f "$connector_path/connector.json" ] && [ -f "$connector_path/main.py" ]; then
+              # 读取连接器配置
+              connector_id=$(python -c "import json; print(json.load(open('$connector_path/connector.json'))['id'])")
+              echo "📦 Building $connector_id from $connector_path"
+              
+              # 使用构建脚本
+              python scripts/connector_builder.py "$connector_path" --output "release/dist" || {
+                echo "❌ Build failed for $connector_path, continuing with others..."
+                continue
+              }
+            else
+              echo "⚠️ Missing required files for $connector_path, skipping..."
+            fi
+          done
 
       - name: Generate registry
         if: steps.detect.outputs.changed_connectors != ''
@@ -97,11 +112,80 @@ Updated connectors: ${{ steps.detect.outputs.changed_connectors }}
 Co-Authored-By: Claude <noreply@anthropic.com>"
           git push
 
-      - name: Upload artifacts
+      - name: Create release tag
+        if: steps.detect.outputs.changed_connectors != ''
+        id: tag
+        run: |
+          # 生成基于时间戳的release标签
+          timestamp=$(date +%Y%m%d-%H%M%S)
+          release_tag="connectors-v${timestamp}"
+          echo "release_tag=$release_tag" >> $GITHUB_OUTPUT
+          
+          # 生成release备注
+          release_notes="# 🔗 连接器发布 v${timestamp}
+          
+          ## 📦 更新的连接器
+          ${{ steps.detect.outputs.changed_connectors }}
+          
+          ## 📋 包含内容
+          - 连接器可执行文件 (各平台)
+          - 连接器注册表 (registry.json)
+          - 版本更新和变更记录
+          
+          ## 🚀 使用方法
+          下载对应平台的连接器可执行文件，按照文档配置即可使用。
+          
+          ---
+          🤖 Generated with [Claude Code](https://claude.ai/code)"
+          
+          echo "release_notes<<EOF" >> $GITHUB_OUTPUT
+          echo "$release_notes" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Create GitHub Release
+        if: steps.detect.outputs.changed_connectors != ''
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ steps.tag.outputs.release_tag }}
+          release_name: "🔗 连接器发布 ${{ steps.tag.outputs.release_tag }}"
+          body: ${{ steps.tag.outputs.release_notes }}
+          draft: false
+          prerelease: false
+
+      - name: Upload release assets
+        if: steps.detect.outputs.changed_connectors != ''
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: connectors/release/registry.json
+          asset_name: registry.json
+          asset_content_type: application/json
+
+      - name: Upload connector binaries
+        if: steps.detect.outputs.changed_connectors != ''
+        run: |
+          # 上传所有构建的连接器二进制文件
+          if [ -d "connectors/release/dist" ]; then
+            for binary in connectors/release/dist/*; do
+              if [ -f "$binary" ]; then
+                echo "📦 Uploading binary: $(basename "$binary")"
+                gh release upload ${{ steps.tag.outputs.release_tag }} "$binary" --clobber
+              fi
+            done
+          fi
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload artifacts (backup)
         if: steps.detect.outputs.changed_connectors != ''
         uses: actions/upload-artifact@v3
         with:
-          name: connectors-release
+          name: connectors-release-${{ steps.tag.outputs.release_tag }}
           path: |
             connectors/release/dist/
             connectors/release/registry.json

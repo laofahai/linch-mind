@@ -7,8 +7,9 @@
 import json
 import glob
 import os
+import sys
 import argparse
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 
@@ -34,7 +35,7 @@ def generate_registry(connectors_dir: str = ".", output_file: str = "registry.js
         
         registry = {
             'schema_version': '1.0',
-            'last_updated': datetime.utcnow().isoformat() + 'Z',
+            'last_updated': datetime.now(timezone.utc).isoformat(),
             'connectors': {},
             'metadata': {
                 'repository': os.environ.get('GITHUB_REPOSITORY', 'unknown'),
