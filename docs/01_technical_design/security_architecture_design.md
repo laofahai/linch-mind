@@ -1394,10 +1394,12 @@ A: 约5-10%的性能开销，主要体现在内存使用和日志记录上。
 
 ---
 
-**文档版本**: 3.0 - 实用主义版  
+**文档版本**: 4.0 - 用户价值优先版  
 **创建时间**: 2025-08-04  
-**最后更新**: 2025-08-04  
+**最后更新**: 2025-08-05  
+**重大更新**: 基于Linch Mind核心定位分析，重新设计安全策略，从"过度保护"转向"用户价值优先"  
+**核心变革**: SQLCipher First + 智能功能完整性保证 + 用户透明选择  
 **相关文档**: 
-- [数据存储架构设计](data_storage_architecture.md)
+- [数据存储架构设计](data_storage_architecture.md) - 已同步更新为用户价值优先版
 - [Daemon架构设计](daemon_architecture.md)
 - [产品愿景与战略](../00_vision_and_strategy/product_vision_and_strategy.md)
