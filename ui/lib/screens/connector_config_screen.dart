@@ -1,11 +1,12 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:reactive_forms/reactive_forms.dart';
 import '../services/connector_config_api_client.dart';
-import '../widgets/config/custom_config_widgets.dart';
-import '../models/connector_lifecycle_models.dart';
+import '../services/form_builder_service.dart';
+import '../widgets/config/reactive_config_widgets.dart';
 
-/// 连接器配置界面
+/// 连接器配置界面 - 使用reactive_forms重写
 class ConnectorConfigScreen extends ConsumerStatefulWidget {
   final String connectorId;
   final String connectorName;
@@ -24,11 +25,11 @@ class _ConnectorConfigScreenState extends ConsumerState<ConnectorConfigScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
   
+  FormGroup? _form;
   Map<String, dynamic> _configSchema = {};
   Map<String, dynamic> _uiSchema = {};
   Map<String, dynamic> _currentConfig = {};
   Map<String, dynamic> _defaultConfig = {};
-  Map<String, dynamic> _formData = {};
   
   bool _isLoading = true;
   bool _isSaving = false;
@@ -45,6 +46,7 @@ class _ConnectorConfigScreenState extends ConsumerState<ConnectorConfigScreen>
   @override
   void dispose() {
     _tabController.dispose();
+    _form?.dispose();
     super.dispose();
   }
 
@@ -67,17 +69,22 @@ class _ConnectorConfigScreenState extends ConsumerState<ConnectorConfigScreen>
       final configResponse = results[1];
       
       if (schemaResponse.success && configResponse.success) {
+        final schemaData = schemaResponse.data as Map<String, dynamic>? ?? {};
+        final configData = configResponse.data as Map<String, dynamic>? ?? {};
+        
+        _configSchema = schemaData['schema'] as Map<String, dynamic>? ?? {};
+        _uiSchema = schemaData['ui_schema'] as Map<String, dynamic>? ?? {};
+        _defaultConfig = schemaData['default_values'] as Map<String, dynamic>? ?? {};
+        _currentConfig = configData['config'] as Map<String, dynamic>? ?? {};
+        
+        // 构建reactive form
+        _form = FormBuilderService.buildFormFromSchema(
+          schema: _configSchema,
+          initialData: _currentConfig,
+          uiSchema: _uiSchema,
+        );
+        
         setState(() {
-          final schemaData = schemaResponse.data as Map<String, dynamic>? ?? {};
-          final configData = configResponse.data as Map<String, dynamic>? ?? {};
-          
-          _configSchema = schemaData['schema'] as Map<String, dynamic>? ?? {};
-          _uiSchema = schemaData['ui_schema'] as Map<String, dynamic>? ?? {};
-          _defaultConfig = schemaData['default_values'] as Map<String, dynamic>? ?? {};
-          
-          _currentConfig = configData['config'] as Map<String, dynamic>? ?? {};
-          _formData = Map<String, dynamic>.from(_currentConfig);
-          
           _isLoading = false;
         });
       } else {
@@ -95,6 +102,14 @@ class _ConnectorConfigScreenState extends ConsumerState<ConnectorConfigScreen>
   }
 
   Future<void> _validateAndSaveConfig() async {
+    if (_form == null || !_form!.valid) {
+      setState(() {
+        _validationErrors = _extractValidationErrors();
+      });
+      _showValidationErrorDialog();
+      return;
+    }
+
     setState(() {
       _isSaving = true;
       _validationErrors = [];
@@ -102,11 +117,12 @@ class _ConnectorConfigScreenState extends ConsumerState<ConnectorConfigScreen>
 
     try {
       final configService = ref.read(connectorConfigApiClientProvider);
+      final formData = FormBuilderService.extractFormData(_form!);
       
       // 先验证配置
       final validationResponse = await configService.validateConfig(
         widget.connectorId,
-        _formData,
+        formData,
       );
       
       final validationData = validationResponse.data as Map<String, dynamic>? ?? {};
@@ -123,14 +139,14 @@ class _ConnectorConfigScreenState extends ConsumerState<ConnectorConfigScreen>
       // 保存配置
       final saveResponse = await configService.updateConfig(
         widget.connectorId,
-        _formData,
+        formData,
         changeReason: '用户界面更新',
       );
       
       if (saveResponse.success) {
         // 更新当前配置
         setState(() {
-          _currentConfig = Map<String, dynamic>.from(_formData);
+          _currentConfig = Map<String, dynamic>.from(formData);
           _isSaving = false;
         });
         
@@ -154,16 +170,84 @@ class _ConnectorConfigScreenState extends ConsumerState<ConnectorConfigScreen>
     }
   }
 
+  List<String> _extractValidationErrors() {
+    if (_form == null) return [];
+    
+    final errors = <String>[];
+    
+    void collectErrors(AbstractControl control, String path) {
+      if (control.hasErrors) {
+        for (final error in control.errors.entries) {
+          final field = path.isEmpty ? '表单' : path;
+          switch (error.key) {
+            case 'required':
+              errors.add('$field 为必填项');
+              break;
+            case 'email':
+              errors.add('$field 必须是有效的邮箱地址');
+              break;
+            case 'minLength':
+              final errorMap = error.value as Map<String, dynamic>? ?? {};
+              final minLength = errorMap['requiredLength'] ?? '?';
+              errors.add('$field 最少需要 $minLength 个字符');
+              break;
+            case 'maxLength':
+              final errorMap = error.value as Map<String, dynamic>? ?? {};
+              final maxLength = errorMap['requiredLength'] ?? '?';
+              errors.add('$field 最多允许 $maxLength 个字符');
+              break;
+            case 'min':
+              final errorMap = error.value as Map<String, dynamic>? ?? {};
+              final min = errorMap['min'] ?? '?';
+              errors.add('$field 不能小于 $min');
+              break;
+            case 'max':
+              final errorMap = error.value as Map<String, dynamic>? ?? {};
+              final max = errorMap['max'] ?? '?';
+              errors.add('$field 不能大于 $max');
+              break;
+            case 'pattern':
+              errors.add('$field 格式不正确');
+              break;
+            default:
+              errors.add('$field 验证失败: ${error.key}');
+              break;
+          }
+        }
+      }
+      
+      if (control is FormGroup) {
+        for (final entry in control.controls.entries) {
+          final childPath = path.isEmpty ? entry.key : '$path.${entry.key}';
+          collectErrors(entry.value, childPath);
+        }
+      } else if (control is FormArray) {
+        for (int i = 0; i < control.controls.length; i++) {
+          final childPath = path.isEmpty ? '[$i]' : '$path[$i]';
+          collectErrors(control.controls[i], childPath);
+        }
+      }
+    }
+    
+    collectErrors(_form!, '');
+    return errors;
+  }
+
   Future<void> _resetToDefaults() async {
     final confirmed = await _showConfirmDialog(
       '重置配置',
       '确定要将配置重置为默认值吗？此操作不可撤销。',
     );
     
-    if (confirmed) {
-      setState(() {
-        _formData = Map<String, dynamic>.from(_defaultConfig);
-      });
+    if (confirmed && _form != null) {
+      // 重新构建表单使用默认值
+      _form!.dispose();
+      _form = FormBuilderService.buildFormFromSchema(
+        schema: _configSchema,
+        initialData: _defaultConfig,
+        uiSchema: _uiSchema,
+      );
+      setState(() {});
     }
   }
 
@@ -320,12 +404,21 @@ class _ConnectorConfigScreenState extends ConsumerState<ConnectorConfigScreen>
       );
     }
 
-    return TabBarView(
-      controller: _tabController,
-      children: [
-        _buildConfigTab(),
-        _buildPreviewTab(),
-      ],
+    if (_form == null) {
+      return const Center(
+        child: Text('无法创建表单'),
+      );
+    }
+
+    return ReactiveForm(
+      formGroup: _form!,
+      child: TabBarView(
+        controller: _tabController,
+        children: [
+          _buildConfigTab(),
+          _buildPreviewTab(),
+        ],
+      ),
     );
   }
 
@@ -363,24 +456,20 @@ class _ConnectorConfigScreenState extends ConsumerState<ConnectorConfigScreen>
     Widget content = Column(
       children: fields.entries.map((fieldEntry) {
         final fieldName = fieldEntry.key;
-        final fieldConfig = fieldEntry.value as Map<String, dynamic>;
         final fieldSchema = _configSchema['properties']?[fieldName] as Map<String, dynamic>? ?? {};
         
         // 合并schema和UI配置
-        final mergedConfig = Map<String, dynamic>.from(fieldSchema);
-        mergedConfig.addAll(fieldConfig);
+        final mergedConfig = FormBuilderService.getFieldUIConfig(
+          fieldName,
+          fieldSchema,
+          _uiSchema,
+        );
         
         return Padding(
           padding: const EdgeInsets.only(bottom: 16),
-          child: CustomConfigWidgetFactory.buildConfigField(
+          child: ReactiveConfigWidgets.buildFieldWidget(
             fieldName: fieldName,
-            fieldSchema: mergedConfig,
-            currentValue: _formData[fieldName],
-            onChanged: (value) {
-              setState(() {
-                _formData[fieldName] = value;
-              });
-            },
+            fieldConfig: mergedConfig,
             context: context,
           ),
         );
@@ -435,17 +524,17 @@ class _ConnectorConfigScreenState extends ConsumerState<ConnectorConfigScreen>
           final fieldName = entry.key;
           final fieldSchema = entry.value as Map<String, dynamic>;
           
+          final mergedConfig = FormBuilderService.getFieldUIConfig(
+            fieldName,
+            fieldSchema,
+            _uiSchema,
+          );
+          
           return Padding(
             padding: const EdgeInsets.only(bottom: 16),
-            child: CustomConfigWidgetFactory.buildConfigField(
+            child: ReactiveConfigWidgets.buildFieldWidget(
               fieldName: fieldName,
-              fieldSchema: fieldSchema,
-              currentValue: _formData[fieldName],
-              onChanged: (value) {
-                setState(() {
-                  _formData[fieldName] = value;
-                });
-              },
+              fieldConfig: mergedConfig,
               context: context,
             ),
           );
@@ -455,6 +544,12 @@ class _ConnectorConfigScreenState extends ConsumerState<ConnectorConfigScreen>
   }
 
   Widget _buildPreviewTab() {
+    if (_form == null) {
+      return const Center(child: Text('表单未初始化'));
+    }
+
+    final currentData = FormBuilderService.extractFormData(_form!);
+    
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -474,7 +569,7 @@ class _ConnectorConfigScreenState extends ConsumerState<ConnectorConfigScreen>
               border: Border.all(color: Colors.grey.shade300),
             ),
             child: SelectableText(
-              _formatConfigForPreview(_formData),
+              _formatConfigForPreview(currentData),
               style: const TextStyle(
                 fontFamily: 'Monaco',
                 fontSize: 12,
@@ -507,45 +602,118 @@ class _ConnectorConfigScreenState extends ConsumerState<ConnectorConfigScreen>
               ),
             ),
           ],
+          
+          // 表单验证状态
+          const SizedBox(height: 24),
+          Text(
+            '表单验证状态',
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
+          const SizedBox(height: 8),
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(
+                        _form!.valid ? Icons.check_circle : Icons.error,
+                        color: _form!.valid ? Colors.green : Colors.red,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        _form!.valid ? '表单验证通过' : '表单存在验证错误',
+                        style: TextStyle(
+                          color: _form!.valid ? Colors.green : Colors.red,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                  if (!_form!.valid) ...[
+                    const SizedBox(height: 8),
+                    const Divider(),
+                    const SizedBox(height: 8),
+                    ..._extractValidationErrors().map(
+                      (error) => Padding(
+                        padding: const EdgeInsets.only(bottom: 4),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Icon(Icons.error, color: Colors.red, size: 16),
+                            const SizedBox(width: 8),
+                            Expanded(child: Text(error)),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
         ],
       ),
     );
   }
 
   Widget? _buildFloatingActionButton() {
-    if (_isLoading || !_hasConfigChanges()) {
+    if (_isLoading || _form == null) {
       return null;
     }
 
-    return FloatingActionButton.extended(
-      onPressed: _isSaving ? null : _validateAndSaveConfig,
-      icon: _isSaving 
-          ? const SizedBox(
-              width: 16,
-              height: 16,
-              child: CircularProgressIndicator(strokeWidth: 2),
-            )
-          : const Icon(Icons.save),
-      label: Text(_isSaving ? '保存中...' : '保存配置'),
+    return ReactiveFormConsumer(
+      builder: (context, form, child) {
+        final hasChanges = _hasConfigChanges();
+        
+        if (!hasChanges) {
+          return const SizedBox.shrink();
+        }
+
+        return FloatingActionButton.extended(
+          onPressed: _isSaving ? null : _validateAndSaveConfig,
+          icon: _isSaving 
+              ? const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Icon(Icons.save),
+          label: Text(_isSaving ? '保存中...' : '保存配置'),
+        );
+      },
     );
   }
 
   bool _hasConfigChanges() {
-    return _formData.toString() != _currentConfig.toString();
+    if (_form == null) return false;
+    
+    final currentData = FormBuilderService.extractFormData(_form!);
+    return currentData.toString() != _currentConfig.toString();
   }
 
   String _formatConfigForPreview(Map<String, dynamic> config) {
-    // 格式化配置为可读的JSON字符串
     return JsonEncoder.withIndent('  ').convert(config);
   }
 
   String _getConfigDiff() {
-    // 简化的差异显示，实际实现可以更复杂
+    if (_form == null) return '无变更';
+    
+    final formData = FormBuilderService.extractFormData(_form!);
     final changes = <String>[];
     
-    for (final key in _formData.keys) {
-      if (_formData[key] != _currentConfig[key]) {
-        changes.add('$key: ${_currentConfig[key]} → ${_formData[key]}');
+    for (final key in formData.keys) {
+      if (formData[key] != _currentConfig[key]) {
+        changes.add('$key: ${_currentConfig[key]} → ${formData[key]}');
+      }
+    }
+    
+    // 检查删除的键
+    for (final key in _currentConfig.keys) {
+      if (!formData.containsKey(key)) {
+        changes.add('$key: ${_currentConfig[key]} → (已删除)');
       }
     }
     
