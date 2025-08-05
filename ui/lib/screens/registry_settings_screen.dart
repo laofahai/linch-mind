@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import '../services/daemon_port_service.dart';
 
 /// 注册表配置数据模型
 class RegistryConfig {
@@ -66,9 +67,10 @@ class RegistryConfig {
 
 /// 注册表配置服务
 class RegistryConfigService {
-  static const String baseUrl = 'http://localhost:58471'; // 使用daemon端口
+  static final DaemonPortService _portService = DaemonPortService.instance;
 
   static Future<RegistryConfig> getConfig() async {
+    final baseUrl = await _portService.getDaemonBaseUrl();
     final response = await http.get(
       Uri.parse('$baseUrl/api/system/config/registry'),
       headers: {'Content-Type': 'application/json'},
@@ -83,6 +85,7 @@ class RegistryConfigService {
   }
 
   static Future<RegistryConfig> updateConfig(RegistryConfig config) async {
+    final baseUrl = await _portService.getDaemonBaseUrl();
     final response = await http.put(
       Uri.parse('$baseUrl/api/system/config/registry'),
       headers: {'Content-Type': 'application/json'},
@@ -98,6 +101,7 @@ class RegistryConfigService {
   }
 
   static Future<Map<String, dynamic>> testUrl(String url) async {
+    final baseUrl = await _portService.getDaemonBaseUrl();
     final response = await http.post(
       Uri.parse(
           '$baseUrl/api/system/config/registry/test?test_url=${Uri.encodeComponent(url)}'),
@@ -112,6 +116,7 @@ class RegistryConfigService {
   }
 
   static Future<Map<String, dynamic>> refreshRegistry() async {
+    final baseUrl = await _portService.getDaemonBaseUrl();
     final response = await http.post(
       Uri.parse('$baseUrl/api/system/config/registry/refresh'),
       headers: {'Content-Type': 'application/json'},

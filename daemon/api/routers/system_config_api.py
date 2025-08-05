@@ -242,12 +242,18 @@ async def get_registry_connectors(
 
         registry_service = get_connector_registry_service()
 
+        # 如果缓存为空，强制刷新一次
+        if not registry_service._cache:
+            logger.info("注册表缓存为空，进行首次加载")
+            await registry_service.fetch_registry(force_refresh=True)
+
         # 搜索连接器
         connectors = await registry_service.search_connectors(
             query=query or "",
             category=category if category and category != "all" else None,
         )
 
+        logger.info(f"返回 {len(connectors)} 个连接器")
         return connectors
 
     except Exception as e:

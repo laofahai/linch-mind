@@ -334,8 +334,7 @@ class ConfigSchemaNotifier
       if (response.success) {
         state = AsyncValue.data(response.data as Map<String, dynamic>? ?? {});
       } else {
-        state =
-            AsyncValue.error(response.message ?? '加载失败', StackTrace.current);
+        state = AsyncValue.error(response.message, StackTrace.current);
       }
     } catch (e, stackTrace) {
       state = AsyncValue.error(e, stackTrace);
@@ -368,8 +367,7 @@ class CurrentConfigNotifier
         final data = response.data as Map<String, dynamic>? ?? {};
         state = AsyncValue.data(data['config'] as Map<String, dynamic>? ?? {});
       } else {
-        state =
-            AsyncValue.error(response.message ?? '加载失败', StackTrace.current);
+        state = AsyncValue.error(response.message, StackTrace.current);
       }
     } catch (e, stackTrace) {
       state = AsyncValue.error(e, stackTrace);

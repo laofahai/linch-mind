@@ -20,10 +20,20 @@ logger = logging.getLogger(__name__)
 class DatabaseService:
     """简化的数据库服务 - 只管理连接器"""
 
-    def __init__(self):
+    def __init__(self, db_path: Optional[str] = None):
         self.db_config = get_database_config()
+        # 如果提供了db_path，使用它，否则使用配置中的路径
+        if db_path:
+            database_url = (
+                f"sqlite:///{db_path}"
+                if db_path != ":memory:"
+                else "sqlite:///:memory:"
+            )
+        else:
+            database_url = self.db_config.sqlite_url
+
         self.engine = create_engine(
-            self.db_config.sqlite_url,
+            database_url,
             echo=False,  # 生产环境关闭SQL日志
             pool_pre_ping=True,
             pool_recycle=3600,
@@ -32,6 +42,15 @@ class DatabaseService:
             autocommit=False, autoflush=False, bind=self.engine
         )
         self._initialize_database()
+
+    async def initialize(self):
+        """异步初始化方法（为了兼容测试接口）"""
+        # 当前实现是同步的，这里只是提供异步接口
+        pass
+
+    async def close(self):
+        """异步关闭方法（为了兼容测试接口）"""
+        self.cleanup()
 
     def _initialize_database(self):
         """初始化数据库表结构"""

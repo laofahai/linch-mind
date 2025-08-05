@@ -2,7 +2,6 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:window_manager/window_manager.dart';
-import 'package:bitsdojo_window/bitsdojo_window.dart';
 import 'screens/connector_management_screen.dart';
 import 'screens/my_mind_screen.dart';
 import 'screens/knowledge_nebula_screen.dart';
@@ -27,20 +26,13 @@ void main() async {
       backgroundColor: Colors.transparent,
       skipTaskbar: false,
       titleBarStyle: TitleBarStyle.hidden,
-      windowButtonVisibility: false,
     );
 
     windowManager.waitUntilReadyToShow(windowOptions, () async {
       await windowManager.show();
       await windowManager.focus();
-    });
-
-    doWhenWindowReady(() {
-      const initialSize = Size(1200, 800);
-      appWindow.minSize = const Size(800, 600);
-      appWindow.size = initialSize;
-      appWindow.alignment = Alignment.center;
-      appWindow.show();
+      await windowManager.setAsFrameless();
+      await windowManager.setHasShadow(true);
     });
   }
 

@@ -6,41 +6,6 @@ import '../services/connector_lifecycle_api_client.dart';
 import '../services/registry_api_client.dart';
 import 'connector_config_screen.dart';
 
-// 已安装连接器筛选枚举
-enum InstalledConnectorFilter {
-  all,
-  running,
-  stopped,
-  error,
-  highActivity,
-  noData,
-}
-
-// 已安装连接器排序枚举
-enum InstalledConnectorSort {
-  status,
-  activity,
-  dataCount,
-  lastHeartbeat,
-}
-
-// 市场连接器分类枚举
-enum MarketConnectorCategory {
-  all,
-  filesystem,
-  communication,
-  automation,
-  development,
-  productivity,
-}
-
-// 市场连接器排序枚举
-enum MarketConnectorSort {
-  recommended,
-  newest,
-  popular,
-  rating,
-}
 
 /// 连接器管理主界面 - 工具箱+应用商店双重体验
 class ConnectorManagementScreen extends ConsumerStatefulWidget {
@@ -71,11 +36,6 @@ class _ConnectorManagementScreenState
   String? _marketErrorMessage;
   String _marketSearchQuery = '';
 
-  // 筛选器
-  InstalledConnectorFilter _installedFilter = InstalledConnectorFilter.all;
-  InstalledConnectorSort _installedSort = InstalledConnectorSort.status;
-  MarketConnectorCategory _marketCategory = MarketConnectorCategory.all;
-  MarketConnectorSort _marketSort = MarketConnectorSort.recommended;
 
   @override
   void initState() {
@@ -97,14 +57,16 @@ class _ConnectorManagementScreenState
     });
 
     try {
+      // 只获取真正已安装的连接器（从数据库）
       final connectorResponse = await _apiClient.getConnectors();
+      
       setState(() {
         _installedConnectors = connectorResponse.collectors;
         _installedLoading = false;
       });
     } catch (e) {
       setState(() {
-        _installedErrorMessage = '加载已安装连接器失败: $e';
+        _installedErrorMessage = '加载连接器失败: $e';
         _installedLoading = false;
       });
     }
@@ -119,11 +81,11 @@ class _ConnectorManagementScreenState
     });
 
     try {
-      // 使用真实的Registry API
-      final registryConnectors = await RegistryApiClient.getMarketConnectors();
-
+      // 从Discovery API获取可用连接器作为市场连接器
+      final discoveryResponse = await _apiClient.discoverConnectors();
+      
       setState(() {
-        _marketConnectors = registryConnectors;
+        _marketConnectors = discoveryResponse.connectors;
         _marketLoading = false;
       });
     } catch (e) {
@@ -134,83 +96,29 @@ class _ConnectorManagementScreenState
     }
   }
 
-  List<ConnectorDefinition> _generateMockMarketConnectors() {
-    return [
-      const ConnectorDefinition(
-        connectorId: 'obsidian-vault',
-        name: 'Obsidian Vault',
-        displayName: 'Obsidian 知识库',
-        description: '连接你的 Obsidian 知识库，智能索引笔记和双链关系',
-        category: '知识管理',
-        version: '1.2.0',
-        author: 'Linch Mind Team',
-        isRegistered: true,
-      ),
-      const ConnectorDefinition(
-        connectorId: 'browser-bookmarks',
-        name: 'Browser Bookmarks',
-        displayName: '浏览器书签',
-        description: '同步浏览器书签，发现你的兴趣模式和知识图谱',
-        category: '浏览器',
-        version: '1.0.5',
-        author: 'Community',
-        isRegistered: true,
-      ),
-      const ConnectorDefinition(
-        connectorId: 'email-insights',
-        name: 'Email Insights',
-        displayName: '邮件洞察',
-        description: '分析邮件内容，提取任务、约会和重要信息',
-        category: '通讯',
-        version: '2.1.0',
-        author: 'Linch Mind Team',
-        isRegistered: true,
-      ),
-      const ConnectorDefinition(
-        connectorId: 'github-activity',
-        name: 'GitHub Activity',
-        displayName: 'GitHub 活动',
-        description: '跟踪GitHub活动，分析代码提交和项目协作模式',
-        category: '开发',
-        version: '1.3.2',
-        author: 'Community',
-        isRegistered: true,
-      ),
-      const ConnectorDefinition(
-        connectorId: 'notion-workspace',
-        name: 'Notion Workspace',
-        displayName: 'Notion 工作空间',
-        description: '连接Notion工作空间，整合笔记、任务和项目信息',
-        category: '效率',
-        version: '2.0.1',
-        author: 'Linch Mind Team',
-        isRegistered: true,
-      ),
-    ];
-  }
-
   Future<void> _refreshInstalledConnectors() async {
     await _loadInstalledConnectors();
   }
 
   Future<void> _refreshMarketConnectors() async {
-    try {
-      // 先刷新注册表
-      await RegistryApiClient.refreshRegistry();
+    setState(() {
+      _marketLoading = true;
+      _marketConnectors = [];
+      _marketErrorMessage = null;
+    });
 
-      // 清空缓存并重新加载
-      _marketConnectors.clear();
+    try {
       await _loadMarketConnectors();
     } catch (e) {
       setState(() {
         _marketErrorMessage = '刷新市场连接器失败: $e';
+        _marketLoading = false;
       });
     }
   }
 
   List<ConnectorInfo> get _filteredInstalledConnectors {
     var filtered = _installedConnectors.where((connector) {
-      // 搜索过滤
       if (_installedSearchQuery.isNotEmpty) {
         final query = _installedSearchQuery.toLowerCase();
         if (!connector.displayName.toLowerCase().contains(query) &&
@@ -218,73 +126,15 @@ class _ConnectorManagementScreenState
           return false;
         }
       }
-
-      // 状态过滤
-      switch (_installedFilter) {
-        case InstalledConnectorFilter.running:
-          if (connector.state != ConnectorState.running) return false;
-          break;
-        case InstalledConnectorFilter.stopped:
-          if (connector.state != ConnectorState.configured &&
-              connector.state != ConnectorState.enabled) {
-            return false;
-          }
-          break;
-        case InstalledConnectorFilter.error:
-          if (connector.state != ConnectorState.error) return false;
-          break;
-        case InstalledConnectorFilter.highActivity:
-          if (connector.dataCount < 100) return false;
-          break;
-        case InstalledConnectorFilter.noData:
-          if (connector.dataCount > 0) return false;
-          break;
-        case InstalledConnectorFilter.all:
-          break;
-      }
-
       return true;
     }).toList();
 
-    // 排序
-    filtered.sort((a, b) {
-      switch (_installedSort) {
-        case InstalledConnectorSort.status:
-          const stateOrder = {
-            ConnectorState.error: 0, // 错误优先
-            ConnectorState.running: 1,
-            ConnectorState.enabled: 2,
-            ConnectorState.configured: 3,
-          };
-          final orderA = stateOrder[a.state] ?? 99;
-          final orderB = stateOrder[b.state] ?? 99;
-          if (orderA != orderB) return orderA.compareTo(orderB);
-          break;
-        case InstalledConnectorSort.activity:
-          final result = b.dataCount.compareTo(a.dataCount);
-          if (result != 0) return result;
-          break;
-        case InstalledConnectorSort.dataCount:
-          final result = b.dataCount.compareTo(a.dataCount);
-          if (result != 0) return result;
-          break;
-        case InstalledConnectorSort.lastHeartbeat:
-          final aTime = a.lastHeartbeat ?? DateTime(1970);
-          final bTime = b.lastHeartbeat ?? DateTime(1970);
-          final result = bTime.compareTo(aTime);
-          if (result != 0) return result;
-          break;
-      }
-
-      return a.displayName.compareTo(b.displayName);
-    });
-
+    filtered.sort((a, b) => a.displayName.compareTo(b.displayName));
     return filtered;
   }
 
   List<ConnectorDefinition> get _filteredMarketConnectors {
     var filtered = _marketConnectors.where((connector) {
-      // 搜索过滤
       if (_marketSearchQuery.isNotEmpty) {
         final query = _marketSearchQuery.toLowerCase();
         if (!connector.displayName.toLowerCase().contains(query) &&
@@ -293,60 +143,13 @@ class _ConnectorManagementScreenState
           return false;
         }
       }
-
-      // 分类过滤
-      if (_marketCategory != MarketConnectorCategory.all) {
-        final categoryName = _getMarketCategoryName(_marketCategory);
-        if (!connector.category
-            .toLowerCase()
-            .contains(categoryName.toLowerCase())) {
-          return false;
-        }
-      }
-
       return true;
     }).toList();
 
-    // 排序 (简化版，实际应该根据服务端数据)
-    filtered.sort((a, b) {
-      switch (_marketSort) {
-        case MarketConnectorSort.recommended:
-          // Mock: 官方的排前面
-          if (a.author == 'Linch Mind Team' && b.author != 'Linch Mind Team')
-            return -1;
-          if (b.author == 'Linch Mind Team' && a.author != 'Linch Mind Team')
-            return 1;
-          break;
-        case MarketConnectorSort.newest:
-          // Mock: 按版本号排序
-          return b.version.compareTo(a.version);
-        case MarketConnectorSort.popular:
-        case MarketConnectorSort.rating:
-          // Mock: 按名称排序
-          break;
-      }
-      return a.displayName.compareTo(b.displayName);
-    });
-
+    filtered.sort((a, b) => a.displayName.compareTo(b.displayName));
     return filtered;
   }
 
-  String _getMarketCategoryName(MarketConnectorCategory category) {
-    switch (category) {
-      case MarketConnectorCategory.filesystem:
-        return '文件';
-      case MarketConnectorCategory.communication:
-        return '通讯';
-      case MarketConnectorCategory.automation:
-        return '自动化';
-      case MarketConnectorCategory.development:
-        return '开发';
-      case MarketConnectorCategory.productivity:
-        return '效率';
-      case MarketConnectorCategory.all:
-        return '';
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -405,7 +208,6 @@ class _ConnectorManagementScreenState
     return Column(
       children: [
         _buildMarketSearchAndCategory(),
-        _buildMarketCategoryNavigation(),
         Expanded(
           child: _buildMarketContent(),
         ),
@@ -427,10 +229,9 @@ class _ConnectorManagementScreenState
       child: Row(
         children: [
           Expanded(
-            flex: 2,
             child: TextField(
               decoration: const InputDecoration(
-                hintText: '搜索运行中的连接器...',
+                hintText: '搜索连接器...',
                 prefixIcon: Icon(Icons.search),
                 border: OutlineInputBorder(),
                 isDense: true,
@@ -454,42 +255,6 @@ class _ConnectorManagementScreenState
             onPressed: _refreshInstalledConnectors,
             tooltip: '刷新',
           ),
-          const SizedBox(width: 12),
-          DropdownButton<InstalledConnectorFilter>(
-            value: _installedFilter,
-            hint: const Text('状态'),
-            items: InstalledConnectorFilter.values.map((filter) {
-              return DropdownMenuItem(
-                value: filter,
-                child: Text(_getInstalledFilterName(filter)),
-              );
-            }).toList(),
-            onChanged: (filter) {
-              if (filter != null) {
-                setState(() {
-                  _installedFilter = filter;
-                });
-              }
-            },
-          ),
-          const SizedBox(width: 8),
-          DropdownButton<InstalledConnectorSort>(
-            value: _installedSort,
-            hint: const Text('排序'),
-            items: InstalledConnectorSort.values.map((sort) {
-              return DropdownMenuItem(
-                value: sort,
-                child: Text(_getInstalledSortName(sort)),
-              );
-            }).toList(),
-            onChanged: (sort) {
-              if (sort != null) {
-                setState(() {
-                  _installedSort = sort;
-                });
-              }
-            },
-          ),
         ],
       ),
     );
@@ -509,11 +274,10 @@ class _ConnectorManagementScreenState
       child: Row(
         children: [
           Expanded(
-            flex: 2,
             child: TextField(
               decoration: const InputDecoration(
-                hintText: '发现连接器...',
-                prefixIcon: Icon(Icons.explore),
+                hintText: '搜索连接器...',
+                prefixIcon: Icon(Icons.search),
                 border: OutlineInputBorder(),
                 isDense: true,
               ),
@@ -529,42 +293,6 @@ class _ConnectorManagementScreenState
             icon: const Icon(Icons.refresh),
             onPressed: _refreshMarketConnectors,
             tooltip: '刷新',
-          ),
-          const SizedBox(width: 12),
-          DropdownButton<MarketConnectorCategory>(
-            value: _marketCategory,
-            hint: const Text('分类'),
-            items: MarketConnectorCategory.values.map((category) {
-              return DropdownMenuItem(
-                value: category,
-                child: Text(_getMarketCategoryDisplayName(category)),
-              );
-            }).toList(),
-            onChanged: (category) {
-              if (category != null) {
-                setState(() {
-                  _marketCategory = category;
-                });
-              }
-            },
-          ),
-          const SizedBox(width: 8),
-          DropdownButton<MarketConnectorSort>(
-            value: _marketSort,
-            hint: const Text('排序'),
-            items: MarketConnectorSort.values.map((sort) {
-              return DropdownMenuItem(
-                value: sort,
-                child: Text(_getMarketSortName(sort)),
-              );
-            }).toList(),
-            onChanged: (sort) {
-              if (sort != null) {
-                setState(() {
-                  _marketSort = sort;
-                });
-              }
-            },
           ),
         ],
       ),
@@ -636,44 +364,6 @@ class _ConnectorManagementScreenState
     );
   }
 
-  Widget _buildMarketCategoryNavigation() {
-    final categories = [
-      (MarketConnectorCategory.all, Icons.apps, '全部'),
-      (MarketConnectorCategory.filesystem, Icons.folder, '文件'),
-      (MarketConnectorCategory.communication, Icons.chat, '通讯'),
-      (MarketConnectorCategory.automation, Icons.auto_awesome, '自动化'),
-      (MarketConnectorCategory.development, Icons.code, '开发'),
-      (MarketConnectorCategory.productivity, Icons.trending_up, '效率'),
-    ];
-
-    return Container(
-      height: 60,
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: ListView.builder(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        itemCount: categories.length,
-        itemBuilder: (context, index) {
-          final (category, icon, label) = categories[index];
-          final isSelected = _marketCategory == category;
-
-          return Padding(
-            padding: const EdgeInsets.only(right: 12),
-            child: FilterChip(
-              avatar: Icon(icon, size: 18),
-              label: Text(label),
-              selected: isSelected,
-              onSelected: (selected) {
-                setState(() {
-                  _marketCategory = category;
-                });
-              },
-            ),
-          );
-        },
-      ),
-    );
-  }
 
   Widget _buildInstalledContent() {
     if (_installedLoading) {
@@ -754,12 +444,25 @@ class _ConnectorManagementScreenState
 
     return RefreshIndicator(
       onRefresh: _refreshInstalledConnectors,
-      child: ListView.builder(
-        padding: const EdgeInsets.all(16),
-        itemCount: filteredConnectors.length,
-        itemBuilder: (context, index) {
-          final connector = filteredConnectors[index];
-          return _buildInstalledConnectorCard(connector);
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          // 根据屏幕宽度计算列数，每列最小宽度350px
+          final crossAxisCount = (constraints.maxWidth / 350).floor().clamp(1, 4);
+          
+          return GridView.builder(
+            padding: const EdgeInsets.all(16),
+            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: crossAxisCount,
+              crossAxisSpacing: 12,
+              mainAxisSpacing: 8,
+              childAspectRatio: 4.5, // 宽高比，调整卡片高度
+            ),
+            itemCount: filteredConnectors.length,
+            itemBuilder: (context, index) {
+              final connector = filteredConnectors[index];
+              return _buildInstalledConnectorCard(connector);
+            },
+          );
         },
       ),
     );
@@ -840,12 +543,25 @@ class _ConnectorManagementScreenState
 
     return RefreshIndicator(
       onRefresh: _refreshMarketConnectors,
-      child: ListView.builder(
-        padding: const EdgeInsets.all(16),
-        itemCount: filteredConnectors.length,
-        itemBuilder: (context, index) {
-          final connector = filteredConnectors[index];
-          return _buildMarketConnectorCard(connector);
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          // 根据屏幕宽度计算列数，每列最小宽度380px（市场卡片信息更多）
+          final crossAxisCount = (constraints.maxWidth / 380).floor().clamp(1, 3);
+          
+          return GridView.builder(
+            padding: const EdgeInsets.all(16),
+            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: crossAxisCount,
+              crossAxisSpacing: 12,
+              mainAxisSpacing: 8,
+              childAspectRatio: 3.8, // 市场卡片稍高一些
+            ),
+            itemCount: filteredConnectors.length,
+            itemBuilder: (context, index) {
+              final connector = filteredConnectors[index];
+              return _buildMarketConnectorCard(connector);
+            },
+          );
         },
       ),
     );
@@ -854,38 +570,62 @@ class _ConnectorManagementScreenState
   Widget _buildInstalledConnectorCard(ConnectorInfo connector) {
     final isRunning = connector.state == ConnectorState.running;
     final hasError = connector.state == ConnectorState.error;
+    final isAvailable = connector.state == ConnectorState.available;
 
     return Card(
-      margin: const EdgeInsets.only(bottom: 12),
+      margin: const EdgeInsets.only(bottom: 8),
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(12),
         child: Row(
           children: [
             // 状态指示器
             Container(
-              width: 12,
-              height: 12,
+              width: 10,
+              height: 10,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 color: hasError
                     ? Colors.red
-                    : (isRunning ? Colors.green : Colors.grey),
+                    : (isRunning 
+                        ? Colors.green 
+                        : (isAvailable ? Colors.blue : Colors.grey)),
               ),
             ),
-            const SizedBox(width: 16),
+            const SizedBox(width: 12),
 
             // 连接器信息
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    connector.displayName,
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w600,
+                  Row(
+                    children: [
+                      Text(
+                        connector.displayName,
+                        style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                              fontWeight: FontWeight.w600,
+                            ),
+                      ),
+                      if (isAvailable) ...[
+                        const SizedBox(width: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: Colors.blue.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(
+                            '可安装',
+                            style: TextStyle(
+                              fontSize: 10,
+                              color: Colors.blue.shade700,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
                         ),
+                      ],
+                    ],
                   ),
-                  const SizedBox(height: 4),
                   Text(
                     _getConnectorDescription(connector),
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
@@ -893,18 +633,19 @@ class _ConnectorManagementScreenState
                               .textTheme
                               .bodySmall
                               ?.color
-                              ?.withValues(alpha: 0.7),
+                              ?.withValues(alpha: 0.6),
+                          fontSize: 11,
                         ),
-                    maxLines: 2,
+                    maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
                   if (hasError && connector.errorMessage != null) ...[
-                    const SizedBox(height: 4),
+                    const SizedBox(height: 2),
                     Text(
                       '错误: ${connector.errorMessage}',
                       style: TextStyle(
                         color: Theme.of(context).colorScheme.error,
-                        fontSize: 12,
+                        fontSize: 10,
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -914,24 +655,41 @@ class _ConnectorManagementScreenState
               ),
             ),
 
-            const SizedBox(width: 16),
+            const SizedBox(width: 12),
 
-            // 快速启动/停用开关
-            Switch(
-              value: isRunning,
-              onChanged: hasError
-                  ? null
-                  : (enabled) => _toggleConnector(connector, enabled),
-            ),
+            // 根据状态显示不同的操作按钮
+            if (isAvailable) ...[
+              SizedBox(
+                height: 32,
+                child: ElevatedButton(
+                  onPressed: () => _createConnectorFromDiscovered(connector),
+                  child: const Text('创建', style: TextStyle(fontSize: 12)),
+                ),
+              ),
+            ] else ...[
+              // 快速启动/停用开关
+              Transform.scale(
+                scale: 0.8,
+                child: Switch(
+                  value: isRunning,
+                  onChanged: hasError
+                      ? null
+                      : (enabled) => _toggleConnector(connector, enabled),
+                ),
+              ),
 
-            const SizedBox(width: 8),
-
-            // 设置按钮
-            IconButton(
-              icon: const Icon(Icons.settings),
-              onPressed: () => _showAdvancedConfigDialog(connector),
-              tooltip: '高级配置',
-            ),
+              // 设置按钮
+              SizedBox(
+                width: 32,
+                height: 32,
+                child: IconButton(
+                  icon: const Icon(Icons.settings, size: 18),
+                  onPressed: () => _showAdvancedConfigDialog(connector),
+                  tooltip: '设置',
+                  padding: EdgeInsets.zero,
+                ),
+              ),
+            ],
           ],
         ),
       ),
@@ -939,82 +697,100 @@ class _ConnectorManagementScreenState
   }
 
   Widget _buildMarketConnectorCard(ConnectorDefinition connector) {
-    final isInstalled =
-        _installedConnectors.any((c) => c.collectorId == connector.connectorId);
+    // 使用Discovery API返回的is_registered字段来判断安装状态
+    final isInstalled = connector.isRegistered ?? false;
 
     return Card(
-      margin: const EdgeInsets.only(bottom: 12),
+      margin: const EdgeInsets.only(bottom: 8),
       child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        padding: const EdgeInsets.all(12),
+        child: Row(
           children: [
-            Row(
-              children: [
-                Container(
-                  width: 48,
-                  height: 48,
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.primaryContainer,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Icon(
-                    _getCategoryIcon(connector.category),
-                    size: 24,
-                    color: Theme.of(context).colorScheme.onPrimaryContainer,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+            // 图标 - 缩小尺寸
+            Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.primaryContainer,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(
+                _getCategoryIcon(connector.category),
+                size: 18,
+                color: Theme.of(context).colorScheme.onPrimaryContainer,
+              ),
+            ),
+            const SizedBox(width: 12),
+            
+            // 连接器信息
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
                     children: [
-                      Text(
-                        connector.displayName,
-                        style:
-                            Theme.of(context).textTheme.titleMedium?.copyWith(
-                                  fontWeight: FontWeight.w600,
-                                ),
+                      Expanded(
+                        child: Text(
+                          connector.displayName,
+                          style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                                fontWeight: FontWeight.w600,
+                              ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ),
-                      Text(
-                        '${connector.category} • v${connector.version}',
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: Theme.of(context).disabledColor,
+                      if (connector.author == 'Linch Mind Team') ...[
+                        const SizedBox(width: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: Theme.of(context).colorScheme.secondaryContainer,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(
+                            '官方',
+                            style: TextStyle(
+                              fontSize: 10,
+                              color: Theme.of(context).colorScheme.onSecondaryContainer,
+                              fontWeight: FontWeight.w500,
                             ),
-                      ),
+                          ),
+                        ),
+                      ],
                     ],
                   ),
-                ),
-                if (connector.author == 'Linch Mind Team')
-                  Chip(
-                    label: const Text('官方', style: TextStyle(fontSize: 12)),
-                    backgroundColor:
-                        Theme.of(context).colorScheme.secondaryContainer,
-                    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  Text(
+                    connector.description,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: Theme.of(context)
+                              .textTheme
+                              .bodySmall
+                              ?.color
+                              ?.withValues(alpha: 0.6),
+                          fontSize: 11,
+                        ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
-              ],
+                  Text(
+                    '${connector.category} • v${connector.version} • by ${connector.author}',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: Theme.of(context).disabledColor,
+                          fontSize: 10,
+                        ),
+                  ),
+                ],
+              ),
             ),
-            const SizedBox(height: 12),
-            Text(
-              connector.description,
-              style: Theme.of(context).textTheme.bodyMedium,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Text(
-                  'by ${connector.author}',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: Theme.of(context).disabledColor,
-                      ),
-                ),
-                const Spacer(),
-                if (isInstalled) ...[
+
+            const SizedBox(width: 12),
+
+            // 操作按钮
+            if (isInstalled) ...[
+              Row(
+                children: [
                   Icon(
                     Icons.check_circle,
-                    size: 16,
+                    size: 14,
                     color: Colors.green,
                   ),
                   const SizedBox(width: 4),
@@ -1022,21 +798,33 @@ class _ConnectorManagementScreenState
                     '已安装',
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
                           color: Colors.green,
+                          fontSize: 11,
                         ),
                   ),
-                ] else ...[
-                  TextButton(
-                    onPressed: () => _showMarketConnectorDetails(connector),
-                    child: const Text('查看详情'),
+                ],
+              ),
+            ] else ...[
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  SizedBox(
+                    height: 28,
+                    child: TextButton(
+                      onPressed: () => _showMarketConnectorDetails(connector),
+                      child: const Text('详情', style: TextStyle(fontSize: 11)),
+                    ),
                   ),
-                  const SizedBox(width: 8),
-                  ElevatedButton(
-                    onPressed: () => _installMarketConnector(connector),
-                    child: const Text('安装'),
+                  const SizedBox(width: 4),
+                  SizedBox(
+                    height: 32,
+                    child: ElevatedButton(
+                      onPressed: () => _installMarketConnector(connector),
+                      child: const Text('安装', style: TextStyle(fontSize: 12)),
+                    ),
                   ),
                 ],
-              ],
-            ),
+              ),
+            ],
           ],
         ),
       ),
@@ -1063,65 +851,6 @@ class _ConnectorManagementScreenState
     }
   }
 
-  String _getInstalledFilterName(InstalledConnectorFilter filter) {
-    switch (filter) {
-      case InstalledConnectorFilter.all:
-        return '全部';
-      case InstalledConnectorFilter.running:
-        return '运行中';
-      case InstalledConnectorFilter.stopped:
-        return '已停止';
-      case InstalledConnectorFilter.error:
-        return '异常';
-      case InstalledConnectorFilter.highActivity:
-        return '高活跃度';
-      case InstalledConnectorFilter.noData:
-        return '无数据';
-    }
-  }
-
-  String _getInstalledSortName(InstalledConnectorSort sort) {
-    switch (sort) {
-      case InstalledConnectorSort.status:
-        return '按状态';
-      case InstalledConnectorSort.activity:
-        return '按活跃度';
-      case InstalledConnectorSort.dataCount:
-        return '按数据量';
-      case InstalledConnectorSort.lastHeartbeat:
-        return '按最后活跃';
-    }
-  }
-
-  String _getMarketCategoryDisplayName(MarketConnectorCategory category) {
-    switch (category) {
-      case MarketConnectorCategory.all:
-        return '全部';
-      case MarketConnectorCategory.filesystem:
-        return '文件系统';
-      case MarketConnectorCategory.communication:
-        return '通讯工具';
-      case MarketConnectorCategory.automation:
-        return '自动化';
-      case MarketConnectorCategory.development:
-        return '开发工具';
-      case MarketConnectorCategory.productivity:
-        return '效率工具';
-    }
-  }
-
-  String _getMarketSortName(MarketConnectorSort sort) {
-    switch (sort) {
-      case MarketConnectorSort.recommended:
-        return '推荐';
-      case MarketConnectorSort.newest:
-        return '最新';
-      case MarketConnectorSort.popular:
-        return '最受欢迎';
-      case MarketConnectorSort.rating:
-        return '评分最高';
-    }
-  }
 
   Future<void> _showAddConnectorDialog() async {
     String? selectedPath;
@@ -1314,6 +1043,35 @@ class _ConnectorManagementScreenState
         Navigator.of(context).pop();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('成功创建连接器: ${type.displayName}')),
+        );
+        await _refreshInstalledConnectors();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('创建连接器失败: $e'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _createConnectorFromDiscovered(ConnectorInfo connector) async {
+    try {
+      final request = CreateConnectorRequest(
+        connectorId: connector.collectorId,
+        displayName: connector.displayName,
+        config: {}, // 使用默认配置
+        autoStart: true,
+      );
+
+      await _apiClient.createConnector(request);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('成功创建连接器: ${connector.displayName}')),
         );
         await _refreshInstalledConnectors();
       }

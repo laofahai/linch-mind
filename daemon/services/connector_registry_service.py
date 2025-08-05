@@ -27,10 +27,29 @@ class ConnectorRegistryService:
         # 从配置获取注册表URL，默认使用GitHub Release
         self.registry_url = self._get_registry_url()
 
+        # 初始化时预加载本地注册表
+        if self.registry_url.startswith("file://"):
+            import asyncio
+
+            try:
+                # 在后台预加载
+                asyncio.create_task(self._preload_local_registry())
+            except Exception as e:
+                logger.warning(f"预加载本地注册表失败: {e}")
+
+    async def _preload_local_registry(self):
+        """预加载本地注册表文件"""
+        try:
+            await self.fetch_registry(force_refresh=True)
+            logger.info("本地注册表预加载完成")
+        except Exception as e:
+            logger.error(f"预加载本地注册表失败: {e}")
+
     def _get_registry_url(self) -> str:
         """获取注册表URL配置"""
-        # 优先级：环境变量 > 配置文件 > 默认值
+        # 优先级：环境变量 > 配置文件 > 本地文件 > 默认值
         import os
+        from pathlib import Path
 
         # 1. 环境变量
         if os.getenv("REGISTRY_URL"):
@@ -38,11 +57,21 @@ class ConnectorRegistryService:
 
         # 2. 配置文件
         try:
-            return self.config.config.connector_registry.url
+            url = self.config.config.connector_registry.url
+            if url:
+                return url
         except Exception as e:
             logger.warning(f"读取注册表配置失败: {e}")
 
-        # 3. 默认GitHub Release
+        # 3. 本地注册表文件
+        local_registry = (
+            Path(__file__).parent.parent.parent / "connectors" / "registry.json"
+        )
+        if local_registry.exists():
+            logger.info(f"使用本地注册表文件: {local_registry}")
+            return f"file://{local_registry.absolute()}"
+
+        # 4. 默认GitHub Release
         return "https://github.com/laofahai/linch-mind/releases/latest/download/registry.json"
 
     async def fetch_registry(
@@ -57,10 +86,44 @@ class ConnectorRegistryService:
 
             logger.info(f"从 {self.registry_url} 获取注册表...")
 
+            # 处理本地文件
+            if self.registry_url.startswith("file://"):
+                import json
+                from pathlib import Path
+
+                file_path = self.registry_url[7:]  # 移除 "file://" 前缀
+                registry_file = Path(file_path)
+
+                if registry_file.exists():
+                    with open(registry_file, "r", encoding="utf-8") as f:
+                        registry_data = json.load(f)
+
+                    # 更新缓存
+                    self._cache = registry_data
+                    self._cache_expiry = datetime.now() + self._cache_duration
+
+                    logger.info(
+                        f"成功从本地文件获取注册表，包含 {len(registry_data.get('connectors', {}))} 个连接器"
+                    )
+                    return registry_data
+                else:
+                    logger.error(f"本地注册表文件不存在: {file_path}")
+                    return None
+
+            # 处理远程URL
             async with aiohttp.ClientSession() as session:
                 async with session.get(self.registry_url, timeout=30) as response:
                     if response.status == 200:
-                        registry_data = await response.json()
+                        # GitHub可能返回application/octet-stream，需要手动解析
+                        try:
+                            registry_data = await response.json()
+                        except Exception as json_error:
+                            # 如果JSON解析失败，尝试以文本方式读取
+                            logger.warning(f"JSON解析失败: {json_error}，尝试文本解析")
+                            import json
+
+                            text_content = await response.text()
+                            registry_data = json.loads(text_content)
 
                         # 更新缓存
                         self._cache = registry_data
@@ -98,11 +161,14 @@ class ConnectorRegistryService:
 
             connectors = []
             for connector_id, connector_info in registry.get("connectors", {}).items():
-                # 转换为UI需要的格式
+                # 转换为UI需要的格式，兼容GitHub registry格式
+                actual_id = connector_info.get(
+                    "id", connector_info.get("connector_id", connector_id)
+                )
                 connector_data = {
-                    "connector_id": connector_id,
-                    "name": connector_info.get("name", connector_id),
-                    "display_name": connector_info.get("name", connector_id),
+                    "connector_id": actual_id,
+                    "name": connector_info.get("name", actual_id),
+                    "display_name": connector_info.get("name", actual_id),
                     "description": connector_info.get("description", ""),
                     "version": connector_info.get("version", "1.0.0"),
                     "author": connector_info.get("author", "Unknown"),
@@ -192,8 +258,8 @@ class ConnectorRegistryService:
                     if connector["category"] != category:
                         continue
 
-                # 关键词搜索
-                if query_lower:
+                # 关键词搜索 - 只在有查询词时进行过滤
+                if query_lower and query_lower.strip():
                     searchable_text = " ".join(
                         [
                             connector["display_name"],
@@ -203,7 +269,7 @@ class ConnectorRegistryService:
                         ]
                     ).lower()
 
-                    if query_lower not in searchable_text:
+                    if query_lower.strip() not in searchable_text:
                         continue
 
                 filtered_connectors.append(connector)

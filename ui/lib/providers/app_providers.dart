@@ -113,14 +113,17 @@ class AppState {
     required this.lastUpdate,
   });
 
+  bool get hasError => errorMessage != null;
+
   AppState copyWith({
     bool? isConnected,
     String? errorMessage,
     DateTime? lastUpdate,
+    bool clearError = false,
   }) {
     return AppState(
       isConnected: isConnected ?? this.isConnected,
-      errorMessage: errorMessage ?? this.errorMessage,
+      errorMessage: clearError ? null : (errorMessage ?? this.errorMessage),
       lastUpdate: lastUpdate ?? this.lastUpdate,
     );
   }
@@ -152,7 +155,7 @@ class AppStateNotifier extends StateNotifier<AppState> {
 
   void clearError() {
     state = state.copyWith(
-      errorMessage: null,
+      clearError: true,
       lastUpdate: DateTime.now(),
     );
   }
@@ -184,12 +187,13 @@ class ConnectorInstanceState {
     ConnectorState? state,
     bool? isLoading,
     String? errorMessage,
+    bool clearError = false,
   }) {
     return ConnectorInstanceState(
       instanceId: instanceId,
       state: state ?? this.state,
       isLoading: isLoading ?? this.isLoading,
-      errorMessage: errorMessage ?? this.errorMessage,
+      errorMessage: clearError ? null : (errorMessage ?? this.errorMessage),
     );
   }
 }
@@ -206,7 +210,7 @@ class ConnectorInstanceStateNotifier
         ));
 
   Future<void> startInstance() async {
-    state = state.copyWith(isLoading: true, errorMessage: null);
+    state = state.copyWith(isLoading: true, clearError: true);
     try {
       await apiClient.startConnector(instanceId);
       state = state.copyWith(state: ConnectorState.running, isLoading: false);
@@ -220,7 +224,7 @@ class ConnectorInstanceStateNotifier
   }
 
   Future<void> stopInstance() async {
-    state = state.copyWith(isLoading: true, errorMessage: null);
+    state = state.copyWith(isLoading: true, clearError: true);
     try {
       await apiClient.stopConnector(instanceId);
       state = state.copyWith(state: ConnectorState.enabled, isLoading: false);
@@ -234,7 +238,7 @@ class ConnectorInstanceStateNotifier
   }
 
   Future<void> restartInstance() async {
-    state = state.copyWith(isLoading: true, errorMessage: null);
+    state = state.copyWith(isLoading: true, clearError: true);
     try {
       await apiClient.restartConnector(instanceId);
       state = state.copyWith(state: ConnectorState.running, isLoading: false);

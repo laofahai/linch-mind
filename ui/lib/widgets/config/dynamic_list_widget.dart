@@ -40,7 +40,6 @@ class _DynamicListWidgetState extends State<DynamicListWidget> {
   @override
   Widget build(BuildContext context) {
     final config = widget.widgetConfig;
-    final minItems = config['min_items'] ?? 0;
     final maxItems = config['max_items'] ?? 999;
     final allowReorder = config['allow_reorder'] ?? false;
     final collapseItems = config['collapse_items'] ?? false;

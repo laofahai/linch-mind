@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:http/http.dart' as http;
 import '../models/connector_lifecycle_models.dart';
 import 'daemon_port_service.dart';
@@ -9,6 +10,19 @@ class RegistryApiClient {
 
   static Future<String> get baseUrl async {
     return await _portService.getDaemonBaseUrl();
+  }
+
+  /// 自动检测当前平台
+  static String _detectPlatform() {
+    if (Platform.isWindows) {
+      return 'windows-x64';
+    } else if (Platform.isMacOS) {
+      return 'macos-x64';
+    } else if (Platform.isLinux) {
+      return 'linux-x64';
+    } else {
+      return 'unknown';
+    }
   }
 
   /// 获取市场连接器列表
@@ -28,9 +42,10 @@ class RegistryApiClient {
 
       // 构建URL
       final daemonBaseUrl = await baseUrl;
-      final uri = Uri.parse('$daemonBaseUrl/api/system/config/registry/connectors')
-          .replace(
-              queryParameters: queryParams.isNotEmpty ? queryParams : null);
+      final uri =
+          Uri.parse('$daemonBaseUrl/api/system/config/registry/connectors')
+              .replace(
+                  queryParameters: queryParams.isNotEmpty ? queryParams : null);
 
       final response = await http.get(
         uri,
@@ -39,9 +54,7 @@ class RegistryApiClient {
 
       if (response.statusCode == 200) {
         final List<dynamic> data = json.decode(response.body);
-        return data
-            .map((item) => ConnectorDefinition.fromJson(item))
-            .toList();
+        return data.map((item) => ConnectorDefinition.fromJson(item)).toList();
       } else {
         throw Exception('获取市场连接器失败: HTTP ${response.statusCode}');
       }
@@ -53,13 +66,16 @@ class RegistryApiClient {
   /// 获取连接器下载信息
   static Future<Map<String, dynamic>?> getConnectorDownloadInfo(
     String connectorId, {
-    String platform = 'macos-x64', // 默认当前平台
+    String? platform, // 自动检测平台
   }) async {
     try {
+      // 自动检测平台
+      final detectedPlatform = platform ?? _detectPlatform();
+
       final daemonBaseUrl = await baseUrl;
       final response = await http.get(
         Uri.parse(
-            '$daemonBaseUrl/api/system/config/registry/connectors/$connectorId/download?platform=$platform'),
+            '$daemonBaseUrl/api/system/config/registry/connectors/$connectorId/download?platform=$detectedPlatform'),
         headers: {'Content-Type': 'application/json'},
       );
 

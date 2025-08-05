@@ -5,7 +5,7 @@ import 'package:window_manager/window_manager.dart';
 import '../providers/app_providers.dart';
 import 'status_indicator.dart';
 
-class UnifiedAppBar extends ConsumerWidget implements PreferredSizeWidget {
+class UnifiedAppBar extends ConsumerStatefulWidget implements PreferredSizeWidget {
   final String title;
   final bool showBackButton;
 
@@ -15,6 +15,16 @@ class UnifiedAppBar extends ConsumerWidget implements PreferredSizeWidget {
     this.showBackButton = false,
   });
 
+  @override
+  ConsumerState<UnifiedAppBar> createState() => _UnifiedAppBarState();
+
+  @override
+  Size get preferredSize => const Size.fromHeight(50);
+}
+
+class _UnifiedAppBarState extends ConsumerState<UnifiedAppBar> {
+  int _lastTapTime = 0;
+
   bool get _isDesktop {
     if (kIsWeb) return false;
     return defaultTargetPlatform == TargetPlatform.macOS ||
@@ -23,7 +33,7 @@ class UnifiedAppBar extends ConsumerWidget implements PreferredSizeWidget {
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final appState = ref.watch(appStateProvider);
     final currentThemeMode = ref.watch(themeModeProvider);
     final theme = Theme.of(context);
@@ -34,7 +44,7 @@ class UnifiedAppBar extends ConsumerWidget implements PreferredSizeWidget {
       customMessage: appState.errorMessage,
       onTap: () {
         // 刷新后台daemon状态
-        ref.refresh(backgroundDaemonInitProvider);
+        final _ = ref.refresh(backgroundDaemonInitProvider);
       },
     );
 
@@ -43,14 +53,14 @@ class UnifiedAppBar extends ConsumerWidget implements PreferredSizeWidget {
           context, statusWidget, currentThemeMode, theme, isDark);
     } else {
       return _buildMobileAppBar(
-          context, statusWidget, currentThemeMode, theme, ref);
+          context, statusWidget, currentThemeMode, theme);
     }
   }
 
   Widget _buildDesktopTitleBar(BuildContext context, Widget statusWidget,
       ThemeMode currentThemeMode, ThemeData theme, bool isDark) {
     return Container(
-      height: preferredSize.height,
+      height: widget.preferredSize.height,
       decoration: BoxDecoration(
         color: isDark
             ? theme.colorScheme.surface.withValues(alpha: 0.95)
@@ -71,24 +81,9 @@ class UnifiedAppBar extends ConsumerWidget implements PreferredSizeWidget {
       ),
       child: Row(
         children: [
-          // 拖拽区域 + 应用标题
+          // 可拖动的标题区域
           Expanded(
-            child: GestureDetector(
-              behavior: HitTestBehavior.translucent,
-              onPanStart: (details) {
-                windowManager.startDragging();
-              },
-              onDoubleTap: () async {
-                try {
-                  if (await windowManager.isMaximized()) {
-                    await windowManager.unmaximize();
-                  } else {
-                    await windowManager.maximize();
-                  }
-                } catch (e) {
-                  debugPrint('Error toggling window state: $e');
-                }
-              },
+            child: _DraggableTitleBar(
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: Row(
@@ -117,7 +112,7 @@ class UnifiedAppBar extends ConsumerWidget implements PreferredSizeWidget {
                     const SizedBox(width: 12),
                     // 应用标题
                     Text(
-                      title,
+                      'Linch Mind',
                       style: theme.textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.w600,
                         color: theme.colorScheme.onSurface,
@@ -139,17 +134,21 @@ class UnifiedAppBar extends ConsumerWidget implements PreferredSizeWidget {
           _ThemeToggleButton(currentThemeMode: currentThemeMode),
 
           // 窗口控制按钮
-          _WindowControls(),
+          Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: _WindowControls(),
+          ),
+
         ],
       ),
     );
   }
 
   Widget _buildMobileAppBar(BuildContext context, Widget statusWidget,
-      ThemeMode currentThemeMode, ThemeData theme, WidgetRef ref) {
+      ThemeMode currentThemeMode, ThemeData theme) {
     return AppBar(
-      title: Text(title),
-      automaticallyImplyLeading: showBackButton,
+      title: Text(widget.title),
+      automaticallyImplyLeading: widget.showBackButton,
       backgroundColor: theme.colorScheme.surface,
       surfaceTintColor: theme.colorScheme.surfaceTint,
       actions: [
@@ -164,9 +163,139 @@ class UnifiedAppBar extends ConsumerWidget implements PreferredSizeWidget {
       ],
     );
   }
+}
+
+class _WindowControls extends StatefulWidget {
+  const _WindowControls();
 
   @override
-  Size get preferredSize => const Size.fromHeight(50);
+  State<_WindowControls> createState() => _WindowControlsState();
+}
+
+class _WindowControlsState extends State<_WindowControls> {
+  bool _isMaximized = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkMaximizeState();
+  }
+
+  Future<void> _checkMaximizeState() async {
+    final isMaximized = await windowManager.isMaximized();
+    if (mounted) {
+      setState(() {
+        _isMaximized = isMaximized;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final buttonColor = theme.colorScheme.onSurface.withValues(alpha: 0.6);
+    const buttonSize = 32.0;
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // 最小化按钮
+        _WindowControlButton(
+          icon: Icons.remove,
+          color: buttonColor,
+          size: buttonSize,
+          onPressed: () => windowManager.minimize(),
+          tooltip: '最小化',
+        ),
+        
+        // 最大化/还原按钮
+        _WindowControlButton(
+          icon: _isMaximized ? Icons.fullscreen_exit : Icons.fullscreen,
+          color: buttonColor,
+          size: buttonSize,
+          onPressed: () async {
+            if (_isMaximized) {
+              await windowManager.unmaximize();
+            } else {
+              await windowManager.maximize();
+            }
+            await _checkMaximizeState();
+          },
+          tooltip: _isMaximized ? '还原' : '最大化',
+        ),
+        
+        // 关闭按钮
+        _WindowControlButton(
+          icon: Icons.close,
+          color: buttonColor,
+          size: buttonSize,
+          onPressed: () => windowManager.close(),
+          tooltip: '关闭',
+          isCloseButton: true,
+        ),
+      ],
+    );
+  }
+}
+
+class _WindowControlButton extends StatefulWidget {
+  final IconData icon;
+  final Color color;
+  final double size;
+  final VoidCallback onPressed;
+  final String tooltip;
+  final bool isCloseButton;
+
+  const _WindowControlButton({
+    required this.icon,
+    required this.color,
+    required this.size,
+    required this.onPressed,
+    required this.tooltip,
+    this.isCloseButton = false,
+  });
+
+  @override
+  State<_WindowControlButton> createState() => _WindowControlButtonState();
+}
+
+class _WindowControlButtonState extends State<_WindowControlButton> {
+  bool _isHovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    
+    return MouseRegion(
+      onEnter: (_) => setState(() => _isHovered = true),
+      onExit: (_) => setState(() => _isHovered = false),
+      child: GestureDetector(
+        onTap: widget.onPressed,
+        child: Tooltip(
+          message: widget.tooltip,
+          child: Container(
+            width: widget.size,
+            height: widget.size,
+            decoration: BoxDecoration(
+              color: _isHovered
+                  ? (widget.isCloseButton 
+                      ? Colors.red.withValues(alpha: 0.9)
+                      : theme.colorScheme.primary.withValues(alpha: 0.1))
+                  : Colors.transparent,
+              borderRadius: BorderRadius.circular(4),
+            ),
+            child: Icon(
+              widget.icon,
+              size: 16,
+              color: _isHovered && widget.isCloseButton
+                  ? Colors.white
+                  : widget.color,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class _ThemeToggleButton extends ConsumerStatefulWidget {
@@ -337,137 +466,3 @@ class _MobileMenuButton extends StatelessWidget {
   }
 }
 
-class _WindowControls extends StatefulWidget {
-  @override
-  __WindowControlsState createState() => __WindowControlsState();
-}
-
-class __WindowControlsState extends State<_WindowControls> with WindowListener {
-  bool _isMaximized = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _checkMaximizedState();
-    windowManager.addListener(this);
-  }
-
-  @override
-  void dispose() {
-    windowManager.removeListener(this);
-    super.dispose();
-  }
-
-  @override
-  void onWindowMaximize() {
-    setState(() {
-      _isMaximized = true;
-    });
-  }
-
-  @override
-  void onWindowUnmaximize() {
-    setState(() {
-      _isMaximized = false;
-    });
-  }
-
-  void _checkMaximizedState() async {
-    final isMaximized = await windowManager.isMaximized();
-    if (mounted) {
-      setState(() {
-        _isMaximized = isMaximized;
-      });
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        // 最小化按钮
-        _WindowButton(
-          icon: Icons.remove,
-          onPressed: () => windowManager.minimize(),
-          hoverColor: theme.colorScheme.primary.withValues(alpha: 0.1),
-        ),
-
-        // 最大化/还原按钮
-        _WindowButton(
-          icon: _isMaximized ? Icons.crop_square : Icons.crop_din,
-          onPressed: () async {
-            if (_isMaximized) {
-              await windowManager.unmaximize();
-            } else {
-              await windowManager.maximize();
-            }
-            _checkMaximizedState();
-          },
-          hoverColor: theme.colorScheme.primary.withValues(alpha: 0.1),
-        ),
-
-        // 关闭按钮
-        _WindowButton(
-          icon: Icons.close,
-          onPressed: () => windowManager.close(),
-          hoverColor: Colors.red.withValues(alpha: 0.1),
-          iconColorOnHover: Colors.red,
-        ),
-      ],
-    );
-  }
-}
-
-class _WindowButton extends StatefulWidget {
-  final IconData icon;
-  final VoidCallback onPressed;
-  final Color? hoverColor;
-  final Color? iconColorOnHover;
-
-  const _WindowButton({
-    required this.icon,
-    required this.onPressed,
-    this.hoverColor,
-    this.iconColorOnHover,
-  });
-
-  @override
-  __WindowButtonState createState() => __WindowButtonState();
-}
-
-class __WindowButtonState extends State<_WindowButton> {
-  bool _isHovered = false;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return MouseRegion(
-      onEnter: (_) => setState(() => _isHovered = true),
-      onExit: (_) => setState(() => _isHovered = false),
-      child: GestureDetector(
-        onTap: widget.onPressed,
-        child: Container(
-          width: 56,
-          height: 50,
-          decoration: BoxDecoration(
-            color: _isHovered
-                ? (widget.hoverColor ??
-                    theme.colorScheme.primary.withValues(alpha: 0.1))
-                : Colors.transparent,
-          ),
-          child: Icon(
-            widget.icon,
-            size: 20,
-            color: _isHovered && widget.iconColorOnHover != null
-                ? widget.iconColorOnHover
-                : theme.colorScheme.onSurface.withValues(alpha: 0.7),
-          ),
-        ),
-      ),
-    );
-  }
-}

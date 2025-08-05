@@ -10,7 +10,6 @@ class SettingsScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final theme = Theme.of(context);
     final currentThemeMode = ref.watch(themeModeProvider);
 
     return Scaffold(
@@ -182,8 +181,6 @@ class SettingsScreen extends ConsumerWidget {
 
   Widget _buildThemeSetting(
       BuildContext context, WidgetRef ref, ThemeMode currentThemeMode) {
-    final theme = Theme.of(context);
-
     return ExpansionTile(
       leading: const Icon(Icons.brightness_6_outlined),
       title: const Text('主题模式'),

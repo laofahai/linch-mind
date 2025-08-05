@@ -91,8 +91,9 @@ class _ConnectorConfigScreenState extends ConsumerState<ConnectorConfigScreen>
         });
       } else {
         setState(() {
-          _errorMessage =
-              schemaResponse.message ?? configResponse.message ?? '加载配置失败';
+          _errorMessage = schemaResponse.message.isNotEmpty
+              ? schemaResponse.message
+              : configResponse.message;
           _isLoading = false;
         });
       }
@@ -162,7 +163,7 @@ class _ConnectorConfigScreenState extends ConsumerState<ConnectorConfigScreen>
             : '配置已保存，需要重启连接器生效');
       } else {
         setState(() {
-          _errorMessage = saveResponse.message ?? '保存配置失败';
+          _errorMessage = saveResponse.message;
           _isSaving = false;
         });
       }

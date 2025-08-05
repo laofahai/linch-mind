@@ -42,6 +42,44 @@ class DatabaseConfig:
 
 
 @dataclass
+class StorageConfig:
+    """三层存储架构配置"""
+
+    # 数据目录
+    data_directory: str = ""
+
+    # 图数据库配置
+    graph_enable_cache: bool = True
+    graph_cache_ttl_seconds: int = 300
+    graph_max_workers: int = 4
+
+    # 向量数据库配置
+    vector_dimension: int = 384
+    vector_index_type: str = "IVF"  # Flat, IVF, HNSW
+    vector_max_workers: int = 4
+
+    # 嵌入服务配置
+    embedding_model_name: str = "all-MiniLM-L6-v2"
+    embedding_cache_enabled: bool = True
+    embedding_max_workers: int = 2
+
+    # 数据同步配置
+    auto_sync_enabled: bool = True
+    sync_interval_minutes: int = 10
+
+    # 数据生命周期配置
+    entity_retention_days: int = 90
+    behavior_retention_days: int = 30
+    conversation_retention_days: int = 60
+    auto_cleanup_enabled: bool = True
+    cleanup_interval_hours: int = 24
+
+    # 性能配置
+    max_storage_gb: float = 10.0
+    cache_size_mb: int = 512
+
+
+@dataclass
 class ConnectorConfig:
     """连接器配置"""
 
@@ -83,6 +121,7 @@ class AppConfig:
     # 子配置
     server: ServerConfig = field(default_factory=ServerConfig)
     database: DatabaseConfig = field(default_factory=DatabaseConfig)
+    storage: StorageConfig = field(default_factory=StorageConfig)
     connectors: ConnectorConfig = field(default_factory=ConnectorConfig)
     connector_registry: ConnectorRegistryConfig = field(
         default_factory=ConnectorRegistryConfig
@@ -208,6 +247,7 @@ class CoreConfigManager:
             # 处理嵌套配置，确保都是字典类型
             server_data = data.get("server", {})
             database_data = data.get("database", {})
+            storage_data = data.get("storage", {})
             connectors_data = data.get("connectors", {})
             connector_registry_data = data.get("connector_registry", {})
             ai_data = data.get("ai", {})
@@ -217,6 +257,8 @@ class CoreConfigManager:
                 server_data = {}
             if not isinstance(database_data, dict):
                 database_data = {}
+            if not isinstance(storage_data, dict):
+                storage_data = {}
             if not isinstance(connectors_data, dict):
                 connectors_data = {}
             if not isinstance(connector_registry_data, dict):
@@ -231,6 +273,7 @@ class CoreConfigManager:
                 debug=bool(data.get("debug", False)),
                 server=ServerConfig(**server_data),
                 database=DatabaseConfig(**database_data),
+                storage=StorageConfig(**storage_data),
                 connectors=ConnectorConfig(**connectors_data),
                 connector_registry=ConnectorRegistryConfig(**connector_registry_data),
                 ai=AIConfig(**ai_data),
@@ -271,6 +314,10 @@ class CoreConfigManager:
         # 设置数据库路径
         self.config.database.sqlite_url = f"sqlite:///{self.db_dir}/linch_mind.db"
         self.config.database.chroma_persist_directory = str(self.db_dir / "chromadb")
+
+        # 设置存储目录路径
+        if not self.config.storage.data_directory:
+            self.config.storage.data_directory = str(self.data_dir)
 
         # 设置连接器目录路径 - 使用用户目录
         if self.config.connectors.config_dir == "connectors":
@@ -662,3 +709,13 @@ def get_connector_config() -> ConnectorConfig:
 def get_ai_config() -> AIConfig:
     """获取AI配置"""
     return get_core_config().config.ai
+
+
+def get_storage_config() -> StorageConfig:
+    """获取存储配置"""
+    return get_core_config().config.storage
+
+
+def get_data_config() -> StorageConfig:
+    """获取数据配置（兼容性别名）"""
+    return get_storage_config()
