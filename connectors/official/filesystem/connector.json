@@ -2,7 +2,7 @@
   "$schema": "../../connector.schema.json",
   "id": "filesystem",
   "name": "文件系统连接器",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "author": "Linch Mind Team",
   "description": "实时监控文件系统变化，支持多目录、多规则的智能文件索引",
   "license": "MIT",
