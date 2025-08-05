@@ -59,3 +59,5 @@ fi
 
 echo ""
 echo "🎉 All builds completed successfully!"
+
+exit 0

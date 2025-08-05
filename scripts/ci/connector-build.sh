@@ -43,3 +43,5 @@ python3 scripts/registry_generator.py --output release/registry.json --format
 echo ""
 echo "🎉 Connector build pipeline completed successfully!"
 echo "📦 Artifacts available in: connectors/release/dist/"
+
+exit 0
