@@ -218,7 +218,7 @@ class FileSystemConnector(BaseConnector, FileSystemEventHandler):
 
     @classmethod
     def get_config_ui_schema(cls) -> Dict[str, Any]:
-        """UI渲染提示 - 完整分节示例"""
+        """UI渲染提示 - 简化分节版本"""
         return {
             "ui_layout": "sections",
             "ui:sections": {
@@ -228,112 +228,57 @@ class FileSystemConnector(BaseConnector, FileSystemEventHandler):
                     "ui:icon": "folder_open",
                     "ui:collapsible": False,
                     "ui:fields": {
-                        "watch_paths": {
-                            "ui:help": "选择要监控的目录，支持多选",
-                            "ui:placeholder": "点击选择目录..."
+                        "default_supported_extensions": {
+                            "ui:help": "连接器默认支持的文件类型，各目录可以单独覆盖",
+                            "ui:placeholder": "输入文件扩展名，如 .txt, .md"
                         },
-                        "supported_extensions": {
-                            "ui:help": "选择要监控的文件类型，也可以添加自定义类型",
-                            "ui:placeholder": "输入文件扩展名..."
+                        "default_max_file_size": {
+                            "ui:help": "文件大小超过此值将被忽略，避免处理大文件"
+                        },
+                        "default_ignore_patterns": {
+                            "ui:help": "默认忽略的文件模式，支持通配符 * 和 ?",
+                            "ui:placeholder": "例如: *.tmp, .*, node_modules/*"
                         },
                         "monitoring_enabled": {
                             "ui:help": "总开关，关闭后停止所有监控活动"
                         }
                     }
                 },
-                "filtering_config": {
-                    "ui:title": "文件过滤",
-                    "ui:description": "配置文件大小和内容过滤规则",
-                    "ui:icon": "filter_alt",
-                    "ui:collapsible": True,
-                    "ui:collapsed": False,
+                "directories_config": {
+                    "ui:title": "监控目录",
+                    "ui:description": "配置要监控的目录和每个目录的特殊设置",
+                    "ui:icon": "folder",
+                    "ui:collapsible": False,
                     "ui:fields": {
-                        "max_file_size": {
-                            "ui:help": "文件大小超过此值将被忽略，避免处理大文件"
-                        },
-                        "max_content_length": {
-                            "ui:help": "文件内容超过此长度将被截断"
-                        },
-                        "ignore_patterns": {
-                            "ui:help": "每行一个忽略模式，支持通配符 * 和 ?",
-                            "ui:placeholder": "例如: *.tmp\n.*\nnode_modules/*"
+                        "watch_directories": {
+                            "ui:help": "添加要监控的目录，每个目录可以独立配置文件类型和忽略规则",
+                            "ui:placeholder": "点击添加按钮选择目录"
                         }
                     }
                 },
-                "processing_config": {
-                    "ui:title": "处理方式",
-                    "ui:description": "配置文件变化的处理方式",
+                "advanced_config": {
+                    "ui:title": "高级设置",
+                    "ui:description": "内容处理和其他高级选项",
                     "ui:icon": "settings",
                     "ui:collapsible": True,
                     "ui:collapsed": True,
                     "ui:fields": {
-                        "real_time_processing": {
-                            "ui:help": "开启后立即处理文件变化，关闭后使用批处理"
-                        },
-                        "batch_processing": {
-                            "ui:help": "批处理可以减少系统负载，适合大量文件变化的场景",
-                            "ui:conditional": {
-                                "show_when": {
-                                    "real_time_processing": False
-                                }
-                            }
-                        },
-                        "scan_schedule": {
-                            "ui:help": "定期扫描所有监控目录，发现遗漏的文件变化"
-                        }
-                    }
-                },
-                "content_processing": {
-                    "ui:title": "内容处理",
-                    "ui:description": "文件内容分析和预处理设置",
-                    "ui:icon": "code",
-                    "ui:collapsible": True,
-                    "ui:collapsed": True,
-                    "ui:fields": {
-                        "content_processing.extract_metadata": {
-                            "ui:help": "提取文件的创建时间、修改时间、大小等元数据"
-                        },
-                        "content_processing.content_hash": {
-                            "ui:help": "计算文件内容的MD5哈希值，用于去重"
-                        },
-                        "content_processing.encoding_detection": {
-                            "ui:help": "自动检测文件编码，提高非UTF-8文件的处理准确性"
-                        },
-                        "content_processing.preprocessing_script": {
-                            "ui:help": "自定义Python脚本对文件内容进行预处理",
-                            "ui:advanced": True
-                        }
-                    }
-                },
-                "integration_config": {
-                    "ui:title": "集成配置",
-                    "ui:description": "外部系统集成和通知设置",
-                    "ui:icon": "integration_instructions",
-                    "ui:collapsible": True,
-                    "ui:collapsed": True,
-                    "ui:fields": {
-                        "webhook_config": {
-                            "ui:help": "配置Webhook在文件变化时调用外部API",
-                            "ui:advanced": True
-                        },
-                        "notifications": {
-                            "ui:help": "配置文件变化通知方式"
+                        "max_content_length": {
+                            "ui:help": "文件内容超过此长度将被截断"
                         }
                     }
                 }
             },
             "ui:order": [
                 "basic_config",
-                "filtering_config", 
-                "processing_config",
-                "content_processing",
-                "integration_config"
+                "directories_config",
+                "advanced_config"
             ],
             "ui:layout_config": {
                 "show_section_icons": True,
                 "compact_mode": False,
-                "enable_search": True,
-                "show_progress": True
+                "enable_search": False,
+                "show_progress": False
             }
         }
 
@@ -341,12 +286,12 @@ class FileSystemConnector(BaseConnector, FileSystemEventHandler):
         """加载文件系统特定配置"""
         await self.load_config_from_daemon()
 
-        # 加载全局设置
-        self.global_settings = self.get_config("global_settings", {
-            "supported_extensions": [".txt", ".md", ".rtf", ".doc", ".docx"],
-            "max_file_size": 10,
-            "ignore_patterns": ["*.tmp", ".*", "node_modules/*", "__pycache__/*", "*.log", ".git/*"]
-        })
+        # 加载默认设置
+        self.global_settings = {
+            "supported_extensions": self.get_config("default_supported_extensions", [".txt", ".md", ".py", ".js", ".json", ".yaml", ".yml", ".html", ".css"]),
+            "max_file_size": self.get_config("default_max_file_size", 10),
+            "ignore_patterns": self.get_config("default_ignore_patterns", ["*.tmp", ".*", "node_modules/*", "__pycache__/*", "*.log", ".git/*"])
+        }
 
         # 加载监控目录配置
         self.watch_directories = self.get_config("watch_directories", self._get_default_watch_directories())
@@ -354,15 +299,18 @@ class FileSystemConnector(BaseConnector, FileSystemEventHandler):
         # 为每个目录计算有效配置
         self._compute_effective_configs()
 
-        self.logger.info(f"全局配置: {self.global_settings}")
+        self.logger.info(f"默认配置: {self.global_settings}")
         self.logger.info(f"监控目录数量: {len(self.watch_directories)}")
         for i, dir_config in enumerate(self.watch_directories):
             if dir_config.get('enabled', True):
-                self.logger.info(f"  目录 {i+1}: {dir_config['path']} (递归: {dir_config.get('recursive', True)})")
+                self.logger.info(f"  目录 {i+1}: {dir_config.get('name', '')} - {dir_config['path']} (递归: {dir_config.get('recursive', True)})")
                 if dir_config.get('use_custom_config', False):
-                    self.logger.info(f"    使用自定义配置: {dir_config.get('custom_config', {})}")
+                    custom_exts = dir_config.get('custom_supported_extensions', [])
+                    custom_size = dir_config.get('custom_max_file_size', 0)
+                    custom_ignore = dir_config.get('custom_ignore_patterns', [])
+                    self.logger.info(f"    使用自定义配置 - 文件类型: {custom_exts}, 大小限制: {custom_size}MB, 额外忽略: {custom_ignore}")
                 else:
-                    self.logger.info(f"    使用全局配置")
+                    self.logger.info(f"    使用默认配置")
 
     def _get_default_watch_directories(self) -> List[Dict[str, Any]]:
         """获取默认监控目录配置"""
@@ -373,7 +321,9 @@ class FileSystemConnector(BaseConnector, FileSystemEventHandler):
                 "enabled": True,
                 "recursive": True,
                 "use_custom_config": False,
-                "custom_config": {}
+                "custom_supported_extensions": [],
+                "custom_max_file_size": 0,
+                "custom_ignore_patterns": []
             },
             {
                 "path": str(Path.home() / "Documents"),
@@ -381,7 +331,9 @@ class FileSystemConnector(BaseConnector, FileSystemEventHandler):
                 "enabled": True,
                 "recursive": True,
                 "use_custom_config": False,
-                "custom_config": {}
+                "custom_supported_extensions": [],
+                "custom_max_file_size": 0,
+                "custom_ignore_patterns": []
             }
         ]
         # 过滤存在的路径
@@ -395,16 +347,19 @@ class FileSystemConnector(BaseConnector, FileSystemEventHandler):
             path = dir_config["path"]
             
             if dir_config.get("use_custom_config", False):
-                # 使用自定义配置，未设置的项使用全局配置
-                custom_config = dir_config.get("custom_config", {})
+                # 使用自定义配置，未设置的项使用默认配置
+                custom_extensions = dir_config.get("custom_supported_extensions", [])
+                custom_max_size = dir_config.get("custom_max_file_size", 0)
+                custom_ignore = dir_config.get("custom_ignore_patterns", [])
+                
                 effective_config = {
-                    "supported_extensions": custom_config.get("supported_extensions") or self.global_settings.get("supported_extensions", []),
-                    "max_file_size": (custom_config.get("max_file_size") or self.global_settings.get("max_file_size", 10)) * 1024 * 1024,  # 转换为字节
-                    "ignore_patterns": self.global_settings.get("ignore_patterns", []) + custom_config.get("ignore_patterns", []),
-                    "priority": custom_config.get("priority", 5)
+                    "supported_extensions": custom_extensions if custom_extensions else self.global_settings.get("supported_extensions", []),
+                    "max_file_size": (custom_max_size if custom_max_size > 0 else self.global_settings.get("max_file_size", 10)) * 1024 * 1024,  # 转换为字节
+                    "ignore_patterns": self.global_settings.get("ignore_patterns", []) + custom_ignore,
+                    "priority": 5  # 可以后续扩展
                 }
             else:
-                # 使用全局配置
+                # 使用默认配置
                 effective_config = {
                     "supported_extensions": self.global_settings.get("supported_extensions", []),
                     "max_file_size": self.global_settings.get("max_file_size", 10) * 1024 * 1024,  # 转换为字节
