@@ -50,7 +50,7 @@ def generate_registry(connectors_dir: str = ".", output_file: str = "registry.js
             'last_updated': datetime.now(timezone.utc).isoformat(),
             'connectors': existing_registry.get('connectors', {}),
             'metadata': {
-                'repository': os.environ.get('GITHUB_REPOSITORY', 'unknown'),
+                'repository': os.environ.get('GITHUB_REPOSITORY', 'laofahai/linch-mind'),
                 'commit': os.environ.get('GITHUB_SHA', 'unknown'),
                 'total_count': 0
             }
@@ -141,7 +141,7 @@ def update_download_urls(registry_file: str, release_tag: str, base_url: str = N
     
     # 构建基础URL
     if not base_url:
-        repo = os.environ.get('GITHUB_REPOSITORY', 'unknown/unknown')
+        repo = os.environ.get('GITHUB_REPOSITORY', 'laofahai/linch-mind')
         base_url = f"https://github.com/{repo}/releases/download/{release_tag}"
     
     try:

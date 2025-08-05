@@ -5,7 +5,14 @@
 
 import asyncio
 import logging
-import httpx
+try:
+    import httpx
+    HTTPX_AVAILABLE = True
+except ImportError:
+    import urllib.request
+    import urllib.parse  
+    import urllib.error
+    HTTPX_AVAILABLE = False
 import time
 import signal
 import os
@@ -18,6 +25,91 @@ from typing import Dict, Any, Optional, List
 from datetime import datetime
 import json
 from .config import get_daemon_url
+
+
+class LightweightHTTPClient:
+    """轻量级HTTP客户端，用于替代httpx减少文件大小"""
+    
+    def __init__(self, timeout=30.0):
+        self.timeout = timeout
+    
+    async def get(self, url):
+        """异步GET请求"""
+        import asyncio
+        import concurrent.futures
+        
+        def _sync_get():
+            try:
+                req = urllib.request.Request(url)
+                response = urllib.request.urlopen(req, timeout=self.timeout)
+                content = response.read()
+                text = content.decode('utf-8')
+                return {
+                    'status_code': response.getcode(),
+                    'content': content,
+                    'text': text
+                }
+            except urllib.error.HTTPError as e:
+                return {'status_code': e.code, 'content': b'', 'text': ''}
+            except Exception:
+                return {'status_code': 500, 'content': b'', 'text': ''}
+        
+        loop = asyncio.get_event_loop()
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            result = await loop.run_in_executor(executor, _sync_get)
+            
+        # 模拟httpx Response对象
+        class MockResponse:
+            def __init__(self, data):
+                self.status_code = data['status_code']
+                self._content = data['content']
+                self._text = data['text']
+            
+            def json(self):
+                import json
+                return json.loads(self._text)
+        
+        return MockResponse(result)
+    
+    async def post(self, url, json_data=None):
+        """异步POST请求"""
+        import asyncio
+        import concurrent.futures
+        import json
+        
+        def _sync_post():
+            try:
+                data = json.dumps(json_data).encode('utf-8') if json_data else b''
+                req = urllib.request.Request(url, data=data)
+                req.add_header('Content-Type', 'application/json')
+                response = urllib.request.urlopen(req, timeout=self.timeout)
+                content = response.read()
+                text = content.decode('utf-8')
+                return {
+                    'status_code': response.getcode(),
+                    'content': content,
+                    'text': text
+                }
+            except urllib.error.HTTPError as e:
+                return {'status_code': e.code, 'content': b'', 'text': ''}
+            except Exception:
+                return {'status_code': 500, 'content': b'', 'text': ''}
+        
+        loop = asyncio.get_event_loop()
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            result = await loop.run_in_executor(executor, _sync_post)
+            
+        class MockResponse:
+            def __init__(self, data):
+                self.status_code = data['status_code']
+                self._content = data['content']
+                self._text = data['text']
+            
+            def json(self):
+                import json
+                return json.loads(self._text)
+        
+        return MockResponse(result)
 
 
 class BaseConnector(ABC):
@@ -40,14 +132,22 @@ class BaseConnector(ABC):
     async def load_config_from_daemon(self) -> Dict[str, Any]:
         """从daemon加载连接器配置"""
         try:
-            async with httpx.AsyncClient(timeout=30.0) as client:
+            if HTTPX_AVAILABLE:
+                if HTTPX_AVAILABLE:
+                async with httpx.AsyncClient(timeout=30.0) as client:
+                    response = await client.get(
+                        f"{self.daemon_url}/connector-config/current/{self.connector_id}"
+                    )
+            else:
+                client = LightweightHTTPClient(timeout=30.0)
                 response = await client.get(
                     f"{self.daemon_url}/connector-config/current/{self.connector_id}"
                 )
-                if response.status_code == 200:
-                    config = response.json()
-                    old_config = self.config.copy()
-                    self.config.update(config)
+            
+            if response.status_code == 200:
+                config = response.json()
+                old_config = self.config.copy()
+                self.config.update(config)
                     self.logger.info(f"已从daemon加载配置: {len(config)}项")
 
                     # 检查配置是否有变化
@@ -113,7 +213,8 @@ class BaseConnector(ABC):
     async def push_to_daemon(self, data_item: Dict[str, Any]) -> bool:
         """推送数据到Daemon"""
         try:
-            async with httpx.AsyncClient(timeout=30.0) as client:
+            if HTTPX_AVAILABLE:
+                async with httpx.AsyncClient(timeout=30.0) as client:
                 response = await client.post(
                     f"{self.daemon_url}/api/v1/data/ingest",
                     json=data_item,
@@ -141,7 +242,8 @@ class BaseConnector(ABC):
     async def test_daemon_connection(self) -> bool:
         """测试Daemon连接"""
         try:
-            async with httpx.AsyncClient(timeout=30.0) as client:
+            if HTTPX_AVAILABLE:
+                async with httpx.AsyncClient(timeout=30.0) as client:
                 response = await client.get(f"{self.daemon_url}/")
                 if response.status_code == 200:
                     self.logger.info("✅ Daemon连接正常")
@@ -238,7 +340,8 @@ class BaseConnector(ABC):
                 "schema_source": "runtime",  # 标识schema来源于运行时Python代码
             }
 
-            async with httpx.AsyncClient(timeout=30.0) as client:
+            if HTTPX_AVAILABLE:
+                async with httpx.AsyncClient(timeout=30.0) as client:
                 response = await client.post(
                     f"{self.daemon_url}/connector-config/register-schema/{self.connector_id}",
                     json=payload,

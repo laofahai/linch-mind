@@ -19,170 +19,64 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           fetch-depth: 2
 
-      - name: Setup Python
-        uses: actions/setup-python@v4
+      - name: Setup build environment
+        run: |
+          # Install C++ build tools
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            cmake \
+            libcurl4-openssl-dev \
+            nlohmann-json3-dev \
+            uuid-dev \
+            libx11-dev \
+            upx-ucl \
+            python3 \
+            python3-pip
+          
+          pip3 install pyyaml
+
+      - name: Setup Go
+        uses: actions/setup-go@v4
         with:
-          python-version: '3.11'
+          go-version: '1.21'
 
-      - name: Install dependencies
+      - name: Setup Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+
+      - name: Build connectors
+        id: build
         run: |
-          cd connectors
-          pip install poetry pyyaml pyinstaller
-          poetry install
+          export GITHUB_OUTPUT="${GITHUB_OUTPUT}"
+          ./scripts/ci/connector-build.sh
 
-      - name: Detect changes and bump versions
-        id: detect
-        run: |
-          cd connectors
-          
-          # 检测变更的连接器（支持official和community）
-          changed_files=$(git diff --name-only HEAD~1 HEAD | grep -E '^connectors/(official|community)/' || true)
-          
-          if [ -z "$changed_files" ]; then
-            echo "No connector changes detected"
-            echo "changed_connectors=" >> $GITHUB_OUTPUT
-            exit 0
-          fi
-          
-          # 提取连接器路径
-          changed_connectors=""
-          for file in $changed_files; do
-            if [[ $file =~ ^connectors/(official|community)/([^/]+)/ ]]; then
-              connector_type="${BASH_REMATCH[1]}"
-              connector_name="${BASH_REMATCH[2]}"
-              connector_path="$connector_type/$connector_name"
-              changed_connectors="$changed_connectors $connector_path"
-            fi
-          done
-          
-          changed_connectors=$(echo "$changed_connectors" | tr ' ' '\n' | sort -u | tr '\n' ' ' | xargs)
-          echo "Changed connectors: $changed_connectors"
-          echo "changed_connectors=$changed_connectors" >> $GITHUB_OUTPUT
-          
-          # 使用外部脚本进行版本管理
-          for connector_path in $changed_connectors; do
-            if [ -f "$connector_path/connector.json" ]; then
-              echo "🔢 Updating version for $connector_path"
-              python scripts/version_manager.py "$connector_path/connector.json" --bump patch
-            fi
-          done
-
-      - name: Build connectors  
-        if: steps.detect.outputs.changed_connectors != ''
-        run: |
-          cd connectors
-          mkdir -p release/dist
-          
-          # 构建变更的连接器
-          for connector_path in ${{ steps.detect.outputs.changed_connectors }}; do
-            echo "🚀 Building connector: $connector_path"
-            
-            if [ -f "$connector_path/connector.json" ] && [ -f "$connector_path/main.py" ]; then
-              # 读取连接器配置
-              connector_id=$(python -c "import json; print(json.load(open('$connector_path/connector.json'))['id'])")
-              echo "📦 Building $connector_id from $connector_path"
-              
-              # 使用构建脚本
-              python scripts/connector_builder.py "$connector_path" --output "release/dist" || {
-                echo "❌ Build failed for $connector_path, continuing with others..."
-                continue
-              }
-            else
-              echo "⚠️ Missing required files for $connector_path, skipping..."
-            fi
-          done
-
-      - name: Generate registry
-        if: steps.detect.outputs.changed_connectors != ''
-        run: |
-          cd connectors
-          
-          # 使用外部脚本生成注册表
-          python scripts/registry_generator.py --output release/registry.json --format
-
-      - name: Commit changes
-        if: steps.detect.outputs.changed_connectors != ''
+      - name: Commit version updates
+        if: steps.build.outputs.changed_connectors != ''
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
           git add connectors/
-          git commit -m "chore: auto-update connector versions [skip ci] - Updated: ${{ steps.detect.outputs.changed_connectors }}"
+          git commit -m "chore: auto-update connector versions [skip ci]
+
+Updated connectors: ${{ steps.build.outputs.changed_connectors }}"
           git push
 
       - name: Create GitHub Release
-        if: steps.detect.outputs.changed_connectors != ''
+        if: steps.build.outputs.changed_connectors != ''
         run: |
-          # 生成release信息
-          RELEASE_TAG="connectors-v${{ github.run_number }}"
-          RELEASE_TITLE="🔗 Connectors Release v${{ github.run_number }}"
-          
-          # 创建Release描述
-          cat > release_notes.md << 'EOF'
-          📦 **连接器自动发布**
-          
-          **更新的连接器**: ${{ steps.detect.outputs.changed_connectors }}
-          
-          **提交信息**: ${{ github.event.head_commit.message }}
-          
-          ---
-          
-          ### 📥 下载说明
-          - 下载对应连接器的ZIP文件
-          - ZIP包含可执行文件和配置文件
-          - 解压后按照README说明使用
-          
-          ### 🔧 构建信息
-          - **分支**: ${{ github.ref_name }}
-          - **提交**: ${{ github.sha }}
-          - **构建号**: ${{ github.run_number }}
-          - **构建时间**: $(date -u '+%Y-%m-%d %H:%M:%S UTC')
-          EOF
-          
-          # 创建Release
-          gh release create "$RELEASE_TAG" \
-            --title "$RELEASE_TITLE" \
-            --notes-file release_notes.md \
-            --latest
+          ./scripts/release/create-github-release.sh "${{ steps.build.outputs.changed_connectors }}"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Upload ZIP packages to Release
-        if: steps.detect.outputs.changed_connectors != ''
-        run: |
-          cd connectors/release/dist
-          
-          # 上传所有ZIP文件到Release
-          for zip_file in *.zip; do
-            if [ -f "$zip_file" ]; then
-              echo "📤 Uploading $zip_file to release..."
-              gh release upload "connectors-v${{ github.run_number }}" "$zip_file" --clobber
-            fi
-          done
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Update registry with download URLs
-        if: steps.detect.outputs.changed_connectors != ''
-        run: |
-          cd connectors
-          
-          # 更新注册表中的下载URL
-          python scripts/registry_generator.py \
-            --update-urls "connectors-v${{ github.run_number }}" \
-            --output release/registry.json
-
-      - name: Upload registry to Release
-        if: steps.detect.outputs.changed_connectors != ''
-        run: |
-          cd connectors
-          
-          echo "📋 Uploading updated registry.json to release..."
-          gh release upload "connectors-v${{ github.run_number }}" release/registry.json --clobber
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_RUN_NUMBER: ${{ github.run_number }}
+          GITHUB_REF_NAME: ${{ github.ref_name }}
+          GITHUB_SHA: ${{ github.sha }}
+          GITHUB_EVENT_HEAD_COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
 
       - name: Upload artifacts (backup)
-        if: steps.detect.outputs.changed_connectors != ''
+        if: steps.build.outputs.changed_connectors != ''
         uses: actions/upload-artifact@v4
         with:
           name: connectors-release-v${{ github.run_number }}
