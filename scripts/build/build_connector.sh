@@ -88,14 +88,14 @@ cd "$OUTPUT_DIR"
 ZIP_NAME="${CONNECTOR_ID}-connector.zip"
 
 echo "📦 Creating ZIP package: $ZIP_NAME"
-zip "$ZIP_NAME" "${CONNECTOR_ID}-connector"
+zip "$ZIP_NAME" "${CONNECTOR_ID}-connector" || { echo "Warning: Failed to add binary to ZIP"; }
 
 # Add connector.json
-zip "$ZIP_NAME" -j "$CONNECTOR_PATH/connector.json"
+zip "$ZIP_NAME" -j "$CONNECTOR_PATH/connector.json" || { echo "Warning: Failed to add connector.json to ZIP"; }
 
 # Add README if exists
 if [ -f "$CONNECTOR_PATH/README.md" ]; then
-    zip "$ZIP_NAME" -j "$CONNECTOR_PATH/README.md"
+    zip "$ZIP_NAME" -j "$CONNECTOR_PATH/README.md" || { echo "Warning: Failed to add README to ZIP"; }
 fi
 
 # Show ZIP size

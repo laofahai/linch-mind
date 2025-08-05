@@ -3,8 +3,7 @@
 # Main CI script for connector building
 # This is the entry point called by GitHub Actions
 
-# Temporarily disable set -e for debugging
-# set -e
+set -e
 
 echo "🚀 Starting Linch Mind Connector Build Pipeline"
 echo "================================================"
