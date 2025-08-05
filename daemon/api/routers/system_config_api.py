@@ -225,3 +225,43 @@ async def get_registry_sources():
     except Exception as e:
         logger.error(f"获取注册表源状态失败: {e}")
         raise HTTPException(status_code=500, detail=f"获取状态失败: {str(e)}")
+
+@router.get("/registry/connectors")
+async def get_registry_connectors(query: Optional[str] = None, category: Optional[str] = None):
+    """获取注册表中的连接器列表"""
+    try:
+        # 导入注册表服务
+        from services.connector_registry_service import get_connector_registry_service
+        registry_service = get_connector_registry_service()
+        
+        # 搜索连接器
+        connectors = await registry_service.search_connectors(
+            query=query or "",
+            category=category if category and category != 'all' else None
+        )
+        
+        return connectors
+        
+    except Exception as e:
+        logger.error(f"获取注册表连接器失败: {e}")
+        raise HTTPException(status_code=500, detail=f"获取连接器失败: {str(e)}")
+
+@router.get("/registry/connectors/{connector_id}/download")
+async def get_connector_download_info(connector_id: str, platform: str = "linux-x64"):
+    """获取连接器下载信息"""
+    try:
+        from services.connector_registry_service import get_connector_registry_service
+        registry_service = get_connector_registry_service()
+        
+        download_info = await registry_service.get_connector_download_info(connector_id, platform)
+        
+        if download_info:
+            return download_info
+        else:
+            raise HTTPException(status_code=404, detail=f"连接器 {connector_id} 不存在或不支持平台 {platform}")
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"获取连接器下载信息失败: {e}")
+        raise HTTPException(status_code=500, detail=f"获取下载信息失败: {str(e)}")

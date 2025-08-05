@@ -54,6 +54,11 @@ class ConnectorDefinition with _$ConnectorDefinition {
     // 添加path字段来直接处理路径信息
     String? path,
     @JsonKey(name: 'is_registered') bool? isRegistered,
+    // Registry 相关字段
+    @JsonKey(name: 'download_url') String? downloadUrl,
+    @Default({}) Map<String, dynamic> platforms,
+    @Default({}) Map<String, dynamic> capabilities,
+    @JsonKey(name: 'last_updated') String? lastUpdated,
   }) = _ConnectorDefinition;
 
   factory ConnectorDefinition.fromJson(Map<String, dynamic> json) =>

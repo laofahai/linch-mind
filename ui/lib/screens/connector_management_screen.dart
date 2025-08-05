@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:file_picker/file_picker.dart';
 import '../models/connector_lifecycle_models.dart';
 import '../services/connector_lifecycle_api_client.dart';
+import '../services/registry_api_client.dart';
 import 'connector_config_screen.dart';
 
 // 已安装连接器筛选枚举
@@ -118,13 +119,11 @@ class _ConnectorManagementScreenState
     });
 
     try {
-      // TODO: 实现市场连接器API
-      // 临时使用mock数据
-      await Future.delayed(const Duration(seconds: 1));
-      final mockMarketConnectors = _generateMockMarketConnectors();
-
+      // 使用真实的Registry API
+      final registryConnectors = await RegistryApiClient.getMarketConnectors();
+      
       setState(() {
-        _marketConnectors = mockMarketConnectors;
+        _marketConnectors = registryConnectors;
         _marketLoading = false;
       });
     } catch (e) {
@@ -195,8 +194,18 @@ class _ConnectorManagementScreenState
   }
 
   Future<void> _refreshMarketConnectors() async {
-    _marketConnectors.clear();
-    await _loadMarketConnectors();
+    try {
+      // 先刷新注册表
+      await RegistryApiClient.refreshRegistry();
+      
+      // 清空缓存并重新加载
+      _marketConnectors.clear();
+      await _loadMarketConnectors();
+    } catch (e) {
+      setState(() {
+        _marketErrorMessage = '刷新市场连接器失败: $e';
+      });
+    }
   }
 
   List<ConnectorInfo> get _filteredInstalledConnectors {

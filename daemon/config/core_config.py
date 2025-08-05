@@ -53,6 +53,14 @@ class ConnectorConfig:
 
 
 @dataclass
+class ConnectorRegistryConfig:
+    """连接器注册表配置"""
+    url: str = "https://github.com/laofahai/linch-mind/releases/latest/download/registry.json"
+    cache_duration_hours: int = 6
+    auto_refresh: bool = True
+
+
+@dataclass
 class AIConfig:
     """AI配置"""
     default_embedding_model: str = "all-MiniLM-L6-v2"
@@ -73,6 +81,7 @@ class AppConfig:
     server: ServerConfig = field(default_factory=ServerConfig)
     database: DatabaseConfig = field(default_factory=DatabaseConfig)
     connectors: ConnectorConfig = field(default_factory=ConnectorConfig)
+    connector_registry: ConnectorRegistryConfig = field(default_factory=ConnectorRegistryConfig)
     ai: AIConfig = field(default_factory=AIConfig)
 
 
@@ -194,6 +203,7 @@ class CoreConfigManager:
             server_data = data.get("server", {})
             database_data = data.get("database", {})
             connectors_data = data.get("connectors", {})
+            connector_registry_data = data.get("connector_registry", {})
             ai_data = data.get("ai", {})
             
             # 类型检查和修正
@@ -203,6 +213,8 @@ class CoreConfigManager:
                 database_data = {}
             if not isinstance(connectors_data, dict):
                 connectors_data = {}
+            if not isinstance(connector_registry_data, dict):
+                connector_registry_data = {}
             if not isinstance(ai_data, dict):
                 ai_data = {}
             
@@ -215,6 +227,7 @@ class CoreConfigManager:
                 server=ServerConfig(**server_data),
                 database=DatabaseConfig(**database_data),
                 connectors=ConnectorConfig(**connectors_data),
+                connector_registry=ConnectorRegistryConfig(**connector_registry_data),
                 ai=AIConfig(**ai_data)
             )
         except Exception as e:
