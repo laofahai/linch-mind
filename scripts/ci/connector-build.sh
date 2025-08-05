@@ -40,7 +40,7 @@ echo "DEBUG: build_all.sh returned with exit code: $?"
 echo ""
 echo "Step 3: Generating registry..."
 # Already in connectors directory
-python3 scripts/registry_generator.py --output release/registry.json --format
+scripts/registry_generator --output release/registry.json --format
 
 echo ""
 echo "🎉 Connector build pipeline completed successfully!"

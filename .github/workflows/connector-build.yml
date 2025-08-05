@@ -33,10 +33,11 @@ jobs:
             uuid-dev \
             libx11-dev \
             upx-ucl \
-            python3 \
-            python3-pip
+            jq
           
-          pip3 install pyyaml
+          # Build C++ script tools
+          cd connectors/scripts
+          ./build.sh
 
 
       - name: Build connectors

@@ -24,8 +24,8 @@ fi
 CONNECTOR_PATH="$(cd "$CONNECTOR_PATH" && pwd)"
 OUTPUT_DIR="$(mkdir -p "$OUTPUT_DIR" && cd "$OUTPUT_DIR" && pwd)"
 
-# Read connector configuration
-CONNECTOR_ID=$(python3 -c "import json; print(json.load(open('$CONNECTOR_PATH/connector.json'))['id'])")
+# Read connector configuration using jq instead of python
+CONNECTOR_ID=$(jq -r '.id' "$CONNECTOR_PATH/connector.json")
 echo "📦 Building connector: $CONNECTOR_ID from $CONNECTOR_PATH"
 
 # Detect connector type and build
@@ -37,6 +37,10 @@ if [ -f "$CONNECTOR_PATH/build.sh" ]; then
     echo "🔧 Detected native connector (build.sh)"
     BUILDER_USED="native"
     
+elif [ -f "$CONNECTOR_PATH/CMakeLists.txt" ]; then
+    echo "🏗️ Detected CMake C++ connector (CMakeLists.txt)"
+    BUILDER_USED="native"
+    
 elif [ -f "$CONNECTOR_PATH/Cargo.toml" ]; then
     echo "🦀 Detected Rust connector (Cargo.toml)"
     BUILDER_USED="rust"
@@ -45,17 +49,13 @@ elif [ -f "$CONNECTOR_PATH/go.mod" ]; then
     echo "🐹 Detected Go connector (go.mod)"
     BUILDER_USED="go"
     
-elif [ -f "$CONNECTOR_PATH/main.py" ]; then
-    echo "🐍 Detected Python connector (main.py)"
-    BUILDER_USED="python"
-    
 else
     echo "❌ Unknown connector type in $CONNECTOR_PATH"
     echo "   Supported:"  
     echo "     - build.sh (native C++/C)"
+    echo "     - CMakeLists.txt (C++ with CMake)"
     echo "     - Cargo.toml (Rust)"
     echo "     - go.mod (Go)"
-    echo "     - main.py (Python)"
     exit 1
 fi
 
