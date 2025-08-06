@@ -14,15 +14,26 @@ struct DaemonInfo {
     int port;
     int pid;
     bool isAccessible = false;
+    std::string protocol = "http";  // "http" or "ipc"
+    std::string socket_path;         // IPC socket路径（仅IPC模式）
+    std::string pipe_name;           // Named pipe名称（仅Windows IPC）
     
     std::string getBaseUrl() const {
+        if (protocol == "ipc") {
+            return "ipc://" + (socket_path.empty() ? pipe_name : socket_path);
+        }
         return "http://" + host + ":" + std::to_string(port);
+    }
+    
+    bool isIPCMode() const {
+        return protocol == "ipc";
     }
 };
 
 /**
  * Daemon发现服务 - 统一的daemon发现机制
- * 基于UI中的逻辑，读取~/.linch-mind/daemon.port文件
+ * 优先读取~/.linch-mind/daemon.socket文件（IPC模式）
+ * 回退到~/.linch-mind/daemon.port文件（HTTP模式，向后兼容）
  */
 class DaemonDiscovery {
 public:
@@ -52,6 +63,13 @@ public:
      * @return 是否可连接
      */
     bool testDaemonConnection(const DaemonInfo& daemonInfo);
+    
+    /**
+     * 测试IPC连接
+     * @param daemonInfo daemon信息
+     * @return 是否可连接
+     */
+    bool testIPCConnection(const DaemonInfo& daemonInfo);
 
     /**
      * 清除缓存的daemon信息

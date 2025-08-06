@@ -3,8 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:reactive_forms/reactive_forms.dart';
 import '../services/connector_config_api_client.dart';
+import '../services/webview_config_api_client.dart';
 import '../services/form_builder_service.dart';
 import '../widgets/config/reactive_config_widgets.dart';
+import '../widgets/config/webview_config_widget.dart';
 
 /// 连接器配置界面 - 使用reactive_forms重写
 class ConnectorConfigScreen extends ConsumerStatefulWidget {
@@ -36,6 +38,11 @@ class _ConnectorConfigScreenState extends ConsumerState<ConnectorConfigScreen>
   bool _isSaving = false;
   String? _errorMessage;
   List<String> _validationErrors = [];
+  
+  // WebView相关状态
+  bool _supportsWebView = false;
+  bool _useWebView = false;
+  bool _checkingWebViewSupport = false;
 
   @override
   void initState() {
@@ -59,15 +66,23 @@ class _ConnectorConfigScreenState extends ConsumerState<ConnectorConfigScreen>
 
     try {
       final configService = ref.read(connectorConfigApiClientProvider);
+      final webViewService = ref.read(webViewConfigApiClientProvider);
 
-      // 并行加载schema和当前配置
+      // 并行加载schema、当前配置和WebView支持检查
       final results = await Future.wait([
         configService.getConfigSchema(widget.connectorId),
         configService.getCurrentConfig(widget.connectorId),
+        _checkWebViewSupport(webViewService),
       ]);
 
-      final schemaResponse = results[0];
-      final configResponse = results[1];
+      final schemaResponse = results[0] as dynamic;
+      final configResponse = results[1] as dynamic;
+      final webViewSupported = results[2] as bool;
+
+      setState(() {
+        _supportsWebView = webViewSupported;
+        _useWebView = webViewSupported; // 默认使用WebView（如果支持）
+      });
 
       if (schemaResponse.success && configResponse.success) {
         final schemaData = schemaResponse.data as Map<String, dynamic>? ?? {};
@@ -173,6 +188,34 @@ class _ConnectorConfigScreenState extends ConsumerState<ConnectorConfigScreen>
         _isSaving = false;
       });
     }
+  }
+
+  Future<bool> _checkWebViewSupport(WebViewConfigApiClient webViewService) async {
+    try {
+      setState(() => _checkingWebViewSupport = true);
+      
+      final response = await webViewService.checkWebViewSupport(widget.connectorId);
+      if (response.success && response.data != null) {
+        final data = response.data as Map<String, dynamic>;
+        return data['supports_webview'] as bool? ?? false;
+      }
+      return false;
+    } catch (e) {
+      debugPrint('检查WebView支持失败: $e');
+      return false;
+    } finally {
+      setState(() => _checkingWebViewSupport = false);
+    }
+  }
+
+  void _onConfigChanged(Map<String, dynamic> newConfig) {
+    setState(() {
+      _currentConfig = newConfig;
+    });
+  }
+
+  void _onWebViewSave() {
+    _validateAndSaveConfig();
   }
 
   List<String> _extractValidationErrors() {
@@ -334,6 +377,17 @@ class _ConnectorConfigScreenState extends ConsumerState<ConnectorConfigScreen>
           ],
         ),
         actions: [
+          // WebView切换按钮
+          if (_supportsWebView && !_isLoading)
+            IconButton(
+              icon: Icon(_useWebView ? Icons.web : Icons.apps),
+              tooltip: _useWebView ? '切换到原生表单' : '切换到WebView界面',
+              onPressed: () {
+                setState(() {
+                  _useWebView = !_useWebView;
+                });
+              },
+            ),
           if (!_isLoading)
             PopupMenuButton<String>(
               onSelected: (value) {
@@ -347,9 +401,24 @@ class _ConnectorConfigScreenState extends ConsumerState<ConnectorConfigScreen>
                   case 'import':
                     _importConfig();
                     break;
+                  case 'webview_toggle':
+                    if (_supportsWebView) {
+                      setState(() {
+                        _useWebView = !_useWebView;
+                      });
+                    }
+                    break;
                 }
               },
               itemBuilder: (context) => [
+                if (_supportsWebView)
+                  PopupMenuItem(
+                    value: 'webview_toggle',
+                    child: ListTile(
+                      leading: Icon(_useWebView ? Icons.apps : Icons.web),
+                      title: Text(_useWebView ? '使用原生表单' : '使用WebView界面'),
+                    ),
+                  ),
                 const PopupMenuItem(
                   value: 'reset',
                   child: ListTile(
@@ -428,6 +497,12 @@ class _ConnectorConfigScreenState extends ConsumerState<ConnectorConfigScreen>
   }
 
   Widget _buildConfigTab() {
+    // 如果支持WebView且用户选择使用WebView
+    if (_supportsWebView && _useWebView) {
+      return _buildWebViewConfig();
+    }
+
+    // 否则使用原生表单
     final sections = _uiSchema['ui:sections'] as Map<String, dynamic>? ?? {};
 
     if (sections.isEmpty) {
@@ -435,6 +510,19 @@ class _ConnectorConfigScreenState extends ConsumerState<ConnectorConfigScreen>
     }
 
     return _buildSectionedConfigForm(sections);
+  }
+
+  Widget _buildWebViewConfig() {
+    return WebViewConfigWidget(
+      connectorId: widget.connectorId,
+      connectorName: widget.connectorName,
+      configSchema: _configSchema,
+      currentConfig: _currentConfig,
+      uiSchema: _uiSchema,
+      onConfigChanged: _onConfigChanged,
+      onSave: _onWebViewSave,
+      isLoading: _isSaving,
+    );
   }
 
   Widget _buildSectionedConfigForm(Map<String, dynamic> sections) {

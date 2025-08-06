@@ -11,21 +11,15 @@ from contextlib import asynccontextmanager
 from datetime import datetime
 from pathlib import Path
 
-import uvicorn
-
 # 添加项目根目录到Python路径
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
-# 导入依赖管理和路由
+# 导入依赖管理
 from api.dependencies import cleanup_services, get_config_manager
-from api.routers import health
-from api.routers.connector_config_api import router as connector_config_router
-from api.routers.connector_lifecycle_api import router as connector_lifecycle_router
-from api.routers.storage_api import router as storage_router
-from api.routers.system_config_api import router as system_config_router
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
+
+# 导入IPC服务器 - 完全独立系统
+from services.ipc_server import start_ipc_server, stop_ipc_server
 
 # 初始化配置和日志
 config_manager = get_config_manager()
@@ -102,11 +96,18 @@ async def start_health_check_scheduler():
 
 # 应用生命周期管理
 @asynccontextmanager
-async def lifespan(app: FastAPI):
-    """应用生命周期管理"""
+async def lifespan():
+    """纯IPC应用生命周期管理"""
     # 启动时的初始化
-    logger.info("🚀 Linch Mind API 启动中... (简化版)")
+    logger.info("🚀 Linch Mind 纯IPC服务 启动中...")
     logger.info("✅ 依赖服务初始化完成")
+
+    # 启动IPC服务器
+    try:
+        await start_ipc_server()
+        logger.info("✅ 纯IPC服务器已启动 (无FastAPI依赖)")
+    except Exception as e:
+        logger.error(f"启动IPC服务器失败: {e}")
 
     # 自动启动连接器
     try:
@@ -125,6 +126,13 @@ async def lifespan(app: FastAPI):
     # 关闭时的清理
     logger.info("🔄 应用关闭，清理资源...")
 
+    # 停止IPC服务器
+    try:
+        await stop_ipc_server()
+        logger.info("✅ IPC服务器已停止")
+    except Exception as e:
+        logger.error(f"停止IPC服务器时出错: {e}")
+
     try:
         from services.connectors.connector_manager import get_connector_manager
 
@@ -134,71 +142,25 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.error(f"关闭连接器时出错: {e}")
 
-    # 清理端口文件
-    try:
-        config_manager.cleanup_port_file()
-        logger.info("✅ 端口文件已清理")
-    except Exception as e:
-        logger.error(f"清理端口文件时出错: {e}")
-
     await cleanup_services()
     logger.info("✅ 资源清理完成")
 
 
-# 创建FastAPI应用
-def create_app() -> FastAPI:
-    """创建和配置FastAPI应用"""
-    app = FastAPI(
-        title=settings.app_name,
-        description=settings.description + " (简化版)",
-        version=settings.version,
-        debug=settings.debug,
-        lifespan=lifespan,
-    )
-
-    # 配置CORS - 只允许本地访问，防止恶意网站SSRF攻击
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origin_regex=r"^https?://(localhost|127\.0\.0\.1|(\[::1\])):\d+$",
-        allow_credentials=True,
-        allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-        allow_headers=["*"],
-    )
-
-    # 注册路由模块
-    app.include_router(health.router)
-    app.include_router(connector_lifecycle_router)  # 连接器生命周期API
-    app.include_router(connector_config_router)  # 连接器配置管理API
-    app.include_router(system_config_router)  # 系统配置API (包括Registry)
-    app.include_router(storage_router)  # 三层存储架构API
-
-    logger.info("📍 路由注册完成:")
-    logger.info("   - Health: / /health /server/info")
-    logger.info("   - Connector Lifecycle: /connector-lifecycle/*")
-    logger.info("   - Connector Config: /connector-config/*")
-    logger.info("   - System Config: /api/system/config/*")
-    logger.info("   - Storage: /api/v1/storage/*")
-
-    return app
-
-
-# 创建应用实例
-app = create_app()
+# 纯IPC应用，无需创建FastAPI实例
+# 所有路由和中间件已在IPC服务器中配置
+logger.info("📍 纯IPC路由系统:")
+logger.info("   - Health: / /health /server/info")
+logger.info("   - Connector Lifecycle: /connector-lifecycle/*")
+logger.info("   - Connector Config: /connector-config/*")
+logger.info("   - System Config: /system-config/*")
+logger.info("   - Storage: /storage/*")
+logger.info("   - WebView Config: /webview-config/*")
+logger.info("   - 完全独立的IPC路由系统，无FastAPI依赖")
 
 
 def check_existing_process():
-    """检查是否已有进程在运行，使用增强的验证机制"""
-    # 检查端口文件中的进程信息
-    port_data = config_manager.read_port_file()
-    if port_data:
-        old_pid = port_data["pid"]
-        old_port = port_data["port"]
-        print(f"❌ Daemon 已在运行 (PID: {old_pid}, Port: {old_port})")
-        print(f"   API地址: http://127.0.0.1:{old_port}")
-        print(f"   请先停止现有进程: kill {old_pid}")
-        return False
-
-    # 额外检查PID文件（向后兼容）
+    """检查是否已有进程在运行"""
+    # 检查PID文件
     pid_file = config_manager.get_paths()["app_data"] / "daemon.pid"
     if pid_file.exists():
         try:
@@ -215,7 +177,7 @@ def check_existing_process():
                         "main" in " ".join(proc.cmdline())
                         or "simple_main" in " ".join(proc.cmdline())
                     ):
-                        print(f"❌ Daemon 已在运行 (PID: {old_pid}) - 来自旧PID文件")
+                        print(f"❌ Daemon 已在运行 (PID: {old_pid})")
                         print(f"   请先停止现有进程: kill {old_pid}")
                         return False
                 except (psutil.NoSuchProcess, psutil.AccessDenied):
@@ -241,9 +203,6 @@ def main():
         with open(pid_file, "w") as f:
             f.write(str(os.getpid()))
 
-        # 获取可用端口
-        port = config_manager.get_available_port()
-
         # 验证配置
         config_errors = config_manager.validate_config()
         if config_errors:
@@ -255,11 +214,10 @@ def main():
         paths = config_manager.get_paths()
         print(
             f"""
-🚀 Linch Mind Daemon 启动中... (简化版 - Session V65)
+🚀 Linch Mind Daemon 启动中... (纯IPC模式 - Session V67)
 
 📍 服务信息:
-   - API地址: http://localhost:{port}
-   - API文档: http://localhost:{port}/docs
+   - 通信方式: IPC (Unix Socket / Named Pipe)
    - 进程ID: {os.getpid()}
 
 📁 数据目录:
@@ -269,32 +227,40 @@ def main():
    - 日志: {paths['logs']}
 
 🏗️ 架构特性:
-   - ✅ 简化连接器管理
-   - ✅ 移除实例概念
-   - ✅ 直接进程管理
-   - ✅ 清晰职责分离
+   - ✅ IPC安全通信
+   - ✅ 本地进程验证
+   - ✅ 跨平台兼容
+   - ✅ 无HTTP暴露
 
 ⏰ 启动时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
         """
         )
 
-        # 启动服务器
-        uvicorn.run(app, host="127.0.0.1", port=port, reload=False, log_level="info")
+        # 启动纯IPC服务器
+        import asyncio
+        
+        async def run_ipc_service():
+            # 手动触发应用的lifespan
+            async with lifespan():
+                # 保持服务运行
+                while True:
+                    await asyncio.sleep(1)
+        
+        asyncio.run(run_ipc_service())
 
+    except KeyboardInterrupt:
+        logger.info("收到中断信号，正在关闭服务...")
     except Exception as e:
         logger.error(f"服务启动失败: {e}")
         raise
     finally:
-        # 清理PID文件和端口文件
+        # 清理PID文件
         pid_file = config_manager.get_paths()["app_data"] / "daemon.pid"
         if pid_file.exists():
             try:
                 pid_file.unlink()
             except Exception:
                 pass
-
-        # 清理端口文件
-        config_manager.cleanup_port_file()
 
 
 if __name__ == "__main__":

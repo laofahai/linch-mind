@@ -1,5 +1,6 @@
 #include "linch_connector/config_manager.hpp"
-#include "linch_connector/http_client.hpp"
+#include "linch_connector/unified_client.hpp"
+#include "linch_connector/daemon_discovery.hpp"
 #include <nlohmann/json.hpp>
 #include <iostream>
 #include <thread>
@@ -13,13 +14,47 @@ class ConfigManager::Impl {
 public:
     std::thread monitorThread;
     std::atomic<bool> monitoring{false};
+    std::unique_ptr<UnifiedClient> client;
+    DaemonInfo daemonInfo;
+    bool daemonConnected{false};
+    
+    Impl() {
+        client = std::make_unique<UnifiedClient>();
+    }
+    
+    bool connectToDaemon() {
+        if (daemonConnected && client->isConnected()) {
+            return true;
+        }
+        
+        // 发现daemon
+        DaemonDiscovery discovery;
+        auto daemonOpt = discovery.discoverDaemon();
+        
+        if (daemonOpt.has_value()) {
+            daemonInfo = daemonOpt.value();
+            if (client->connect(daemonInfo)) {
+                daemonConnected = true;
+                std::cout << "[ConfigManager] 已连接到daemon (" 
+                         << client->getConnectionMode() << ")" << std::endl;
+                return true;
+            } else {
+                std::cerr << "[ConfigManager] 连接daemon失败" << std::endl;
+            }
+        } else {
+            std::cerr << "[ConfigManager] 未找到运行的daemon" << std::endl;
+        }
+        
+        daemonConnected = false;
+        return false;
+    }
 };
 
 ConfigManager::ConfigManager(const std::string& daemonUrl, const std::string& connectorId)
     : m_daemonUrl(daemonUrl)
     , m_connectorId(connectorId)
-    , m_configLoaded(false)
-    , pImpl(std::make_unique<Impl>()) {
+    , pImpl(std::make_unique<Impl>())
+    , m_configLoaded(false) {
 }
 
 ConfigManager::~ConfigManager() {
@@ -28,13 +63,20 @@ ConfigManager::~ConfigManager() {
 
 bool ConfigManager::loadFromDaemon() {
     try {
-        HttpClient client;
-        client.setTimeout(30);
+        // 连接到daemon
+        if (!pImpl->connectToDaemon()) {
+            std::cerr << "❌ Failed to connect to daemon for configuration" << std::endl;
+            return false;
+        }
         
-        std::string url = m_daemonUrl + "/connector-config/current/" + m_connectorId;
-        auto response = client.get(url);
+        pImpl->client->setTimeout(30);
         
-        if (response.isSuccess()) {
+        std::string path = "/connector-config/current/" + m_connectorId;
+        auto response = pImpl->client->get(path);
+        
+        if (response.statusCode >= 200 && response.statusCode < 300) {
+            std::cout << "[ConfigManager] 配置加载响应: " << response.body.substr(0, 200) << "..." << std::endl;
+            
             json configJson = json::parse(response.body);
             
             // 清空并更新配置
@@ -64,10 +106,13 @@ bool ConfigManager::loadFromDaemon() {
             m_configLoaded = true;
             m_lastConfigLoad = std::chrono::steady_clock::now();
             
-            std::cout << "✅ Configuration loaded from daemon: " << m_config.size() << " items" << std::endl;
+            std::cout << "✅ Configuration loaded from daemon (" 
+                     << pImpl->client->getConnectionMode() << "): " 
+                     << m_config.size() << " items" << std::endl;
             return true;
         } else {
-            std::cerr << "❌ Failed to load configuration: HTTP " << response.statusCode << std::endl;
+            std::cerr << "❌ Failed to load configuration: Status " << response.statusCode 
+                     << ", Response: " << response.body.substr(0, 200) << std::endl;
             return false;
         }
     } catch (const std::exception& e) {

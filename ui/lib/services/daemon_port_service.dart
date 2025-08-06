@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'dart:async';
+import 'dart:convert';
 
 /// Daemon信息数据类
 class DaemonInfo {
@@ -31,6 +32,7 @@ class DaemonInfo {
 
 /// Daemon端口服务 - 安全地发现和连接daemon
 class DaemonPortService {
+  static const String _socketFilePath = '.linch-mind/daemon.socket';
   static const String _portFilePath = '.linch-mind/daemon.port';
   static const int _defaultPort = 50001;
   static const String _defaultHost = '127.0.0.1';
@@ -61,20 +63,77 @@ class DaemonPortService {
         return null;
       }
 
-      final portFile = File('$homeDir/$_portFilePath');
-
-      if (!await portFile.exists()) {
-        print('[DaemonPortService] 端口文件不存在: ${portFile.path}');
-        return null;
+      // 优先尝试读取socket文件（IPC模式）
+      final socketFile = File('$homeDir/$_socketFilePath');
+      if (await socketFile.exists()) {
+        final daemonInfo = await _readSocketFile(socketFile, homeDir);
+        if (daemonInfo != null) {
+          return daemonInfo;
+        }
       }
 
+      // 回退到端口文件（HTTP模式）
+      final portFile = File('$homeDir/$_portFilePath');
+      if (!await portFile.exists()) {
+        print('[DaemonPortService] 配置文件不存在: socket=${socketFile.path}, port=${portFile.path}');
+        return null;
+      }
+      
+      return await _readPortFile(portFile, homeDir);
+
+    } catch (e) {
+      print('[DaemonPortService] 发现daemon时出错: $e');
+      return null;
+    }
+  }
+  
+  /// 读取socket文件（IPC模式）
+  Future<DaemonInfo?> _readSocketFile(File socketFile, String homeDir) async {
+    try {
+      // 检查文件权限（Unix系统）
+      if (!Platform.isWindows) {
+        final stat = await socketFile.stat();
+        final mode = stat.mode;
+        if ((mode & 0x3F) != 0) {
+          print('[DaemonPortService] socket文件权限不安全，忽略');
+          return null;
+        }
+      }
+      
+      // 读取JSON内容
+      final socketContent = await socketFile.readAsString();
+      final Map<String, dynamic> socketData = json.decode(socketContent);
+      
+      // 解析socket信息
+      final String socketType = socketData['type'] ?? '';
+      final String socketPath = socketData['path'] ?? '';
+      final int pid = socketData['pid'] ?? 0;
+      
+      if (socketType.isEmpty || socketPath.isEmpty) {
+        print('[DaemonPortService] socket文件格式无效');
+        return null;
+      }
+      
+      print('[DaemonPortService] 检测到IPC模式: $socketType, path: $socketPath');
+      
+      // 注意：Flutter端目前还是使用HTTP模式，这里返回null让其回退到HTTP
+      // TODO: 在未来的版本中，这里应该返回一个标识IPC模式的DaemonInfo
+      return null;
+      
+    } catch (e) {
+      print('[DaemonPortService] 读取socket文件失败: $e');
+      return null;
+    }
+  }
+  
+  /// 读取端口文件（HTTP模式）
+  Future<DaemonInfo?> _readPortFile(File portFile, String homeDir) async {
+    try {
       // 检查文件权限（Unix系统）
       if (!Platform.isWindows) {
         final stat = await portFile.stat();
-        // 检查是否只有owner有读写权限
         final mode = stat.mode;
         if ((mode & 0x3F) != 0) {
-          // 检查group和other权限
           print('[DaemonPortService] 端口文件权限不安全，忽略');
           return null;
         }
@@ -212,12 +271,49 @@ class DaemonPortService {
     }
   }
 
-  /// 测试daemon连接
+  /// 测试daemon连接 (使用IPC)
   Future<bool> _testDaemonConnection(DaemonInfo daemonInfo,
       {Duration timeout = const Duration(seconds: 3)}) async {
     try {
+      // 如果检测到IPC模式，则使用IPC连接测试
+      if (daemonInfo.host == '127.0.0.1' && daemonInfo.port == 0) {
+        return await _testIPCConnection();
+      } else {
+        // 备用HTTP测试（仅用于向后兼容）
+        return await _testHTTPConnection(daemonInfo, timeout: timeout);
+      }
+    } catch (e) {
+      print('[DaemonPortService] 连接测试失败: $e');
+      return false;
+    }
+  }
+  
+  /// 测试IPC连接
+  Future<bool> _testIPCConnection() async {
+    try {
+      // 简单的IPC连接测试
+      final homeDir = Platform.environment['HOME'] ?? Platform.environment['USERPROFILE'];
+      if (homeDir == null) return false;
+      
+      final socketFile = File('$homeDir/.linch-mind/daemon.socket');
+      if (!await socketFile.exists()) return false;
+      
+      // 检查socket文件是否有效（包含有效JSON）
+      final content = await socketFile.readAsString();
+      final socketData = json.decode(content);
+      
+      return socketData['type'] != null && socketData['path'] != null;
+    } catch (e) {
+      print('[DaemonPortService] IPC连接测试失败: $e');
+      return false;
+    }
+  }
+  
+  /// 测试HTTP连接（向后兼容）
+  Future<bool> _testHTTPConnection(DaemonInfo daemonInfo, {Duration? timeout}) async {
+    try {
       final client = HttpClient();
-      client.connectionTimeout = timeout;
+      client.connectionTimeout = timeout ?? const Duration(seconds: 3);
 
       final uri = Uri.parse('${daemonInfo.baseUrl}/health');
       final request = await client.getUrl(uri);
@@ -226,7 +322,7 @@ class DaemonPortService {
       client.close();
       return response.statusCode == 200;
     } catch (e) {
-      print('[DaemonPortService] 连接测试失败: $e');
+      print('[DaemonPortService] HTTP连接测试失败: $e');
       return false;
     }
   }

@@ -1,16 +1,10 @@
-import 'dart:convert';
 import 'dart:io';
-import 'package:http/http.dart' as http;
 import '../models/connector_lifecycle_models.dart';
-import 'daemon_port_service.dart';
+import 'ipc_api_adapter.dart';
 
 /// Registry API客户端 - 连接器市场数据获取
 class RegistryApiClient {
-  static final DaemonPortService _portService = DaemonPortService.instance;
-
-  static Future<String> get baseUrl async {
-    return await _portService.getDaemonBaseUrl();
-  }
+  static final IPCApiAdapter _ipcApi = IPCApiService.instance;
 
   /// 自动检测当前平台
   static String _detectPlatform() {
@@ -32,7 +26,7 @@ class RegistryApiClient {
   }) async {
     try {
       // 构建查询参数
-      final queryParams = <String, String>{};
+      final queryParams = <String, dynamic>{};
       if (query != null && query.isNotEmpty) {
         queryParams['query'] = query;
       }
@@ -40,23 +34,16 @@ class RegistryApiClient {
         queryParams['category'] = category;
       }
 
-      // 构建URL
-      final daemonBaseUrl = await baseUrl;
-      final uri =
-          Uri.parse('$daemonBaseUrl/api/system/config/registry/connectors')
-              .replace(
-                  queryParameters: queryParams.isNotEmpty ? queryParams : null);
-
-      final response = await http.get(
-        uri,
-        headers: {'Content-Type': 'application/json'},
+      final responseData = await _ipcApi.get(
+        '/system-config/registry/connectors',
+        queryParameters: queryParams.isNotEmpty ? queryParams : null,
       );
 
-      if (response.statusCode == 200) {
-        final List<dynamic> data = json.decode(response.body);
+      if (responseData['data'] != null) {
+        final List<dynamic> data = responseData['data'] as List;
         return data.map((item) => ConnectorDefinition.fromJson(item)).toList();
       } else {
-        throw Exception('获取市场连接器失败: HTTP ${response.statusCode}');
+        return [];
       }
     } catch (e) {
       throw Exception('获取市场连接器失败: $e');
@@ -72,19 +59,15 @@ class RegistryApiClient {
       // 自动检测平台
       final detectedPlatform = platform ?? _detectPlatform();
 
-      final daemonBaseUrl = await baseUrl;
-      final response = await http.get(
-        Uri.parse(
-            '$daemonBaseUrl/api/system/config/registry/connectors/$connectorId/download?platform=$detectedPlatform'),
-        headers: {'Content-Type': 'application/json'},
+      final responseData = await _ipcApi.get(
+        '/system-config/registry/connectors/$connectorId/download',
+        queryParameters: {'platform': detectedPlatform},
       );
 
-      if (response.statusCode == 200) {
-        return json.decode(response.body);
-      } else if (response.statusCode == 404) {
-        return null; // 连接器不存在
+      if (responseData['success'] == true) {
+        return responseData['data'] as Map<String, dynamic>?;
       } else {
-        throw Exception('获取下载信息失败: HTTP ${response.statusCode}');
+        return null; // 连接器不存在或其他错误
       }
     } catch (e) {
       throw Exception('获取下载信息失败: $e');
@@ -94,17 +77,8 @@ class RegistryApiClient {
   /// 刷新注册表
   static Future<Map<String, dynamic>> refreshRegistry() async {
     try {
-      final daemonBaseUrl = await baseUrl;
-      final response = await http.post(
-        Uri.parse('$daemonBaseUrl/api/system/config/registry/refresh'),
-        headers: {'Content-Type': 'application/json'},
-      );
-
-      if (response.statusCode == 200) {
-        return json.decode(response.body);
-      } else {
-        throw Exception('刷新注册表失败: HTTP ${response.statusCode}');
-      }
+      final responseData = await _ipcApi.post('/system-config/registry/refresh');
+      return responseData;
     } catch (e) {
       throw Exception('刷新注册表失败: $e');
     }
@@ -113,17 +87,8 @@ class RegistryApiClient {
   /// 获取注册表状态
   static Future<Map<String, dynamic>> getRegistryStatus() async {
     try {
-      final daemonBaseUrl = await baseUrl;
-      final response = await http.get(
-        Uri.parse('$daemonBaseUrl/api/system/config/registry'),
-        headers: {'Content-Type': 'application/json'},
-      );
-
-      if (response.statusCode == 200) {
-        return json.decode(response.body);
-      } else {
-        throw Exception('获取注册表状态失败: HTTP ${response.statusCode}');
-      }
+      final responseData = await _ipcApi.get('/system-config/registry');
+      return responseData;
     } catch (e) {
       throw Exception('获取注册表状态失败: $e');
     }

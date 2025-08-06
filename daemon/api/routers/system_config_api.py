@@ -14,7 +14,7 @@ from services.registry_discovery_service import get_registry_discovery_service
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/system/config", tags=["System Config"])
+router = APIRouter(prefix="/system-config", tags=["System Config"])
 
 
 class RegistryConfigRequest(BaseModel):

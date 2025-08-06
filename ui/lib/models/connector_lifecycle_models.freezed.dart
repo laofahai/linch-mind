@@ -944,8 +944,8 @@ ConnectorInfo _$ConnectorInfoFromJson(Map<String, dynamic> json) {
 
 /// @nodoc
 mixin _$ConnectorInfo {
-  @JsonKey(name: 'collector_id')
-  String get collectorId => throw _privateConstructorUsedError;
+  @JsonKey(name: 'connector_id')
+  String get connectorId => throw _privateConstructorUsedError;
   @JsonKey(name: 'display_name')
   String get displayName => throw _privateConstructorUsedError;
   ConnectorState get state => throw _privateConstructorUsedError;
@@ -983,7 +983,7 @@ abstract class $ConnectorInfoCopyWith<$Res> {
       _$ConnectorInfoCopyWithImpl<$Res, ConnectorInfo>;
   @useResult
   $Res call(
-      {@JsonKey(name: 'collector_id') String collectorId,
+      {@JsonKey(name: 'connector_id') String connectorId,
       @JsonKey(name: 'display_name') String displayName,
       ConnectorState state,
       bool enabled,
@@ -1012,7 +1012,7 @@ class _$ConnectorInfoCopyWithImpl<$Res, $Val extends ConnectorInfo>
   @pragma('vm:prefer-inline')
   @override
   $Res call({
-    Object? collectorId = null,
+    Object? connectorId = null,
     Object? displayName = null,
     Object? state = null,
     Object? enabled = null,
@@ -1026,9 +1026,9 @@ class _$ConnectorInfoCopyWithImpl<$Res, $Val extends ConnectorInfo>
     Object? config = null,
   }) {
     return _then(_value.copyWith(
-      collectorId: null == collectorId
-          ? _value.collectorId
-          : collectorId // ignore: cast_nullable_to_non_nullable
+      connectorId: null == connectorId
+          ? _value.connectorId
+          : connectorId // ignore: cast_nullable_to_non_nullable
               as String,
       displayName: null == displayName
           ? _value.displayName
@@ -1087,7 +1087,7 @@ abstract class _$$ConnectorInfoImplCopyWith<$Res>
   @override
   @useResult
   $Res call(
-      {@JsonKey(name: 'collector_id') String collectorId,
+      {@JsonKey(name: 'connector_id') String connectorId,
       @JsonKey(name: 'display_name') String displayName,
       ConnectorState state,
       bool enabled,
@@ -1114,7 +1114,7 @@ class __$$ConnectorInfoImplCopyWithImpl<$Res>
   @pragma('vm:prefer-inline')
   @override
   $Res call({
-    Object? collectorId = null,
+    Object? connectorId = null,
     Object? displayName = null,
     Object? state = null,
     Object? enabled = null,
@@ -1128,9 +1128,9 @@ class __$$ConnectorInfoImplCopyWithImpl<$Res>
     Object? config = null,
   }) {
     return _then(_$ConnectorInfoImpl(
-      collectorId: null == collectorId
-          ? _value.collectorId
-          : collectorId // ignore: cast_nullable_to_non_nullable
+      connectorId: null == connectorId
+          ? _value.connectorId
+          : connectorId // ignore: cast_nullable_to_non_nullable
               as String,
       displayName: null == displayName
           ? _value.displayName
@@ -1184,7 +1184,7 @@ class __$$ConnectorInfoImplCopyWithImpl<$Res>
 @JsonSerializable()
 class _$ConnectorInfoImpl implements _ConnectorInfo {
   const _$ConnectorInfoImpl(
-      {@JsonKey(name: 'collector_id') required this.collectorId,
+      {@JsonKey(name: 'connector_id') required this.connectorId,
       @JsonKey(name: 'display_name') required this.displayName,
       required this.state,
       this.enabled = true,
@@ -1202,8 +1202,8 @@ class _$ConnectorInfoImpl implements _ConnectorInfo {
       _$$ConnectorInfoImplFromJson(json);
 
   @override
-  @JsonKey(name: 'collector_id')
-  final String collectorId;
+  @JsonKey(name: 'connector_id')
+  final String connectorId;
   @override
   @JsonKey(name: 'display_name')
   final String displayName;
@@ -1244,7 +1244,7 @@ class _$ConnectorInfoImpl implements _ConnectorInfo {
 
   @override
   String toString() {
-    return 'ConnectorInfo(collectorId: $collectorId, displayName: $displayName, state: $state, enabled: $enabled, autoStart: $autoStart, processId: $processId, lastHeartbeat: $lastHeartbeat, dataCount: $dataCount, errorMessage: $errorMessage, createdAt: $createdAt, updatedAt: $updatedAt, config: $config)';
+    return 'ConnectorInfo(connectorId: $connectorId, displayName: $displayName, state: $state, enabled: $enabled, autoStart: $autoStart, processId: $processId, lastHeartbeat: $lastHeartbeat, dataCount: $dataCount, errorMessage: $errorMessage, createdAt: $createdAt, updatedAt: $updatedAt, config: $config)';
   }
 
   @override
@@ -1252,8 +1252,8 @@ class _$ConnectorInfoImpl implements _ConnectorInfo {
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
             other is _$ConnectorInfoImpl &&
-            (identical(other.collectorId, collectorId) ||
-                other.collectorId == collectorId) &&
+            (identical(other.connectorId, connectorId) ||
+                other.connectorId == connectorId) &&
             (identical(other.displayName, displayName) ||
                 other.displayName == displayName) &&
             (identical(other.state, state) || other.state == state) &&
@@ -1279,7 +1279,7 @@ class _$ConnectorInfoImpl implements _ConnectorInfo {
   @override
   int get hashCode => Object.hash(
       runtimeType,
-      collectorId,
+      connectorId,
       displayName,
       state,
       enabled,
@@ -1310,7 +1310,7 @@ class _$ConnectorInfoImpl implements _ConnectorInfo {
 
 abstract class _ConnectorInfo implements ConnectorInfo {
   const factory _ConnectorInfo(
-      {@JsonKey(name: 'collector_id') required final String collectorId,
+      {@JsonKey(name: 'connector_id') required final String connectorId,
       @JsonKey(name: 'display_name') required final String displayName,
       required final ConnectorState state,
       final bool enabled,
@@ -1327,8 +1327,8 @@ abstract class _ConnectorInfo implements ConnectorInfo {
       _$ConnectorInfoImpl.fromJson;
 
   @override
-  @JsonKey(name: 'collector_id')
-  String get collectorId;
+  @JsonKey(name: 'connector_id')
+  String get connectorId;
   @override
   @JsonKey(name: 'display_name')
   String get displayName;
@@ -1366,6 +1366,320 @@ abstract class _ConnectorInfo implements ConnectorInfo {
   @JsonKey(includeFromJson: false, includeToJson: false)
   _$$ConnectorInfoImplCopyWith<_$ConnectorInfoImpl> get copyWith =>
       throw _privateConstructorUsedError;
+}
+
+InstallConnectorRequest _$InstallConnectorRequestFromJson(
+    Map<String, dynamic> json) {
+  return _InstallConnectorRequest.fromJson(json);
+}
+
+/// @nodoc
+mixin _$InstallConnectorRequest {
+  @JsonKey(name: 'connector_id')
+  String get connectorId => throw _privateConstructorUsedError;
+  @JsonKey(name: 'source')
+  String get source =>
+      throw _privateConstructorUsedError; // registry, manual, scan
+  @JsonKey(name: 'display_name')
+  String? get displayName => throw _privateConstructorUsedError;
+  Map<String, dynamic> get config => throw _privateConstructorUsedError;
+  @JsonKey(name: 'auto_start')
+  bool get autoStart => throw _privateConstructorUsedError;
+  String? get path => throw _privateConstructorUsedError; // for scan source
+  String? get description => throw _privateConstructorUsedError;
+
+  /// Serializes this InstallConnectorRequest to a JSON map.
+  Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
+
+  /// Create a copy of InstallConnectorRequest
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  $InstallConnectorRequestCopyWith<InstallConnectorRequest> get copyWith =>
+      throw _privateConstructorUsedError;
+}
+
+/// @nodoc
+abstract class $InstallConnectorRequestCopyWith<$Res> {
+  factory $InstallConnectorRequestCopyWith(InstallConnectorRequest value,
+          $Res Function(InstallConnectorRequest) then) =
+      _$InstallConnectorRequestCopyWithImpl<$Res, InstallConnectorRequest>;
+  @useResult
+  $Res call(
+      {@JsonKey(name: 'connector_id') String connectorId,
+      @JsonKey(name: 'source') String source,
+      @JsonKey(name: 'display_name') String? displayName,
+      Map<String, dynamic> config,
+      @JsonKey(name: 'auto_start') bool autoStart,
+      String? path,
+      String? description});
+}
+
+/// @nodoc
+class _$InstallConnectorRequestCopyWithImpl<$Res,
+        $Val extends InstallConnectorRequest>
+    implements $InstallConnectorRequestCopyWith<$Res> {
+  _$InstallConnectorRequestCopyWithImpl(this._value, this._then);
+
+  // ignore: unused_field
+  final $Val _value;
+  // ignore: unused_field
+  final $Res Function($Val) _then;
+
+  /// Create a copy of InstallConnectorRequest
+  /// with the given fields replaced by the non-null parameter values.
+  @pragma('vm:prefer-inline')
+  @override
+  $Res call({
+    Object? connectorId = null,
+    Object? source = null,
+    Object? displayName = freezed,
+    Object? config = null,
+    Object? autoStart = null,
+    Object? path = freezed,
+    Object? description = freezed,
+  }) {
+    return _then(_value.copyWith(
+      connectorId: null == connectorId
+          ? _value.connectorId
+          : connectorId // ignore: cast_nullable_to_non_nullable
+              as String,
+      source: null == source
+          ? _value.source
+          : source // ignore: cast_nullable_to_non_nullable
+              as String,
+      displayName: freezed == displayName
+          ? _value.displayName
+          : displayName // ignore: cast_nullable_to_non_nullable
+              as String?,
+      config: null == config
+          ? _value.config
+          : config // ignore: cast_nullable_to_non_nullable
+              as Map<String, dynamic>,
+      autoStart: null == autoStart
+          ? _value.autoStart
+          : autoStart // ignore: cast_nullable_to_non_nullable
+              as bool,
+      path: freezed == path
+          ? _value.path
+          : path // ignore: cast_nullable_to_non_nullable
+              as String?,
+      description: freezed == description
+          ? _value.description
+          : description // ignore: cast_nullable_to_non_nullable
+              as String?,
+    ) as $Val);
+  }
+}
+
+/// @nodoc
+abstract class _$$InstallConnectorRequestImplCopyWith<$Res>
+    implements $InstallConnectorRequestCopyWith<$Res> {
+  factory _$$InstallConnectorRequestImplCopyWith(
+          _$InstallConnectorRequestImpl value,
+          $Res Function(_$InstallConnectorRequestImpl) then) =
+      __$$InstallConnectorRequestImplCopyWithImpl<$Res>;
+  @override
+  @useResult
+  $Res call(
+      {@JsonKey(name: 'connector_id') String connectorId,
+      @JsonKey(name: 'source') String source,
+      @JsonKey(name: 'display_name') String? displayName,
+      Map<String, dynamic> config,
+      @JsonKey(name: 'auto_start') bool autoStart,
+      String? path,
+      String? description});
+}
+
+/// @nodoc
+class __$$InstallConnectorRequestImplCopyWithImpl<$Res>
+    extends _$InstallConnectorRequestCopyWithImpl<$Res,
+        _$InstallConnectorRequestImpl>
+    implements _$$InstallConnectorRequestImplCopyWith<$Res> {
+  __$$InstallConnectorRequestImplCopyWithImpl(
+      _$InstallConnectorRequestImpl _value,
+      $Res Function(_$InstallConnectorRequestImpl) _then)
+      : super(_value, _then);
+
+  /// Create a copy of InstallConnectorRequest
+  /// with the given fields replaced by the non-null parameter values.
+  @pragma('vm:prefer-inline')
+  @override
+  $Res call({
+    Object? connectorId = null,
+    Object? source = null,
+    Object? displayName = freezed,
+    Object? config = null,
+    Object? autoStart = null,
+    Object? path = freezed,
+    Object? description = freezed,
+  }) {
+    return _then(_$InstallConnectorRequestImpl(
+      connectorId: null == connectorId
+          ? _value.connectorId
+          : connectorId // ignore: cast_nullable_to_non_nullable
+              as String,
+      source: null == source
+          ? _value.source
+          : source // ignore: cast_nullable_to_non_nullable
+              as String,
+      displayName: freezed == displayName
+          ? _value.displayName
+          : displayName // ignore: cast_nullable_to_non_nullable
+              as String?,
+      config: null == config
+          ? _value._config
+          : config // ignore: cast_nullable_to_non_nullable
+              as Map<String, dynamic>,
+      autoStart: null == autoStart
+          ? _value.autoStart
+          : autoStart // ignore: cast_nullable_to_non_nullable
+              as bool,
+      path: freezed == path
+          ? _value.path
+          : path // ignore: cast_nullable_to_non_nullable
+              as String?,
+      description: freezed == description
+          ? _value.description
+          : description // ignore: cast_nullable_to_non_nullable
+              as String?,
+    ));
+  }
+}
+
+/// @nodoc
+@JsonSerializable()
+class _$InstallConnectorRequestImpl implements _InstallConnectorRequest {
+  const _$InstallConnectorRequestImpl(
+      {@JsonKey(name: 'connector_id') required this.connectorId,
+      @JsonKey(name: 'source') this.source = 'registry',
+      @JsonKey(name: 'display_name') this.displayName,
+      final Map<String, dynamic> config = const {},
+      @JsonKey(name: 'auto_start') this.autoStart = false,
+      this.path,
+      this.description})
+      : _config = config;
+
+  factory _$InstallConnectorRequestImpl.fromJson(Map<String, dynamic> json) =>
+      _$$InstallConnectorRequestImplFromJson(json);
+
+  @override
+  @JsonKey(name: 'connector_id')
+  final String connectorId;
+  @override
+  @JsonKey(name: 'source')
+  final String source;
+// registry, manual, scan
+  @override
+  @JsonKey(name: 'display_name')
+  final String? displayName;
+  final Map<String, dynamic> _config;
+  @override
+  @JsonKey()
+  Map<String, dynamic> get config {
+    if (_config is EqualUnmodifiableMapView) return _config;
+    // ignore: implicit_dynamic_type
+    return EqualUnmodifiableMapView(_config);
+  }
+
+  @override
+  @JsonKey(name: 'auto_start')
+  final bool autoStart;
+  @override
+  final String? path;
+// for scan source
+  @override
+  final String? description;
+
+  @override
+  String toString() {
+    return 'InstallConnectorRequest(connectorId: $connectorId, source: $source, displayName: $displayName, config: $config, autoStart: $autoStart, path: $path, description: $description)';
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is _$InstallConnectorRequestImpl &&
+            (identical(other.connectorId, connectorId) ||
+                other.connectorId == connectorId) &&
+            (identical(other.source, source) || other.source == source) &&
+            (identical(other.displayName, displayName) ||
+                other.displayName == displayName) &&
+            const DeepCollectionEquality().equals(other._config, _config) &&
+            (identical(other.autoStart, autoStart) ||
+                other.autoStart == autoStart) &&
+            (identical(other.path, path) || other.path == path) &&
+            (identical(other.description, description) ||
+                other.description == description));
+  }
+
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @override
+  int get hashCode => Object.hash(
+      runtimeType,
+      connectorId,
+      source,
+      displayName,
+      const DeepCollectionEquality().hash(_config),
+      autoStart,
+      path,
+      description);
+
+  /// Create a copy of InstallConnectorRequest
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @override
+  @pragma('vm:prefer-inline')
+  _$$InstallConnectorRequestImplCopyWith<_$InstallConnectorRequestImpl>
+      get copyWith => __$$InstallConnectorRequestImplCopyWithImpl<
+          _$InstallConnectorRequestImpl>(this, _$identity);
+
+  @override
+  Map<String, dynamic> toJson() {
+    return _$$InstallConnectorRequestImplToJson(
+      this,
+    );
+  }
+}
+
+abstract class _InstallConnectorRequest implements InstallConnectorRequest {
+  const factory _InstallConnectorRequest(
+      {@JsonKey(name: 'connector_id') required final String connectorId,
+      @JsonKey(name: 'source') final String source,
+      @JsonKey(name: 'display_name') final String? displayName,
+      final Map<String, dynamic> config,
+      @JsonKey(name: 'auto_start') final bool autoStart,
+      final String? path,
+      final String? description}) = _$InstallConnectorRequestImpl;
+
+  factory _InstallConnectorRequest.fromJson(Map<String, dynamic> json) =
+      _$InstallConnectorRequestImpl.fromJson;
+
+  @override
+  @JsonKey(name: 'connector_id')
+  String get connectorId;
+  @override
+  @JsonKey(name: 'source')
+  String get source; // registry, manual, scan
+  @override
+  @JsonKey(name: 'display_name')
+  String? get displayName;
+  @override
+  Map<String, dynamic> get config;
+  @override
+  @JsonKey(name: 'auto_start')
+  bool get autoStart;
+  @override
+  String? get path; // for scan source
+  @override
+  String? get description;
+
+  /// Create a copy of InstallConnectorRequest
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  _$$InstallConnectorRequestImplCopyWith<_$InstallConnectorRequestImpl>
+      get copyWith => throw _privateConstructorUsedError;
 }
 
 CreateConnectorRequest _$CreateConnectorRequestFromJson(
@@ -1993,8 +2307,8 @@ StateChangeEvent _$StateChangeEventFromJson(Map<String, dynamic> json) {
 
 /// @nodoc
 mixin _$StateChangeEvent {
-  @JsonKey(name: 'instance_id')
-  String get instanceId => throw _privateConstructorUsedError;
+  @JsonKey(name: 'connector_id')
+  String get connectorId => throw _privateConstructorUsedError;
   @JsonKey(name: 'old_state')
   ConnectorState get oldState => throw _privateConstructorUsedError;
   @JsonKey(name: 'new_state')
@@ -2017,7 +2331,7 @@ abstract class $StateChangeEventCopyWith<$Res> {
       _$StateChangeEventCopyWithImpl<$Res, StateChangeEvent>;
   @useResult
   $Res call(
-      {@JsonKey(name: 'instance_id') String instanceId,
+      {@JsonKey(name: 'connector_id') String connectorId,
       @JsonKey(name: 'old_state') ConnectorState oldState,
       @JsonKey(name: 'new_state') ConnectorState newState});
 }
@@ -2037,14 +2351,14 @@ class _$StateChangeEventCopyWithImpl<$Res, $Val extends StateChangeEvent>
   @pragma('vm:prefer-inline')
   @override
   $Res call({
-    Object? instanceId = null,
+    Object? connectorId = null,
     Object? oldState = null,
     Object? newState = null,
   }) {
     return _then(_value.copyWith(
-      instanceId: null == instanceId
-          ? _value.instanceId
-          : instanceId // ignore: cast_nullable_to_non_nullable
+      connectorId: null == connectorId
+          ? _value.connectorId
+          : connectorId // ignore: cast_nullable_to_non_nullable
               as String,
       oldState: null == oldState
           ? _value.oldState
@@ -2067,7 +2381,7 @@ abstract class _$$StateChangeEventImplCopyWith<$Res>
   @override
   @useResult
   $Res call(
-      {@JsonKey(name: 'instance_id') String instanceId,
+      {@JsonKey(name: 'connector_id') String connectorId,
       @JsonKey(name: 'old_state') ConnectorState oldState,
       @JsonKey(name: 'new_state') ConnectorState newState});
 }
@@ -2085,14 +2399,14 @@ class __$$StateChangeEventImplCopyWithImpl<$Res>
   @pragma('vm:prefer-inline')
   @override
   $Res call({
-    Object? instanceId = null,
+    Object? connectorId = null,
     Object? oldState = null,
     Object? newState = null,
   }) {
     return _then(_$StateChangeEventImpl(
-      instanceId: null == instanceId
-          ? _value.instanceId
-          : instanceId // ignore: cast_nullable_to_non_nullable
+      connectorId: null == connectorId
+          ? _value.connectorId
+          : connectorId // ignore: cast_nullable_to_non_nullable
               as String,
       oldState: null == oldState
           ? _value.oldState
@@ -2110,7 +2424,7 @@ class __$$StateChangeEventImplCopyWithImpl<$Res>
 @JsonSerializable()
 class _$StateChangeEventImpl implements _StateChangeEvent {
   const _$StateChangeEventImpl(
-      {@JsonKey(name: 'instance_id') required this.instanceId,
+      {@JsonKey(name: 'connector_id') required this.connectorId,
       @JsonKey(name: 'old_state') required this.oldState,
       @JsonKey(name: 'new_state') required this.newState});
 
@@ -2118,8 +2432,8 @@ class _$StateChangeEventImpl implements _StateChangeEvent {
       _$$StateChangeEventImplFromJson(json);
 
   @override
-  @JsonKey(name: 'instance_id')
-  final String instanceId;
+  @JsonKey(name: 'connector_id')
+  final String connectorId;
   @override
   @JsonKey(name: 'old_state')
   final ConnectorState oldState;
@@ -2129,7 +2443,7 @@ class _$StateChangeEventImpl implements _StateChangeEvent {
 
   @override
   String toString() {
-    return 'StateChangeEvent(instanceId: $instanceId, oldState: $oldState, newState: $newState)';
+    return 'StateChangeEvent(connectorId: $connectorId, oldState: $oldState, newState: $newState)';
   }
 
   @override
@@ -2137,8 +2451,8 @@ class _$StateChangeEventImpl implements _StateChangeEvent {
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
             other is _$StateChangeEventImpl &&
-            (identical(other.instanceId, instanceId) ||
-                other.instanceId == instanceId) &&
+            (identical(other.connectorId, connectorId) ||
+                other.connectorId == connectorId) &&
             (identical(other.oldState, oldState) ||
                 other.oldState == oldState) &&
             (identical(other.newState, newState) ||
@@ -2147,7 +2461,7 @@ class _$StateChangeEventImpl implements _StateChangeEvent {
 
   @JsonKey(includeFromJson: false, includeToJson: false)
   @override
-  int get hashCode => Object.hash(runtimeType, instanceId, oldState, newState);
+  int get hashCode => Object.hash(runtimeType, connectorId, oldState, newState);
 
   /// Create a copy of StateChangeEvent
   /// with the given fields replaced by the non-null parameter values.
@@ -2168,7 +2482,7 @@ class _$StateChangeEventImpl implements _StateChangeEvent {
 
 abstract class _StateChangeEvent implements StateChangeEvent {
   const factory _StateChangeEvent(
-          {@JsonKey(name: 'instance_id') required final String instanceId,
+          {@JsonKey(name: 'connector_id') required final String connectorId,
           @JsonKey(name: 'old_state') required final ConnectorState oldState,
           @JsonKey(name: 'new_state') required final ConnectorState newState}) =
       _$StateChangeEventImpl;
@@ -2177,8 +2491,8 @@ abstract class _StateChangeEvent implements StateChangeEvent {
       _$StateChangeEventImpl.fromJson;
 
   @override
-  @JsonKey(name: 'instance_id')
-  String get instanceId;
+  @JsonKey(name: 'connector_id')
+  String get connectorId;
   @override
   @JsonKey(name: 'old_state')
   ConnectorState get oldState;
@@ -3963,7 +4277,7 @@ ConnectorListResponse _$ConnectorListResponseFromJson(
 /// @nodoc
 mixin _$ConnectorListResponse {
   bool get success => throw _privateConstructorUsedError;
-  List<ConnectorInfo> get collectors => throw _privateConstructorUsedError;
+  List<ConnectorInfo> get connectors => throw _privateConstructorUsedError;
   @JsonKey(name: 'total_count')
   int get totalCount => throw _privateConstructorUsedError;
 
@@ -3985,7 +4299,7 @@ abstract class $ConnectorListResponseCopyWith<$Res> {
   @useResult
   $Res call(
       {bool success,
-      List<ConnectorInfo> collectors,
+      List<ConnectorInfo> connectors,
       @JsonKey(name: 'total_count') int totalCount});
 }
 
@@ -4006,7 +4320,7 @@ class _$ConnectorListResponseCopyWithImpl<$Res,
   @override
   $Res call({
     Object? success = null,
-    Object? collectors = null,
+    Object? connectors = null,
     Object? totalCount = null,
   }) {
     return _then(_value.copyWith(
@@ -4014,9 +4328,9 @@ class _$ConnectorListResponseCopyWithImpl<$Res,
           ? _value.success
           : success // ignore: cast_nullable_to_non_nullable
               as bool,
-      collectors: null == collectors
-          ? _value.collectors
-          : collectors // ignore: cast_nullable_to_non_nullable
+      connectors: null == connectors
+          ? _value.connectors
+          : connectors // ignore: cast_nullable_to_non_nullable
               as List<ConnectorInfo>,
       totalCount: null == totalCount
           ? _value.totalCount
@@ -4037,7 +4351,7 @@ abstract class _$$ConnectorListResponseImplCopyWith<$Res>
   @useResult
   $Res call(
       {bool success,
-      List<ConnectorInfo> collectors,
+      List<ConnectorInfo> connectors,
       @JsonKey(name: 'total_count') int totalCount});
 }
 
@@ -4056,7 +4370,7 @@ class __$$ConnectorListResponseImplCopyWithImpl<$Res>
   @override
   $Res call({
     Object? success = null,
-    Object? collectors = null,
+    Object? connectors = null,
     Object? totalCount = null,
   }) {
     return _then(_$ConnectorListResponseImpl(
@@ -4064,9 +4378,9 @@ class __$$ConnectorListResponseImplCopyWithImpl<$Res>
           ? _value.success
           : success // ignore: cast_nullable_to_non_nullable
               as bool,
-      collectors: null == collectors
-          ? _value._collectors
-          : collectors // ignore: cast_nullable_to_non_nullable
+      connectors: null == connectors
+          ? _value._connectors
+          : connectors // ignore: cast_nullable_to_non_nullable
               as List<ConnectorInfo>,
       totalCount: null == totalCount
           ? _value.totalCount
@@ -4081,22 +4395,22 @@ class __$$ConnectorListResponseImplCopyWithImpl<$Res>
 class _$ConnectorListResponseImpl implements _ConnectorListResponse {
   const _$ConnectorListResponseImpl(
       {required this.success,
-      final List<ConnectorInfo> collectors = const [],
+      final List<ConnectorInfo> connectors = const [],
       @JsonKey(name: 'total_count') this.totalCount = 0})
-      : _collectors = collectors;
+      : _connectors = connectors;
 
   factory _$ConnectorListResponseImpl.fromJson(Map<String, dynamic> json) =>
       _$$ConnectorListResponseImplFromJson(json);
 
   @override
   final bool success;
-  final List<ConnectorInfo> _collectors;
+  final List<ConnectorInfo> _connectors;
   @override
   @JsonKey()
-  List<ConnectorInfo> get collectors {
-    if (_collectors is EqualUnmodifiableListView) return _collectors;
+  List<ConnectorInfo> get connectors {
+    if (_connectors is EqualUnmodifiableListView) return _connectors;
     // ignore: implicit_dynamic_type
-    return EqualUnmodifiableListView(_collectors);
+    return EqualUnmodifiableListView(_connectors);
   }
 
   @override
@@ -4105,7 +4419,7 @@ class _$ConnectorListResponseImpl implements _ConnectorListResponse {
 
   @override
   String toString() {
-    return 'ConnectorListResponse(success: $success, collectors: $collectors, totalCount: $totalCount)';
+    return 'ConnectorListResponse(success: $success, connectors: $connectors, totalCount: $totalCount)';
   }
 
   @override
@@ -4115,7 +4429,7 @@ class _$ConnectorListResponseImpl implements _ConnectorListResponse {
             other is _$ConnectorListResponseImpl &&
             (identical(other.success, success) || other.success == success) &&
             const DeepCollectionEquality()
-                .equals(other._collectors, _collectors) &&
+                .equals(other._connectors, _connectors) &&
             (identical(other.totalCount, totalCount) ||
                 other.totalCount == totalCount));
   }
@@ -4123,7 +4437,7 @@ class _$ConnectorListResponseImpl implements _ConnectorListResponse {
   @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   int get hashCode => Object.hash(runtimeType, success,
-      const DeepCollectionEquality().hash(_collectors), totalCount);
+      const DeepCollectionEquality().hash(_connectors), totalCount);
 
   /// Create a copy of ConnectorListResponse
   /// with the given fields replaced by the non-null parameter values.
@@ -4145,7 +4459,7 @@ class _$ConnectorListResponseImpl implements _ConnectorListResponse {
 abstract class _ConnectorListResponse implements ConnectorListResponse {
   const factory _ConnectorListResponse(
           {required final bool success,
-          final List<ConnectorInfo> collectors,
+          final List<ConnectorInfo> connectors,
           @JsonKey(name: 'total_count') final int totalCount}) =
       _$ConnectorListResponseImpl;
 
@@ -4155,7 +4469,7 @@ abstract class _ConnectorListResponse implements ConnectorListResponse {
   @override
   bool get success;
   @override
-  List<ConnectorInfo> get collectors;
+  List<ConnectorInfo> get connectors;
   @override
   @JsonKey(name: 'total_count')
   int get totalCount;
@@ -4176,7 +4490,7 @@ ConnectorDetailResponse _$ConnectorDetailResponseFromJson(
 /// @nodoc
 mixin _$ConnectorDetailResponse {
   bool get success => throw _privateConstructorUsedError;
-  ConnectorInfo get collector => throw _privateConstructorUsedError;
+  ConnectorInfo get connector => throw _privateConstructorUsedError;
 
   /// Serializes this ConnectorDetailResponse to a JSON map.
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
@@ -4194,9 +4508,9 @@ abstract class $ConnectorDetailResponseCopyWith<$Res> {
           $Res Function(ConnectorDetailResponse) then) =
       _$ConnectorDetailResponseCopyWithImpl<$Res, ConnectorDetailResponse>;
   @useResult
-  $Res call({bool success, ConnectorInfo collector});
+  $Res call({bool success, ConnectorInfo connector});
 
-  $ConnectorInfoCopyWith<$Res> get collector;
+  $ConnectorInfoCopyWith<$Res> get connector;
 }
 
 /// @nodoc
@@ -4216,16 +4530,16 @@ class _$ConnectorDetailResponseCopyWithImpl<$Res,
   @override
   $Res call({
     Object? success = null,
-    Object? collector = null,
+    Object? connector = null,
   }) {
     return _then(_value.copyWith(
       success: null == success
           ? _value.success
           : success // ignore: cast_nullable_to_non_nullable
               as bool,
-      collector: null == collector
-          ? _value.collector
-          : collector // ignore: cast_nullable_to_non_nullable
+      connector: null == connector
+          ? _value.connector
+          : connector // ignore: cast_nullable_to_non_nullable
               as ConnectorInfo,
     ) as $Val);
   }
@@ -4234,9 +4548,9 @@ class _$ConnectorDetailResponseCopyWithImpl<$Res,
   /// with the given fields replaced by the non-null parameter values.
   @override
   @pragma('vm:prefer-inline')
-  $ConnectorInfoCopyWith<$Res> get collector {
-    return $ConnectorInfoCopyWith<$Res>(_value.collector, (value) {
-      return _then(_value.copyWith(collector: value) as $Val);
+  $ConnectorInfoCopyWith<$Res> get connector {
+    return $ConnectorInfoCopyWith<$Res>(_value.connector, (value) {
+      return _then(_value.copyWith(connector: value) as $Val);
     });
   }
 }
@@ -4250,10 +4564,10 @@ abstract class _$$ConnectorDetailResponseImplCopyWith<$Res>
       __$$ConnectorDetailResponseImplCopyWithImpl<$Res>;
   @override
   @useResult
-  $Res call({bool success, ConnectorInfo collector});
+  $Res call({bool success, ConnectorInfo connector});
 
   @override
-  $ConnectorInfoCopyWith<$Res> get collector;
+  $ConnectorInfoCopyWith<$Res> get connector;
 }
 
 /// @nodoc
@@ -4272,16 +4586,16 @@ class __$$ConnectorDetailResponseImplCopyWithImpl<$Res>
   @override
   $Res call({
     Object? success = null,
-    Object? collector = null,
+    Object? connector = null,
   }) {
     return _then(_$ConnectorDetailResponseImpl(
       success: null == success
           ? _value.success
           : success // ignore: cast_nullable_to_non_nullable
               as bool,
-      collector: null == collector
-          ? _value.collector
-          : collector // ignore: cast_nullable_to_non_nullable
+      connector: null == connector
+          ? _value.connector
+          : connector // ignore: cast_nullable_to_non_nullable
               as ConnectorInfo,
     ));
   }
@@ -4291,7 +4605,7 @@ class __$$ConnectorDetailResponseImplCopyWithImpl<$Res>
 @JsonSerializable()
 class _$ConnectorDetailResponseImpl implements _ConnectorDetailResponse {
   const _$ConnectorDetailResponseImpl(
-      {required this.success, required this.collector});
+      {required this.success, required this.connector});
 
   factory _$ConnectorDetailResponseImpl.fromJson(Map<String, dynamic> json) =>
       _$$ConnectorDetailResponseImplFromJson(json);
@@ -4299,11 +4613,11 @@ class _$ConnectorDetailResponseImpl implements _ConnectorDetailResponse {
   @override
   final bool success;
   @override
-  final ConnectorInfo collector;
+  final ConnectorInfo connector;
 
   @override
   String toString() {
-    return 'ConnectorDetailResponse(success: $success, collector: $collector)';
+    return 'ConnectorDetailResponse(success: $success, connector: $connector)';
   }
 
   @override
@@ -4312,13 +4626,13 @@ class _$ConnectorDetailResponseImpl implements _ConnectorDetailResponse {
         (other.runtimeType == runtimeType &&
             other is _$ConnectorDetailResponseImpl &&
             (identical(other.success, success) || other.success == success) &&
-            (identical(other.collector, collector) ||
-                other.collector == collector));
+            (identical(other.connector, connector) ||
+                other.connector == connector));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
   @override
-  int get hashCode => Object.hash(runtimeType, success, collector);
+  int get hashCode => Object.hash(runtimeType, success, connector);
 
   /// Create a copy of ConnectorDetailResponse
   /// with the given fields replaced by the non-null parameter values.
@@ -4340,7 +4654,7 @@ class _$ConnectorDetailResponseImpl implements _ConnectorDetailResponse {
 abstract class _ConnectorDetailResponse implements ConnectorDetailResponse {
   const factory _ConnectorDetailResponse(
       {required final bool success,
-      required final ConnectorInfo collector}) = _$ConnectorDetailResponseImpl;
+      required final ConnectorInfo connector}) = _$ConnectorDetailResponseImpl;
 
   factory _ConnectorDetailResponse.fromJson(Map<String, dynamic> json) =
       _$ConnectorDetailResponseImpl.fromJson;
@@ -4348,7 +4662,7 @@ abstract class _ConnectorDetailResponse implements ConnectorDetailResponse {
   @override
   bool get success;
   @override
-  ConnectorInfo get collector;
+  ConnectorInfo get connector;
 
   /// Create a copy of ConnectorDetailResponse
   /// with the given fields replaced by the non-null parameter values.
@@ -4366,8 +4680,8 @@ OperationResponse _$OperationResponseFromJson(Map<String, dynamic> json) {
 mixin _$OperationResponse {
   bool get success => throw _privateConstructorUsedError;
   String get message => throw _privateConstructorUsedError;
-  @JsonKey(name: 'instance_id')
-  String get instanceId => throw _privateConstructorUsedError;
+  @JsonKey(name: 'connector_id')
+  String get connectorId => throw _privateConstructorUsedError;
   ConnectorState get state => throw _privateConstructorUsedError;
   @JsonKey(name: 'hot_reload_applied')
   bool? get hotReloadApplied => throw _privateConstructorUsedError;
@@ -4395,7 +4709,7 @@ abstract class $OperationResponseCopyWith<$Res> {
   $Res call(
       {bool success,
       String message,
-      @JsonKey(name: 'instance_id') String instanceId,
+      @JsonKey(name: 'connector_id') String connectorId,
       ConnectorState state,
       @JsonKey(name: 'hot_reload_applied') bool? hotReloadApplied,
       @JsonKey(name: 'requires_restart') bool? requiresRestart,
@@ -4419,7 +4733,7 @@ class _$OperationResponseCopyWithImpl<$Res, $Val extends OperationResponse>
   $Res call({
     Object? success = null,
     Object? message = null,
-    Object? instanceId = null,
+    Object? connectorId = null,
     Object? state = null,
     Object? hotReloadApplied = freezed,
     Object? requiresRestart = freezed,
@@ -4434,9 +4748,9 @@ class _$OperationResponseCopyWithImpl<$Res, $Val extends OperationResponse>
           ? _value.message
           : message // ignore: cast_nullable_to_non_nullable
               as String,
-      instanceId: null == instanceId
-          ? _value.instanceId
-          : instanceId // ignore: cast_nullable_to_non_nullable
+      connectorId: null == connectorId
+          ? _value.connectorId
+          : connectorId // ignore: cast_nullable_to_non_nullable
               as String,
       state: null == state
           ? _value.state
@@ -4469,7 +4783,7 @@ abstract class _$$OperationResponseImplCopyWith<$Res>
   $Res call(
       {bool success,
       String message,
-      @JsonKey(name: 'instance_id') String instanceId,
+      @JsonKey(name: 'connector_id') String connectorId,
       ConnectorState state,
       @JsonKey(name: 'hot_reload_applied') bool? hotReloadApplied,
       @JsonKey(name: 'requires_restart') bool? requiresRestart,
@@ -4491,7 +4805,7 @@ class __$$OperationResponseImplCopyWithImpl<$Res>
   $Res call({
     Object? success = null,
     Object? message = null,
-    Object? instanceId = null,
+    Object? connectorId = null,
     Object? state = null,
     Object? hotReloadApplied = freezed,
     Object? requiresRestart = freezed,
@@ -4506,9 +4820,9 @@ class __$$OperationResponseImplCopyWithImpl<$Res>
           ? _value.message
           : message // ignore: cast_nullable_to_non_nullable
               as String,
-      instanceId: null == instanceId
-          ? _value.instanceId
-          : instanceId // ignore: cast_nullable_to_non_nullable
+      connectorId: null == connectorId
+          ? _value.connectorId
+          : connectorId // ignore: cast_nullable_to_non_nullable
               as String,
       state: null == state
           ? _value.state
@@ -4536,7 +4850,7 @@ class _$OperationResponseImpl implements _OperationResponse {
   const _$OperationResponseImpl(
       {required this.success,
       required this.message,
-      @JsonKey(name: 'instance_id') required this.instanceId,
+      @JsonKey(name: 'connector_id') required this.connectorId,
       required this.state,
       @JsonKey(name: 'hot_reload_applied') this.hotReloadApplied,
       @JsonKey(name: 'requires_restart') this.requiresRestart,
@@ -4550,8 +4864,8 @@ class _$OperationResponseImpl implements _OperationResponse {
   @override
   final String message;
   @override
-  @JsonKey(name: 'instance_id')
-  final String instanceId;
+  @JsonKey(name: 'connector_id')
+  final String connectorId;
   @override
   final ConnectorState state;
   @override
@@ -4566,7 +4880,7 @@ class _$OperationResponseImpl implements _OperationResponse {
 
   @override
   String toString() {
-    return 'OperationResponse(success: $success, message: $message, instanceId: $instanceId, state: $state, hotReloadApplied: $hotReloadApplied, requiresRestart: $requiresRestart, wasRunning: $wasRunning)';
+    return 'OperationResponse(success: $success, message: $message, connectorId: $connectorId, state: $state, hotReloadApplied: $hotReloadApplied, requiresRestart: $requiresRestart, wasRunning: $wasRunning)';
   }
 
   @override
@@ -4576,8 +4890,8 @@ class _$OperationResponseImpl implements _OperationResponse {
             other is _$OperationResponseImpl &&
             (identical(other.success, success) || other.success == success) &&
             (identical(other.message, message) || other.message == message) &&
-            (identical(other.instanceId, instanceId) ||
-                other.instanceId == instanceId) &&
+            (identical(other.connectorId, connectorId) ||
+                other.connectorId == connectorId) &&
             (identical(other.state, state) || other.state == state) &&
             (identical(other.hotReloadApplied, hotReloadApplied) ||
                 other.hotReloadApplied == hotReloadApplied) &&
@@ -4589,7 +4903,7 @@ class _$OperationResponseImpl implements _OperationResponse {
 
   @JsonKey(includeFromJson: false, includeToJson: false)
   @override
-  int get hashCode => Object.hash(runtimeType, success, message, instanceId,
+  int get hashCode => Object.hash(runtimeType, success, message, connectorId,
       state, hotReloadApplied, requiresRestart, wasRunning);
 
   /// Create a copy of OperationResponse
@@ -4613,7 +4927,7 @@ abstract class _OperationResponse implements OperationResponse {
   const factory _OperationResponse(
           {required final bool success,
           required final String message,
-          @JsonKey(name: 'instance_id') required final String instanceId,
+          @JsonKey(name: 'connector_id') required final String connectorId,
           required final ConnectorState state,
           @JsonKey(name: 'hot_reload_applied') final bool? hotReloadApplied,
           @JsonKey(name: 'requires_restart') final bool? requiresRestart,
@@ -4628,8 +4942,8 @@ abstract class _OperationResponse implements OperationResponse {
   @override
   String get message;
   @override
-  @JsonKey(name: 'instance_id')
-  String get instanceId;
+  @JsonKey(name: 'connector_id')
+  String get connectorId;
   @override
   ConnectorState get state;
   @override

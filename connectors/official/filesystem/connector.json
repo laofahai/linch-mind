@@ -40,7 +40,8 @@
   "capabilities": {
     "supports_multiple_instances": true,
     "max_instances": 10,
-    "hot_reload": true
+    "hot_reload": true,
+    "webview_config": true
   },
   "build": {
     "pre_build": "echo 'Installing dependencies...'",
@@ -48,11 +49,4 @@
     "post_build": "echo 'C++ Filesystem connector build completed'"
   },
   "config_schema_source": "runtime",
-  "dependencies": {
-    "system": {
-      "macos": ["nlohmann-json", "curl"],
-      "linux": ["nlohmann-json3-dev", "libcurl4-openssl-dev", "uuid-dev"],
-      "windows": ["vcpkg:nlohmann-json", "vcpkg:curl"]
-    }
-  }
 }

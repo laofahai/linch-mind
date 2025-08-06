@@ -87,7 +87,7 @@ Map<String, dynamic> _$$InstanceTemplateImplToJson(
 
 _$ConnectorInfoImpl _$$ConnectorInfoImplFromJson(Map<String, dynamic> json) =>
     _$ConnectorInfoImpl(
-      collectorId: json['collector_id'] as String,
+      connectorId: json['connector_id'] as String,
       displayName: json['display_name'] as String,
       state: $enumDecode(_$ConnectorStateEnumMap, json['state']),
       enabled: json['enabled'] as bool? ?? true,
@@ -109,7 +109,7 @@ _$ConnectorInfoImpl _$$ConnectorInfoImplFromJson(Map<String, dynamic> json) =>
 
 Map<String, dynamic> _$$ConnectorInfoImplToJson(_$ConnectorInfoImpl instance) =>
     <String, dynamic>{
-      'collector_id': instance.collectorId,
+      'connector_id': instance.connectorId,
       'display_name': instance.displayName,
       'state': _$ConnectorStateEnumMap[instance.state]!,
       'enabled': instance.enabled,
@@ -134,6 +134,30 @@ const _$ConnectorStateEnumMap = {
   ConnectorState.updating: 'updating',
   ConnectorState.uninstalling: 'uninstalling',
 };
+
+_$InstallConnectorRequestImpl _$$InstallConnectorRequestImplFromJson(
+        Map<String, dynamic> json) =>
+    _$InstallConnectorRequestImpl(
+      connectorId: json['connector_id'] as String,
+      source: json['source'] as String? ?? 'registry',
+      displayName: json['display_name'] as String?,
+      config: json['config'] as Map<String, dynamic>? ?? const {},
+      autoStart: json['auto_start'] as bool? ?? false,
+      path: json['path'] as String?,
+      description: json['description'] as String?,
+    );
+
+Map<String, dynamic> _$$InstallConnectorRequestImplToJson(
+        _$InstallConnectorRequestImpl instance) =>
+    <String, dynamic>{
+      'connector_id': instance.connectorId,
+      'source': instance.source,
+      'display_name': instance.displayName,
+      'config': instance.config,
+      'auto_start': instance.autoStart,
+      'path': instance.path,
+      'description': instance.description,
+    };
 
 _$CreateConnectorRequestImpl _$$CreateConnectorRequestImplFromJson(
         Map<String, dynamic> json) =>
@@ -185,7 +209,7 @@ Map<String, dynamic> _$$ConnectorEventImplToJson(
 _$StateChangeEventImpl _$$StateChangeEventImplFromJson(
         Map<String, dynamic> json) =>
     _$StateChangeEventImpl(
-      instanceId: json['instance_id'] as String,
+      connectorId: json['connector_id'] as String,
       oldState: $enumDecode(_$ConnectorStateEnumMap, json['old_state']),
       newState: $enumDecode(_$ConnectorStateEnumMap, json['new_state']),
     );
@@ -193,7 +217,7 @@ _$StateChangeEventImpl _$$StateChangeEventImplFromJson(
 Map<String, dynamic> _$$StateChangeEventImplToJson(
         _$StateChangeEventImpl instance) =>
     <String, dynamic>{
-      'instance_id': instance.instanceId,
+      'connector_id': instance.connectorId,
       'old_state': _$ConnectorStateEnumMap[instance.oldState]!,
       'new_state': _$ConnectorStateEnumMap[instance.newState]!,
     };
@@ -345,7 +369,7 @@ _$ConnectorListResponseImpl _$$ConnectorListResponseImplFromJson(
         Map<String, dynamic> json) =>
     _$ConnectorListResponseImpl(
       success: json['success'] as bool,
-      collectors: (json['collectors'] as List<dynamic>?)
+      connectors: (json['connectors'] as List<dynamic>?)
               ?.map((e) => ConnectorInfo.fromJson(e as Map<String, dynamic>))
               .toList() ??
           const [],
@@ -356,7 +380,7 @@ Map<String, dynamic> _$$ConnectorListResponseImplToJson(
         _$ConnectorListResponseImpl instance) =>
     <String, dynamic>{
       'success': instance.success,
-      'collectors': instance.collectors,
+      'connectors': instance.connectors,
       'total_count': instance.totalCount,
     };
 
@@ -364,15 +388,15 @@ _$ConnectorDetailResponseImpl _$$ConnectorDetailResponseImplFromJson(
         Map<String, dynamic> json) =>
     _$ConnectorDetailResponseImpl(
       success: json['success'] as bool,
-      collector:
-          ConnectorInfo.fromJson(json['collector'] as Map<String, dynamic>),
+      connector:
+          ConnectorInfo.fromJson(json['connector'] as Map<String, dynamic>),
     );
 
 Map<String, dynamic> _$$ConnectorDetailResponseImplToJson(
         _$ConnectorDetailResponseImpl instance) =>
     <String, dynamic>{
       'success': instance.success,
-      'collector': instance.collector,
+      'connector': instance.connector,
     };
 
 _$OperationResponseImpl _$$OperationResponseImplFromJson(
@@ -380,7 +404,7 @@ _$OperationResponseImpl _$$OperationResponseImplFromJson(
     _$OperationResponseImpl(
       success: json['success'] as bool,
       message: json['message'] as String,
-      instanceId: json['instance_id'] as String,
+      connectorId: json['connector_id'] as String,
       state: $enumDecode(_$ConnectorStateEnumMap, json['state']),
       hotReloadApplied: json['hot_reload_applied'] as bool?,
       requiresRestart: json['requires_restart'] as bool?,
@@ -392,7 +416,7 @@ Map<String, dynamic> _$$OperationResponseImplToJson(
     <String, dynamic>{
       'success': instance.success,
       'message': instance.message,
-      'instance_id': instance.instanceId,
+      'connector_id': instance.connectorId,
       'state': _$ConnectorStateEnumMap[instance.state]!,
       'hot_reload_applied': instance.hotReloadApplied,
       'requires_restart': instance.requiresRestart,

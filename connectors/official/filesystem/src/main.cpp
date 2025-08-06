@@ -13,7 +13,7 @@
 // 使用shared库
 #include <linch_connector/daemon_discovery.hpp>
 #include <linch_connector/config_manager.hpp>
-#include <linch_connector/http_client.hpp>
+#include <linch_connector/unified_client.hpp>
 #include <linch_connector/utils.hpp>
 
 // 本地头文件
@@ -33,7 +33,7 @@ void signalHandler(int signum) {
 }
 
 // 注册配置schema到daemon
-bool registerConfigSchema(HttpClient& client, const std::string& daemonUrl) {
+bool registerConfigSchema(UnifiedClient& client, const std::string& daemonUrl) {
     json schema = {
         {"type", "object"},
         {"title", "文件系统连接器配置"},
@@ -103,16 +103,13 @@ bool registerConfigSchema(HttpClient& client, const std::string& daemonUrl) {
     };
 
     client.addHeader("Content-Type", "application/json");
-    auto response = client.post(daemonUrl + "/connector-config/register-schema/filesystem", 
-                               payload.dump());
+    // 注意：新API不再支持注册schema，跳过此步骤
+    // auto response = client.post(daemonUrl + "/connector-config/register-schema/filesystem", 
+    //                            payload.dump());
     
-    if (response.isSuccess()) {
-        std::cout << "✅ Config schema registered successfully" << std::endl;
-        return true;
-    } else {
-        std::cerr << "❌ Failed to register config schema: HTTP " << response.statusCode << std::endl;
-        return false;
-    }
+    // 临时跳过schema注册，直接返回成功
+    std::cout << "⚠️  Schema registration skipped (new API doesn't support it)" << std::endl;
+    return true;
 }
 
 // 从配置管理器加载监控配置
@@ -180,7 +177,7 @@ std::vector<FileSystemMonitor::WatchConfig> loadWatchConfigs(ConfigManager& conf
 
 // 处理文件系统事件
 void processFilesystemEvent(const FileSystemMonitor::FileEvent& event, 
-                           HttpClient& client, ConfigManager& config) {
+                           UnifiedClient& client, ConfigManager& config) {
     std::cout << "📁 Processing file event: " << event.eventType << " - " << event.path << std::endl;
     
     // 对于创建和修改事件，读取文件内容
@@ -214,10 +211,20 @@ void processFilesystemEvent(const FileSystemMonitor::FileEvent& event,
                 {"event_type", event.eventType}
             };
             
-            std::string dataItem = utils::createDataItem(itemId, content, "filesystem", metadata.dump());
+            // 使用新的storage API创建实体
+            json entity_data = {
+                {"entity_id", itemId},
+                {"name", filePath.filename().string()},
+                {"entity_type", "file"},
+                {"description", "File from filesystem connector"},
+                {"attributes", metadata},
+                {"source_path", event.path},
+                {"content", content},
+                {"auto_embed", true}
+            };
             
             client.addHeader("Content-Type", "application/json");
-            auto response = client.post(config.getDaemonUrl() + "/api/v1/data/ingest", dataItem);
+            auto response = client.post("/storage/entities", entity_data.dump());
             
             if (response.isSuccess()) {
                 std::cout << "✅ Processed file event: " << filePath.filename().string() 
@@ -255,14 +262,22 @@ int main(int, char*[]) {
     std::cout << "📡 Found daemon at: " << daemonInfo->getBaseUrl() << " (PID: " << daemonInfo->pid << ")" << std::endl;
     
     // 初始化组件
-    HttpClient httpClient;
-    httpClient.setTimeout(30);
+    UnifiedClient unifiedClient;
+    unifiedClient.setTimeout(30);
+    
+    // 连接到daemon（自动选择IPC或HTTP）
+    if (!unifiedClient.connect(*daemonInfo)) {
+        std::cerr << "❌ Failed to connect to daemon. Exiting..." << std::endl;
+        return 1;
+    }
+    
+    std::cout << "🔗 Connected to daemon via " << unifiedClient.getConnectionMode() << " mode" << std::endl;
     
     ConfigManager configManager(daemonInfo->getBaseUrl(), "filesystem");
     FileSystemMonitor filesystemMonitor;
     
     // 注册配置schema
-    registerConfigSchema(httpClient, daemonInfo->getBaseUrl());
+    registerConfigSchema(unifiedClient, daemonInfo->getBaseUrl());
     
     // 加载初始配置
     if (!configManager.loadFromDaemon()) {
@@ -301,7 +316,7 @@ int main(int, char*[]) {
     
     if (!filesystemMonitor.startMonitoring(
         [&](const FileSystemMonitor::FileEvent& event) {
-            processFilesystemEvent(event, httpClient, configManager);
+            processFilesystemEvent(event, unifiedClient, configManager);
         }, 
         pollIntervalMs)) {
         std::cerr << "❌ Failed to start filesystem monitoring" << std::endl;

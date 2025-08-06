@@ -420,6 +420,12 @@ daemon/services/
 
 ## 🔧 开发环境配置
 
+### 🚀 项目启动命令
+**启动daemon**: 使用项目根目录的`./linch`脚本
+```bash
+./linch  # 自动启动daemon服务
+```
+
 ### 新增依赖和工具
 ```kotlin
 // AI插件化支持

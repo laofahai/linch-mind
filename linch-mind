@@ -118,7 +118,7 @@ start_daemon() {
     poetry install --only=main --quiet
 
     echo -e "${GREEN}✅ 启动daemon服务...${NC}"
-    nohup poetry run python -m uvicorn api.main:app --host 0.0.0.0 --port 50001 > "$PROJECT_ROOT/.daemon.log" 2>&1 &
+    nohup poetry run python -m api.main > "$PROJECT_ROOT/.daemon.log" 2>&1 &
     
     DAEMON_PID=$!
     echo $DAEMON_PID > "$PID_FILE"
@@ -126,7 +126,14 @@ start_daemon() {
     sleep 3
     if kill -0 $DAEMON_PID 2>/dev/null; then
         echo -e "${GREEN}✅ Daemon启动成功 (PID: $DAEMON_PID)${NC}"
-        echo -e "${BLUE}   API: http://127.0.0.1:50001${NC}"
+        # 等待IPC socket文件生成
+        for i in {1..10}; do
+            if [ -f "$HOME/.linch-mind/daemon.socket" ]; then
+                echo -e "${BLUE}   IPC: Unix Domain Socket 已就绪${NC}"
+                break
+            fi
+            sleep 1
+        done
     else
         echo -e "${RED}❌ Daemon启动失败${NC}"
         rm -f "$PID_FILE"
@@ -165,10 +172,13 @@ daemon_status() {
     if [ ! -z "$DAEMON_PID" ]; then
         echo -e "${GREEN}✅ Daemon运行中${NC}"
         echo -e "${BLUE}   PID: $DAEMON_PID${NC}"
-        echo -e "${BLUE}   API: http://127.0.0.1:50001${NC}"
         
-        if command -v curl &> /dev/null && curl -s http://127.0.0.1:50001/health > /dev/null; then
-            echo -e "${GREEN}   API响应正常${NC}"
+        # 从socket文件检查IPC状态
+        if [ -f "$HOME/.linch-mind/daemon.socket" ]; then
+            echo -e "${BLUE}   IPC: Unix Domain Socket 可用${NC}"
+            echo -e "${GREEN}   通信状态: IPC连接就绪${NC}"
+        else
+            echo -e "${YELLOW}   IPC信息未找到${NC}"
         fi
     else
         echo -e "${RED}❌ Daemon未运行${NC}"
@@ -192,14 +202,12 @@ start_ui() {
     
     echo -e "${BLUE}🚀 启动 UI ($platform)...${NC}"
     
-    # 检查daemon连接
-    if command -v curl &> /dev/null; then
-        if curl -s http://127.0.0.1:50001/health > /dev/null; then
-            echo -e "${GREEN}   ✅ Daemon连接正常${NC}"
-        else
-            echo -e "${YELLOW}   ⚠️  Daemon未响应${NC}"
-            echo -e "${YELLOW}   请先运行: $0 daemon start${NC}"
-        fi
+    # 检查daemon IPC连接
+    if [ -f "$HOME/.linch-mind/daemon.socket" ]; then
+        echo -e "${GREEN}   ✅ Daemon IPC连接可用${NC}"
+    else
+        echo -e "${YELLOW}   ⚠️  Daemon IPC socket未找到${NC}"
+        echo -e "${YELLOW}   请先运行: $0 daemon start${NC}"
     fi
 
     cd "$UI_DIR"

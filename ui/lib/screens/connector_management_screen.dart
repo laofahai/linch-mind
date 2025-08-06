@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:file_picker/file_picker.dart';
 import '../models/connector_lifecycle_models.dart';
 import '../services/connector_lifecycle_api_client.dart';
-import '../services/registry_api_client.dart';
 import 'connector_config_screen.dart';
 
 /// 连接器管理主界面 - 工具箱+应用商店双重体验
@@ -59,7 +58,7 @@ class _ConnectorManagementScreenState
       final connectorResponse = await _apiClient.getConnectors();
 
       setState(() {
-        _installedConnectors = connectorResponse.collectors;
+        _installedConnectors = connectorResponse.connectors;
         _installedLoading = false;
       });
     } catch (e) {
@@ -120,7 +119,7 @@ class _ConnectorManagementScreenState
       if (_installedSearchQuery.isNotEmpty) {
         final query = _installedSearchQuery.toLowerCase();
         if (!connector.displayName.toLowerCase().contains(query) &&
-            !connector.collectorId.toLowerCase().contains(query)) {
+            !connector.connectorId.toLowerCase().contains(query)) {
           return false;
         }
       }
@@ -752,7 +751,10 @@ class _ConnectorManagementScreenState
                     _getCategoryIcon(connector.category),
                     size: 20,
                     color: isInstalled
-                        ? Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6)
+                        ? Theme.of(context)
+                            .colorScheme
+                            .onSurface
+                            .withValues(alpha: 0.6)
                         : Theme.of(context).colorScheme.onPrimaryContainer,
                   ),
                 ),
@@ -768,28 +770,39 @@ class _ConnectorManagementScreenState
                           Expanded(
                             child: Text(
                               connector.displayName,
-                              style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                                fontWeight: FontWeight.w600,
-                                color: isInstalled
-                                    ? Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7)
-                                    : null,
-                              ),
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .titleSmall
+                                  ?.copyWith(
+                                    fontWeight: FontWeight.w600,
+                                    color: isInstalled
+                                        ? Theme.of(context)
+                                            .colorScheme
+                                            .onSurface
+                                            .withValues(alpha: 0.7)
+                                        : null,
+                                  ),
                               overflow: TextOverflow.ellipsis,
                             ),
                           ),
                           if (connector.author == 'Linch Mind Team') ...[
                             const SizedBox(width: 8),
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 8, vertical: 2),
                               decoration: BoxDecoration(
-                                color: Theme.of(context).colorScheme.secondaryContainer,
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .secondaryContainer,
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               child: Text(
                                 '官方',
                                 style: TextStyle(
                                   fontSize: 10,
-                                  color: Theme.of(context).colorScheme.onSecondaryContainer,
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .onSecondaryContainer,
                                   fontWeight: FontWeight.w500,
                                 ),
                               ),
@@ -801,48 +814,51 @@ class _ConnectorManagementScreenState
                       Text(
                         connector.category,
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: Theme.of(context).colorScheme.primary,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w500,
-                        ),
+                              color: Theme.of(context).colorScheme.primary,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w500,
+                            ),
                       ),
                     ],
                   ),
                 ),
               ],
             ),
-            
+
             const SizedBox(height: 12),
-            
+
             // 描述
             Text(
               connector.description,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
-                fontSize: 13,
-                height: 1.4,
-              ),
+                    color: Theme.of(context)
+                        .colorScheme
+                        .onSurface
+                        .withValues(alpha: 0.7),
+                    fontSize: 13,
+                    height: 1.4,
+                  ),
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
             ),
-            
+
             const SizedBox(height: 16),
-            
+
             // 底部操作区
             Row(
               children: [
                 Text(
                   'v${connector.version}',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Theme.of(context).disabledColor,
-                    fontSize: 10,
-                  ),
+                        color: Theme.of(context).disabledColor,
+                        fontSize: 10,
+                      ),
                 ),
                 const Spacer(),
-                
                 if (isInstalled) ...[
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                     decoration: BoxDecoration(
                       color: Colors.green.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(16),
@@ -871,7 +887,8 @@ class _ConnectorManagementScreenState
                   FilledButton(
                     onPressed: () => _installMarketConnector(connector),
                     style: FilledButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 8),
                       minimumSize: const Size(0, 32),
                     ),
                     child: const Text('安装', style: TextStyle(fontSize: 12)),
@@ -1114,7 +1131,7 @@ class _ConnectorManagementScreenState
   Future<void> _createConnectorFromDiscovered(ConnectorInfo connector) async {
     try {
       final request = CreateConnectorRequest(
-        connectorId: connector.collectorId,
+        connectorId: connector.connectorId,
         displayName: connector.displayName,
         config: {}, // 使用默认配置
         autoStart: true,
@@ -1158,7 +1175,7 @@ class _ConnectorManagementScreenState
       );
 
       // 调用安装API
-      await _apiClient.installConnector(connector.connectorId);
+      await _apiClient.installFromRegistry(connector.connectorId);
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -1167,10 +1184,10 @@ class _ConnectorManagementScreenState
             backgroundColor: Colors.green,
           ),
         );
-        
+
         // 刷新已安装连接器列表
         await _refreshInstalledConnectors();
-        
+
         // 刷新市场连接器列表以更新安装状态
         await _refreshMarketConnectors();
       }
@@ -1189,22 +1206,22 @@ class _ConnectorManagementScreenState
 
   String _getConnectorDescription(ConnectorInfo connector) {
     // 根据连接器类型返回简介
-    switch (connector.collectorId) {
+    switch (connector.connectorId) {
       case 'filesystem':
         return '监控文件系统变化，自动索引文档和代码文件';
       case 'clipboard':
         return '监控剪贴板内容，收集复制的文本和链接';
       default:
-        return '${connector.collectorId} 连接器 - ${connector.dataCount} 条数据';
+        return '${connector.connectorId} 连接器 - ${connector.dataCount} 条数据';
     }
   }
 
   Future<void> _toggleConnector(ConnectorInfo connector, bool enabled) async {
     try {
       if (enabled) {
-        await _apiClient.startConnector(connector.collectorId);
+        await _apiClient.startConnector(connector.connectorId);
       } else {
-        await _apiClient.stopConnector(connector.collectorId);
+        await _apiClient.stopConnector(connector.connectorId);
       }
 
       // 刷新数据
@@ -1236,7 +1253,7 @@ class _ConnectorManagementScreenState
       context,
       MaterialPageRoute(
         builder: (context) => ConnectorConfigScreen(
-          connectorId: connector.collectorId,
+          connectorId: connector.connectorId,
           connectorName: connector.displayName,
         ),
       ),
@@ -1248,7 +1265,7 @@ class _ConnectorManagementScreenState
 
   Future<void> _showDeleteConnectorDialog(ConnectorInfo connector) async {
     final isRunning = connector.state == ConnectorState.running;
-    
+
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -1291,7 +1308,8 @@ class _ConnectorManagementScreenState
     }
   }
 
-  Future<void> _deleteConnector(ConnectorInfo connector, {bool force = false}) async {
+  Future<void> _deleteConnector(ConnectorInfo connector,
+      {bool force = false}) async {
     try {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -1300,7 +1318,7 @@ class _ConnectorManagementScreenState
         ),
       );
 
-      await _apiClient.deleteConnector(connector.collectorId, force: force);
+      await _apiClient.deleteConnector(connector.connectorId, force: force);
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -1309,7 +1327,7 @@ class _ConnectorManagementScreenState
             backgroundColor: Colors.green,
           ),
         );
-        
+
         await _refreshInstalledConnectors();
       }
     } catch (e) {

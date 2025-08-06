@@ -88,13 +88,13 @@ class ConnectorManager:
             with open(config_file, "r", encoding="utf-8") as f:
                 config = json.load(f)
 
-            # 验证必要的配置
-            if not config.get("entry_point"):
-                config["entry_point"] = "main.py"
+            # 获取正确的入口点
+            entry_point = self._find_entry_point(config, path)
+            config["entry_point"] = entry_point
 
             # 设置路径信息
             config["path"] = str(path)
-            config["executable_path"] = str(path / config["entry_point"])
+            config["executable_path"] = str(path / entry_point)
 
             with self.db_service.get_session() as session:
                 # 检查是否已存在
@@ -157,9 +157,17 @@ class ConnectorManager:
                     session.commit()
                     return False
 
+                # 检测是否为可执行文件还是Python脚本
+                if entry_script.suffix == ".py":
+                    # Python脚本
+                    cmd = ["python", str(entry_script)]
+                else:
+                    # 可执行文件（如C++编译的连接器）
+                    cmd = [str(entry_script)]
+                    
                 # 启动进程
                 process = subprocess.Popen(
-                    ["python", str(entry_script)],
+                    cmd,
                     cwd=entry_script.parent,
                     stdout=subprocess.PIPE,
                     stderr=subprocess.PIPE,
@@ -426,14 +434,8 @@ class ConnectorManager:
         if "entry" in config:
             entry = config["entry"]
             if isinstance(entry, dict):
-                # 优先使用 development 入口
-                if "development" in entry and isinstance(entry["development"], dict):
-                    dev_entry = entry["development"]
-                    if "args" in dev_entry and dev_entry["args"]:
-                        # 返回第一个参数作为入口文件
-                        return dev_entry["args"][0]
-                # 其次使用 production 入口
-                elif "production" in entry:
+                # 对于C++/编译型连接器，优先使用 production 入口
+                if "production" in entry:
                     prod_entry = entry["production"]
                     if isinstance(prod_entry, dict):
                         # 根据平台选择
@@ -445,6 +447,13 @@ class ConnectorManager:
                         return prod_entry.get(system, "main.py")
                     else:
                         return prod_entry
+                # 对于Python连接器，使用 development 入口
+                elif "development" in entry and isinstance(entry["development"], dict):
+                    dev_entry = entry["development"]
+                    # 如果是Python脚本直接执行的情况
+                    if "command" in dev_entry and dev_entry["command"] == "python":
+                        if "args" in dev_entry and dev_entry["args"]:
+                            return dev_entry["args"][0]
 
         # 默认返回 main.py
         return config.get("entry_point", "main.py")
@@ -473,33 +482,24 @@ class ConnectorManager:
                 )
 
                 for connector in running_connectors:
-                    if connector.process_id:
-                        try:
-                            if psutil.pid_exists(connector.process_id):
-                                process = psutil.Process(connector.process_id)
-                                if "python" in process.name().lower():
-                                    # 进程正常运行，更新心跳时间
-                                    connector.last_heartbeat = datetime.now(
-                                        timezone.utc
-                                    )
-                                    continue
+                    health_status = self._check_connector_health(connector)
+                    
+                    if health_status["healthy"]:
+                        # 进程正常运行，更新心跳时间
+                        connector.last_heartbeat = datetime.now(timezone.utc)
+                        connector.error_message = None
+                    else:
+                        # 进程异常，更新状态
+                        logger.warning(
+                            f"检测到连接器异常: {connector.connector_id} - {health_status['error']}"
+                        )
+                        connector.status = "error"
+                        connector.process_id = None
+                        connector.error_message = health_status["error"]
 
-                            # 进程异常退出，更新状态
-                            logger.warning(
-                                f"检测到连接器进程异常退出: {connector.connector_id}"
-                            )
-                            connector.status = "error"
-                            connector.process_id = None
-                            connector.error_message = "进程异常退出"
-
-                            # 清理内存中的进程引用
-                            if connector.connector_id in self.active_processes:
-                                del self.active_processes[connector.connector_id]
-
-                        except (psutil.NoSuchProcess, psutil.AccessDenied):
-                            connector.status = "error"
-                            connector.process_id = None
-                            connector.error_message = "进程异常退出或无权限访问"
+                        # 清理内存中的进程引用
+                        if connector.connector_id in self.active_processes:
+                            del self.active_processes[connector.connector_id]
 
                 session.commit()
 
@@ -507,6 +507,264 @@ class ConnectorManager:
             logger.debug("psutil未安装，跳过健康检查")
         except Exception as e:
             logger.error(f"健康检查失败: {e}")
+
+    def _check_connector_health(self, connector) -> Dict[str, Any]:
+        """检查单个连接器的健康状态"""
+        try:
+            import psutil
+            
+            if not connector.process_id:
+                return {"healthy": False, "error": "无进程ID"}
+            
+            # 检查进程是否存在
+            if not psutil.pid_exists(connector.process_id):
+                return {"healthy": False, "error": "进程不存在"}
+            
+            try:
+                process = psutil.Process(connector.process_id)
+                
+                # 检查进程状态
+                if process.status() == psutil.STATUS_ZOMBIE:
+                    return {"healthy": False, "error": "进程为僵尸状态"}
+                
+                # 检查进程是否响应（简单的存活检查）
+                if "python" in process.name().lower() or connector.connector_id in process.cmdline():
+                    # 检查心跳超时
+                    if connector.last_heartbeat:
+                        time_since_heartbeat = datetime.now(timezone.utc) - connector.last_heartbeat
+                        if time_since_heartbeat.total_seconds() > 300:  # 5分钟超时
+                            return {"healthy": False, "error": "心跳超时"}
+                    
+                    return {"healthy": True, "error": None}
+                else:
+                    return {"healthy": False, "error": "进程名称不匹配"}
+                    
+            except (psutil.NoSuchProcess, psutil.AccessDenied) as e:
+                return {"healthy": False, "error": f"无法访问进程: {str(e)}"}
+                
+        except ImportError:
+            # 如果没有psutil，只能基于心跳时间判断
+            if connector.last_heartbeat:
+                time_since_heartbeat = datetime.now(timezone.utc) - connector.last_heartbeat
+                if time_since_heartbeat.total_seconds() > 600:  # 10分钟超时
+                    return {"healthy": False, "error": "心跳超时"}
+                return {"healthy": True, "error": None}
+            else:
+                return {"healthy": False, "error": "无心跳记录"}
+        except Exception as e:
+            return {"healthy": False, "error": f"健康检查异常: {str(e)}"}
+
+    def get_detailed_connector_status(self, connector_id: str) -> Optional[Dict[str, Any]]:
+        """获取连接器详细状态信息"""
+        try:
+            with self.db_service.get_session() as session:
+                connector = (
+                    session.query(Connector)
+                    .filter_by(connector_id=connector_id)
+                    .first()
+                )
+                if not connector:
+                    return None
+
+                # 基本状态信息
+                status_info = {
+                    "connector_id": connector.connector_id,
+                    "name": connector.name,
+                    "description": connector.description,
+                    "status": connector.status,
+                    "process_id": connector.process_id,
+                    "created_at": connector.created_at.isoformat() if connector.created_at else None,
+                    "updated_at": connector.updated_at.isoformat() if connector.updated_at else None,
+                    "last_heartbeat": connector.last_heartbeat.isoformat() if connector.last_heartbeat else None,
+                    "error_message": connector.error_message,
+                    "config": connector.config,
+                }
+
+                # 健康检查信息
+                if connector.status == "running":
+                    health_status = self._check_connector_health(connector)
+                    status_info["health"] = health_status
+                    
+                    # 进程详细信息
+                    if connector.process_id:
+                        process_info = self._get_process_info(connector.process_id)
+                        status_info["process_info"] = process_info
+
+                # 统计信息
+                statistics = self._get_connector_statistics(connector_id)
+                status_info["statistics"] = statistics
+
+                return status_info
+                
+        except Exception as e:
+            logger.error(f"获取连接器详细状态失败 {connector_id}: {e}")
+            return None
+
+    def _get_process_info(self, process_id: int) -> Dict[str, Any]:
+        """获取进程详细信息"""
+        try:
+            import psutil
+            
+            if not psutil.pid_exists(process_id):
+                return {"exists": False}
+            
+            process = psutil.Process(process_id)
+            
+            return {
+                "exists": True,
+                "pid": process_id,
+                "name": process.name(),
+                "status": process.status(),
+                "create_time": datetime.fromtimestamp(process.create_time()).isoformat(),
+                "cpu_percent": process.cpu_percent(),
+                "memory_info": {
+                    "rss": process.memory_info().rss,
+                    "vms": process.memory_info().vms,
+                    "percent": process.memory_percent()
+                },
+                "num_threads": process.num_threads(),
+                "cmdline": process.cmdline(),
+            }
+            
+        except ImportError:
+            return {"exists": "unknown", "error": "psutil not available"}
+        except Exception as e:
+            return {"exists": False, "error": str(e)}
+
+    def _get_connector_statistics(self, connector_id: str) -> Dict[str, Any]:
+        """获取连接器统计信息"""
+        try:
+            with self.db_service.get_session() as session:
+                from models.database_models import DataSource, Entity
+                
+                # 数据源统计
+                data_sources = session.query(DataSource).filter_by(connector_id=connector_id).all()
+                data_source_count = len(data_sources)
+                
+                # 实体统计
+                if data_sources:
+                    data_source_ids = [ds.id for ds in data_sources]
+                    entity_count = session.query(Entity).filter(
+                        Entity.data_source_id.in_(data_source_ids)
+                    ).count()
+                else:
+                    entity_count = 0
+                
+                return {
+                    "data_sources": data_source_count,
+                    "entities": entity_count,
+                    "last_data_update": None,  # 可以从实体的最新创建时间获取
+                    "total_uptime": None,  # 可以从创建时间计算
+                }
+                
+        except Exception as e:
+            logger.error(f"获取连接器统计信息失败: {e}")
+            return {
+                "data_sources": 0,
+                "entities": 0,
+                "error": str(e)
+            }
+
+    def get_system_health_overview(self) -> Dict[str, Any]:
+        """获取连接器系统整体健康状况"""
+        try:
+            with self.db_service.get_session() as session:
+                all_connectors = session.query(Connector).all()
+                
+                # 状态统计
+                status_counts = {}
+                healthy_count = 0
+                total_entities = 0
+                total_data_sources = 0
+                
+                for connector in all_connectors:
+                    status = connector.status
+                    status_counts[status] = status_counts.get(status, 0) + 1
+                    
+                    # 健康检查
+                    if status == "running":
+                        health_status = self._check_connector_health(connector)
+                        if health_status["healthy"]:
+                            healthy_count += 1
+                    
+                    # 统计数据
+                    stats = self._get_connector_statistics(connector.connector_id)
+                    total_entities += stats.get("entities", 0)
+                    total_data_sources += stats.get("data_sources", 0)
+                
+                total_connectors = len(all_connectors)
+                running_connectors = status_counts.get("running", 0)
+                
+                # 计算健康度
+                if total_connectors == 0:
+                    health_score = 0
+                else:
+                    health_score = (healthy_count / total_connectors) * 100
+                
+                # 确定整体状态
+                if health_score >= 90:
+                    overall_status = "healthy"
+                elif health_score >= 70:
+                    overall_status = "warning" 
+                elif health_score >= 50:
+                    overall_status = "degraded"
+                else:
+                    overall_status = "critical"
+                
+                return {
+                    "overall_status": overall_status,
+                    "health_score": round(health_score, 1),
+                    "total_connectors": total_connectors,
+                    "running_connectors": running_connectors,
+                    "healthy_connectors": healthy_count,
+                    "status_breakdown": status_counts,
+                    "total_entities": total_entities,
+                    "total_data_sources": total_data_sources,
+                    "last_check": datetime.now(timezone.utc).isoformat(),
+                }
+                
+        except Exception as e:
+            logger.error(f"获取系统健康概览失败: {e}")
+            return {
+                "overall_status": "error",
+                "health_score": 0,
+                "error": str(e),
+                "last_check": datetime.now(timezone.utc).isoformat(),
+            }
+
+    async def auto_restart_failed_connectors(self) -> List[Dict[str, Any]]:
+        """自动重启失败的连接器"""
+        restart_results = []
+        
+        try:
+            with self.db_service.get_session() as session:
+                failed_connectors = session.query(Connector).filter_by(status="error").all()
+                
+                for connector in failed_connectors:
+                    if connector.auto_start:  # 只重启设置了自动启动的连接器
+                        try:
+                            logger.info(f"尝试自动重启失败的连接器: {connector.connector_id}")
+                            success = await self.start_connector(connector.connector_id)
+                            
+                            restart_results.append({
+                                "connector_id": connector.connector_id,
+                                "success": success,
+                                "reason": "auto_restart_after_failure"
+                            })
+                            
+                        except Exception as e:
+                            logger.error(f"自动重启连接器失败 {connector.connector_id}: {e}")
+                            restart_results.append({
+                                "connector_id": connector.connector_id,
+                                "success": False,
+                                "error": str(e),
+                                "reason": "auto_restart_failed"
+                            })
+        
+        except Exception as e:
+            logger.error(f"自动重启失败连接器过程失败: {e}")
+        
+        return restart_results
 
     def register_connector_from_path(self, connector_path: str) -> Dict[str, Any]:
         """从指定路径注册连接器"""

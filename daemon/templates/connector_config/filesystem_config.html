@@ -1,0 +1,928 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ connector_name }} - 配置</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #74b9ff 0%, #0984e3 100%);
+            min-height: 100vh;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+            animation: slideIn 0.6s ease-out;
+        }
+        
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        /* 文件系统主题头部 */
+        .header {
+            background: linear-gradient(135deg, #74b9ff 0%, #0984e3 100%);
+            color: white;
+            padding: 32px;
+            text-align: center;
+            position: relative;
+        }
+        
+        .header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="20" cy="20" r="2" fill="white" opacity="0.1"/><circle cx="80" cy="40" r="1" fill="white" opacity="0.1"/><circle cx="40" cy="80" r="1.5" fill="white" opacity="0.1"/></svg>');
+            animation: float 6s ease-in-out infinite;
+        }
+        
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+        
+        .header-content {
+            position: relative;
+            z-index: 1;
+        }
+        
+        .folder-icon {
+            font-size: 56px;
+            margin-bottom: 16px;
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+        
+        .header h1 {
+            font-size: 28px;
+            margin-bottom: 12px;
+            font-weight: 700;
+        }
+        
+        .header p {
+            opacity: 0.9;
+            font-size: 16px;
+        }
+        
+        /* 标签页 */
+        .tabs {
+            display: flex;
+            background: #f8f9fa;
+            border-bottom: 1px solid #e9ecef;
+            overflow-x: auto;
+        }
+        
+        .tab {
+            padding: 16px 24px;
+            background: none;
+            border: none;
+            font-size: 14px;
+            font-weight: 600;
+            color: #666;
+            cursor: pointer;
+            border-bottom: 3px solid transparent;
+            transition: all 0.3s ease;
+            white-space: nowrap;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .tab:hover {
+            background: #e9ecef;
+            color: #333;
+        }
+        
+        .tab.active {
+            color: #74b9ff;
+            border-bottom-color: #74b9ff;
+            background: white;
+        }
+        
+        .tab-content {
+            display: none;
+            padding: 32px;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        /* 表单组件 */
+        .form-group {
+            margin-bottom: 24px;
+        }
+        
+        .form-label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+            font-size: 14px;
+        }
+        
+        .label-icon {
+            color: #74b9ff;
+            font-size: 16px;
+        }
+        
+        .required {
+            color: #dc3545;
+        }
+        
+        .form-input {
+            width: 100%;
+            padding: 14px 16px;
+            border: 2px solid #e9ecef;
+            border-radius: 10px;
+            font-size: 14px;
+            transition: all 0.3s ease;
+            background: #fff;
+        }
+        
+        .form-input:focus {
+            outline: none;
+            border-color: #74b9ff;
+            box-shadow: 0 0 0 3px rgba(116, 185, 255, 0.1);
+            transform: translateY(-1px);
+        }
+        
+        .form-textarea {
+            min-height: 120px;
+            resize: vertical;
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 13px;
+            line-height: 1.5;
+        }
+        
+        .form-select {
+            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%2374b9ff' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+            background-position: right 12px center;
+            background-repeat: no-repeat;
+            background-size: 16px;
+            padding-right: 40px;
+            cursor: pointer;
+        }
+        
+        /* 切换开关样式 */
+        .switch-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 16px 20px;
+            background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+            border: 2px solid #e9ecef;
+            border-radius: 10px;
+            transition: all 0.3s ease;
+        }
+        
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 50px;
+            height: 26px;
+        }
+        
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: .4s;
+            border-radius: 26px;
+        }
+        
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 20px;
+            width: 20px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+        
+        input:checked + .slider {
+            background-color: #74b9ff;
+        }
+        
+        input:checked + .slider:before {
+            transform: translateX(24px);
+        }
+        
+        /* 范围滑块 */
+        .range-wrapper {
+            margin: 16px 0;
+        }
+        
+        .range-input {
+            width: 100%;
+            height: 6px;
+            border-radius: 3px;
+            background: linear-gradient(to right, #74b9ff 0%, #e9ecef 0%);
+            outline: none;
+            -webkit-appearance: none;
+            transition: background 0.3s ease;
+        }
+        
+        .range-input::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #74b9ff;
+            cursor: pointer;
+            box-shadow: 0 2px 6px rgba(116, 185, 255, 0.3);
+            transition: transform 0.2s ease;
+        }
+        
+        .range-input::-webkit-slider-thumb:hover {
+            transform: scale(1.2);
+        }
+        
+        .range-value {
+            text-align: center;
+            margin-top: 8px;
+            font-weight: 600;
+            color: #74b9ff;
+            font-size: 14px;
+        }
+        
+        /* 路径显示 */
+        .path-display {
+            background: #f8f9fa;
+            border: 2px dashed #dee2e6;
+            border-radius: 8px;
+            padding: 12px;
+            margin-top: 8px;
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 12px;
+            color: #666;
+            max-height: 100px;
+            overflow-y: auto;
+        }
+        
+        .path-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 4px 0;
+        }
+        
+        .path-valid {
+            color: #28a745;
+        }
+        
+        .path-invalid {
+            color: #dc3545;
+        }
+        
+        /* 文件扩展名标签 */
+        .extension-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-top: 8px;
+        }
+        
+        .extension-tag {
+            background: linear-gradient(135deg, #74b9ff, #0984e3);
+            color: white;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 500;
+        }
+        
+        /* 统计信息 */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 16px;
+            margin: 24px 0;
+        }
+        
+        .stat-card {
+            background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+            padding: 16px;
+            border-radius: 8px;
+            text-align: center;
+            border: 2px solid #e9ecef;
+        }
+        
+        .stat-number {
+            font-size: 24px;
+            font-weight: 700;
+            color: #74b9ff;
+            margin-bottom: 4px;
+        }
+        
+        .stat-label {
+            font-size: 12px;
+            color: #666;
+        }
+        
+        /* 操作按钮 */
+        .actions {
+            display: flex;
+            gap: 16px;
+            justify-content: flex-end;
+            padding: 32px;
+            background: linear-gradient(45deg, #f8f9fa, #e9ecef);
+            border-top: 1px solid #e9ecef;
+        }
+        
+        .btn {
+            padding: 14px 24px;
+            border: none;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #74b9ff 0%, #0984e3 100%);
+            color: white;
+            box-shadow: 0 4px 12px rgba(116, 185, 255, 0.4);
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(116, 185, 255, 0.5);
+        }
+        
+        .btn-secondary {
+            background: linear-gradient(135deg, #6c757d 0%, #5a6268 100%);
+            color: white;
+            box-shadow: 0 4px 12px rgba(108, 117, 125, 0.4);
+        }
+        
+        .btn-secondary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(108, 117, 125, 0.5);
+        }
+        
+        /* 响应式设计 */
+        @media (max-width: 768px) {
+            body { padding: 10px; }
+            .container { border-radius: 12px; }
+            .header { padding: 20px; }
+            .tab-content { padding: 20px; }
+            .actions { padding: 20px; flex-direction: column; }
+            .stats-grid { grid-template-columns: 1fr 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- 文件系统主题头部 -->
+        <div class="header">
+            <div class="header-content">
+                <div class="folder-icon">
+                    <i class="fas fa-folder-open"></i>
+                </div>
+                <h1>{{ connector_name }}</h1>
+                <p>{{ form_description }}</p>
+            </div>
+        </div>
+        
+        <!-- 标签页导航 -->
+        <div class="tabs">
+            <button class="tab active" onclick="switchTab('basic')">
+                <i class="fas fa-folder"></i>
+                基本配置
+            </button>
+            <button class="tab" onclick="switchTab('filters')">
+                <i class="fas fa-filter"></i>
+                文件过滤
+            </button>
+            <button class="tab" onclick="switchTab('advanced')">
+                <i class="fas fa-cogs"></i>
+                高级选项
+            </button>
+            <button class="tab" onclick="switchTab('notification')">
+                <i class="fas fa-bell"></i>
+                通知设置
+            </button>
+            <button class="tab" onclick="switchTab('performance')">
+                <i class="fas fa-tachometer-alt"></i>
+                性能优化
+            </button>
+        </div>
+        
+        <!-- 基本配置 -->
+        <div id="tab-basic" class="tab-content active">
+            <div class="form-group">
+                <label class="form-label">
+                    <i class="label-icon fas fa-folder-open"></i>
+                    监控目录
+                    <span class="required">*</span>
+                </label>
+                <textarea id="watch_directories" name="watch_directories" class="form-input form-textarea" 
+                          placeholder="~/Documents&#10;~/Desktop&#10;~/Downloads" required></textarea>
+                <div class="path-display" id="path-preview">
+                    <div style="color: #999; font-style: italic;">输入目录路径后将显示验证结果</div>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">
+                    <i class="label-icon fas fa-clock"></i>
+                    扫描间隔
+                    <span class="required">*</span>
+                </label>
+                <div class="range-wrapper">
+                    <input type="range" id="scan_interval" name="scan_interval" class="range-input" 
+                           min="1" max="300" value="5" oninput="updateRangeValue('scan_interval', this.value + '秒')">
+                    <div id="scan_interval-value" class="range-value">5秒</div>
+                </div>
+                <div style="font-size: 12px; color: #666; margin-top: 4px;">
+                    建议：频繁变化的目录使用较短间隔，稳定目录使用较长间隔
+                </div>
+            </div>
+        </div>
+        
+        <!-- 文件过滤 -->
+        <div id="tab-filters" class="tab-content">
+            <div class="form-group">
+                <label class="form-label">
+                    <i class="label-icon fas fa-file-alt"></i>
+                    监控文件扩展名
+                </label>
+                <input type="text" id="file_extensions" name="file_extensions" class="form-input" 
+                       placeholder=".txt,.md,.pdf,.doc,.docx,.json,.py,.js,.html,.css">
+                <div class="extension-tags" id="extension-preview"></div>
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">
+                    <i class="label-icon fas fa-weight-hanging"></i>
+                    最大文件大小
+                </label>
+                <div class="range-wrapper">
+                    <input type="range" id="max_file_size_mb" name="max_file_size_mb" class="range-input" 
+                           min="0.1" max="1000" step="0.1" value="50" 
+                           oninput="updateRangeValue('max_file_size_mb', this.value + 'MB')">
+                    <div id="max_file_size_mb-value" class="range-value">50MB</div>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">
+                    <i class="label-icon fas fa-eye-slash"></i>
+                    忽略隐藏文件
+                </label>
+                <div class="switch-wrapper">
+                    <label class="switch">
+                        <input type="checkbox" id="ignore_hidden_files" name="ignore_hidden_files" checked>
+                        <span class="slider"></span>
+                    </label>
+                    <div>
+                        <strong>忽略隐藏文件</strong>
+                        <div style="font-size: 12px; color: #666; margin-top: 4px;">
+                            跳过以点开头的隐藏文件和文件夹
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 高级选项 -->
+        <div id="tab-advanced" class="tab-content">
+            <div class="form-group">
+                <label class="form-label">
+                    <i class="label-icon fas fa-hashtag"></i>
+                    启用内容哈希
+                </label>
+                <div class="switch-wrapper">
+                    <label class="switch">
+                        <input type="checkbox" id="enable_content_hash" name="enable_content_hash" checked>
+                        <span class="slider"></span>
+                    </label>
+                    <div>
+                        <strong>计算文件内容哈希</strong>
+                        <div style="font-size: 12px; color: #666; margin-top: 4px;">
+                            更准确地检测文件内容变化，但会增加CPU使用
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">
+                    <i class="label-icon fas fa-sitemap"></i>
+                    递归监控
+                </label>
+                <div class="switch-wrapper">
+                    <label class="switch">
+                        <input type="checkbox" id="recursive_watch" name="recursive_watch" checked>
+                        <span class="slider"></span>
+                    </label>
+                    <div>
+                        <strong>监控子目录</strong>
+                        <div style="font-size: 12px; color: #666; margin-top: 4px;">
+                            递归监控所有子目录中的文件
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">
+                    <i class="label-icon fas fa-ban"></i>
+                    排除模式
+                </label>
+                <textarea id="exclude_patterns" name="exclude_patterns" class="form-input form-textarea" 
+                          placeholder="node_modules&#10;.git&#10;*.tmp&#10;*.log" rows="6"></textarea>
+                <div style="font-size: 12px; color: #666; margin-top: 4px;">
+                    每行一个排除模式，支持通配符匹配
+                </div>
+            </div>
+        </div>
+        
+        <!-- 通知设置 -->
+        <div id="tab-notification" class="tab-content">
+            <div class="form-group">
+                <label class="form-label">
+                    <i class="label-icon fas fa-broadcast-tower"></i>
+                    通知模式
+                </label>
+                <select id="notification_mode" name="notification_mode" class="form-input form-select">
+                    <option value="immediate">立即通知</option>
+                    <option value="batch" selected>批量通知</option>
+                    <option value="summary">摘要通知</option>
+                </select>
+                <div style="font-size: 12px; color: #666; margin-top: 8px;">
+                    <div><strong>立即</strong>: 每个文件变化立即发送</div>
+                    <div><strong>批量</strong>: 定期发送一批变化的文件</div>
+                    <div><strong>摘要</strong>: 只发送变化统计信息</div>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">
+                    <i class="label-icon fas fa-hourglass-half"></i>
+                    批处理间隔
+                </label>
+                <div class="range-wrapper">
+                    <input type="range" id="batch_interval" name="batch_interval" class="range-input" 
+                           min="10" max="600" value="30" 
+                           oninput="updateRangeValue('batch_interval', this.value + '秒')">
+                    <div id="batch_interval-value" class="range-value">30秒</div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 性能优化 -->
+        <div id="tab-performance" class="tab-content">
+            <div class="form-group">
+                <label class="form-label">
+                    <i class="label-icon fas fa-layer-group"></i>
+                    最大并发文件数
+                </label>
+                <div class="range-wrapper">
+                    <input type="range" id="max_concurrent_files" name="max_concurrent_files" class="range-input" 
+                           min="1" max="100" value="10" 
+                           oninput="updateRangeValue('max_concurrent_files', this.value + '个')">
+                    <div id="max_concurrent_files-value" class="range-value">10个</div>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">
+                    <i class="label-icon fas fa-search"></i>
+                    启用文件索引
+                </label>
+                <div class="switch-wrapper">
+                    <label class="switch">
+                        <input type="checkbox" id="enable_indexing" name="enable_indexing">
+                        <span class="slider"></span>
+                    </label>
+                    <div>
+                        <strong>为文件创建搜索索引</strong>
+                        <div style="font-size: 12px; color: #666; margin-top: 4px;">
+                            提升搜索速度，但会占用更多存储空间
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 统计信息 -->
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-number" id="estimated-files">0</div>
+                    <div class="stat-label">预估监控文件数</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="scan-frequency">5秒</div>
+                    <div class="stat-label">扫描频率</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="memory-usage">~50MB</div>
+                    <div class="stat-label">预估内存使用</div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 操作按钮 -->
+        <div class="actions">
+            <button type="button" class="btn btn-secondary" onclick="resetForm()">
+                <i class="fas fa-undo"></i>
+                重置配置
+            </button>
+            <button type="button" class="btn btn-primary" onclick="saveConfig()">
+                <i class="fas fa-save"></i>
+                保存配置
+            </button>
+        </div>
+    </div>
+    
+    <script>
+        // 全局配置数据
+        let configSchema = {{ config_schema | json_encode | safe }};
+        let currentConfig = {{ current_config | json_encode | safe }};
+        let uiSchema = {{ ui_schema | json_encode | safe }};
+        
+        // 页面初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeForm();
+            setupEventListeners();
+        });
+        
+        function initializeForm() {
+            populateFormData();
+            updatePathPreview();
+            updateExtensionPreview();
+            updateStats();
+        }
+        
+        function setupEventListeners() {
+            // 监控目录变化
+            document.getElementById('watch_directories').addEventListener('input', function() {
+                updatePathPreview();
+                updateStats();
+                notifyConfigChange();
+            });
+            
+            // 文件扩展名变化
+            document.getElementById('file_extensions').addEventListener('input', function() {
+                updateExtensionPreview();
+                notifyConfigChange();
+            });
+            
+            // 所有输入元素变化监听
+            const inputs = document.querySelectorAll('input, select, textarea');
+            inputs.forEach(input => {
+                input.addEventListener('input', function() {
+                    if (this.id === 'scan_interval') {
+                        updateStats();
+                    }
+                    notifyConfigChange();
+                });
+            });
+        }
+        
+        function populateFormData() {
+            for (const [fieldName, value] of Object.entries(currentConfig)) {
+                const input = document.getElementById(fieldName);
+                if (input) {
+                    if (input.type === 'checkbox') {
+                        input.checked = value === true;
+                    } else if (input.type === 'range') {
+                        input.value = value || input.defaultValue;
+                        updateRangeValue(fieldName, getRangeDisplayValue(fieldName, value));
+                    } else {
+                        input.value = value !== null && value !== undefined ? value : '';
+                    }
+                }
+            }
+        }
+        
+        function switchTab(tabName) {
+            // 隐藏所有标签页
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            // 显示选中的标签页
+            document.getElementById('tab-' + tabName).classList.add('active');
+            event.target.classList.add('active');
+        }
+        
+        function updateRangeValue(fieldName, displayValue) {
+            const valueElement = document.getElementById(fieldName + '-value');
+            if (valueElement) {
+                valueElement.textContent = displayValue;
+            }
+            
+            // 更新滑块背景
+            const rangeInput = document.getElementById(fieldName);
+            if (rangeInput) {
+                const percentage = ((rangeInput.value - rangeInput.min) / (rangeInput.max - rangeInput.min)) * 100;
+                rangeInput.style.background = `linear-gradient(to right, #74b9ff ${percentage}%, #e9ecef ${percentage}%)`;
+            }
+        }
+        
+        function getRangeDisplayValue(fieldName, value) {
+            switch (fieldName) {
+                case 'scan_interval':
+                    return value + '秒';
+                case 'max_file_size_mb':
+                    return value + 'MB';
+                case 'batch_interval':
+                    return value + '秒';
+                case 'max_concurrent_files':
+                    return value + '个';
+                default:
+                    return value;
+            }
+        }
+        
+        function updatePathPreview() {
+            const pathsText = document.getElementById('watch_directories').value;
+            const pathPreview = document.getElementById('path-preview');
+            
+            if (!pathsText.trim()) {
+                pathPreview.innerHTML = '<div style="color: #999; font-style: italic;">输入目录路径后将显示验证结果</div>';
+                return;
+            }
+            
+            const paths = pathsText.split('\n').filter(p => p.trim());
+            let html = '';
+            
+            paths.forEach(path => {
+                path = path.trim();
+                if (path) {
+                    const isValid = path.startsWith('~') || path.startsWith('/') || path.includes(':');
+                    html += `
+                        <div class="path-item">
+                            <i class="fas ${isValid ? 'fa-check-circle path-valid' : 'fa-times-circle path-invalid'}"></i>
+                            <span>${path}</span>
+                        </div>
+                    `;
+                }
+            });
+            
+            pathPreview.innerHTML = html || '<div style="color: #999;">暂无路径</div>';
+        }
+        
+        function updateExtensionPreview() {
+            const extensionsText = document.getElementById('file_extensions').value;
+            const extensionPreview = document.getElementById('extension-preview');
+            
+            if (!extensionsText.trim()) {
+                extensionPreview.innerHTML = '';
+                return;
+            }
+            
+            const extensions = extensionsText.split(',').map(ext => ext.trim()).filter(ext => ext);
+            let html = '';
+            
+            extensions.forEach(ext => {
+                if (ext) {
+                    html += `<span class="extension-tag">${ext}</span>`;
+                }
+            });
+            
+            extensionPreview.innerHTML = html;
+        }
+        
+        function updateStats() {
+            const scanInterval = document.getElementById('scan_interval').value || 5;
+            const pathsText = document.getElementById('watch_directories').value;
+            const paths = pathsText.split('\n').filter(p => p.trim()).length;
+            
+            // 更新统计信息
+            document.getElementById('estimated-files').textContent = paths * 100; // 估算
+            document.getElementById('scan-frequency').textContent = scanInterval + '秒';
+            document.getElementById('memory-usage').textContent = '~' + Math.max(50, paths * 10) + 'MB';
+        }
+        
+        function getFormData() {
+            const formData = {};
+            const inputs = document.querySelectorAll('input, select, textarea');
+            
+            inputs.forEach(input => {
+                if (input.type === 'checkbox') {
+                    formData[input.name] = input.checked;
+                } else if (input.type === 'number' || input.type === 'range') {
+                    formData[input.name] = Number(input.value);
+                } else {
+                    formData[input.name] = input.value || null;
+                }
+            });
+            
+            return formData;
+        }
+        
+        function notifyConfigChange() {
+            const formData = getFormData();
+            sendMessageToFlutter('configChanged', formData);
+        }
+        
+        function saveConfig() {
+            const formData = getFormData();
+            sendMessageToFlutter('saveConfig', formData);
+            
+            // 视觉反馈
+            const btn = event.target;
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 保存中...';
+            btn.disabled = true;
+            
+            setTimeout(() => {
+                btn.innerHTML = '<i class="fas fa-check"></i> 保存成功!';
+                setTimeout(() => {
+                    btn.innerHTML = originalText;
+                    btn.disabled = false;
+                }, 2000);
+            }, 1000);
+        }
+        
+        function resetForm() {
+            if (confirm('确定要重置配置吗？')) {
+                populateFormData();
+                updatePathPreview();
+                updateExtensionPreview();
+                updateStats();
+                notifyConfigChange();
+            }
+        }
+        
+        // Flutter通信
+        function sendMessageToFlutter(action, data) {
+            const message = JSON.stringify({
+                action: action,
+                data: data,
+                timestamp: Date.now()
+            });
+            
+            if (window.FlutterConfigBridge) {
+                window.FlutterConfigBridge.postMessage(message);
+            }
+        }
+        
+        function receiveFlutterMessage(message) {
+            try {
+                const data = JSON.parse(message);
+                
+                switch (data.action) {
+                    case 'updateConfig':
+                        currentConfig = data.data;
+                        populateFormData();
+                        updatePathPreview();
+                        updateExtensionPreview();
+                        updateStats();
+                        break;
+                }
+            } catch (error) {
+                console.error('处理Flutter消息失败:', error);
+            }
+        }
+    </script>
+</body>
+</html>

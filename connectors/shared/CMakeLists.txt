@@ -8,7 +8,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # 查找依赖库
 find_package(PkgConfig REQUIRED)
 find_package(nlohmann_json REQUIRED)
-find_package(CURL REQUIRED)
+# find_package(CURL REQUIRED)  # 已移除 - HTTP客户端不再需要
 
 # Windows特殊处理
 if(WIN32)
@@ -22,7 +22,9 @@ include_directories(include)
 
 # 源文件
 set(SOURCES
-    src/http_client.cpp
+    # src/http_client.cpp  # 已移除 - HTTP支持不再需要
+    src/ipc_client.cpp
+    src/unified_client.cpp
     src/daemon_discovery.cpp
     src/config_manager.cpp
     src/utils.cpp
@@ -34,7 +36,7 @@ add_library(linch_connector_shared STATIC ${SOURCES})
 # 链接库
 target_link_libraries(linch_connector_shared
     nlohmann_json::nlohmann_json
-    CURL::libcurl
+    # CURL::libcurl  # 已移除 - HTTP客户端不再需要
 )
 
 if(WIN32)

@@ -27,29 +27,12 @@ class ConnectorRegistryService:
         # 从配置获取注册表URL，默认使用GitHub Release
         self.registry_url = self._get_registry_url()
 
-        # 初始化时预加载本地注册表
-        if self.registry_url.startswith("file://"):
-            import asyncio
-
-            try:
-                # 在后台预加载
-                asyncio.create_task(self._preload_local_registry())
-            except Exception as e:
-                logger.warning(f"预加载本地注册表失败: {e}")
-
-    async def _preload_local_registry(self):
-        """预加载本地注册表文件"""
-        try:
-            await self.fetch_registry(force_refresh=True)
-            logger.info("本地注册表预加载完成")
-        except Exception as e:
-            logger.error(f"预加载本地注册表失败: {e}")
+        logger.info(f"连接器注册表服务已初始化，URL: {self.registry_url}")
 
     def _get_registry_url(self) -> str:
         """获取注册表URL配置"""
-        # 优先级：环境变量 > 配置文件 > 本地文件 > 默认值
+        # 优先级：环境变量 > 配置文件 > 默认GitHub Release
         import os
-        from pathlib import Path
 
         # 1. 环境变量
         if os.getenv("REGISTRY_URL"):
@@ -63,15 +46,7 @@ class ConnectorRegistryService:
         except Exception as e:
             logger.warning(f"读取注册表配置失败: {e}")
 
-        # 3. 本地注册表文件
-        local_registry = (
-            Path(__file__).parent.parent.parent / "connectors" / "registry.json"
-        )
-        if local_registry.exists():
-            logger.info(f"使用本地注册表文件: {local_registry}")
-            return f"file://{local_registry.absolute()}"
-
-        # 4. 默认GitHub Release
+        # 3. 默认GitHub Release
         return "https://github.com/laofahai/linch-mind/releases/latest/download/registry.json"
 
     async def fetch_registry(
@@ -86,31 +61,7 @@ class ConnectorRegistryService:
 
             logger.info(f"从 {self.registry_url} 获取注册表...")
 
-            # 处理本地文件
-            if self.registry_url.startswith("file://"):
-                import json
-                from pathlib import Path
-
-                file_path = self.registry_url[7:]  # 移除 "file://" 前缀
-                registry_file = Path(file_path)
-
-                if registry_file.exists():
-                    with open(registry_file, "r", encoding="utf-8") as f:
-                        registry_data = json.load(f)
-
-                    # 更新缓存
-                    self._cache = registry_data
-                    self._cache_expiry = datetime.now() + self._cache_duration
-
-                    logger.info(
-                        f"成功从本地文件获取注册表，包含 {len(registry_data.get('connectors', {}))} 个连接器"
-                    )
-                    return registry_data
-                else:
-                    logger.error(f"本地注册表文件不存在: {file_path}")
-                    return None
-
-            # 处理远程URL
+            # 从GitHub Release获取注册表
             async with aiohttp.ClientSession() as session:
                 async with session.get(self.registry_url, timeout=30) as response:
                     if response.status == 200:

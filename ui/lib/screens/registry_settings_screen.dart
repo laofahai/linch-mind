@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'dart:convert';
-import 'package:http/http.dart' as http;
+// import 'package:http/http.dart' as http;  // 已移除 - 使用IPC通信
 import '../services/daemon_port_service.dart';
+import '../services/ipc_api_adapter.dart';
 
 /// 注册表配置数据模型
 class RegistryConfig {
@@ -65,67 +66,41 @@ class RegistryConfig {
   }
 }
 
-/// 注册表配置服务
+/// 注册表配置服务 (IPC版本)
 class RegistryConfigService {
-  static final DaemonPortService _portService = DaemonPortService.instance;
+  static final IPCApiAdapter _ipcApi = IPCApiService.instance;
 
   static Future<RegistryConfig> getConfig() async {
-    final baseUrl = await _portService.getDaemonBaseUrl();
-    final response = await http.get(
-      Uri.parse('$baseUrl/api/system/config/registry'),
-      headers: {'Content-Type': 'application/json'},
-    );
-
-    if (response.statusCode == 200) {
-      final data = json.decode(response.body);
+    try {
+      final data = await _ipcApi.get('/system-config/registry');
       return RegistryConfig.fromJson(data);
-    } else {
-      throw Exception('获取注册表配置失败: ${response.statusCode}');
+    } catch (e) {
+      throw Exception('获取注册表配置失败: $e');
     }
   }
 
   static Future<RegistryConfig> updateConfig(RegistryConfig config) async {
-    final baseUrl = await _portService.getDaemonBaseUrl();
-    final response = await http.put(
-      Uri.parse('$baseUrl/api/system/config/registry'),
-      headers: {'Content-Type': 'application/json'},
-      body: json.encode(config.toJson()),
-    );
-
-    if (response.statusCode == 200) {
-      final data = json.decode(response.body);
+    try {
+      final data = await _ipcApi.put('/system-config/registry', data: config.toJson());
       return RegistryConfig.fromJson(data);
-    } else {
-      throw Exception('更新注册表配置失败: ${response.statusCode}');
+    } catch (e) {
+      throw Exception('更新注册表配置失败: $e');
     }
   }
 
   static Future<Map<String, dynamic>> testUrl(String url) async {
-    final baseUrl = await _portService.getDaemonBaseUrl();
-    final response = await http.post(
-      Uri.parse(
-          '$baseUrl/api/system/config/registry/test?test_url=${Uri.encodeComponent(url)}'),
-      headers: {'Content-Type': 'application/json'},
-    );
-
-    if (response.statusCode == 200) {
-      return json.decode(response.body);
-    } else {
-      throw Exception('测试URL失败: ${response.statusCode}');
+    try {
+      return await _ipcApi.post('/system-config/registry/test', queryParameters: {'test_url': url});
+    } catch (e) {
+      throw Exception('测试URL失败: $e');
     }
   }
 
   static Future<Map<String, dynamic>> refreshRegistry() async {
-    final baseUrl = await _portService.getDaemonBaseUrl();
-    final response = await http.post(
-      Uri.parse('$baseUrl/api/system/config/registry/refresh'),
-      headers: {'Content-Type': 'application/json'},
-    );
-
-    if (response.statusCode == 200) {
-      return json.decode(response.body);
-    } else {
-      throw Exception('刷新注册表失败: ${response.statusCode}');
+    try {
+      return await _ipcApi.post('/system-config/registry/refresh');
+    } catch (e) {
+      throw Exception('刷新注册表失败: $e');
     }
   }
 }

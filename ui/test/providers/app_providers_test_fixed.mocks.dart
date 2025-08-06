@@ -201,48 +201,48 @@ class MockConnectorLifecycleApiClient extends _i1.Mock
       ) as _i5.Future<_i3.ConnectorListResponse>);
 
   @override
-  _i5.Future<_i3.ConnectorDetailResponse> getConnector(String? collectorId) =>
+  _i5.Future<_i3.ConnectorDetailResponse> getConnector(String? connectorId) =>
       (super.noSuchMethod(
         Invocation.method(
           #getConnector,
-          [collectorId],
+          [connectorId],
         ),
         returnValue: _i5.Future<_i3.ConnectorDetailResponse>.value(
             _FakeConnectorDetailResponse_4(
           this,
           Invocation.method(
             #getConnector,
-            [collectorId],
+            [connectorId],
           ),
         )),
       ) as _i5.Future<_i3.ConnectorDetailResponse>);
 
   @override
-  _i5.Future<_i3.OperationResponse> startConnector(String? collectorId) =>
+  _i5.Future<_i3.OperationResponse> startConnector(String? connectorId) =>
       (super.noSuchMethod(
         Invocation.method(
           #startConnector,
-          [collectorId],
+          [connectorId],
         ),
         returnValue:
             _i5.Future<_i3.OperationResponse>.value(_FakeOperationResponse_2(
           this,
           Invocation.method(
             #startConnector,
-            [collectorId],
+            [connectorId],
           ),
         )),
       ) as _i5.Future<_i3.OperationResponse>);
 
   @override
   _i5.Future<_i3.OperationResponse> stopConnector(
-    String? collectorId, {
+    String? connectorId, {
     bool? force = false,
   }) =>
       (super.noSuchMethod(
         Invocation.method(
           #stopConnector,
-          [collectorId],
+          [connectorId],
           {#force: force},
         ),
         returnValue:
@@ -250,39 +250,39 @@ class MockConnectorLifecycleApiClient extends _i1.Mock
           this,
           Invocation.method(
             #stopConnector,
-            [collectorId],
+            [connectorId],
             {#force: force},
           ),
         )),
       ) as _i5.Future<_i3.OperationResponse>);
 
   @override
-  _i5.Future<_i3.OperationResponse> restartConnector(String? collectorId) =>
+  _i5.Future<_i3.OperationResponse> restartConnector(String? connectorId) =>
       (super.noSuchMethod(
         Invocation.method(
           #restartConnector,
-          [collectorId],
+          [connectorId],
         ),
         returnValue:
             _i5.Future<_i3.OperationResponse>.value(_FakeOperationResponse_2(
           this,
           Invocation.method(
             #restartConnector,
-            [collectorId],
+            [connectorId],
           ),
         )),
       ) as _i5.Future<_i3.OperationResponse>);
 
   @override
   _i5.Future<_i3.OperationResponse> updateConnectorConfig(
-    String? collectorId,
+    String? connectorId,
     _i3.UpdateConfigRequest? request,
   ) =>
       (super.noSuchMethod(
         Invocation.method(
           #updateConnectorConfig,
           [
-            collectorId,
+            connectorId,
             request,
           ],
         ),
@@ -292,7 +292,7 @@ class MockConnectorLifecycleApiClient extends _i1.Mock
           Invocation.method(
             #updateConnectorConfig,
             [
-              collectorId,
+              connectorId,
               request,
             ],
           ),
@@ -301,13 +301,13 @@ class MockConnectorLifecycleApiClient extends _i1.Mock
 
   @override
   _i5.Future<_i3.OperationResponse> deleteConnector(
-    String? collectorId, {
+    String? connectorId, {
     bool? force = false,
   }) =>
       (super.noSuchMethod(
         Invocation.method(
           #deleteConnector,
-          [collectorId],
+          [connectorId],
           {#force: force},
         ),
         returnValue:
@@ -315,7 +315,7 @@ class MockConnectorLifecycleApiClient extends _i1.Mock
           this,
           Invocation.method(
             #deleteConnector,
-            [collectorId],
+            [connectorId],
             {#force: force},
           ),
         )),
@@ -389,6 +389,41 @@ class MockConnectorLifecycleApiClient extends _i1.Mock
           ),
         )),
       ) as _i5.Future<_i3.DiscoveryResponse>);
+
+  @override
+  _i5.Future<_i3.OperationResponse> installConnector(
+          _i3.InstallConnectorRequest? request) =>
+      (super.noSuchMethod(
+        Invocation.method(
+          #installConnector,
+          [request],
+        ),
+        returnValue:
+            _i5.Future<_i3.OperationResponse>.value(_FakeOperationResponse_2(
+          this,
+          Invocation.method(
+            #installConnector,
+            [request],
+          ),
+        )),
+      ) as _i5.Future<_i3.OperationResponse>);
+
+  @override
+  _i5.Future<_i3.OperationResponse> installFromRegistry(String? connectorId) =>
+      (super.noSuchMethod(
+        Invocation.method(
+          #installFromRegistry,
+          [connectorId],
+        ),
+        returnValue:
+            _i5.Future<_i3.OperationResponse>.value(_FakeOperationResponse_2(
+          this,
+          Invocation.method(
+            #installFromRegistry,
+            [connectorId],
+          ),
+        )),
+      ) as _i5.Future<_i3.OperationResponse>);
 
   @override
   _i5.Stream<_i3.ConnectorEvent> watchConnectorEvents() => (super.noSuchMethod(

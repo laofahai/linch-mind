@@ -83,7 +83,7 @@ class InstanceTemplate with _$InstanceTemplate {
 @freezed
 class ConnectorInfo with _$ConnectorInfo {
   const factory ConnectorInfo({
-    @JsonKey(name: 'collector_id') required String collectorId,
+    @JsonKey(name: 'connector_id') required String connectorId,
     @JsonKey(name: 'display_name') required String displayName,
     required ConnectorState state,
     @Default(true) bool enabled,
@@ -101,7 +101,24 @@ class ConnectorInfo with _$ConnectorInfo {
       _$ConnectorInfoFromJson(json);
 }
 
-/// 创建连接器请求 - 不再需要类型ID
+/// 统一的连接器安装请求
+@freezed
+class InstallConnectorRequest with _$InstallConnectorRequest {
+  const factory InstallConnectorRequest({
+    @JsonKey(name: 'connector_id') required String connectorId,
+    @JsonKey(name: 'source') @Default('registry') String source, // registry, manual, scan
+    @JsonKey(name: 'display_name') String? displayName,
+    @Default({}) Map<String, dynamic> config,
+    @JsonKey(name: 'auto_start') @Default(false) bool autoStart,
+    String? path, // for scan source
+    String? description, // for manual source
+  }) = _InstallConnectorRequest;
+
+  factory InstallConnectorRequest.fromJson(Map<String, dynamic> json) =>
+      _$InstallConnectorRequestFromJson(json);
+}
+
+/// 创建连接器请求 - 保持向后兼容
 @freezed
 class CreateConnectorRequest with _$CreateConnectorRequest {
   const factory CreateConnectorRequest({
@@ -144,7 +161,7 @@ class ConnectorEvent with _$ConnectorEvent {
 @freezed
 class StateChangeEvent with _$StateChangeEvent {
   const factory StateChangeEvent({
-    @JsonKey(name: 'instance_id') required String instanceId,
+    @JsonKey(name: 'connector_id') required String connectorId,
     @JsonKey(name: 'old_state') required ConnectorState oldState,
     @JsonKey(name: 'new_state') required ConnectorState newState,
   }) = _StateChangeEvent;
@@ -270,7 +287,7 @@ class DiscoveryResponse with _$DiscoveryResponse {
 class ConnectorListResponse with _$ConnectorListResponse {
   const factory ConnectorListResponse({
     required bool success,
-    @Default([]) List<ConnectorInfo> collectors,
+    @Default([]) List<ConnectorInfo> connectors,
     @JsonKey(name: 'total_count') @Default(0) int totalCount,
   }) = _ConnectorListResponse;
 
@@ -283,7 +300,7 @@ class ConnectorListResponse with _$ConnectorListResponse {
 class ConnectorDetailResponse with _$ConnectorDetailResponse {
   const factory ConnectorDetailResponse({
     required bool success,
-    required ConnectorInfo collector,
+    required ConnectorInfo connector,
   }) = _ConnectorDetailResponse;
 
   factory ConnectorDetailResponse.fromJson(Map<String, dynamic> json) =>
@@ -296,7 +313,7 @@ class OperationResponse with _$OperationResponse {
   const factory OperationResponse({
     required bool success,
     required String message,
-    @JsonKey(name: 'instance_id') required String instanceId,
+    @JsonKey(name: 'connector_id') required String connectorId,
     required ConnectorState state,
     @JsonKey(name: 'hot_reload_applied') bool? hotReloadApplied,
     @JsonKey(name: 'requires_restart') bool? requiresRestart,

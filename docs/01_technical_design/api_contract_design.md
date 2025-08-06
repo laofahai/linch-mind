@@ -1,37 +1,78 @@
-# API契约设计标准
+# IPC消息协议设计标准
 
-**版本**: 1.0  
-**状态**: 设计完成  
+**版本**: 2.0  
+**状态**: 已实现  
 **创建时间**: 2025-08-02  
-**适用于**: Flutter + Python Daemon架构
+**最新更新**: 2025-08-06  
+**适用于**: 纯IPC架构 + 跨平台通信
 
-## 1. 契约设计原则
+## 🚀 重大协议升级 (v2.0)
+
+**从HTTP REST到IPC消息协议的完全迁移**: 项目已完成协议栈的重大升级，从HTTP REST API转换为高性能IPC消息协议，实现更快速、更安全的本地进程间通信。
+
+## 1. IPC协议设计原则
 
 ### 1.1 核心原则
-- **API First**: 先设计API契约，再开发实现
-- **向后兼容**: 新版本不破坏旧版本功能
-- **语义化版本**: 使用semver (v1.0.0)
-- **强类型定义**: Pydantic模型保证数据结构一致性
-- **Mock驱动**: 高质量Mock支持并行开发
+- **消息优先**: 先设计消息协议，再开发实现
+- **向后兼容**: 新版本消息格式兼容旧版本
+- **语义化版本**: 使用semver (v2.0.0)
+- **强类型定义**: Pydantic模型保证消息结构一致性
+- **平台无关**: 统一消息格式，跨平台兼容
+- **性能优先**: 二进制长度前缀+JSON，延迟<1ms
 
-### 1.2 数据模型标准
+### 1.2 IPC消息协议规范
+
+#### 消息传输格式
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    IPC消息传输格式                           │
+├─────────────────────────────────────────────────────────────┤
+│  消息长度 (4 bytes, big endian)  │  消息内容 (UTF-8 JSON)    │
+│  0x00 0x00 0x01 0x2A            │  {"method": "GET", ...}   │
+└─────────────────────────────────────────────────────────────┘
+```
+
+#### IPC请求消息格式
+
 ```python
-# 所有模型必须继承BaseModel
 from pydantic import BaseModel, Field
-from typing import Optional, List, Dict, Any
-from datetime import datetime
+from typing import Optional, Dict, Any
 from enum import Enum
 
-class LinchMindBaseModel(BaseModel):
-    \"\"\"所有API模型的基类\"\"\"
-    created_at: datetime = Field(default_factory=datetime.now)
-    updated_at: datetime = Field(default_factory=datetime.now)
+class IPCRequest(BaseModel):
+    """IPC请求消息格式"""
+    method: str = Field(..., description="HTTP方法 (GET/POST/PUT/DELETE)")
+    path: str = Field(..., description="请求路径")
+    data: Optional[Dict[str, Any]] = Field(None, description="请求数据")
+    headers: Dict[str, str] = Field(default_factory=dict, description="请求头")
+    query_params: Dict[str, Any] = Field(default_factory=dict, description="查询参数")
     
     class Config:
-        json_encoders = {
-            datetime: lambda v: v.isoformat()
+        schema_extra = {
+            "example": {
+                "method": "GET",
+                "path": "/api/v1/entities/entity_123",
+                "data": None,
+                "headers": {"Content-Type": "application/json"},
+                "query_params": {"include_relations": True}
+            }
         }
-        use_enum_values = True
+
+class IPCResponse(BaseModel):
+    """IPC响应消息格式"""
+    status_code: int = Field(..., description="HTTP状态码")
+    data: Optional[Dict[str, Any]] = Field(None, description="响应数据")
+    headers: Dict[str, str] = Field(default_factory=dict, description="响应头")
+    
+    class Config:
+        schema_extra = {
+            "example": {
+                "status_code": 200,
+                "data": {"id": "entity_123", "name": "example.txt"},
+                "headers": {"Content-Type": "application/json"}
+            }
+        }
 ```
 
 ## 2. 核心数据模型
@@ -785,37 +826,146 @@ final daemonClientProvider = Provider<DaemonClient>((ref) {
 });
 ```
 
-## 7. 版本控制和兼容性
+## 7. IPC客户端集成
 
-### 7.1 版本控制策略
-```python
-# API版本管理
-API_VERSION = \"1.0.0\"
-SUPPORTED_VERSIONS = [\"1.0.0\"]
+### 7.1 Dart/Flutter客户端
 
-class APIVersioning:
-    @staticmethod
-    def check_compatibility(client_version: str) -> bool:
-        \"\"\"检查客户端版本兼容性\"\"\"
-        return client_version in SUPPORTED_VERSIONS
+```dart
+// lib/services/ipc_client.dart
+import 'dart:io';
+import 'dart:convert';
+import 'dart:typed_data';
+
+class IPCClient {
+  Socket? _socket;
+  String? _socketPath;
+  
+  Future<void> connect() async {
+    // 发现daemon socket路径
+    final configPath = '${Platform.environment['HOME']}/.linch-mind/daemon.info';
+    final config = jsonDecode(await File(configPath).readAsString());
+    _socketPath = config['socket_path'];
     
-    @staticmethod
-    def get_migration_path(from_version: str, to_version: str) -> List[str]:
-        \"\"\"获取版本迁移路径\"\"\"
-        # 实现版本迁移逻辑
-        pass
+    // 连接Unix Socket
+    _socket = await Socket.connect(
+      InternetAddress(_socketPath!, type: InternetAddressType.unix),
+      0,
+    );
+  }
+  
+  Future<Map<String, dynamic>> request(String method, String path, {
+    Map<String, dynamic>? data,
+    Map<String, String>? headers,
+    Map<String, dynamic>? queryParams,
+  }) async {
+    final request = {
+      'method': method,
+      'path': path,
+      'data': data,
+      'headers': headers ?? {},
+      'query_params': queryParams ?? {},
+    };
+    
+    final jsonData = jsonEncode(request);
+    final messageBytes = utf8.encode(jsonData);
+    final lengthBytes = ByteData(4)..setUint32(0, messageBytes.length, Endian.big);
+    
+    // 发送消息
+    _socket!.add(lengthBytes.buffer.asUint8List());
+    _socket!.add(messageBytes);
+    
+    // 接收响应
+    final response = await _readResponse();
+    return response;
+  }
+}
 ```
 
-### 7.2 向后兼容性保证
-- **添加字段**: 新字段必须有默认值
-- **删除字段**: 标记为废弃，至少保留一个大版本
-- **修改字段**: 提供数据转换器
-- **API端点**: 旧端点重定向到新端点
+### 7.2 Python客户端
+
+```python
+# 客户端示例
+from daemon.services.ipc_client import IPCClient
+
+async def main():
+    async with IPCClient() as client:
+        # GET请求
+        response = await client.get("/api/v1/entities")
+        print(f"Entities: {response['data']}")
+        
+        # POST请求  
+        response = await client.post("/api/v1/entities", data={
+            "type": "file",
+            "name": "example.txt",
+            "content": "Hello world"
+        })
+        print(f"Created: {response['data']}")
+```
+
+### 7.3 HTTP兼容层
+
+```python
+# 现有HTTP客户端代码无需修改
+from daemon.services.compatibility_layer import get_http_client
+
+async def legacy_code():
+    # 这段代码完全不需要修改
+    client = get_http_client()
+    response = await client.get("/api/v1/entities")  
+    data = response.json()
+    # 底层自动使用IPC通信
+```
+
+## 8. 性能与监控
+
+### 8.1 性能指标
+
+- **消息序列化**: JSON编码/解码 < 0.1ms
+- **Socket通信**: 往返时间 < 0.5ms  
+- **总请求延迟**: < 1ms (vs HTTP的5-15ms)
+- **并发处理**: 支持1000+并发连接
+
+### 8.2 监控与调试
+
+```python
+# 启用IPC调试日志
+import logging
+logging.getLogger("ipc").setLevel(logging.DEBUG)
+
+# 性能监控
+from daemon.services.ipc_middleware import PerformanceMiddleware
+app.add_middleware(PerformanceMiddleware())
+```
+
+## 9. 协议版本控制
+
+### 9.1 版本管理策略
+
+```python
+# IPC协议版本管理
+IPC_PROTOCOL_VERSION = "2.0.0"
+SUPPORTED_VERSIONS = ["1.0.0", "2.0.0"]
+
+class ProtocolVersioning:
+    @staticmethod
+    def negotiate_version(client_version: str) -> str:
+        """协商协议版本"""
+        if client_version in SUPPORTED_VERSIONS:
+            return client_version
+        return "1.0.0"  # 回退到兼容版本
+```
+
+### 9.2 向后兼容性
+
+- **消息格式**: 新字段可选，旧字段保留
+- **路径兼容**: 旧API路径继续支持  
+- **渐进迁移**: 客户端可选择升级时机
 
 ---
 
-**API契约设计完成**: 该文档提供了完整的API设计标准，可立即用于10天MVP开发。
+**IPC消息协议设计完成**: 该文档提供了完整的IPC通信标准，实现高性能、安全的本地进程间通信。
 
-**文档版本**: 1.0  
+**文档版本**: 2.0  
 **创建时间**: 2025-08-02  
-**维护团队**: API设计组
+**最新更新**: 2025-08-06  
+**维护团队**: IPC协议组

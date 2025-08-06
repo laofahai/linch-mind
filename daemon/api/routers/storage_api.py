@@ -16,7 +16,7 @@ from services.storage.storage_orchestrator import (StorageOrchestrator,
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/v1/storage", tags=["storage"])
+router = APIRouter(prefix="/storage", tags=["storage"])
 
 
 # === Pydantic模型 ===

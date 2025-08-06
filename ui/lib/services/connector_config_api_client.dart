@@ -1,24 +1,23 @@
-import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/connector_lifecycle_models.dart';
-import 'daemon_port_service.dart';
+import 'ipc_api_adapter.dart';
 
 /// 连接器配置API客户端
 class ConnectorConfigApiClient {
-  final Dio _dio;
+  final IPCApiAdapter _ipcApi = IPCApiService.instance;
 
-  ConnectorConfigApiClient(this._dio);
+  ConnectorConfigApiClient();
 
   /// 获取连接器配置Schema
   Future<ConnectorApiResponse> getConfigSchema(String connectorId) async {
     try {
-      final response = await _dio.get('/connector-config/schema/$connectorId');
-      return ConnectorApiResponse.fromJson(response.data);
-    } on DioException catch (e) {
+      final responseData = await _ipcApi.get('/connector-config/schema/$connectorId');
+      return ConnectorApiResponse.fromJson(responseData);
+    } catch (e) {
       return ConnectorApiResponse(
         success: false,
-        message: _handleDioError(e),
-        error: e.message,
+        message: '获取配置Schema失败: $e',
+        error: e.toString(),
       );
     }
   }
@@ -26,13 +25,13 @@ class ConnectorConfigApiClient {
   /// 获取当前配置
   Future<ConnectorApiResponse> getCurrentConfig(String connectorId) async {
     try {
-      final response = await _dio.get('/connector-config/current/$connectorId');
-      return ConnectorApiResponse.fromJson(response.data);
-    } on DioException catch (e) {
+      final responseData = await _ipcApi.get('/connector-config/current/$connectorId');
+      return ConnectorApiResponse.fromJson(responseData);
+    } catch (e) {
       return ConnectorApiResponse(
         success: false,
-        message: _handleDioError(e),
-        error: e.message,
+        message: '获取当前配置失败: $e',
+        error: e.toString(),
       );
     }
   }
@@ -43,19 +42,19 @@ class ConnectorConfigApiClient {
     Map<String, dynamic> config,
   ) async {
     try {
-      final response = await _dio.post(
+      final responseData = await _ipcApi.post(
         '/connector-config/validate',
         data: {
           'connector_id': connectorId,
           'config': config,
         },
       );
-      return ConnectorApiResponse.fromJson(response.data);
-    } on DioException catch (e) {
+      return ConnectorApiResponse.fromJson(responseData);
+    } catch (e) {
       return ConnectorApiResponse(
         success: false,
-        message: _handleDioError(e),
-        error: e.message,
+        message: '验证配置失败: $e',
+        error: e.toString(),
       );
     }
   }
@@ -68,7 +67,7 @@ class ConnectorConfigApiClient {
     String changeReason = '用户更新',
   }) async {
     try {
-      final response = await _dio.put(
+      final responseData = await _ipcApi.put(
         '/connector-config/update',
         data: {
           'connector_id': connectorId,
@@ -77,12 +76,12 @@ class ConnectorConfigApiClient {
           'change_reason': changeReason,
         },
       );
-      return ConnectorApiResponse.fromJson(response.data);
-    } on DioException catch (e) {
+      return ConnectorApiResponse.fromJson(responseData);
+    } catch (e) {
       return ConnectorApiResponse(
         success: false,
-        message: _handleDioError(e),
-        error: e.message,
+        message: '更新配置失败: $e',
+        error: e.toString(),
       );
     }
   }
@@ -93,19 +92,19 @@ class ConnectorConfigApiClient {
     bool toDefaults = true,
   }) async {
     try {
-      final response = await _dio.post(
+      final responseData = await _ipcApi.post(
         '/connector-config/reset',
         data: {
           'connector_id': connectorId,
           'to_defaults': toDefaults,
         },
       );
-      return ConnectorApiResponse.fromJson(response.data);
-    } on DioException catch (e) {
+      return ConnectorApiResponse.fromJson(responseData);
+    } catch (e) {
       return ConnectorApiResponse(
         success: false,
-        message: _handleDioError(e),
-        error: e.message,
+        message: '重置配置失败: $e',
+        error: e.toString(),
       );
     }
   }
@@ -117,19 +116,19 @@ class ConnectorConfigApiClient {
     int offset = 0,
   }) async {
     try {
-      final response = await _dio.get(
+      final responseData = await _ipcApi.get(
         '/connector-config/history/$connectorId',
         queryParameters: {
           'limit': limit,
           'offset': offset,
         },
       );
-      return ConnectorApiResponse.fromJson(response.data);
-    } on DioException catch (e) {
+      return ConnectorApiResponse.fromJson(responseData);
+    } catch (e) {
       return ConnectorApiResponse(
         success: false,
-        message: _handleDioError(e),
-        error: e.message,
+        message: '获取配置历史失败: $e',
+        error: e.toString(),
       );
     }
   }
@@ -137,13 +136,13 @@ class ConnectorConfigApiClient {
   /// 获取所有连接器的配置Schema概览
   Future<ConnectorApiResponse> getAllSchemas() async {
     try {
-      final response = await _dio.get('/connector-config/all-schemas');
-      return ConnectorApiResponse.fromJson(response.data);
-    } on DioException catch (e) {
+      final responseData = await _ipcApi.get('/connector-config/all-schemas');
+      return ConnectorApiResponse.fromJson(responseData);
+    } catch (e) {
       return ConnectorApiResponse(
         success: false,
-        message: _handleDioError(e),
-        error: e.message,
+        message: '获取所有Schema失败: $e',
+        error: e.toString(),
       );
     }
   }
@@ -155,7 +154,7 @@ class ConnectorConfigApiClient {
     Map<String, dynamic> widgetConfig,
   ) async {
     try {
-      final response = await _dio.post(
+      final responseData = await _ipcApi.post(
         '/connector-ui/register-custom-widget',
         data: {
           'connector_id': connectorId,
@@ -163,12 +162,12 @@ class ConnectorConfigApiClient {
           'widget_config': widgetConfig,
         },
       );
-      return ConnectorApiResponse.fromJson(response.data);
-    } on DioException catch (e) {
+      return ConnectorApiResponse.fromJson(responseData);
+    } catch (e) {
       return ConnectorApiResponse(
         success: false,
-        message: _handleDioError(e),
-        error: e.message,
+        message: '注册自定义组件失败: $e',
+        error: e.toString(),
       );
     }
   }
@@ -179,15 +178,15 @@ class ConnectorConfigApiClient {
     String widgetName,
   ) async {
     try {
-      final response = await _dio.get(
+      final responseData = await _ipcApi.get(
         '/connector-ui/custom-widget/$connectorId/$widgetName',
       );
-      return ConnectorApiResponse.fromJson(response.data);
-    } on DioException catch (e) {
+      return ConnectorApiResponse.fromJson(responseData);
+    } catch (e) {
       return ConnectorApiResponse(
         success: false,
-        message: _handleDioError(e),
-        error: e.message,
+        message: '获取自定义组件配置失败: $e',
+        error: e.toString(),
       );
     }
   }
@@ -199,7 +198,7 @@ class ConnectorConfigApiClient {
     Map<String, dynamic> configData,
   ) async {
     try {
-      final response = await _dio.post(
+      final responseData = await _ipcApi.post(
         '/connector-ui/validate-custom-config',
         data: {
           'connector_id': connectorId,
@@ -207,12 +206,12 @@ class ConnectorConfigApiClient {
           'config_data': configData,
         },
       );
-      return ConnectorApiResponse.fromJson(response.data);
-    } on DioException catch (e) {
+      return ConnectorApiResponse.fromJson(responseData);
+    } catch (e) {
       return ConnectorApiResponse(
         success: false,
-        message: _handleDioError(e),
-        error: e.message,
+        message: '验证自定义组件配置失败: $e',
+        error: e.toString(),
       );
     }
   }
@@ -220,15 +219,15 @@ class ConnectorConfigApiClient {
   /// 获取连接器可用的自定义组件
   Future<ConnectorApiResponse> getAvailableWidgets(String connectorId) async {
     try {
-      final response = await _dio.get(
+      final responseData = await _ipcApi.get(
         '/connector-ui/available-widgets/$connectorId',
       );
-      return ConnectorApiResponse.fromJson(response.data);
-    } on DioException catch (e) {
+      return ConnectorApiResponse.fromJson(responseData);
+    } catch (e) {
       return ConnectorApiResponse(
         success: false,
-        message: _handleDioError(e),
-        error: e.message,
+        message: '获取可用组件失败: $e',
+        error: e.toString(),
       );
     }
   }
@@ -241,7 +240,7 @@ class ConnectorConfigApiClient {
     Map<String, dynamic> actionParams,
   ) async {
     try {
-      final response = await _dio.post(
+      final responseData = await _ipcApi.post(
         '/connector-ui/execute-widget-action',
         data: {
           'connector_id': connectorId,
@@ -250,73 +249,26 @@ class ConnectorConfigApiClient {
           'action_params': actionParams,
         },
       );
-      return ConnectorApiResponse.fromJson(response.data);
-    } on DioException catch (e) {
+      return ConnectorApiResponse.fromJson(responseData);
+    } catch (e) {
       return ConnectorApiResponse(
         success: false,
-        message: _handleDioError(e),
-        error: e.message,
+        message: '执行组件动作失败: $e',
+        error: e.toString(),
       );
     }
   }
 
-  String _handleDioError(DioException error) {
-    switch (error.type) {
-      case DioExceptionType.connectionTimeout:
-        return '连接超时，请检查网络连接';
-      case DioExceptionType.sendTimeout:
-        return '发送请求超时';
-      case DioExceptionType.receiveTimeout:
-        return '接收响应超时';
-      case DioExceptionType.badResponse:
-        final statusCode = error.response?.statusCode;
-        final message = error.response?.data?['message'] ?? '服务器错误';
-        return '请求失败 ($statusCode): $message';
-      case DioExceptionType.cancel:
-        return '请求已取消';
-      case DioExceptionType.connectionError:
-        return '网络连接错误，请检查网络状态';
-      case DioExceptionType.badCertificate:
-        return 'SSL证书验证失败';
-      case DioExceptionType.unknown:
-      default:
-        return '未知错误: ${error.message}';
-    }
+  /// 清理资源
+  void dispose() {
+    // IPC适配器由IPCApiService统一管理
   }
 }
 
 /// 连接器配置API客户端Provider
 final connectorConfigApiClientProvider =
     Provider<ConnectorConfigApiClient>((ref) {
-  // 创建一个异步初始化的Dio实例
-  final dio = Dio();
-
-  // 添加拦截器来动态设置baseUrl
-  dio.interceptors.add(InterceptorsWrapper(
-    onRequest: (options, handler) async {
-      if (options.baseUrl.isEmpty || !options.baseUrl.contains('://')) {
-        // 动态获取daemon端口
-        final baseUrl = await DaemonPortService.instance.getDaemonBaseUrl();
-        options.baseUrl = baseUrl;
-      }
-      handler.next(options);
-    },
-  ));
-
-  dio.options.connectTimeout = const Duration(seconds: 30);
-  dio.options.receiveTimeout = const Duration(seconds: 30);
-  dio.options.headers = {
-    'Content-Type': 'application/json',
-  };
-
-  // 添加日志拦截器
-  dio.interceptors.add(LogInterceptor(
-    requestBody: true,
-    responseBody: true,
-    logPrint: (obj) => print('[ConfigAPI] $obj'),
-  ));
-
-  return ConnectorConfigApiClient(dio);
+  return ConnectorConfigApiClient();
 });
 
 /// 配置Schema状态管理

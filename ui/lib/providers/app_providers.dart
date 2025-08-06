@@ -51,7 +51,7 @@ final connectorDefinitionsProvider =
 final connectorsProvider = FutureProvider<List<ConnectorInfo>>((ref) async {
   final apiClient = ref.watch(connectorLifecycleApiProvider);
   final response = await apiClient.getConnectors();
-  return response.collectors;
+  return response.connectors;
 });
 
 // 后台daemon初始化提供者 - 不阻塞UI启动
@@ -87,7 +87,7 @@ final healthCheckProvider = FutureProvider<bool>((ref) async {
     // 使用简单的连接器列表API来检查连通性，避免复杂的健康检查模型解析
     final response = await apiClient.getConnectors();
     print(
-        '[HealthCheck] Success: ${response.success}, Connectors: ${response.collectors.length}');
+        '[HealthCheck] Success: ${response.success}, Connectors: ${response.connectors.length}');
     return response.success;
   } catch (e) {
     print('[HealthCheck] Error: $e');

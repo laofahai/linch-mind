@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
 """
-连接器生命周期API路由 - 匹配Flutter UI期望的API
-基于新的连接器管理器实现
+连接器生命周期管理API - 简化版
+专注于核心连接器操作：发现、安装、启动、停止
 """
 
 import logging
-from datetime import datetime, timezone
-from pathlib import Path
-from typing import Any, Dict
+from typing import Any, Dict, List, Optional
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
+from models.api_models import ApiResponse
+from pydantic import BaseModel
 from services.connectors.connector_manager import get_connector_manager
 
 logger = logging.getLogger(__name__)
@@ -17,637 +17,229 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/connector-lifecycle", tags=["connector-lifecycle"])
 
 
+class ConnectorInstallRequest(BaseModel):
+    connector_id: str
+    source: Optional[str] = None
+    config: Optional[Dict[str, Any]] = None
+
+
 @router.get("/discovery")
-async def discover_connectors():
-    """发现可用的连接器 - 不再区分类型"""
+async def discover_connectors(
+    manager=Depends(get_connector_manager),
+) -> ApiResponse:
+    """发现可用的连接器"""
     try:
-        from services.database_service import get_database_service
-
-        db_service = get_database_service()
-
-        # 获取已注册的连接器（从数据库）
-        registered_connectors = []
-        with db_service.get_session() as session:
-            from models.database_models import Connector
-
-            connectors = session.query(Connector).all()
-
-            for conn in connectors:
-                config = conn.config or {}
-                registered_connectors.append(
-                    {
-                        "connector_id": conn.connector_id,
-                        "name": conn.name,
-                        "display_name": conn.name,
-                        "description": conn.description or "用户添加的连接器",
-                        "category": "registered",
-                        "version": config.get("version", "1.0.0"),
-                        "author": config.get("author", "用户"),
-                        "license": config.get("license", "MIT"),
-                        "auto_discovery": False,
-                        "hot_config_reload": True,
-                        "health_check": True,
-                        "entry_point": config.get("entry_point", "main.py"),
-                        "dependencies": config.get("dependencies", []),
-                        "permissions": config.get("permissions", []),
-                        "config_schema": config.get("config_schema", {}),
-                        "is_registered": True,
-                    }
-                )
-
-        # 添加官方可用连接器（硬编码的可安装连接器）
-        official_connectors = [
-            {
-                "connector_id": "filesystem",
-                "name": "FileSystem Connector",
-                "display_name": "文件系统连接器",
-                "description": "监控文件系统变化的连接器",
-                "category": "official",
-                "version": "1.0.0",
-                "author": "Linch Mind",
-                "license": "MIT",
-                "auto_discovery": False,
-                "hot_config_reload": True,
-                "health_check": True,
-                "entry_point": "main.py",
-                "dependencies": [],
-                "permissions": ["file_system_read", "file_system_watch"],
-                "config_schema": {
-                    "type": "object",
-                    "properties": {
-                        "watch_paths": {"type": "array", "items": {"type": "string"}},
-                        "supported_extensions": {
-                            "type": "array",
-                            "items": {"type": "string"},
-                        },
-                    },
-                },
-                "is_registered": any(
-                    c["connector_id"] == "filesystem" for c in registered_connectors
-                ),
-            },
-            {
-                "connector_id": "clipboard",
-                "name": "Clipboard Connector",
-                "display_name": "剪贴板连接器",
-                "description": "监控剪贴板内容变化的连接器",
-                "category": "official",
-                "version": "1.0.0",
-                "author": "Linch Mind",
-                "license": "MIT",
-                "auto_discovery": False,
-                "hot_config_reload": True,
-                "health_check": True,
-                "entry_point": "main.py",
-                "dependencies": [],
-                "permissions": ["clipboard_read"],
-                "config_schema": {"type": "object", "properties": {}},
-                "is_registered": any(
-                    c["connector_id"] == "clipboard" for c in registered_connectors
-                ),
-            },
-        ]
-
-        # 合并所有连接器，已注册的优先显示
-        all_connectors = registered_connectors + [
-            c for c in official_connectors if not c["is_registered"]
-        ]
-
-        return {
-            "success": True,
-            "data": {"connectors": all_connectors, "total": len(all_connectors)},
-            "message": f"Found {len(all_connectors)} connectors ({len(registered_connectors)} registered, {len(official_connectors)} available)",
-        }
+        logger.info("发现本地连接器...")
+        
+        # 扫描本地连接器
+        connectors = manager.discover_local_connectors()
+        
+        return ApiResponse(
+            success=True,
+            data={"connectors": connectors},
+            message=f"发现 {len(connectors)} 个本地连接器"
+        )
+        
     except Exception as e:
-        logger.error(f"Failed to discover connectors: {e}")
+        logger.error(f"连接器发现失败: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.get("/collectors")
-async def get_connectors(connector_id: str = None, state: str = None):
-    """获取连接器列表 - 基于数据库驱动"""
+async def list_collectors(
+    manager=Depends(get_connector_manager),
+) -> ApiResponse:
+    """列出所有连接器实例"""
     try:
-        # 直接从数据库获取Connector对象
-        from services.database_service import get_database_service
-
-        db_service = get_database_service()
-
-        with db_service.get_session() as session:
-            from models.database_models import Connector
-
-            query = session.query(Connector)
-
-            # 应用过滤器
-            if connector_id is not None:
-                query = query.filter(Connector.connector_id == connector_id)
-            if state is not None:
-                # 需要反向映射state到数据库status
-                db_status = _map_state_to_status(state)
-                if db_status:
-                    query = query.filter(Connector.status == db_status)
-
-            connectors = query.all()
-
-            # 使用统一的转换函数
-            collectors = [_convert_connector_to_collector(conn) for conn in connectors]
-
-        return {
-            "success": True,
-            "data": {"collectors": collectors, "total": len(collectors)},
-            "message": f"Found {len(collectors)} connectors",
-        }
+        logger.info("获取连接器列表...")
+        
+        connectors = manager.list_connectors()
+        
+        return ApiResponse(
+            success=True,
+            data={"collectors": connectors},
+            message=f"找到 {len(connectors)} 个连接器实例"
+        )
+        
     except Exception as e:
-        logger.error(f"Failed to get connectors: {e}")
+        logger.error(f"获取连接器列表失败: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.get("/collectors/{collector_id}")
-async def get_connector(collector_id: str):
-    """获取连接器详情"""
+async def get_collector_status(
+    collector_id: str,
+    manager=Depends(get_connector_manager),
+) -> ApiResponse:
+    """获取连接器状态"""
     try:
-        manager = get_connector_manager()
-        connectors = manager.list_connectors()
-
-        # 查找指定的连接器
-        connector = next(
-            (c for c in connectors if c["connector_id"] == collector_id), None
-        )
-        if not connector:
+        logger.info(f"获取连接器 {collector_id} 状态...")
+        
+        status = manager.get_connector_status(collector_id)
+        if not status:
             raise HTTPException(
-                status_code=404, detail=f"Connector {collector_id} not found"
+                status_code=404,
+                detail=f"连接器 {collector_id} 不存在"
             )
-
-        collector = {
-            "collector_id": connector["connector_id"],
-            "display_name": connector["name"],
-            "config": {},
-            "state": _map_status_to_state(connector["status"]),
-            "enabled": True,
-            "auto_start": True,
-            "process_id": connector.get("pid"),
-            "last_heartbeat": None,
-            "data_count": 0,
-            "error_message": None,
-            "created_at": None,
-            "updated_at": None,
-        }
-
-        return {
-            "success": True,
-            "data": {"collector": collector},
-            "message": f"Retrieved connector {collector_id}",
-        }
+        
+        return ApiResponse(
+            success=True,
+            data={"collector": status},
+            message=f"成功获取 {collector_id} 状态"
+        )
+        
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Failed to get connector {collector_id}: {e}")
+        logger.error(f"获取连接器状态失败: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.post("/collectors/{collector_id}/start")
-async def start_connector(collector_id: str):
+async def start_collector(
+    collector_id: str,
+    manager=Depends(get_connector_manager),
+) -> ApiResponse:
     """启动连接器"""
     try:
-        manager = get_connector_manager()
+        logger.info(f"启动连接器 {collector_id}...")
+        
         success = await manager.start_connector(collector_id)
-
-        if not success:
-            raise HTTPException(
-                status_code=400, detail=f"Failed to start connector: {collector_id}"
+        
+        if success:
+            return ApiResponse(
+                success=True,
+                message=f"成功启动连接器 {collector_id}"
             )
-
-        return {
-            "success": True,
-            "data": {"collector_id": collector_id, "state": "running"},
-            "message": f"Connector {collector_id} started successfully",
-        }
-    except HTTPException:
-        raise
+        else:
+            return ApiResponse(
+                success=False,
+                message=f"启动连接器 {collector_id} 失败"
+            )
+        
     except Exception as e:
-        logger.error(f"Failed to start connector {collector_id}: {e}")
+        logger.error(f"启动连接器失败: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.post("/collectors/{collector_id}/stop")
-async def stop_connector(collector_id: str, force: bool = False):
+async def stop_collector(
+    collector_id: str,
+    manager=Depends(get_connector_manager),
+) -> ApiResponse:
     """停止连接器"""
     try:
-        manager = get_connector_manager()
+        logger.info(f"停止连接器 {collector_id}...")
+        
         success = await manager.stop_connector(collector_id)
-
-        if not success:
-            raise HTTPException(
-                status_code=400, detail=f"Failed to stop connector: {collector_id}"
+        
+        if success:
+            return ApiResponse(
+                success=True,
+                message=f"成功停止连接器 {collector_id}"
             )
-
-        return {
-            "success": True,
-            "data": {"collector_id": collector_id, "state": "stopped"},
-            "message": f"Connector {collector_id} stopped successfully",
-        }
-    except HTTPException:
-        raise
+        else:
+            return ApiResponse(
+                success=False,
+                message=f"停止连接器 {collector_id} 失败"
+            )
+        
     except Exception as e:
-        logger.error(f"Failed to stop connector {collector_id}: {e}")
+        logger.error(f"停止连接器失败: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.post("/collectors/{collector_id}/restart")
-async def restart_connector(collector_id: str):
+async def restart_collector(
+    collector_id: str,
+    manager=Depends(get_connector_manager),
+) -> ApiResponse:
     """重启连接器"""
     try:
-        manager = get_connector_manager()
-
-        # 先停止再启动
-        await manager.stop_connector(collector_id)
-        success = await manager.start_connector(collector_id)
-
-        if not success:
-            raise HTTPException(
-                status_code=400, detail=f"Failed to restart connector: {collector_id}"
+        logger.info(f"重启连接器 {collector_id}...")
+        
+        # 先停止后启动
+        stop_success = await manager.stop_connector(collector_id)
+        if not stop_success:
+            return ApiResponse(
+                success=False,
+                message=f"停止连接器 {collector_id} 失败"
             )
-
-        return {
-            "success": True,
-            "data": {"collector_id": collector_id, "state": "running"},
-            "message": f"Connector {collector_id} restarted successfully",
-        }
-    except HTTPException:
-        raise
+        
+        start_success = await manager.start_connector(collector_id)
+        
+        if start_success:
+            return ApiResponse(
+                success=True,
+                message=f"成功重启连接器 {collector_id}"
+            )
+        else:
+            return ApiResponse(
+                success=False,
+                message=f"重启连接器 {collector_id} 失败"
+            )
+        
     except Exception as e:
-        logger.error(f"Failed to restart connector {collector_id}: {e}")
+        logger.error(f"重启连接器失败: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.post("/install")
-async def install_connector(request: Dict[str, Any]):
-    """安装连接器 - 从registry下载"""
+async def install_connector(
+    request: ConnectorInstallRequest,
+    manager=Depends(get_connector_manager),
+) -> ApiResponse:
+    """安装连接器"""
     try:
-        connector_id = request.get("connector_id")
-        if not connector_id:
-            raise HTTPException(status_code=400, detail="connector_id is required")
+        logger.info(f"安装连接器 {request.connector_id}...")
         
-        # 从registry获取连接器信息
-        import json
+        success = await manager.install_connector(
+            request.connector_id,
+            request.source,
+            request.config
+        )
         
-        registry_path = Path("../connectors/registry.json")
-        if not registry_path.exists():
-            raise HTTPException(status_code=404, detail="Registry not found")
-        
-        with open(registry_path, "r", encoding="utf-8") as f:
-            registry = json.load(f)
-        
-        connector_info = registry.get("connectors", {}).get(connector_id)
-        if not connector_info:
-            raise HTTPException(status_code=404, detail=f"Connector {connector_id} not found in registry")
-        
-        # 检查是否已安装
-        from services.database_service import get_database_service
-        db_service = get_database_service()
-        
-        with db_service.get_session() as session:
-            from models.database_models import Connector
-            existing = session.query(Connector).filter_by(connector_id=connector_id).first()
-            if existing:
-                raise HTTPException(status_code=409, detail=f"Connector {connector_id} already installed")
-        
-        # 简化安装：直接引用本地连接器目录
-        local_connector_path = Path(f"../connectors/official/{connector_id}")
-        
-        if not local_connector_path.exists():
-            raise HTTPException(status_code=404, detail=f"Connector {connector_id} not found locally")
-        
-        # 创建连接器记录 - 直接使用本地路径
-        config = {
-            "path": str(local_connector_path),
-            "entry_point": f"{connector_id}-connector", 
-            "executable_path": str(local_connector_path / f"{connector_id}-connector"),
-            "version": connector_info.get("version", "1.0.0")
-        }
-        
-        with db_service.get_session() as session:
-            connector = Connector(
-                connector_id=connector_id,
-                name=connector_info.get("name", connector_id),
-                description=connector_info.get("description", ""),
-                config=config,
-                status="installed",
-                enabled=True,
-                auto_start=False,
+        if success:
+            return ApiResponse(
+                success=True,
+                message=f"成功安装连接器 {request.connector_id}"
             )
-            session.add(connector)
-            session.commit()
-        
-        return {
-            "success": True,
-            "data": {
-                "connector_id": connector_id,
-                "name": connector_info.get("name", connector_id),
-                "status": "installed",
-                "install_path": str(local_connector_path)
-            },
-            "message": f"Connector {connector_id} downloaded and installed successfully"
-        }
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Failed to install connector: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.delete("/collectors/{collector_id}")
-async def delete_connector(collector_id: str, force: bool = False):
-    """删除连接器"""
-    try:
-        from services.database_service import get_database_service
-        db_service = get_database_service()
-        
-        with db_service.get_session() as session:
-            from models.database_models import Connector
-            connector = session.query(Connector).filter_by(connector_id=collector_id).first()
-            if not connector:
-                raise HTTPException(status_code=404, detail=f"Connector {collector_id} not found")
-            
-            # 如果连接器正在运行，先停止
-            if connector.status == "running":
-                if not force:
-                    raise HTTPException(
-                        status_code=400, 
-                        detail=f"Connector {collector_id} is running. Stop it first or use force=true"
-                    )
-                # 强制停止
-                manager = get_connector_manager()
-                await manager.stop_connector(collector_id)
-            
-            # 删除数据库记录
-            session.delete(connector)
-            session.commit()
-            
-        return {
-            "success": True,
-            "data": {"connector_id": collector_id},
-            "message": f"Connector {collector_id} deleted successfully"
-        }
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Failed to delete connector {collector_id}: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.get("/states")
-async def get_states_overview():
-    """获取所有连接器状态概览"""
-    try:
-        manager = get_connector_manager()
-        connectors = manager.list_connectors()
-
-        # 统计各种状态
-        state_counts = {}
-        for connector in connectors:
-            state = _map_status_to_state(connector["status"])
-            state_counts[state] = state_counts.get(state, 0) + 1
-
-        return {
-            "success": True,
-            "data": {
-                "total_collectors": len(connectors),
-                "state_counts": state_counts,
-                "summary": f"Total: {len(connectors)} connectors",
-            },
-            "message": "States overview retrieved successfully",
-        }
-    except Exception as e:
-        logger.error(f"Failed to get states overview: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.post("/scan-directory")
-async def scan_connector_directory(request: Dict[str, Any]):
-    """扫描指定目录寻找连接器"""
-    try:
-        directory_path = request.get("directory_path")
-        if not directory_path:
-            raise HTTPException(status_code=400, detail="directory_path is required")
-
-        manager = get_connector_manager()
-        discovered_connectors = manager.scan_directory_for_connectors(directory_path)
-
-        # 转换为UI期望的格式
-        connector_definitions = []
-        for connector in discovered_connectors:
-            connector_def = {
-                "connector_id": connector["connector_id"],
-                "name": connector["name"],
-                "display_name": connector["name"],
-                "description": connector["description"],
-                "category": "custom",
-                "version": connector.get("version", "1.0.0"),
-                "author": "User",
-                "license": "MIT",
-                "auto_discovery": False,
-                "hot_config_reload": True,
-                "health_check": True,
-                "entry_point": connector.get("entry_point", "main.py"),
-                "dependencies": [],
-                "permissions": ["file_system_read", "file_system_watch"],
-                "config_schema": {"type": "object", "properties": {}},
-                "path": connector["path"],
-                "is_registered": connector.get("is_registered", False),
-            }
-            connector_definitions.append(connector_def)
-
-        return {
-            "success": True,
-            "data": {
-                "connectors": connector_definitions,
-                "total": len(connector_definitions),
-            },
-            "message": f"Scanned directory and found {len(connector_definitions)} connectors",
-        }
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Failed to scan directory: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.post("/collectors")
-async def create_connector(request: Dict[str, Any]):
-    """创建连接器 - 简化版本"""
-    try:
-        connector_id = request.get("connector_id")
-        display_name = request.get("display_name")
-        config = request.get("config", {})
-        auto_start = request.get("auto_start", False)
-
-        if not connector_id or not display_name:
-            raise HTTPException(
-                status_code=400, detail="connector_id and display_name are required"
+        else:
+            return ApiResponse(
+                success=False,
+                message=f"安装连接器 {request.connector_id} 失败"
             )
-
-        from services.database_service import get_database_service
-
-        db_service = get_database_service()
-
-        # 检查连接器是否已存在
-        with db_service.get_session() as session:
-            from models.database_models import Connector
-
-            existing = (
-                session.query(Connector).filter_by(connector_id=connector_id).first()
-            )
-            if existing:
-                raise HTTPException(
-                    status_code=409, detail=f"Connector {connector_id} already exists"
-                )
-
-        # 为官方连接器设置默认路径
-        if connector_id in ["filesystem", "clipboard"]:
-            config["path"] = f"../connectors/official/{connector_id}"
-            config["entry_point"] = "main.py"
-            config["executable_path"] = f"../connectors/official/{connector_id}/main.py"
-
-        # 直接创建数据库记录
-        with db_service.get_session() as session:
-            connector = Connector(
-                connector_id=connector_id,
-                name=display_name,
-                description=f"{display_name} - 通过UI创建",
-                config=config,
-                status="configured",
-                enabled=True,
-                auto_start=auto_start,
-            )
-            session.add(connector)
-            session.commit()
-
-            # 如果需要自动启动
-            if auto_start:
-                manager = get_connector_manager()
-                success = await manager.start_connector(connector_id)
-                if success:
-                    connector.status = "running"
-                    session.commit()
-
-        return {
-            "success": True,
-            "data": {
-                "collector_id": connector_id,
-                "display_name": display_name,
-                "state": "running" if auto_start else "configured",
-            },
-            "message": f"Connector {display_name} created successfully",
-        }
-    except HTTPException:
-        raise
+        
     except Exception as e:
-        logger.error(f"Failed to create connector: {e}")
+        logger.error(f"安装连接器失败: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.get("/health")
-async def get_health_check():
+async def system_health(
+    manager=Depends(get_connector_manager),
+) -> ApiResponse:
     """系统健康检查"""
     try:
-        manager = get_connector_manager()
-
-        # 执行健康检查
-        manager.health_check_all_connectors()
-
-        # 获取最新状态
+        logger.info("执行系统健康检查...")
+        
         connectors = manager.list_connectors()
-
-        running_count = sum(1 for c in connectors if c["status"] == "running")
-        error_count = sum(1 for c in connectors if c["status"] == "error")
-
-        # 判断系统健康状态
-        system_status = "healthy"
-        if error_count > 0:
-            system_status = "degraded" if running_count > 0 else "unhealthy"
-
-        return {
-            "success": True,
-            "data": {
-                "system_status": system_status,
-                "total_connectors": len(connectors),
-                "running_connectors": running_count,
-                "error_connectors": error_count,
-                "timestamp": datetime.now(timezone.utc).isoformat(),
-            },
-            "message": f"System is {system_status}",
+        running_count = len([c for c in connectors if c.get("status") == "running"])
+        total_count = len(connectors)
+        
+        health_data = {
+            "total_connectors": total_count,
+            "running_connectors": running_count,
+            "healthy": running_count > 0,
+            "timestamp": manager.get_current_timestamp()
         }
+        
+        return ApiResponse(
+            success=True,
+            data=health_data,
+            message=f"系统健康，{running_count}/{total_count} 个连接器运行中"
+        )
+        
     except Exception as e:
-        logger.error(f"Failed to get health check: {e}")
+        logger.error(f"健康检查失败: {e}")
         raise HTTPException(status_code=500, detail=str(e))
-
-
-# 统一的状态枚举定义 - 匹配UI ConnectorState
-CONNECTOR_STATES = {
-    "available": "available",  # 可用但未安装
-    "installed": "installed",  # 已安装但未配置
-    "configured": "configured",  # 已配置但未启用
-    "enabled": "enabled",  # 已启用但未运行
-    "running": "running",  # 正在运行
-    "error": "error",  # 错误状态
-    "stopping": "stopping",  # 正在停止
-    "updating": "updating",  # 正在更新
-    "uninstalling": "uninstalling",  # 正在卸载
-}
-
-
-def _map_status_to_state(status: str) -> str:
-    """将数据库状态映射到UI期望的状态"""
-    # 数据库状态到UI状态的精确映射
-    status_mapping = {
-        "configured": "configured",  # 已配置但未启用
-        "running": "running",  # 正在运行
-        "error": "error",  # 错误状态
-        "stopping": "stopping",  # 正在停止
-        "stopped": "configured",  # 已停止=已配置状态
-    }
-    return status_mapping.get(status, "configured")
-
-
-def _map_state_to_status(state: str) -> str:
-    """将UI状态反向映射到数据库状态"""
-    # UI状态到数据库状态的反向映射
-    state_mapping = {
-        "configured": "configured",  # 已配置
-        "running": "running",  # 正在运行
-        "error": "error",  # 错误状态
-        "stopping": "stopping",  # 正在停止
-        "enabled": "configured",  # 已启用=已配置
-        "stopped": "configured",  # 已停止=已配置
-    }
-    return state_mapping.get(state, "configured")
-
-
-def _convert_connector_to_collector(connector_db) -> Dict[str, Any]:
-    """将数据库Connector模型转换为UI期望的CollectorInfo格式"""
-    return {
-        "collector_id": connector_db.connector_id,
-        "display_name": connector_db.name,
-        "config": connector_db.config or {},
-        "state": _map_status_to_state(connector_db.status),
-        "enabled": connector_db.enabled if hasattr(connector_db, "enabled") else True,
-        "auto_start": (
-            connector_db.auto_start if hasattr(connector_db, "auto_start") else True
-        ),
-        "process_id": connector_db.process_id,
-        "last_heartbeat": (
-            connector_db.last_heartbeat.isoformat()
-            if getattr(connector_db, "last_heartbeat", None)
-            else None
-        ),
-        "data_count": getattr(connector_db, "data_count", 0),
-        "error_message": getattr(connector_db, "error_message", None),
-        "created_at": (
-            connector_db.created_at.isoformat() if connector_db.created_at else None
-        ),
-        "updated_at": (
-            connector_db.updated_at.isoformat() if connector_db.updated_at else None
-        ),
-    }
