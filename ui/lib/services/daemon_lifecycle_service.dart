@@ -90,7 +90,7 @@ class DaemonLifecycleService {
     // 首先检查daemon是否已经运行
     final existingDaemon = await _portService.discoverDaemon();
     if (existingDaemon != null && existingDaemon.isAccessible) {
-      print('[DaemonLifecycle] Daemon已运行: ${existingDaemon.baseUrl}');
+      print('[DaemonLifecycle] Daemon已运行: ${existingDaemon.socketPath}');
       return DaemonStartResult.success(existingDaemon);
     }
 
@@ -176,7 +176,7 @@ class DaemonLifecycleService {
       // 启动健康检查
       _startHealthCheck();
 
-      print('[DaemonLifecycle] 开发模式daemon启动成功: ${daemonInfo.baseUrl}');
+      print('[DaemonLifecycle] 开发模式daemon启动成功: ${daemonInfo.socketPath}');
       return DaemonStartResult.success(daemonInfo, process: process);
     } catch (e) {
       print('[DaemonLifecycle] 开发模式启动失败: $e');
@@ -395,11 +395,10 @@ class DaemonLifecycleService {
       'running': daemonInfo?.isAccessible ?? false,
       'daemon_info': daemonInfo != null
           ? {
-              'host': daemonInfo.host,
-              'port': daemonInfo.port,
               'pid': daemonInfo.pid,
               'started_at': daemonInfo.startedAt,
-              'base_url': daemonInfo.baseUrl,
+              'socket_path': daemonInfo.socketPath,
+              'socket_type': daemonInfo.socketType,
             }
           : null,
       'development_process_running': _developmentProcess != null,

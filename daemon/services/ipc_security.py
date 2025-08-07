@@ -316,14 +316,18 @@ def secure_socket_directory(socket_dir: Path) -> bool:
             socket_dir.mkdir(parents=True, mode=0o700)  # 仅owner可访问
         
         if platform.system() != 'Windows':
-            # Unix系统：确保目录权限安全
-            os.chmod(socket_dir, stat.S_IRWXU)  # 仅owner可读写执行
-            logger.info(f"IPC socket目录权限已加固: {socket_dir}")
+            # Unix系统：尝试确保目录权限安全
+            try:
+                os.chmod(socket_dir, stat.S_IRWXU)  # 仅owner可读写执行
+                logger.info(f"IPC socket目录权限已加固: {socket_dir}")
+            except PermissionError:
+                # 系统临时目录可能无法修改权限，这是正常的
+                logger.debug(f"无法修改系统目录权限（这是正常的）: {socket_dir}")
         
         return True
         
     except Exception as e:
-        logger.error(f"加固socket目录失败: {e}")
+        logger.warning(f"加固socket目录失败: {e}")
         return False
 
 

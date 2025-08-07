@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'dart:convert';
-// import 'package:http/http.dart' as http;  // 已移除 - 使用IPC通信
 import '../services/daemon_port_service.dart';
 import '../services/ipc_api_adapter.dart';
 

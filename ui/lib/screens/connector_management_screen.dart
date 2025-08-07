@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:file_picker/file_picker.dart';
 import '../models/connector_lifecycle_models.dart';
 import '../services/connector_lifecycle_api_client.dart';
+import '../services/registry_api_client.dart';
+import '../utils/app_logger.dart';
 import 'connector_config_screen.dart';
 
 /// 连接器管理主界面 - 工具箱+应用商店双重体验
@@ -48,6 +50,7 @@ class _ConnectorManagementScreenState
   }
 
   Future<void> _loadInstalledConnectors() async {
+    AppLogger.uiDebug('开始加载已安装连接器');
     setState(() {
       _installedLoading = true;
       _installedErrorMessage = null;
@@ -55,13 +58,22 @@ class _ConnectorManagementScreenState
 
     try {
       // 只获取真正已安装的连接器（从数据库）
+      AppLogger.uiDebug('调用getConnectors API');
       final connectorResponse = await _apiClient.getConnectors();
+      AppLogger.uiDebug('API响应完成', data: {
+        'success': connectorResponse.success,
+        'count': connectorResponse.connectors.length
+      });
 
       setState(() {
         _installedConnectors = connectorResponse.connectors;
         _installedLoading = false;
       });
-    } catch (e) {
+      AppLogger.uiDebug('UI状态更新完成', data: {
+        'installed_connectors_length': _installedConnectors.length
+      });
+    } catch (e, stackTrace) {
+      AppLogger.uiError('加载已安装连接器失败', exception: e, stackTrace: stackTrace);
       setState(() {
         _installedErrorMessage = '加载连接器失败: $e';
         _installedLoading = false;
@@ -78,11 +90,11 @@ class _ConnectorManagementScreenState
     });
 
     try {
-      // 从Discovery API获取可用连接器作为市场连接器
-      final discoveryResponse = await _apiClient.discoverConnectors();
+      // 从Registry API获取市场连接器
+      final marketConnectors = await RegistryApiClient.getMarketConnectors();
 
       setState(() {
-        _marketConnectors = discoveryResponse.connectors;
+        _marketConnectors = marketConnectors;
         _marketLoading = false;
       });
     } catch (e) {
@@ -451,7 +463,7 @@ class _ConnectorManagementScreenState
               crossAxisCount: crossAxisCount,
               crossAxisSpacing: 12,
               mainAxisSpacing: 8,
-              childAspectRatio: 4.5, // 宽高比，调整卡片高度
+              childAspectRatio: 4.2, // 增加卡片高度，避免溢出
             ),
             itemCount: filteredConnectors.length,
             itemBuilder: (context, index) {
@@ -1104,7 +1116,7 @@ class _ConnectorManagementScreenState
         connectorId: type.connectorId,
         displayName: type.displayName,
         config: config,
-        autoStart: true,
+        // 移除 autoStart 字段，连接器创建后默认启用
       );
 
       await _apiClient.createConnector(request);
@@ -1114,7 +1126,9 @@ class _ConnectorManagementScreenState
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('成功创建连接器: ${type.displayName}')),
         );
+        // 刷新已安装连接器列表和市场状态
         await _refreshInstalledConnectors();
+        await _refreshMarketConnectors();
       }
     } catch (e) {
       if (mounted) {
@@ -1134,7 +1148,7 @@ class _ConnectorManagementScreenState
         connectorId: connector.connectorId,
         displayName: connector.displayName,
         config: {}, // 使用默认配置
-        autoStart: true,
+        // 移除 autoStart 字段，连接器创建后默认启用
       );
 
       await _apiClient.createConnector(request);
@@ -1143,7 +1157,9 @@ class _ConnectorManagementScreenState
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('成功创建连接器: ${connector.displayName}')),
         );
+        // 刷新已安装连接器列表和市场状态
         await _refreshInstalledConnectors();
+        await _refreshMarketConnectors();
       }
     } catch (e) {
       if (mounted) {
@@ -1328,7 +1344,9 @@ class _ConnectorManagementScreenState
           ),
         );
 
+        // 刷新已安装连接器列表和市场状态
         await _refreshInstalledConnectors();
+        await _refreshMarketConnectors();
       }
     } catch (e) {
       if (mounted) {

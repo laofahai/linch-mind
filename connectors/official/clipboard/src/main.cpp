@@ -94,7 +94,6 @@ bool registerConfigSchema(UnifiedClient& client, const std::string& daemonUrl) {
         {"schema_source", "embedded"}
     };
 
-    client.addHeader("Content-Type", "application/json");
     // 注意：新API不再支持注册schema，跳过此步骤
     // auto response = client.post(daemonUrl + "/connector-config/register-schema/clipboard", 
     //                            payload.dump());
@@ -133,72 +132,75 @@ void processClipboardChange(const std::string& content, UnifiedClient& client,
         {"auto_embed", true}
     };
     
-    client.addHeader("Content-Type", "application/json");
     auto response = client.post(config.getDaemonUrl() + "/storage/entities", entity_data.dump());
     
     if (response.isSuccess()) {
         std::cout << "✅ Processed clipboard change: " << content.length() << " chars" << std::endl;
     } else {
-        std::cerr << "❌ Failed to push clipboard data: HTTP " << response.statusCode << std::endl;
+        std::cerr << "❌ Failed to push clipboard data: " << response.error_message 
+                  << " (code: " << response.error_code << ")" << std::endl;
     }
 }
 
 int main(int argc, char* argv[]) {
-    std::cout << "🚀 Starting Linch Mind Clipboard Connector (C++ Edition with Shared Library)" << std::endl;
+    std::cout << "🚀 Starting Linch Mind Clipboard Connector (Pure IPC)" << std::endl;
     
-    // 设置信号处理器
     signal(SIGINT, signalHandler);
     signal(SIGTERM, signalHandler);
     
-    // 发现daemon
     DaemonDiscovery discovery;
     std::cout << "🔍 Discovering daemon..." << std::endl;
     
-    auto daemonInfo = discovery.waitForDaemon(std::chrono::seconds(30));
-    if (!daemonInfo) {
+    auto daemonInfoOpt = discovery.waitForDaemon(std::chrono::seconds(30));
+    if (!daemonInfoOpt) {
         std::cerr << "❌ Failed to discover daemon. Exiting..." << std::endl;
         return 1;
     }
     
-    std::cout << "📡 Found daemon at: " << daemonInfo->getBaseUrl() << " (PID: " << daemonInfo->pid << ")" << std::endl;
-    
-    // 初始化组件
     UnifiedClient unifiedClient;
     unifiedClient.setTimeout(30);
     
-    // 连接到daemon（自动选择IPC或HTTP）
-    if (!unifiedClient.connect(*daemonInfo)) {
+    if (!unifiedClient.connect(*daemonInfoOpt)) {
         std::cerr << "❌ Failed to connect to daemon. Exiting..." << std::endl;
         return 1;
     }
     
-    std::cout << "🔗 Connected to daemon via " << unifiedClient.getConnectionMode() << " mode" << std::endl;
+    std::cout << "🔗 Connected to daemon via IPC." << std::endl;
     
-    ConfigManager configManager(daemonInfo->getBaseUrl(), "clipboard");
-    ClipboardMonitor clipboardMonitor;
-    
-    // 注册配置schema
-    registerConfigSchema(unifiedClient, daemonInfo->getBaseUrl());
-    
-    // 加载初始配置
+    ConfigManager configManager("clipboard", "");
     if (!configManager.loadFromDaemon()) {
         std::cerr << "⚠️  Failed to load configuration from daemon, using defaults" << std::endl;
     }
     
-    // 开始配置监控
-    configManager.startConfigMonitoring(30);
+    // Schema registration is handled by the daemon.
+
+    ClipboardMonitor clipboardMonitor;
     
-    // 开始剪贴板监控
-    double checkInterval = configManager.getCheckInterval();
-    int intervalMs = static_cast<int>(checkInterval * 1000);
+    std::cout << "📋 Starting clipboard monitoring..." << std::endl;
     
-    std::cout << "📋 Starting clipboard monitoring (interval: " << checkInterval << "s)" << std::endl;
+    // Create callback to handle clipboard changes
+    auto clipboardCallback = [&unifiedClient, &configManager](const std::string& content) {
+        if (content.length() < static_cast<size_t>(configManager.getMinContentLength()) ||
+            content.length() > static_cast<size_t>(configManager.getMaxContentLength())) {
+            return; // Skip content outside length bounds
+        }
+        
+        // Send clipboard data to daemon via IPC
+        nlohmann::json data;
+        data["type"] = "clipboard";
+        data["content"] = content;
+        data["timestamp"] = std::chrono::duration_cast<std::chrono::milliseconds>(
+            std::chrono::system_clock::now().time_since_epoch()
+        ).count();
+        
+        auto response = unifiedClient.post("/api/storage/data", data.dump());
+        if (!response.success) {
+            std::cerr << "⚠️  Failed to send clipboard data: " << response.error_message << std::endl;
+        }
+    };
     
-    if (!clipboardMonitor.startMonitoring(
-        [&](const std::string& content) {
-            processClipboardChange(content, unifiedClient, configManager);
-        }, 
-        intervalMs)) {
+    if (!clipboardMonitor.startMonitoring(clipboardCallback, 
+                                         static_cast<int>(configManager.getCheckInterval() * 1000))) {
         std::cerr << "❌ Failed to start clipboard monitoring" << std::endl;
         return 1;
     }
@@ -211,7 +213,6 @@ int main(int argc, char* argv[]) {
     // 清理
     std::cout << "🛑 Stopping clipboard connector..." << std::endl;
     clipboardMonitor.stopMonitoring();
-    configManager.stopConfigMonitoring();
     
     std::cout << "📋 Clipboard connector stopped" << std::endl;
     return 0;

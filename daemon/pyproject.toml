@@ -8,25 +8,20 @@ packages = [{include = "*"}]
 
 [tool.poetry.dependencies]
 python = "^3.12"
-# fastapi = "^0.116.0"  # 已移除 - 使用纯IPC通信
-# uvicorn = "^0.35.0"  # 已移除 - 不再需要HTTP服务器
 pydantic = "^2.11.0"
 pydantic-settings = "^2.5.0"
 sqlalchemy = "^2.0.0"
-# pysqlcipher3 = "1.2.0"  # SQLCipher support - 临时禁用
 watchdog = "^6.0.0"
 psutil = "^7.0.0"
 python-multipart = "^0.0.20"
-# httpx = "^0.27.0"  # 已移除 - 不再需要HTTP客户端
-# aiohttp = "^3.12.15"  # 已移除 - 不再需要HTTP库
 cryptography = "^42.0.0"
 pyyaml = "^6.0.0"
 jsonschema = "^4.17.0"
-faiss-cpu = "^1.8.0"  # Vector search and indexing
-sentence-transformers = "^3.3.0"  # Text embedding models
-networkx = "^3.4.0"  # Graph analytics
-scikit-learn = "^1.6.0"  # For embedding utilities
-numpy = "^2.0.0"  # Mathematical operations
+faiss-cpu = "^1.8.0"
+sentence-transformers = "^3.3.0"
+networkx = "^3.4.0"
+scikit-learn = "^1.6.0"
+numpy = "^2.0.0"
 aiofiles = "^24.1.0"
 
 [tool.poetry.group.dev.dependencies]
@@ -35,7 +30,6 @@ pytest-asyncio = "^0.24.0"
 pytest-cov = "^6.0.0"
 pytest-mock = "^3.14.0"
 pytest-xdist = "^3.6.0"
-# httpx = "^0.27.0"  # 已移除 - 测试用HTTP客户端
 black = "^24.0.0"
 isort = "^5.13.0"
 flake8 = "^7.0.0"

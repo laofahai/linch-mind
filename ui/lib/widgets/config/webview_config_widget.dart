@@ -1,11 +1,11 @@
 import 'dart:convert';
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:webview_flutter/webview_flutter.dart';
+import '../../services/webview_config_api_client.dart';
 
 /// WebView连接器配置组件
-/// 支持复杂的HTML配置界面
+/// 支持复杂的HTML配置界面 (纯IPC模式)
 class WebViewConfigWidget extends ConsumerStatefulWidget {
   final String connectorId;
   final String connectorName;
@@ -65,6 +65,12 @@ class _WebViewConfigWidgetState extends ConsumerState<WebViewConfigWidget> {
             setState(() {
               _isLoading = false;
             });
+            // 页面加载完成后，发送初始配置
+            _sendMessageToWebView('updateConfig', widget.currentConfig);
+            _sendMessageToWebView('updateSchema', {
+              'configSchema': widget.configSchema,
+              'uiSchema': widget.uiSchema,
+            });
           },
           onWebResourceError: (WebResourceError error) {
             setState(() {
@@ -74,10 +80,8 @@ class _WebViewConfigWidgetState extends ConsumerState<WebViewConfigWidget> {
             });
           },
           onNavigationRequest: (NavigationRequest request) {
-            // 控制导航行为，阻止外部链接
-            if (request.url.startsWith('http') && 
-                !request.url.contains('localhost') && 
-                !request.url.contains('127.0.0.1')) {
+            // 仅允许加载data URI
+            if (!request.url.startsWith('data:')) {
               return NavigationDecision.prevent;
             }
             return NavigationDecision.navigate;
@@ -91,45 +95,62 @@ class _WebViewConfigWidgetState extends ConsumerState<WebViewConfigWidget> {
         },
       );
 
-    _loadConfigurationURL();
+    _loadConfigurationHtml();
   }
 
-  /// 加载配置URL
-  void _loadConfigurationURL() {
-    // 构建WebView配置URL
-    final configUrl = 'http://localhost:58471/webview-config/html/${widget.connectorId}';
-    _controller?.loadRequest(Uri.parse(configUrl));
+  /// 通过IPC加载配置HTML
+  Future<void> _loadConfigurationHtml() async {
+    setState(() {
+      _isLoading = true;
+      _hasError = false;
+    });
+    try {
+      final apiClient = ref.read(webViewConfigApiClientProvider);
+      final htmlContent = await apiClient.getWebViewConfigHtml(widget.connectorId);
+      
+      // 使用loadHtmlString加载从IPC获取的HTML
+      await _controller?.loadHtmlString(htmlContent);
+
+    } catch (e) {
+      setState(() {
+        _hasError = true;
+        _errorMessage = '无法加载配置界面: $e';
+        _isLoading = false;
+      });
+    }
   }
-
-
 
   /// 处理来自JavaScript的消息
   void _handleJavaScriptMessage(String message) {
     try {
       final data = json.decode(message) as Map<String, dynamic>;
       final action = data['action'] as String?;
-      final payload = data['data'] as Map<String, dynamic>?;
+      final payload = data['data'];
 
       switch (action) {
         case 'configChanged':
-          if (payload != null) {
+          if (payload is Map<String, dynamic>) {
             _pendingConfig = payload;
             widget.onConfigChanged(payload);
           }
           break;
 
         case 'saveConfig':
-          if (payload != null) {
+          if (payload is Map<String, dynamic>) {
             _pendingConfig = payload;
             widget.onConfigChanged(payload);
-            if (widget.onSave != null) {
-              widget.onSave!();
-            }
+          }
+          if (widget.onSave != null) {
+            widget.onSave!();
           }
           break;
-
-        case 'validateConfig':
-          // 处理验证请求
+        
+        case 'requestInitialData':
+           _sendMessageToWebView('updateConfig', widget.currentConfig);
+           _sendMessageToWebView('updateSchema', {
+              'configSchema': widget.configSchema,
+              'uiSchema': widget.uiSchema,
+            });
           break;
 
         default:
@@ -151,9 +172,8 @@ class _WebViewConfigWidgetState extends ConsumerState<WebViewConfigWidget> {
         'timestamp': DateTime.now().millisecondsSinceEpoch,
       });
 
-      await _controller!.runJavaScript('''
-        receiveFlutterMessage('$message');
-      ''');
+      // 使用 runJavaScript 而不是不安全的 evaluateJavascript
+      await _controller!.runJavaScript('window.receiveFlutterMessage(\'$message\');');
     } catch (e) {
       debugPrint('向WebView发送消息失败: $e');
     }
@@ -161,7 +181,7 @@ class _WebViewConfigWidgetState extends ConsumerState<WebViewConfigWidget> {
 
   /// 刷新WebView内容
   void refresh() {
-    _loadConfigurationURL();
+    _loadConfigurationHtml();
   }
 
   /// 更新配置数据
@@ -192,10 +212,10 @@ class _WebViewConfigWidgetState extends ConsumerState<WebViewConfigWidget> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
+            const Icon(
               Icons.error_outline,
               size: 64,
-              color: Colors.red.shade300,
+              color: Colors.red,
             ),
             const SizedBox(height: 16),
             Text(
@@ -203,22 +223,19 @@ class _WebViewConfigWidgetState extends ConsumerState<WebViewConfigWidget> {
               style: Theme.of(context).textTheme.titleLarge,
             ),
             const SizedBox(height: 8),
-            Text(
-              _errorMessage,
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: Colors.red.shade600,
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0),
+              child: Text(
+                _errorMessage,
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: Colors.red.shade700,
+                ),
               ),
             ),
             const SizedBox(height: 16),
             ElevatedButton(
-              onPressed: () {
-                setState(() {
-                  _hasError = false;
-                  _isLoading = true;
-                });
-                _loadConfigurationURL();
-              },
+              onPressed: _loadConfigurationHtml,
               child: const Text('重试'),
             ),
           ],
@@ -231,9 +248,8 @@ class _WebViewConfigWidgetState extends ConsumerState<WebViewConfigWidget> {
         if (_controller != null)
           WebViewWidget(controller: _controller!),
         if (_isLoading || widget.isLoading)
-          Container(
-            color: Colors.white.withOpacity(0.9),
-            child: const Center(
+          const AbsorbPointer(
+            child: Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [

@@ -108,12 +108,13 @@ public:
 #endif
     }
     
-    Response sendRequest(const std::string& method, const std::string& path, 
+    IPCResponse sendRequest(const std::string& method, const std::string& path, 
                         const std::string& data = "") {
         if (!connected) {
-            Response error_resp;
-            error_resp.statusCode = 500;
-            error_resp.body = "Not connected to IPC server";
+            IPCResponse error_resp;
+            error_resp.success = false;
+            error_resp.error_message = "Not connected to IPC server";
+            error_resp.error_code = "CONNECTION_ERROR";
             return error_resp;
         }
         
@@ -145,8 +146,8 @@ public:
     
 private:
 #ifdef _WIN32
-    Response sendMessageNamedPipe(const std::string& message) {
-        Response response;
+    IPCResponse sendMessageNamedPipe(const std::string& message) {
+        IPCResponse response;
         
         // 发送消息长度前缀
         uint32_t msg_length = static_cast<uint32_t>(message.length());
@@ -154,16 +155,18 @@ private:
         
         if (!WriteFile(pipe_handle, &msg_length, sizeof(msg_length), &bytes_written, NULL) ||
             bytes_written != sizeof(msg_length)) {
-            response.statusCode = 500;
-            response.body = "Failed to send message length";
+            response.success = false;
+            response.error_message = "Failed to send message length";
+            response.error_code = "SEND_ERROR";
             return response;
         }
         
         // 发送消息内容
         if (!WriteFile(pipe_handle, message.c_str(), msg_length, &bytes_written, NULL) ||
             bytes_written != msg_length) {
-            response.statusCode = 500;
-            response.body = "Failed to send message content";
+            response.success = false;
+            response.error_message = "Failed to send message content";
+            response.error_code = "SEND_ERROR";
             return response;
         }
         
@@ -172,8 +175,9 @@ private:
         DWORD bytes_read;
         if (!ReadFile(pipe_handle, &resp_length, sizeof(resp_length), &bytes_read, NULL) ||
             bytes_read != sizeof(resp_length)) {
-            response.statusCode = 500;
-            response.body = "Failed to read response length";
+            response.success = false;
+            response.error_message = "Failed to read response length";
+            response.error_code = "READ_ERROR";
             return response;
         }
         
@@ -181,8 +185,9 @@ private:
         std::string resp_data(resp_length, '\0');
         if (!ReadFile(pipe_handle, resp_data.data(), resp_length, &bytes_read, NULL) ||
             bytes_read != resp_length) {
-            response.statusCode = 500;
-            response.body = "Failed to read response content";
+            response.success = false;
+            response.error_message = "Failed to read response content";
+            response.error_code = "READ_ERROR";
             return response;
         }
         
@@ -191,29 +196,32 @@ private:
     }
 #endif
     
-    Response sendMessageUnixSocket(const std::string& message) {
-        Response response;
+    IPCResponse sendMessageUnixSocket(const std::string& message) {
+        IPCResponse response;
         
         // 发送消息长度前缀 (4字节，大端序)
         uint32_t msg_length = htonl(static_cast<uint32_t>(message.length()));
         if (send(socket_fd, &msg_length, sizeof(msg_length), 0) != sizeof(msg_length)) {
-            response.statusCode = 500;
-            response.body = "Failed to send message length";
+            response.success = false;
+            response.error_message = "Failed to send message length";
+            response.error_code = "SEND_ERROR";
             return response;
         }
         
         // 发送消息内容
         if (send(socket_fd, message.c_str(), message.length(), 0) != static_cast<ssize_t>(message.length())) {
-            response.statusCode = 500;
-            response.body = "Failed to send message content";
+            response.success = false;
+            response.error_message = "Failed to send message content";
+            response.error_code = "SEND_ERROR";
             return response;
         }
         
         // 读取响应长度
         uint32_t resp_length_net;
         if (recv(socket_fd, &resp_length_net, sizeof(resp_length_net), 0) != sizeof(resp_length_net)) {
-            response.statusCode = 500;
-            response.body = "Failed to read response length";
+            response.success = false;
+            response.error_message = "Failed to read response length";
+            response.error_code = "READ_ERROR";
             return response;
         }
         
@@ -226,8 +234,9 @@ private:
             ssize_t bytes_read = recv(socket_fd, resp_data.data() + total_read, 
                                     resp_length - total_read, 0);
             if (bytes_read <= 0) {
-                response.statusCode = 500;
-                response.body = "Failed to read response content";
+                response.success = false;
+                response.error_message = "Failed to read response content";
+                response.error_code = "READ_ERROR";
                 return response;
             }
             total_read += bytes_read;
@@ -237,30 +246,25 @@ private:
         return parseResponse(resp_data);
     }
     
-    Response parseResponse(const std::string& json_str) {
-        Response response;
-        response.statusCode = 500; // 默认错误状态
+    IPCResponse parseResponse(const std::string& json_str) {
+        IPCResponse response;
+        response.success = false; // 默认失败状态
         
         std::cout << "[IPCClient] 解析响应: " << json_str << std::endl;
         
-        // 简单的JSON解析 - 提取status_code
-        size_t status_pos = json_str.find("\"status_code\":");
-        if (status_pos != std::string::npos) {
-            size_t start = json_str.find(":", status_pos) + 1;
+        // 简单的JSON解析 - 提取success字段
+        size_t success_pos = json_str.find("\"success\":");
+        if (success_pos != std::string::npos) {
+            size_t start = json_str.find(":", success_pos) + 1;
             size_t end = json_str.find_first_of(",}", start);
             
             if (end != std::string::npos) {
-                std::string status_str = json_str.substr(start, end - start);
-                // 移除空白字符和引号
-                status_str.erase(0, status_str.find_first_not_of(" \t\""));
-                status_str.erase(status_str.find_last_not_of(" \t\"") + 1);
+                std::string success_str = json_str.substr(start, end - start);
+                // 移除空白字符
+                success_str.erase(0, success_str.find_first_not_of(" \t"));
+                success_str.erase(success_str.find_last_not_of(" \t") + 1);
                 
-                try {
-                    response.statusCode = std::stoi(status_str);
-                } catch (...) {
-                    std::cerr << "[IPCClient] 解析status_code失败: " << status_str << std::endl;
-                    response.statusCode = 500;
-                }
+                response.success = (success_str == "true");
             }
         }
         
@@ -330,7 +334,54 @@ private:
             std::cerr << "[IPCClient] data字段为空，使用完整响应" << std::endl;
         }
         
-        std::cout << "[IPCClient] 解析结果 - status_code: " << response.statusCode 
+        // 如果请求失败，提取error字段
+        if (!response.success) {
+            size_t error_pos = json_str.find("\"error\":");
+            if (error_pos != std::string::npos) {
+                size_t start = error_pos + 8; // 跳过"error":
+                // 跳过空白字符
+                while (start < json_str.length() && 
+                       (json_str[start] == ' ' || json_str[start] == '\t')) {
+                    start++;
+                }
+                
+                if (start < json_str.length() && json_str[start] == '{') {
+                    // error是对象，找匹配的}
+                    int bracket_count = 1;
+                    size_t end = start + 1;
+                    while (end < json_str.length() && bracket_count > 0) {
+                        if (json_str[end] == '{') bracket_count++;
+                        else if (json_str[end] == '}') bracket_count--;
+                        end++;
+                    }
+                    if (bracket_count == 0) {
+                        std::string error_obj = json_str.substr(start, end - start);
+                        
+                        // 提取error.code
+                        size_t code_pos = error_obj.find("\"code\":");
+                        if (code_pos != std::string::npos) {
+                            size_t code_start = error_obj.find("\"", code_pos + 7) + 1;
+                            size_t code_end = error_obj.find("\"", code_start);
+                            if (code_end != std::string::npos) {
+                                response.error_code = error_obj.substr(code_start, code_end - code_start);
+                            }
+                        }
+                        
+                        // 提取error.message
+                        size_t msg_pos = error_obj.find("\"message\":");
+                        if (msg_pos != std::string::npos) {
+                            size_t msg_start = error_obj.find("\"", msg_pos + 10) + 1;
+                            size_t msg_end = error_obj.find("\"", msg_start);
+                            if (msg_end != std::string::npos) {
+                                response.error_message = error_obj.substr(msg_start, msg_end - msg_start);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        std::cout << "[IPCClient] 解析结果 - success: " << (response.success ? "true" : "false")
                   << ", body: " << response.body.substr(0, 100) << "..." << std::endl;
         
         return response;
@@ -366,11 +417,11 @@ bool IPCClient::connectNamedPipe(const std::string& pipe_name) {
     return pImpl->connectNamedPipe(pipe_name);
 }
 
-IPCClient::Response IPCClient::get(const std::string& path) {
+IPCClient::IPCResponse IPCClient::get(const std::string& path) {
     return pImpl->sendRequest("GET", path);
 }
 
-IPCClient::Response IPCClient::post(const std::string& path, const std::string& jsonData) {
+IPCClient::IPCResponse IPCClient::post(const std::string& path, const std::string& jsonData) {
     return pImpl->sendRequest("POST", path, jsonData);
 }
 

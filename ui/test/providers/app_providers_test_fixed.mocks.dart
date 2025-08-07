@@ -3,11 +3,10 @@
 // Do not manually edit this file.
 
 // ignore_for_file: no_leading_underscores_for_library_prefixes
-import 'dart:async' as _i5;
+import 'dart:async' as _i4;
 
-import 'package:dio/dio.dart' as _i2;
-import 'package:linch_mind/models/connector_lifecycle_models.dart' as _i3;
-import 'package:linch_mind/services/connector_lifecycle_api_client.dart' as _i4;
+import 'package:linch_mind/models/connector_lifecycle_models.dart' as _i2;
+import 'package:linch_mind/services/connector_lifecycle_api_client.dart' as _i3;
 import 'package:mockito/mockito.dart' as _i1;
 
 // ignore_for_file: type=lint
@@ -24,8 +23,9 @@ import 'package:mockito/mockito.dart' as _i1;
 // ignore_for_file: camel_case_types
 // ignore_for_file: subtype_of_sealed_class
 
-class _FakeDio_0 extends _i1.SmartFake implements _i2.Dio {
-  _FakeDio_0(
+class _FakeDiscoveryResponse_0 extends _i1.SmartFake
+    implements _i2.DiscoveryResponse {
+  _FakeDiscoveryResponse_0(
     Object parent,
     Invocation parentInvocation,
   ) : super(
@@ -34,9 +34,9 @@ class _FakeDio_0 extends _i1.SmartFake implements _i2.Dio {
         );
 }
 
-class _FakeDiscoveryResponse_1 extends _i1.SmartFake
-    implements _i3.DiscoveryResponse {
-  _FakeDiscoveryResponse_1(
+class _FakeOperationResponse_1 extends _i1.SmartFake
+    implements _i2.OperationResponse {
+  _FakeOperationResponse_1(
     Object parent,
     Invocation parentInvocation,
   ) : super(
@@ -45,9 +45,9 @@ class _FakeDiscoveryResponse_1 extends _i1.SmartFake
         );
 }
 
-class _FakeOperationResponse_2 extends _i1.SmartFake
-    implements _i3.OperationResponse {
-  _FakeOperationResponse_2(
+class _FakeConnectorListResponse_2 extends _i1.SmartFake
+    implements _i2.ConnectorListResponse {
+  _FakeConnectorListResponse_2(
     Object parent,
     Invocation parentInvocation,
   ) : super(
@@ -56,9 +56,9 @@ class _FakeOperationResponse_2 extends _i1.SmartFake
         );
 }
 
-class _FakeConnectorListResponse_3 extends _i1.SmartFake
-    implements _i3.ConnectorListResponse {
-  _FakeConnectorListResponse_3(
+class _FakeConnectorDetailResponse_3 extends _i1.SmartFake
+    implements _i2.ConnectorDetailResponse {
+  _FakeConnectorDetailResponse_3(
     Object parent,
     Invocation parentInvocation,
   ) : super(
@@ -67,9 +67,9 @@ class _FakeConnectorListResponse_3 extends _i1.SmartFake
         );
 }
 
-class _FakeConnectorDetailResponse_4 extends _i1.SmartFake
-    implements _i3.ConnectorDetailResponse {
-  _FakeConnectorDetailResponse_4(
+class _FakeConnectorStatesOverview_4 extends _i1.SmartFake
+    implements _i2.ConnectorStatesOverview {
+  _FakeConnectorStatesOverview_4(
     Object parent,
     Invocation parentInvocation,
   ) : super(
@@ -78,9 +78,9 @@ class _FakeConnectorDetailResponse_4 extends _i1.SmartFake
         );
 }
 
-class _FakeConnectorStatesOverview_5 extends _i1.SmartFake
-    implements _i3.ConnectorStatesOverview {
-  _FakeConnectorStatesOverview_5(
+class _FakeConnectorHealthResponse_5 extends _i1.SmartFake
+    implements _i2.ConnectorHealthResponse {
+  _FakeConnectorHealthResponse_5(
     Object parent,
     Invocation parentInvocation,
   ) : super(
@@ -89,20 +89,9 @@ class _FakeConnectorStatesOverview_5 extends _i1.SmartFake
         );
 }
 
-class _FakeConnectorHealthResponse_6 extends _i1.SmartFake
-    implements _i3.ConnectorHealthResponse {
-  _FakeConnectorHealthResponse_6(
-    Object parent,
-    Invocation parentInvocation,
-  ) : super(
-          parent,
-          parentInvocation,
-        );
-}
-
-class _FakeConnectorApiResponse_7 extends _i1.SmartFake
-    implements _i3.ConnectorApiResponse {
-  _FakeConnectorApiResponse_7(
+class _FakeConnectorApiResponse_6 extends _i1.SmartFake
+    implements _i2.ConnectorApiResponse {
+  _FakeConnectorApiResponse_6(
     Object parent,
     Invocation parentInvocation,
   ) : super(
@@ -115,19 +104,10 @@ class _FakeConnectorApiResponse_7 extends _i1.SmartFake
 ///
 /// See the documentation for Mockito's code generation for more information.
 class MockConnectorLifecycleApiClient extends _i1.Mock
-    implements _i4.ConnectorLifecycleApiClient {
+    implements _i3.ConnectorLifecycleApiClient {
   MockConnectorLifecycleApiClient() {
     _i1.throwOnMissingStub(this);
   }
-
-  @override
-  _i2.Dio get dio => (super.noSuchMethod(
-        Invocation.getter(#dio),
-        returnValue: _FakeDio_0(
-          this,
-          Invocation.getter(#dio),
-        ),
-      ) as _i2.Dio);
 
   @override
   void dispose() => super.noSuchMethod(
@@ -139,41 +119,41 @@ class MockConnectorLifecycleApiClient extends _i1.Mock
       );
 
   @override
-  _i5.Future<_i3.DiscoveryResponse> discoverConnectors() => (super.noSuchMethod(
+  _i4.Future<_i2.DiscoveryResponse> discoverConnectors() => (super.noSuchMethod(
         Invocation.method(
           #discoverConnectors,
           [],
         ),
         returnValue:
-            _i5.Future<_i3.DiscoveryResponse>.value(_FakeDiscoveryResponse_1(
+            _i4.Future<_i2.DiscoveryResponse>.value(_FakeDiscoveryResponse_0(
           this,
           Invocation.method(
             #discoverConnectors,
             [],
           ),
         )),
-      ) as _i5.Future<_i3.DiscoveryResponse>);
+      ) as _i4.Future<_i2.DiscoveryResponse>);
 
   @override
-  _i5.Future<_i3.OperationResponse> createConnector(
-          _i3.CreateConnectorRequest? request) =>
+  _i4.Future<_i2.OperationResponse> createConnector(
+          _i2.CreateConnectorRequest? request) =>
       (super.noSuchMethod(
         Invocation.method(
           #createConnector,
           [request],
         ),
         returnValue:
-            _i5.Future<_i3.OperationResponse>.value(_FakeOperationResponse_2(
+            _i4.Future<_i2.OperationResponse>.value(_FakeOperationResponse_1(
           this,
           Invocation.method(
             #createConnector,
             [request],
           ),
         )),
-      ) as _i5.Future<_i3.OperationResponse>);
+      ) as _i4.Future<_i2.OperationResponse>);
 
   @override
-  _i5.Future<_i3.ConnectorListResponse> getConnectors({
+  _i4.Future<_i2.ConnectorListResponse> getConnectors({
     String? connectorId,
     String? state,
   }) =>
@@ -186,8 +166,8 @@ class MockConnectorLifecycleApiClient extends _i1.Mock
             #state: state,
           },
         ),
-        returnValue: _i5.Future<_i3.ConnectorListResponse>.value(
-            _FakeConnectorListResponse_3(
+        returnValue: _i4.Future<_i2.ConnectorListResponse>.value(
+            _FakeConnectorListResponse_2(
           this,
           Invocation.method(
             #getConnectors,
@@ -198,44 +178,44 @@ class MockConnectorLifecycleApiClient extends _i1.Mock
             },
           ),
         )),
-      ) as _i5.Future<_i3.ConnectorListResponse>);
+      ) as _i4.Future<_i2.ConnectorListResponse>);
 
   @override
-  _i5.Future<_i3.ConnectorDetailResponse> getConnector(String? connectorId) =>
+  _i4.Future<_i2.ConnectorDetailResponse> getConnector(String? connectorId) =>
       (super.noSuchMethod(
         Invocation.method(
           #getConnector,
           [connectorId],
         ),
-        returnValue: _i5.Future<_i3.ConnectorDetailResponse>.value(
-            _FakeConnectorDetailResponse_4(
+        returnValue: _i4.Future<_i2.ConnectorDetailResponse>.value(
+            _FakeConnectorDetailResponse_3(
           this,
           Invocation.method(
             #getConnector,
             [connectorId],
           ),
         )),
-      ) as _i5.Future<_i3.ConnectorDetailResponse>);
+      ) as _i4.Future<_i2.ConnectorDetailResponse>);
 
   @override
-  _i5.Future<_i3.OperationResponse> startConnector(String? connectorId) =>
+  _i4.Future<_i2.OperationResponse> startConnector(String? connectorId) =>
       (super.noSuchMethod(
         Invocation.method(
           #startConnector,
           [connectorId],
         ),
         returnValue:
-            _i5.Future<_i3.OperationResponse>.value(_FakeOperationResponse_2(
+            _i4.Future<_i2.OperationResponse>.value(_FakeOperationResponse_1(
           this,
           Invocation.method(
             #startConnector,
             [connectorId],
           ),
         )),
-      ) as _i5.Future<_i3.OperationResponse>);
+      ) as _i4.Future<_i2.OperationResponse>);
 
   @override
-  _i5.Future<_i3.OperationResponse> stopConnector(
+  _i4.Future<_i2.OperationResponse> stopConnector(
     String? connectorId, {
     bool? force = false,
   }) =>
@@ -246,7 +226,7 @@ class MockConnectorLifecycleApiClient extends _i1.Mock
           {#force: force},
         ),
         returnValue:
-            _i5.Future<_i3.OperationResponse>.value(_FakeOperationResponse_2(
+            _i4.Future<_i2.OperationResponse>.value(_FakeOperationResponse_1(
           this,
           Invocation.method(
             #stopConnector,
@@ -254,29 +234,29 @@ class MockConnectorLifecycleApiClient extends _i1.Mock
             {#force: force},
           ),
         )),
-      ) as _i5.Future<_i3.OperationResponse>);
+      ) as _i4.Future<_i2.OperationResponse>);
 
   @override
-  _i5.Future<_i3.OperationResponse> restartConnector(String? connectorId) =>
+  _i4.Future<_i2.OperationResponse> restartConnector(String? connectorId) =>
       (super.noSuchMethod(
         Invocation.method(
           #restartConnector,
           [connectorId],
         ),
         returnValue:
-            _i5.Future<_i3.OperationResponse>.value(_FakeOperationResponse_2(
+            _i4.Future<_i2.OperationResponse>.value(_FakeOperationResponse_1(
           this,
           Invocation.method(
             #restartConnector,
             [connectorId],
           ),
         )),
-      ) as _i5.Future<_i3.OperationResponse>);
+      ) as _i4.Future<_i2.OperationResponse>);
 
   @override
-  _i5.Future<_i3.OperationResponse> updateConnectorConfig(
+  _i4.Future<_i2.OperationResponse> updateConnectorConfig(
     String? connectorId,
-    _i3.UpdateConfigRequest? request,
+    _i2.UpdateConfigRequest? request,
   ) =>
       (super.noSuchMethod(
         Invocation.method(
@@ -287,7 +267,7 @@ class MockConnectorLifecycleApiClient extends _i1.Mock
           ],
         ),
         returnValue:
-            _i5.Future<_i3.OperationResponse>.value(_FakeOperationResponse_2(
+            _i4.Future<_i2.OperationResponse>.value(_FakeOperationResponse_1(
           this,
           Invocation.method(
             #updateConnectorConfig,
@@ -297,10 +277,10 @@ class MockConnectorLifecycleApiClient extends _i1.Mock
             ],
           ),
         )),
-      ) as _i5.Future<_i3.OperationResponse>);
+      ) as _i4.Future<_i2.OperationResponse>);
 
   @override
-  _i5.Future<_i3.OperationResponse> deleteConnector(
+  _i4.Future<_i2.OperationResponse> deleteConnector(
     String? connectorId, {
     bool? force = false,
   }) =>
@@ -311,7 +291,7 @@ class MockConnectorLifecycleApiClient extends _i1.Mock
           {#force: force},
         ),
         returnValue:
-            _i5.Future<_i3.OperationResponse>.value(_FakeOperationResponse_2(
+            _i4.Future<_i2.OperationResponse>.value(_FakeOperationResponse_1(
           this,
           Invocation.method(
             #deleteConnector,
@@ -319,61 +299,61 @@ class MockConnectorLifecycleApiClient extends _i1.Mock
             {#force: force},
           ),
         )),
-      ) as _i5.Future<_i3.OperationResponse>);
+      ) as _i4.Future<_i2.OperationResponse>);
 
   @override
-  _i5.Future<_i3.ConnectorStatesOverview> getStatesOverview() =>
+  _i4.Future<_i2.ConnectorStatesOverview> getStatesOverview() =>
       (super.noSuchMethod(
         Invocation.method(
           #getStatesOverview,
           [],
         ),
-        returnValue: _i5.Future<_i3.ConnectorStatesOverview>.value(
-            _FakeConnectorStatesOverview_5(
+        returnValue: _i4.Future<_i2.ConnectorStatesOverview>.value(
+            _FakeConnectorStatesOverview_4(
           this,
           Invocation.method(
             #getStatesOverview,
             [],
           ),
         )),
-      ) as _i5.Future<_i3.ConnectorStatesOverview>);
+      ) as _i4.Future<_i2.ConnectorStatesOverview>);
 
   @override
-  _i5.Future<_i3.ConnectorHealthResponse> getHealthCheck() =>
+  _i4.Future<_i2.ConnectorHealthResponse> getHealthCheck() =>
       (super.noSuchMethod(
         Invocation.method(
           #getHealthCheck,
           [],
         ),
-        returnValue: _i5.Future<_i3.ConnectorHealthResponse>.value(
-            _FakeConnectorHealthResponse_6(
+        returnValue: _i4.Future<_i2.ConnectorHealthResponse>.value(
+            _FakeConnectorHealthResponse_5(
           this,
           Invocation.method(
             #getHealthCheck,
             [],
           ),
         )),
-      ) as _i5.Future<_i3.ConnectorHealthResponse>);
+      ) as _i4.Future<_i2.ConnectorHealthResponse>);
 
   @override
-  _i5.Future<_i3.ConnectorApiResponse> shutdownAllConnectors() =>
+  _i4.Future<_i2.ConnectorApiResponse> shutdownAllConnectors() =>
       (super.noSuchMethod(
         Invocation.method(
           #shutdownAllConnectors,
           [],
         ),
-        returnValue: _i5.Future<_i3.ConnectorApiResponse>.value(
-            _FakeConnectorApiResponse_7(
+        returnValue: _i4.Future<_i2.ConnectorApiResponse>.value(
+            _FakeConnectorApiResponse_6(
           this,
           Invocation.method(
             #shutdownAllConnectors,
             [],
           ),
         )),
-      ) as _i5.Future<_i3.ConnectorApiResponse>);
+      ) as _i4.Future<_i2.ConnectorApiResponse>);
 
   @override
-  _i5.Future<_i3.DiscoveryResponse> scanConnectorDirectory(
+  _i4.Future<_i2.DiscoveryResponse> scanConnectorDirectory(
           String? directoryPath) =>
       (super.noSuchMethod(
         Invocation.method(
@@ -381,56 +361,65 @@ class MockConnectorLifecycleApiClient extends _i1.Mock
           [directoryPath],
         ),
         returnValue:
-            _i5.Future<_i3.DiscoveryResponse>.value(_FakeDiscoveryResponse_1(
+            _i4.Future<_i2.DiscoveryResponse>.value(_FakeDiscoveryResponse_0(
           this,
           Invocation.method(
             #scanConnectorDirectory,
             [directoryPath],
           ),
         )),
-      ) as _i5.Future<_i3.DiscoveryResponse>);
+      ) as _i4.Future<_i2.DiscoveryResponse>);
 
   @override
-  _i5.Future<_i3.OperationResponse> installConnector(
-          _i3.InstallConnectorRequest? request) =>
+  _i4.Future<_i2.OperationResponse> installConnector(
+          _i2.InstallConnectorRequest? request) =>
       (super.noSuchMethod(
         Invocation.method(
           #installConnector,
           [request],
         ),
         returnValue:
-            _i5.Future<_i3.OperationResponse>.value(_FakeOperationResponse_2(
+            _i4.Future<_i2.OperationResponse>.value(_FakeOperationResponse_1(
           this,
           Invocation.method(
             #installConnector,
             [request],
           ),
         )),
-      ) as _i5.Future<_i3.OperationResponse>);
+      ) as _i4.Future<_i2.OperationResponse>);
 
   @override
-  _i5.Future<_i3.OperationResponse> installFromRegistry(String? connectorId) =>
+  _i4.Future<_i2.OperationResponse> installFromRegistry(String? connectorId) =>
       (super.noSuchMethod(
         Invocation.method(
           #installFromRegistry,
           [connectorId],
         ),
         returnValue:
-            _i5.Future<_i3.OperationResponse>.value(_FakeOperationResponse_2(
+            _i4.Future<_i2.OperationResponse>.value(_FakeOperationResponse_1(
           this,
           Invocation.method(
             #installFromRegistry,
             [connectorId],
           ),
         )),
-      ) as _i5.Future<_i3.OperationResponse>);
+      ) as _i4.Future<_i2.OperationResponse>);
 
   @override
-  _i5.Stream<_i3.ConnectorEvent> watchConnectorEvents() => (super.noSuchMethod(
+  _i4.Stream<_i2.ConnectorEvent> watchConnectorEvents() => (super.noSuchMethod(
         Invocation.method(
           #watchConnectorEvents,
           [],
         ),
-        returnValue: _i5.Stream<_i3.ConnectorEvent>.empty(),
-      ) as _i5.Stream<_i3.ConnectorEvent>);
+        returnValue: _i4.Stream<_i2.ConnectorEvent>.empty(),
+      ) as _i4.Stream<_i2.ConnectorEvent>);
+
+  @override
+  void close() => super.noSuchMethod(
+        Invocation.method(
+          #close,
+          [],
+        ),
+        returnValueForMissingStub: null,
+      );
 }

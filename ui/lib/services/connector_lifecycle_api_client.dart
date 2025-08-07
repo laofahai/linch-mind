@@ -1,5 +1,6 @@
 import 'dart:async';
 import '../models/connector_lifecycle_models.dart';
+import '../utils/app_logger.dart';
 import 'ipc_api_adapter.dart';
 
 /// 专门的连接器生命周期API客户端
@@ -19,13 +20,20 @@ class ConnectorLifecycleApiClient {
     try {
       final responseData = await _ipcApi.get('/connector-lifecycle/discovery');
 
-      // 转换嵌套的data结构为平铺结构
-      final data = responseData['data'] as Map<String, dynamic>;
+      // 安全地获取data结构
+      final data = responseData['data'] as Map<String, dynamic>? ?? responseData;
+      
+      // 检查响应是否成功 - 从data字段中获取success状态
+      final success = data['success'] ?? (responseData['status_code'] == 200);
+      if (!success) {
+        final error = data['error'] ?? 'Unknown error';
+        throw ConnectorApiException('Discovery failed: $error');
+      }
 
       final flatResponse = {
-        'success': responseData['success'],
-        'message': responseData['message'],
-        'connectors': data['connectors'],
+        'success': success,
+        'message': data['message'] ?? 'Connectors discovered successfully',
+        'connectors': data['connectors'] ?? [],
       };
 
       return DiscoveryResponse.fromJson(flatResponse);
@@ -44,13 +52,30 @@ class ConnectorLifecycleApiClient {
           'connector_id': request.connectorId,
           'display_name': request.displayName,
           'config': request.config,
-          'auto_start': request.autoStart,
+          // 移除 auto_start 字段，因为数据库模型已经简化了逻辑
           if (request.templateId != null) 'template_id': request.templateId,
         },
       );
-      return OperationResponse.fromJson(responseData);
-    } catch (e) {
-      throw ConnectorApiException('Failed to create connector: $e');
+      // 从IPC响应中提取数据构造OperationResponse
+      final data = responseData['data'] as Map<String, dynamic>? ?? {};
+      final connector = data['connector'] as Map<String, dynamic>? ?? {};
+      
+      return OperationResponse(
+        success: responseData['success'] ?? true,
+        message: data['message'] ?? 'Connector created successfully',
+        connectorId: connector['connector_id'] ?? request.connectorId,
+        state: ConnectorState.values.firstWhere(
+          (e) => e.name == (connector['running_state'] ?? 'stopped'),
+          orElse: () => ConnectorState.configured,
+        ),
+        hotReloadApplied: null,
+        requiresRestart: null,
+        wasRunning: null,
+      );
+    } catch (e, stackTrace) {
+      print('创建连接器异常详情: $e');
+      print('堆栈跟踪: $stackTrace');
+      throw ConnectorApiException('Failed to create connector: $e\nStack: $stackTrace');
     }
   }
 
@@ -64,23 +89,56 @@ class ConnectorLifecycleApiClient {
       if (connectorId != null) queryParams['connector_id'] = connectorId;
       if (state != null) queryParams['state'] = state;
 
+      AppLogger.debug('开始请求getConnectors', module: 'ConnectorAPI', data: queryParams);
+
       final responseData = await _ipcApi.get(
         '/connector-lifecycle/connectors',
         queryParameters: queryParams,
       );
 
-      // 转换嵌套的data结构为平铺结构
-      final data = responseData['data'] as Map<String, dynamic>;
+      AppLogger.debug('原始API响应', module: 'ConnectorAPI', data: {'response': responseData});
+      
+      // 检查响应数据结构
+      AppLogger.debug('响应数据键值', module: 'ConnectorAPI', data: {'keys': responseData.keys.toList()});
+
+      // 安全地转换嵌套的data结构为平铺结构  
+      // 从日志看，实际结构可能直接就是 {connectors: [...], total: N}
+      final data = responseData;
+      AppLogger.debug('提取的data段', module: 'ConnectorAPI', data: {'extracted_data': data});
+
+      final connectorsData = data['connectors'] ?? data['collectors'] ?? [];
+      AppLogger.debug('连接器数据数组', module: 'ConnectorAPI', data: {
+        'connectors_data': connectorsData,
+        'type': connectorsData.runtimeType.toString(),
+        'count': connectorsData is List ? connectorsData.length : 'not_list'
+      });
 
       final flatResponse = {
-        'success': responseData['success'],
-        'collectors': data['collectors'],
-        'total_count': data['total'],
+        'success': responseData['success'] ?? true,
+        'connectors': connectorsData,
+        'total_count': data['total'] ?? 0,
       };
 
-      return ConnectorListResponse.fromJson(flatResponse);
-    } catch (e) {
-      throw ConnectorApiException('Failed to get connectors: $e');
+      AppLogger.debug('构造的flatResponse', module: 'ConnectorAPI', data: flatResponse);
+
+      final result = ConnectorListResponse.fromJson(flatResponse);
+      AppLogger.debug('解析后的结果', module: 'ConnectorAPI', data: {
+        'success': result.success,
+        'connectors_count': result.connectors.length
+      });
+
+      for (var i = 0; i < result.connectors.length; i++) {
+        AppLogger.debug('连接器详情[$i]', module: 'ConnectorAPI', data: {
+          'id': result.connectors[i].connectorId,
+          'name': result.connectors[i].displayName,
+          'state': result.connectors[i].state.toString()
+        });
+      }
+
+      return result;
+    } catch (e, stackTrace) {
+      AppLogger.error('getConnectors异常', module: 'ConnectorAPI', exception: e, stackTrace: stackTrace);
+      throw ConnectorApiException('Failed to get connectors: $e\nStack: $stackTrace');
     }
   }
 
@@ -196,18 +254,41 @@ class ConnectorLifecycleApiClient {
         data: {'directory_path': directoryPath},
       );
 
-      // 转换嵌套的data结构为平铺结构
-      final data = responseData['data'] as Map<String, dynamic>;
+      // IPC可能返回扁平格式或嵌套格式的数据，自动检测并适配
+      Map<String, dynamic> data;
+      if (responseData.containsKey('connectors') || responseData.containsKey('success')) {
+        // 扁平格式：直接包含业务数据
+        data = responseData;
+      } else if (responseData.containsKey('data') && responseData['data'] is Map) {
+        // 嵌套格式：数据在data字段中
+        data = (responseData['data'] as Map<String, dynamic>?) ?? {};
+      } else {
+        // 兜底：直接使用响应数据
+        data = responseData;
+      }
+      
+      // 检查响应是否成功
+      final success = data['success'] ?? false;
+      
+      if (!success) {
+        final error = data['error'] ?? 'Unknown error';
+        throw ConnectorApiException('Scan failed: $error');
+      }
 
       final flatResponse = {
-        'success': responseData['success'],
-        'message': responseData['message'],
-        'connectors': data['connectors'],
+        'success': success,
+        'message': data['message'] ?? 'Directory scanned successfully',
+        'connectors': data['connectors'] ?? [],
       };
 
       return DiscoveryResponse.fromJson(flatResponse);
+    } on ConnectorApiException {
+      rethrow;
     } catch (e) {
-      throw ConnectorApiException('Failed to scan directory $directoryPath: $e');
+      if (e.toString().contains('type ')) {
+        throw ConnectorApiException('数据格式错误: 请确保连接器配置文件格式正确');
+      }
+      throw ConnectorApiException('扫描目录失败: $e');
     }
   }
 
@@ -226,9 +307,10 @@ class ConnectorLifecycleApiClient {
       if (request.config.isNotEmpty) {
         data['config'] = request.config;
       }
-      if (request.autoStart) {
-        data['auto_start'] = request.autoStart;
-      }
+      // 移除 auto_start 字段，因为数据库模型已经简化了逻辑
+      // if (request.autoStart) {
+      //   data['auto_start'] = request.autoStart;
+      // }
       if (request.path != null) {
         data['path'] = request.path;
       }

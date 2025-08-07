@@ -42,10 +42,7 @@ check_dependency make
 case "$OS" in
     "Darwin")
         echo "🍎 macOS detected"
-        if ! brew list libcurl &> /dev/null; then
-            echo "⚠️  Installing libcurl via homebrew..."
-            brew install curl
-        fi
+        
         if ! brew list nlohmann-json &> /dev/null; then
             echo "⚠️  Installing nlohmann-json via homebrew..."
             brew install nlohmann-json

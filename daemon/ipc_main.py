@@ -45,9 +45,26 @@ async def auto_start_connectors():
 
     try:
         from services.connectors.connector_manager import get_connector_manager
+        from pathlib import Path
+        from config.core_config import get_connector_config
 
         # 获取简化连接器管理器
         manager = get_connector_manager()
+        
+        # 首先自动注册本地连接器（如果尚未注册）
+        try:
+            connector_config = get_connector_config()
+            connectors_dir = Path(connector_config.config_dir)
+            
+            # 扫描并注册未注册的连接器
+            discovered_connectors = manager.scan_directory_for_connectors(str(connectors_dir))
+            for connector in discovered_connectors:
+                if not connector.get("is_registered", False):
+                    logger.info(f"自动注册连接器: {connector['name']}")
+                    connector_path = Path(connector["path"])
+                    manager.register_connector_from_path(str(connector_path))
+        except Exception as e:
+            logger.warning(f"自动注册连接器时出现问题: {e}")
 
         # 启动所有已注册连接器
         await manager.start_all_registered_connectors()

@@ -10,24 +10,10 @@ namespace linch_connector {
  * Daemon信息数据结构
  */
 struct DaemonInfo {
-    std::string host;
-    int port;
     int pid;
-    bool isAccessible = false;
-    std::string protocol = "http";  // "http" or "ipc"
-    std::string socket_path;         // IPC socket路径（仅IPC模式）
-    std::string pipe_name;           // Named pipe名称（仅Windows IPC）
-    
-    std::string getBaseUrl() const {
-        if (protocol == "ipc") {
-            return "ipc://" + (socket_path.empty() ? pipe_name : socket_path);
-        }
-        return "http://" + host + ":" + std::to_string(port);
-    }
-    
-    bool isIPCMode() const {
-        return protocol == "ipc";
-    }
+    std::string socket_path;
+    std::string socket_type; // "unix" or "windows"
+    bool is_accessible = false;
 };
 
 /**

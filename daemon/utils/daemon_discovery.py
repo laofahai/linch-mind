@@ -94,7 +94,7 @@ class DaemonDiscovery:
             return {
                 "port": port,
                 "pid": pid,
-                "host": "127.0.0.1",
+                "socket_path": "/tmp/linch-mind.sock",  # IPC socket path
                 "started_at": "unknown",
             }
 

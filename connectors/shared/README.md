@@ -126,7 +126,7 @@ sudo apt-get install nlohmann-json3-dev libcurl4-openssl-dev uuid-dev
 
 **Windows**:
 ```bash
-vcpkg install nlohmann-json curl
+vcpkg install nlohmann-json
 ```
 
 ### CMake构建
@@ -151,7 +151,7 @@ make
 ### 代码减少详情
 
 **移除的重复代码**:
-- HttpClient: 108行 → shared库
+
 - ConfigManager: 154行 → shared库  
 - UUID/时间戳工具: 47行 → shared库
 - daemon连接测试: 25行 → shared库

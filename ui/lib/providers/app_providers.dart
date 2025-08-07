@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/connector_lifecycle_models.dart';
 import '../services/connector_lifecycle_api_client.dart';
 import '../services/daemon_lifecycle_service.dart';
+import '../utils/app_logger.dart';
+import '../utils/error_monitor.dart';
 
 // 主题管理提供者
 final themeModeProvider =
@@ -58,23 +60,25 @@ final connectorsProvider = FutureProvider<List<ConnectorInfo>>((ref) async {
 final backgroundDaemonInitProvider = FutureProvider<bool>((ref) async {
   try {
     final daemonService = DaemonLifecycleService.instance;
-    print('[BackgroundInit] 开始后台daemon初始化');
+    AppLogger.daemonInfo('开始后台daemon初始化');
 
     final result = await daemonService.ensureDaemonRunning();
     if (result.success) {
-      print('[BackgroundInit] Daemon启动成功');
+      AppLogger.daemonInfo('Daemon启动成功');
       // 更新应用状态
       ref.read(appStateProvider.notifier).setConnected(true);
       return true;
     } else {
-      print('[BackgroundInit] Daemon启动失败: ${result.error}');
+      AppLogger.daemonError('Daemon启动失败', data: {'error': result.error});
+      AppErrorReporter.error('Daemon启动失败', module: 'Daemon', context: {'error': result.error});
       ref
           .read(appStateProvider.notifier)
           .setError(result.error ?? 'Daemon启动失败');
       return false;
     }
   } catch (e) {
-    print('[BackgroundInit] 后台初始化异常: $e');
+    AppLogger.daemonError('后台初始化异常', exception: e);
+    AppErrorReporter.critical('后台初始化异常', module: 'Daemon', exception: e);
     ref.read(appStateProvider.notifier).setError('后台初始化失败: $e');
     return false;
   }
@@ -86,11 +90,11 @@ final healthCheckProvider = FutureProvider<bool>((ref) async {
     final apiClient = ref.watch(connectorLifecycleApiProvider);
     // 使用简单的连接器列表API来检查连通性，避免复杂的健康检查模型解析
     final response = await apiClient.getConnectors();
-    print(
-        '[HealthCheck] Success: ${response.success}, Connectors: ${response.connectors.length}');
+    AppLogger.debug('健康检查响应', module: 'HealthCheck', data: {'success': response.success, 'connectorsCount': response.connectors.length});
     return response.success;
   } catch (e) {
-    print('[HealthCheck] Error: $e');
+    AppLogger.error('健康检查失败', module: 'HealthCheck', exception: e);
+    AppErrorReporter.warn('健康检查失败', module: 'HealthCheck', context: {'exception': e.toString()});
     return false;
   }
 });

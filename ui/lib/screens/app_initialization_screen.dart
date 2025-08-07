@@ -300,7 +300,8 @@ class _AppInitializationScreenState
               _buildDebugItem('运行模式', status['mode']),
               _buildDebugItem('Daemon运行', status['running'].toString()),
               if (status['daemon_info'] != null) ...[
-                _buildDebugItem('Daemon地址', status['daemon_info']['base_url']),
+                _buildDebugItem('Socket路径', status['daemon_info']['socket_path']),
+                _buildDebugItem('通信方式', status['daemon_info']['socket_type']),
                 _buildDebugItem(
                     '进程ID', status['daemon_info']['pid'].toString()),
               ],

@@ -9,7 +9,6 @@ import logging
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
 
-import aiohttp
 from config.core_config import get_core_config
 
 logger = logging.getLogger(__name__)
@@ -61,39 +60,71 @@ class ConnectorRegistryService:
 
             logger.info(f"从 {self.registry_url} 获取注册表...")
 
-            # 从GitHub Release获取注册表
-            async with aiohttp.ClientSession() as session:
-                async with session.get(self.registry_url, timeout=30) as response:
-                    if response.status == 200:
-                        # GitHub可能返回application/octet-stream，需要手动解析
-                        try:
-                            registry_data = await response.json()
-                        except Exception as json_error:
-                            # 如果JSON解析失败，尝试以文本方式读取
-                            logger.warning(f"JSON解析失败: {json_error}，尝试文本解析")
-                            import json
+            # IPC模式下使用本地注册表缓存
+            logger.warning("IPC架构模式：使用本地连接器注册表")
+            registry_data = self._get_local_fallback_registry()
+            
+            # 更新缓存
+            self._cache = registry_data
+            self._cache_expiry = datetime.now() + self._cache_duration
+            
+            logger.info(
+                f"本地注册表加载完成，包含 {len(registry_data.get('connectors', {}))} 个连接器"
+            )
+            return registry_data
 
-                            text_content = await response.text()
-                            registry_data = json.loads(text_content)
-
-                        # 更新缓存
-                        self._cache = registry_data
-                        self._cache_expiry = datetime.now() + self._cache_duration
-
-                        logger.info(
-                            f"成功获取注册表，包含 {len(registry_data.get('connectors', {}))} 个连接器"
-                        )
-                        return registry_data
-                    else:
-                        logger.error(f"获取注册表失败，HTTP状态码: {response.status}")
-                        return None
-
-        except asyncio.TimeoutError:
-            logger.error("获取注册表超时")
-            return None
         except Exception as e:
-            logger.error(f"获取注册表异常: {e}")
-            return None
+            logger.error(f"本地注册表加载异常: {e}")
+            return self._get_local_fallback_registry()
+
+    def _get_local_fallback_registry(self) -> Dict[str, Any]:
+        """获取本地备用注册表数据"""
+        return {
+            "schema_version": "1.0",
+            "last_updated": datetime.now().isoformat(),
+            "metadata": {
+                "total_count": 2,
+                "repository": "laofahai/linch-mind",
+                "commit": "local",
+                "release_tag": "local-ipc"
+            },
+            "connectors": {
+                "filesystem": {
+                    "id": "filesystem",
+                    "name": "文件系统连接器",
+                    "description": "监控文件系统变化，提供文件内容索引",
+                    "version": "1.0.0",
+                    "author": "Linch Mind Team",
+                    "category": "system",
+                    "type": "official",
+                    "platforms": {
+                        "linux-x64": {"supported": True},
+                        "darwin-x64": {"supported": True},
+                        "darwin-arm64": {"supported": True}
+                    },
+                    "capabilities": {"file_monitoring": True, "content_indexing": True},
+                    "permissions": ["read_files", "monitor_filesystem"],
+                    "last_updated": datetime.now().isoformat()
+                },
+                "clipboard": {
+                    "id": "clipboard",
+                    "name": "剪贴板连接器",
+                    "description": "监控剪贴板内容变化，提供智能历史管理",
+                    "version": "1.0.0",
+                    "author": "Linch Mind Team",
+                    "category": "system",
+                    "type": "official",
+                    "platforms": {
+                        "linux-x64": {"supported": True},
+                        "darwin-x64": {"supported": True},
+                        "darwin-arm64": {"supported": True}
+                    },
+                    "capabilities": {"clipboard_monitoring": True, "history_management": True},
+                    "permissions": ["read_clipboard", "monitor_clipboard"],
+                    "last_updated": datetime.now().isoformat()
+                }
+            }
+        }
 
     def _is_cache_valid(self) -> bool:
         """检查缓存是否有效"""
@@ -110,12 +141,26 @@ class ConnectorRegistryService:
             if not registry:
                 return []
 
+            # 获取已安装的连接器ID列表
+            installed_connector_ids = set()
+            try:
+                from services.connectors.connector_manager import get_connector_manager
+                manager = get_connector_manager()
+                installed_connectors = manager.list_connectors()
+                installed_connector_ids = {c["connector_id"] for c in installed_connectors}
+            except Exception as e:
+                logger.warning(f"获取已安装连接器列表失败: {e}")
+            
             connectors = []
             for connector_id, connector_info in registry.get("connectors", {}).items():
                 # 转换为UI需要的格式，兼容GitHub registry格式
                 actual_id = connector_info.get(
                     "id", connector_info.get("connector_id", connector_id)
                 )
+                
+                # 检查是否已安装
+                is_installed = actual_id in installed_connector_ids
+                
                 connector_data = {
                     "connector_id": actual_id,
                     "name": connector_info.get("name", actual_id),
@@ -130,7 +175,7 @@ class ConnectorRegistryService:
                     "capabilities": connector_info.get("capabilities", {}),
                     "permissions": connector_info.get("permissions", []),
                     "last_updated": connector_info.get("last_updated"),
-                    "is_registered": True,
+                    "is_registered": is_installed,  # 基于实际安装状态设置
                 }
                 connectors.append(connector_data)
 

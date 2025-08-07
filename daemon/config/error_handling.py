@@ -229,9 +229,13 @@ def validate_port_range(field_name: str, port: int) -> int:
             field=field_name, value=port, reason="Port must be an integer"
         )
 
+    # 端口0表示IPC模式，不使用HTTP端口
+    if port == 0:
+        return port
+    
     if not (1024 <= port <= 65535):
         raise ConfigValidationError(
-            field=field_name, value=port, reason="Port must be between 1024 and 65535"
+            field=field_name, value=port, reason="Port must be between 1024 and 65535 (or 0 for IPC mode)"
         )
 
     return port

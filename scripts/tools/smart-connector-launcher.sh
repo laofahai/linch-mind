@@ -18,7 +18,7 @@ show_usage() {
     echo "Examples:"
     echo "  $0 clipboard                    # 启动剪贴板连接器"
     echo "  $0 filesystem --help           # 显示文件系统连接器帮助"
-    echo "  $0 clipboard --daemon-url http://localhost:8080"
+    echo "  $0 clipboard --socket-path /tmp/linch-mind.sock"
     echo ""
     echo "Available connectors:"
     

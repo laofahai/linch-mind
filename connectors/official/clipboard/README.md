@@ -16,14 +16,6 @@
 ### 核心组件
 
 - **ClipboardMonitor**: 跨平台剪贴板监控
-- **HttpClient**: 基于libcurl的HTTP客户端
-- **ConfigManager**: 配置管理和热重载
-- **Platform层**: Windows/macOS/Linux平台适配
-
-### 技术栈
-
-- **C++17**: 现代C++特性
-- **libcurl**: HTTP通信
 - **nlohmann/json**: JSON处理
 - **平台原生API**: 剪贴板访问
 
@@ -172,7 +164,7 @@ WantedBy=multi-user.target
 ./clipboard-connector --verbose
 
 # 测试连接
-curl http://localhost:58471/
+
 ```
 
 ## 🤝 开发贡献
@@ -183,7 +175,7 @@ curl http://localhost:58471/
 src/
 ├── main.cpp              # 主程序入口
 ├── clipboard_monitor.*   # 剪贴板监控
-├── http_client.*         # HTTP客户端
+
 ├── config_manager.*      # 配置管理
 └── platform/            # 平台特定实现
     ├── windows_clipboard.*

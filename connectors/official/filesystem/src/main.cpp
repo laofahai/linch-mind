@@ -102,7 +102,6 @@ bool registerConfigSchema(UnifiedClient& client, const std::string& daemonUrl) {
         {"schema_source", "embedded"}
     };
 
-    client.addHeader("Content-Type", "application/json");
     // 注意：新API不再支持注册schema，跳过此步骤
     // auto response = client.post(daemonUrl + "/connector-config/register-schema/filesystem", 
     //                            payload.dump());
@@ -223,14 +222,14 @@ void processFilesystemEvent(const FileSystemMonitor::FileEvent& event,
                 {"auto_embed", true}
             };
             
-            client.addHeader("Content-Type", "application/json");
             auto response = client.post("/storage/entities", entity_data.dump());
             
-            if (response.isSuccess()) {
+            if (response.success) {
                 std::cout << "✅ Processed file event: " << filePath.filename().string() 
                          << " (" << content.length() << " chars)" << std::endl;
             } else {
-                std::cerr << "❌ Failed to push file data: HTTP " << response.statusCode << std::endl;
+                std::cerr << "❌ Failed to push file data: " << response.error_message 
+                          << " (code: " << response.error_code << ")" << std::endl;
             }
             
         } catch (const std::exception& e) {
@@ -242,97 +241,73 @@ void processFilesystemEvent(const FileSystemMonitor::FileEvent& event,
     }
 }
 
-int main(int, char*[]) {
-    std::cout << "🚀 Starting Linch Mind Filesystem Connector (C++ Edition with Shared Library)" << std::endl;
-    
-    // 设置信号处理器
+int main(int argc, char* argv[]) {
+    std::cout << "🚀 Starting Linch Mind Filesystem Connector (Pure IPC)" << std::endl;
+
     signal(SIGINT, signalHandler);
     signal(SIGTERM, signalHandler);
-    
-    // 发现daemon
+
     DaemonDiscovery discovery;
     std::cout << "🔍 Discovering daemon..." << std::endl;
-    
-    auto daemonInfo = discovery.waitForDaemon(std::chrono::seconds(30));
-    if (!daemonInfo) {
+
+    auto daemonInfoOpt = discovery.waitForDaemon(std::chrono::seconds(30));
+    if (!daemonInfoOpt) {
         std::cerr << "❌ Failed to discover daemon. Exiting..." << std::endl;
         return 1;
     }
-    
-    std::cout << "📡 Found daemon at: " << daemonInfo->getBaseUrl() << " (PID: " << daemonInfo->pid << ")" << std::endl;
-    
-    // 初始化组件
+
     UnifiedClient unifiedClient;
-    unifiedClient.setTimeout(30);
-    
-    // 连接到daemon（自动选择IPC或HTTP）
-    if (!unifiedClient.connect(*daemonInfo)) {
+    unifiedClient.setTimeout(60); // File operations can take longer
+
+    if (!unifiedClient.connect(*daemonInfoOpt)) {
         std::cerr << "❌ Failed to connect to daemon. Exiting..." << std::endl;
         return 1;
     }
-    
-    std::cout << "🔗 Connected to daemon via " << unifiedClient.getConnectionMode() << " mode" << std::endl;
-    
-    ConfigManager configManager(daemonInfo->getBaseUrl(), "filesystem");
-    FileSystemMonitor filesystemMonitor;
-    
-    // 注册配置schema
-    registerConfigSchema(unifiedClient, daemonInfo->getBaseUrl());
-    
-    // 加载初始配置
+
+    std::cout << "🔗 Connected to daemon via IPC." << std::endl;
+
+    ConfigManager configManager("filesystem", "");
     if (!configManager.loadFromDaemon()) {
-        std::cerr << "⚠️  Failed to load configuration from daemon, using defaults" << std::endl;
+        std::cerr << "⚠️ Failed to load configuration from daemon, using defaults." << std::endl;
     }
+
+    // Schema registration is handled by the daemon.
+
+    FileSystemMonitor monitor;
+
+    // Create callback to handle filesystem changes
+    auto filesystemCallback = [&unifiedClient, &configManager](const FileSystemMonitor::FileEvent& event) {
+        processFilesystemEvent(event, unifiedClient, configManager);
+    };
+
+    std::cout << "📂 Setting up filesystem watches..." << std::endl;
     
-    // 开始配置监控
-    configManager.startConfigMonitoring(30);
-    
-    // 检查监控是否启用
-    bool monitoringEnabled = configManager.getConfigValue("monitoring_enabled", "true") == "true";
-    if (!monitoringEnabled) {
-        std::cout << "⚠️  Filesystem monitoring is disabled in configuration" << std::endl;
-        return 0;
-    }
-    
-    // 加载监控配置
+    // Load watch configurations from daemon config
     auto watchConfigs = loadWatchConfigs(configManager);
-    if (watchConfigs.empty()) {
-        std::cerr << "❌ No valid watch directories configured" << std::endl;
-        return 1;
-    }
-    
-    // 添加监控配置到监控器
-    for (const auto& watchConfig : watchConfigs) {
-        if (!filesystemMonitor.addWatch(watchConfig)) {
-            std::cerr << "⚠️  Failed to add watch for: " << watchConfig.path << std::endl;
+    for (const auto& config : watchConfigs) {
+        if (config.enabled) {
+            if (monitor.addWatch(config)) {
+                std::cout << "✅ Added watch for: " << config.path << std::endl;
+            } else {
+                std::cerr << "❌ Failed to add watch for: " << config.path << std::endl;
+            }
         }
     }
-    
-    // 开始文件系统监控
-    double pollInterval = std::stod(configManager.getConfigValue("poll_interval", "2.0"));
-    int pollIntervalMs = static_cast<int>(pollInterval * 1000);
-    
-    std::cout << "📁 Starting filesystem monitoring (poll interval: " << pollInterval << "s)" << std::endl;
-    
-    if (!filesystemMonitor.startMonitoring(
-        [&](const FileSystemMonitor::FileEvent& event) {
-            processFilesystemEvent(event, unifiedClient, configManager);
-        }, 
-        pollIntervalMs)) {
+
+    std::cout << "📂 Starting filesystem monitoring..." << std::endl;
+    if (!monitor.startMonitoring(filesystemCallback, 1000)) {
         std::cerr << "❌ Failed to start filesystem monitoring" << std::endl;
         return 1;
     }
-    
-    // 主循环
+
+    // Main loop
     while (!g_shouldStop) {
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
     
-    // 清理
+    monitor.stopMonitoring();
+
     std::cout << "🛑 Stopping filesystem connector..." << std::endl;
-    filesystemMonitor.stopMonitoring();
-    configManager.stopConfigMonitoring();
     
-    std::cout << "📁 Filesystem connector stopped" << std::endl;
     return 0;
 }

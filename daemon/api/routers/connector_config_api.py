@@ -1,51 +1,33 @@
-#!/usr/bin/env python3
 """
-连接器配置管理API路由 - 简化版
-保留核心功能，移除复杂特性
+连接器配置管理API - 纯IPC实现
 """
 
 import logging
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 
-from fastapi import APIRouter, Depends, HTTPException
-from models.api_models import ApiResponse
-from pydantic import BaseModel
-from services.connectors.connector_config_service import (ConnectorConfigService,
-                                                          get_connector_config_service)
+from services.connectors.connector_config_service import get_connector_config_service
+from services.ipc_router import IPCRequest, IPCResponse
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/connector-config", tags=["connector-config"])
-
-
-class ConfigUpdateRequest(BaseModel):
-    connector_id: str
-    config: Dict[str, Any]
-    change_reason: Optional[str] = "API更新"
-
-
-class ConfigValidationRequest(BaseModel):
-    connector_id: str
-    config: Dict[str, Any]
-
-
-@router.get("/schema/{connector_id}")
-async def get_config_schema(
-    connector_id: str,
-    service: ConnectorConfigService = Depends(get_connector_config_service),
-) -> ApiResponse:
+async def get_config_schema(request: IPCRequest) -> IPCResponse:
     """获取连接器配置schema"""
+    connector_id = request.path_params.get("connector_id")
+    if not connector_id:
+        return IPCResponse(status_code=400, data={"error": "Missing connector_id"})
+    
     try:
         logger.info(f"获取连接器 {connector_id} 的配置schema")
+        service = get_connector_config_service()
+        schema_data = await service.get_config_schema(connector_id)
         
-        schema_data = await service.get_connector_config_schema(connector_id)
         if not schema_data:
-            raise HTTPException(
+            return IPCResponse(
                 status_code=404,
-                detail=f"连接器 {connector_id} 的配置schema不存在"
+                data={"error": f"连接器 {connector_id} 的配置schema不存在"}
             )
         
-        return ApiResponse(
+        return IPCResponse(
             success=True,
             data=schema_data,
             message=f"成功获取 {connector_id} 的配置schema"
@@ -53,21 +35,20 @@ async def get_config_schema(
         
     except Exception as e:
         logger.error(f"获取配置schema失败: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        return IPCResponse(status_code=500, data={"error": str(e)})
 
-
-@router.get("/current/{connector_id}")
-async def get_current_config(
-    connector_id: str,
-    service: ConnectorConfigService = Depends(get_connector_config_service),
-) -> ApiResponse:
+async def get_current_config(request: IPCRequest) -> IPCResponse:
     """获取连接器当前配置"""
+    connector_id = request.path_params.get("connector_id")
+    if not connector_id:
+        return IPCResponse(status_code=400, data={"error": "Missing connector_id"})
+        
     try:
         logger.info(f"获取连接器 {connector_id} 的当前配置")
-        
+        service = get_connector_config_service()
         config_data = await service.get_current_config(connector_id)
         
-        return ApiResponse(
+        return IPCResponse(
             success=True,
             data=config_data or {},
             message=f"成功获取 {connector_id} 的当前配置"
@@ -75,24 +56,23 @@ async def get_current_config(
         
     except Exception as e:
         logger.error(f"获取当前配置失败: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        return IPCResponse(status_code=500, data={"error": str(e)})
 
-
-@router.post("/validate")
-async def validate_config(
-    request: ConfigValidationRequest,
-    service: ConnectorConfigService = Depends(get_connector_config_service),
-) -> ApiResponse:
+async def validate_config(request: IPCRequest) -> IPCResponse:
     """验证连接器配置"""
+    body = await request.json()
+    connector_id = body.get("connector_id")
+    config = body.get("config")
+
+    if not connector_id or config is None:
+        return IPCResponse(status_code=400, data={"error": "Missing connector_id or config"})
+
     try:
-        logger.info(f"验证连接器 {request.connector_id} 的配置")
+        logger.info(f"验证连接器 {connector_id} 的配置")
+        service = get_connector_config_service()
+        validation_result = await service.validate_config(connector_id, config)
         
-        validation_result = await service.validate_config(
-            request.connector_id,
-            request.config
-        )
-        
-        return ApiResponse(
+        return IPCResponse(
             success=validation_result["valid"],
             data=validation_result,
             message="配置验证完成" if validation_result["valid"] else "配置验证失败"
@@ -100,66 +80,63 @@ async def validate_config(
         
     except Exception as e:
         logger.error(f"配置验证失败: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        return IPCResponse(status_code=500, data={"error": str(e)})
 
-
-@router.put("/update")
-async def update_config(
-    request: ConfigUpdateRequest,
-    service: ConnectorConfigService = Depends(get_connector_config_service),
-) -> ApiResponse:
+async def update_config(request: IPCRequest) -> IPCResponse:
     """更新连接器配置"""
+    body = await request.json()
+    connector_id = body.get("connector_id")
+    config = body.get("config")
+    change_reason = body.get("change_reason", "IPC API更新")
+
+    if not connector_id or config is None:
+        return IPCResponse(status_code=400, data={"error": "Missing connector_id or config"})
+
     try:
-        logger.info(f"更新连接器 {request.connector_id} 的配置")
+        logger.info(f"更新连接器 {connector_id} 的配置")
+        service = get_connector_config_service()
         
         # 先验证配置
-        validation_result = await service.validate_config(
-            request.connector_id,
-            request.config
-        )
+        validation_result = await service.validate_config(connector_id, config)
         
         if not validation_result["valid"]:
-            return ApiResponse(
+            return IPCResponse(
                 success=False,
                 data=validation_result,
                 message="配置验证失败"
             )
         
         # 更新配置
-        success = await service.update_connector_config(
-            request.connector_id,
-            request.config,
-            request.change_reason
+        success = await service.update_config(
+            connector_id,
+            config,
+            change_reason
         )
         
         if success:
-            return ApiResponse(
+            return IPCResponse(
                 success=True,
-                data={"config": request.config},
-                message=f"成功更新 {request.connector_id} 的配置"
+                data={"config": config},
+                message=f"成功更新 {connector_id} 的配置"
             )
         else:
-            return ApiResponse(
+            return IPCResponse(
                 success=False,
-                message=f"更新 {request.connector_id} 的配置失败"
+                message=f"更新 {connector_id} 的配置失败"
             )
         
     except Exception as e:
         logger.error(f"更新配置失败: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        return IPCResponse(status_code=500, data={"error": str(e)})
 
-
-@router.get("/all-schemas")
-async def get_all_schemas(
-    service: ConnectorConfigService = Depends(get_connector_config_service),
-) -> ApiResponse:
+async def get_all_schemas(request: IPCRequest) -> IPCResponse:
     """获取所有连接器的配置schema"""
     try:
         logger.info("获取所有连接器的配置schema")
+        service = get_connector_config_service()
+        all_schemas = await service.get_all_schemas()
         
-        all_schemas = await service.get_all_connector_schemas()
-        
-        return ApiResponse(
+        return IPCResponse(
             success=True,
             data=all_schemas,
             message=f"成功获取 {len(all_schemas)} 个连接器的配置schema"
@@ -167,4 +144,7 @@ async def get_all_schemas(
         
     except Exception as e:
         logger.error(f"获取所有schema失败: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        return IPCResponse(status_code=500, data={"error": str(e)})
+
+# 注意：这个文件现在只包含处理函数。
+# 路由注册已移至 services/ipc_routes.py

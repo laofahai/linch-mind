@@ -8,11 +8,38 @@ class ConnectorConfigApiClient {
 
   ConnectorConfigApiClient();
 
+  /// 将IPC响应转换为ConnectorApiResponse格式
+  ConnectorApiResponse _convertIpcToApiResponse(
+    Map<String, dynamic> ipcResponse,
+    String defaultSuccessMessage,
+  ) {
+    final success = ipcResponse['success'] as bool? ?? false;
+    
+    if (success) {
+      return ConnectorApiResponse(
+        success: true,
+        message: defaultSuccessMessage,
+        data: ipcResponse['data'],
+      );
+    } else {
+      final error = ipcResponse['error'] as Map<String, dynamic>?;
+      final errorMessage = error?['message'] as String? ?? '未知错误';
+      final errorCode = error?['code'] as String?;
+      
+      return ConnectorApiResponse(
+        success: false,
+        message: errorMessage,
+        data: ipcResponse['data'],
+        error: errorCode ?? errorMessage,
+      );
+    }
+  }
+
   /// 获取连接器配置Schema
   Future<ConnectorApiResponse> getConfigSchema(String connectorId) async {
     try {
       final responseData = await _ipcApi.get('/connector-config/schema/$connectorId');
-      return ConnectorApiResponse.fromJson(responseData);
+      return _convertIpcToApiResponse(responseData, '获取配置Schema成功');
     } catch (e) {
       return ConnectorApiResponse(
         success: false,
@@ -26,7 +53,7 @@ class ConnectorConfigApiClient {
   Future<ConnectorApiResponse> getCurrentConfig(String connectorId) async {
     try {
       final responseData = await _ipcApi.get('/connector-config/current/$connectorId');
-      return ConnectorApiResponse.fromJson(responseData);
+      return _convertIpcToApiResponse(responseData, '获取当前配置成功');
     } catch (e) {
       return ConnectorApiResponse(
         success: false,
@@ -49,7 +76,7 @@ class ConnectorConfigApiClient {
           'config': config,
         },
       );
-      return ConnectorApiResponse.fromJson(responseData);
+      return _convertIpcToApiResponse(responseData, '验证配置成功');
     } catch (e) {
       return ConnectorApiResponse(
         success: false,
@@ -76,7 +103,7 @@ class ConnectorConfigApiClient {
           'change_reason': changeReason,
         },
       );
-      return ConnectorApiResponse.fromJson(responseData);
+      return _convertIpcToApiResponse(responseData, '更新配置成功');
     } catch (e) {
       return ConnectorApiResponse(
         success: false,
@@ -99,7 +126,7 @@ class ConnectorConfigApiClient {
           'to_defaults': toDefaults,
         },
       );
-      return ConnectorApiResponse.fromJson(responseData);
+      return _convertIpcToApiResponse(responseData, '重置配置成功');
     } catch (e) {
       return ConnectorApiResponse(
         success: false,
@@ -123,7 +150,7 @@ class ConnectorConfigApiClient {
           'offset': offset,
         },
       );
-      return ConnectorApiResponse.fromJson(responseData);
+      return _convertIpcToApiResponse(responseData, '获取配置历史成功');
     } catch (e) {
       return ConnectorApiResponse(
         success: false,
@@ -137,7 +164,7 @@ class ConnectorConfigApiClient {
   Future<ConnectorApiResponse> getAllSchemas() async {
     try {
       final responseData = await _ipcApi.get('/connector-config/all-schemas');
-      return ConnectorApiResponse.fromJson(responseData);
+      return _convertIpcToApiResponse(responseData, '获取所有Schema成功');
     } catch (e) {
       return ConnectorApiResponse(
         success: false,
@@ -162,7 +189,7 @@ class ConnectorConfigApiClient {
           'widget_config': widgetConfig,
         },
       );
-      return ConnectorApiResponse.fromJson(responseData);
+      return _convertIpcToApiResponse(responseData, '注册自定义组件成功');
     } catch (e) {
       return ConnectorApiResponse(
         success: false,
@@ -181,7 +208,7 @@ class ConnectorConfigApiClient {
       final responseData = await _ipcApi.get(
         '/connector-ui/custom-widget/$connectorId/$widgetName',
       );
-      return ConnectorApiResponse.fromJson(responseData);
+      return _convertIpcToApiResponse(responseData, '获取自定义组件配置成功');
     } catch (e) {
       return ConnectorApiResponse(
         success: false,
@@ -206,7 +233,7 @@ class ConnectorConfigApiClient {
           'config_data': configData,
         },
       );
-      return ConnectorApiResponse.fromJson(responseData);
+      return _convertIpcToApiResponse(responseData, '验证自定义组件配置成功');
     } catch (e) {
       return ConnectorApiResponse(
         success: false,
@@ -222,7 +249,7 @@ class ConnectorConfigApiClient {
       final responseData = await _ipcApi.get(
         '/connector-ui/available-widgets/$connectorId',
       );
-      return ConnectorApiResponse.fromJson(responseData);
+      return _convertIpcToApiResponse(responseData, '获取可用组件成功');
     } catch (e) {
       return ConnectorApiResponse(
         success: false,
@@ -249,7 +276,7 @@ class ConnectorConfigApiClient {
           'action_params': actionParams,
         },
       );
-      return ConnectorApiResponse.fromJson(responseData);
+      return _convertIpcToApiResponse(responseData, '执行组件动作成功');
     } catch (e) {
       return ConnectorApiResponse(
         success: false,

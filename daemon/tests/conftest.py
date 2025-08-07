@@ -138,30 +138,7 @@ def mock_process_manager():
     return manager
 
 
-@pytest.fixture
-def client(mock_config_manager, mock_database_service, mock_connector_manager):
-    """创建测试客户端"""
-    from fastapi.testclient import TestClient
 
-    # 设置环境变量以跳过真实的数据库和服务初始化
-    os.environ["TESTING"] = "true"
-
-    # 模拟依赖注入
-    with patch(
-        "services.database_service.get_database_service",
-        return_value=mock_database_service,
-    ):
-        with patch(
-            "services.connectors.connector_manager.get_connector_manager",
-            return_value=mock_connector_manager,
-        ):
-            from api.main import app
-
-            client = TestClient(app)
-            yield client
-
-    # 清理环境变量
-    os.environ.pop("TESTING", None)
 
 
 @pytest.fixture

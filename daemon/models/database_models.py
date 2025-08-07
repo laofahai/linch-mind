@@ -1,234 +1,290 @@
-from datetime import datetime, timezone
+"""
+数据库模型 - 使用清晰的连接器状态设计
+分离基本状态(enabled)和运行状态(running_state)
+"""
 
-from sqlalchemy import (JSON, Boolean, Column, DateTime, Float, ForeignKey, Integer,
-                        String, Text)
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, Text, JSON, ForeignKey
 from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
+from datetime import datetime, timezone
+from typing import Optional, Dict, Any
+from enum import Enum
+
+from .connector_status import ConnectorRunningState
 
 Base = declarative_base()
 
 
 class Connector(Base):
-    """连接器表 - 匹配UI模型的完整版本"""
-
+    """
+    连接器模型 - 使用清晰的状态设计
+    
+    状态字段说明：
+    - enabled: 是否启用（基本状态），决定是否自动启动
+    - status: 运行状态字符串，对应 ConnectorRunningState 枚举
+    - 移除 auto_start 字段，简化逻辑
+    """
     __tablename__ = "connectors"
-
+    
     # 基本信息
-    connector_id = Column(String, primary_key=True)  # filesystem, clipboard等
-    name = Column(String, nullable=False)  # 显示名称 (display_name)
-    description = Column(Text)
-    config = Column(JSON)  # 连接器配置，包含entry_point等信息
-
-    # 配置管理 - 新增字段
-    config_schema = Column(JSON)  # 连接器配置的JSON Schema定义
-    config_version = Column(String, default="1.0.0")  # 配置版本号
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    connector_id = Column(String(255), unique=True, nullable=False, index=True)
+    name = Column(String(255), nullable=False)  # display_name
+    description = Column(Text, nullable=True)
+    
+    # 状态管理 - 新设计
+    enabled = Column(Boolean, default=True, nullable=False)  # 是否启用（基本状态）
+    status = Column(String(50), default="stopped", nullable=False)  # 运行状态
+    
+    # 进程信息
+    process_id = Column(Integer, nullable=True)
+    last_heartbeat = Column(DateTime(timezone=True), nullable=True)
+    
+    # 统计信息
+    data_count = Column(Integer, default=0, nullable=False)
+    last_activity = Column(String(500), nullable=True)
+    
+    # 错误信息
+    error_message = Column(Text, nullable=True)
+    error_code = Column(String(100), nullable=True)
+    
+    # 配置和元数据
+    config_data = Column(JSON, nullable=True)
+    config_schema = Column(JSON, nullable=True)  # 配置Schema
+    config_version = Column(String(50), nullable=True)  # 配置版本
     config_valid = Column(Boolean, default=True)  # 配置是否有效
-    config_validation_errors = Column(JSON)  # 配置验证错误信息
-
-    # 运行状态 - 匹配UI ConnectorState枚举
-    status = Column(
-        String, nullable=False, default="configured"
-    )  # configured, running, error, stopping
-    enabled = Column(Boolean, nullable=False, default=True)  # 是否启用
-    auto_start = Column(Boolean, nullable=False, default=True)  # 是否自动启动
-    process_id = Column(Integer)  # 连接器进程ID
-
-    # 错误和监控信息
-    error_message = Column(Text)  # 错误信息
-    last_heartbeat = Column(DateTime)  # 最后心跳时间
-    data_count = Column(Integer, default=0)  # 数据量统计
-
+    config_validation_errors = Column(JSON, nullable=True)  # 验证错误信息
+    connector_metadata = Column(JSON, nullable=True)
+    
     # 时间戳
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
-    updated_at = Column(
-        DateTime,
-        default=lambda: datetime.now(timezone.utc),
-        onupdate=lambda: datetime.now(timezone.utc),
-    )
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+    last_run_at = Column(DateTime(timezone=True), nullable=True)
+    
+    @property
+    def running_state(self) -> ConnectorRunningState:
+        """获取运行状态枚举"""
+        return ConnectorRunningState.from_string(self.status)
+    
+    @running_state.setter
+    def running_state(self, state: ConnectorRunningState):
+        """设置运行状态枚举"""
+        if isinstance(state, ConnectorRunningState):
+            self.status = state.value
+        else:
+            self.status = str(state)
+    
+    @property
+    def is_installed(self) -> bool:
+        """虚拟字段：是否已安装（数据库中存在即为已安装）"""
+        return True
+    
+    @property
+    def is_healthy(self) -> bool:
+        """是否健康"""
+        return self.enabled and self.status == "running"
+    
+    @property
+    def should_be_running(self) -> bool:
+        """是否应该运行"""
+        return self.enabled
+    
+    def to_dict(self) -> Dict[str, Any]:
+        """转换为字典 - 用于API响应"""
+        return {
+            "id": self.id,
+            "connector_id": self.connector_id,
+            "display_name": self.name,
+            "description": self.description,
+            "enabled": self.enabled,
+            "running_state": self.status,
+            "is_installed": self.is_installed,
+            "is_healthy": self.is_healthy,
+            "should_be_running": self.should_be_running,
+            "process_id": self.process_id,
+            "last_heartbeat": self.last_heartbeat.isoformat() if self.last_heartbeat else None,
+            "data_count": self.data_count,
+            "last_activity": self.last_activity,
+            "error_message": self.error_message,
+            "error_code": self.error_code,
+            "config_data": self.config_data,
+            "connector_metadata": self.connector_metadata,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
+            "last_run_at": self.last_run_at.isoformat() if self.last_run_at else None,
+        }
+    
+    def set_error(self, message: str, code: Optional[str] = None):
+        """设置错误状态"""
+        self.status = "error"
+        self.error_message = message
+        self.error_code = code
+        self.updated_at = datetime.now(timezone.utc)
+    
+    def clear_error(self):
+        """清除错误状态"""
+        if self.status == "error":
+            self.status = "stopped"
+        self.error_message = None
+        self.error_code = None
+        self.updated_at = datetime.now(timezone.utc)
+    
+    def update_heartbeat(self, process_id: Optional[int] = None):
+        """更新心跳信息"""
+        self.last_heartbeat = datetime.now(timezone.utc)
+        if process_id:
+            self.process_id = process_id
+        # 如果是启动中状态，心跳后变为运行状态
+        if self.status == "starting":
+            self.status = "running"
+        self.updated_at = datetime.now(timezone.utc)
+    
+    def __repr__(self) -> str:
+        return f"<Connector(id={self.id}, connector_id='{self.connector_id}', enabled={self.enabled}, status='{self.status}')>"
 
+
+class ConnectorLog(Base):
+    """连接器日志记录"""
+    __tablename__ = "connector_logs"
+    
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    connector_id = Column(String(255), ForeignKey("connectors.connector_id"), nullable=False)
+    level = Column(String(20), nullable=False)  # INFO, WARNING, ERROR
+    message = Column(Text, nullable=False)
+    details = Column(JSON, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    
     # 关系
-    config_history = relationship(
-        "ConnectorConfigHistory",
-        back_populates="connector",
-        cascade="all, delete-orphan",
-    )
+    connector = relationship("Connector", backref="logs")
+    
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "id": self.id,
+            "connector_id": self.connector_id,
+            "level": self.level,
+            "message": self.message,
+            "details": self.details,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+        }
 
 
-# ConnectorInstance表已删除 - 不再使用instance概念
+class ConnectorStats(Base):
+    """连接器统计信息（按天聚合）"""
+    __tablename__ = "connector_stats"
+    
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    connector_id = Column(String(255), ForeignKey("connectors.connector_id"), nullable=False)
+    date = Column(DateTime(timezone=True), nullable=False)
+    
+    # 统计指标
+    uptime_seconds = Column(Integer, default=0)  # 运行时间（秒）
+    data_processed = Column(Integer, default=0)  # 处理的数据条数
+    errors_count = Column(Integer, default=0)    # 错误次数
+    restarts_count = Column(Integer, default=0)  # 重启次数
+    
+    # 时间戳
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+    
+    # 关系
+    connector = relationship("Connector", backref="stats")
+    
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "id": self.id,
+            "connector_id": self.connector_id,
+            "date": self.date.isoformat() if self.date else None,
+            "uptime_seconds": self.uptime_seconds,
+            "data_processed": self.data_processed,
+            "errors_count": self.errors_count,
+            "restarts_count": self.restarts_count,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
+        }
 
 
 class ConnectorConfigHistory(Base):
-    """连接器配置历史表 - 追踪配置变更"""
-
+    """
+    连接器配置历史记录模型
+    
+    记录配置的变更历史，用于审计和回滚
+    """
     __tablename__ = "connector_config_history"
-
-    # 主键
+    
+    # 基本信息
     id = Column(Integer, primary_key=True, autoincrement=True)
-
-    # 关联连接器
-    connector_id = Column(String, ForeignKey("connectors.connector_id"), nullable=False)
-
+    
     # 配置信息
-    config_data = Column(JSON, nullable=False)  # 配置内容快照
-    config_version = Column(String, nullable=False)  # 配置版本
-    schema_version = Column(String)  # Schema版本
-
+    config_data = Column(JSON, nullable=True)
+    config_version = Column(String(50), nullable=True)
+    schema_version = Column(String(50), nullable=True)
+    
     # 变更信息
-    change_type = Column(String, nullable=False)  # create, update, delete, validate
-    change_description = Column(Text)  # 变更描述
-    changed_by = Column(String)  # 变更者(系统/用户)
-
+    change_type = Column(String(50), nullable=False)  # create, update, delete, reset
+    change_description = Column(Text, nullable=True)
+    changed_by = Column(String(255), nullable=True)
+    
     # 验证信息
-    validation_status = Column(
-        String, nullable=False, default="valid"
-    )  # valid, invalid, warning
-    validation_errors = Column(JSON)  # 验证错误详细信息
-
+    validation_status = Column(String(50), nullable=True)  # valid, invalid
+    validation_errors = Column(JSON, nullable=True)
+    
     # 时间戳
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
-
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    
+    # 外键和关系
+    connector_id = Column(String(255), ForeignKey("connectors.connector_id"), nullable=False, index=True)
+    
     # 关系
-    connector = relationship("Connector", back_populates="config_history")
+    connector = relationship("Connector", backref="config_history", foreign_keys=[connector_id])
+    
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "id": self.id,
+            "connector_id": self.connector_id,
+            "config_data": self.config_data,
+            "config_version": self.config_version,
+            "schema_version": self.schema_version,
+            "change_type": self.change_type,
+            "change_description": self.change_description,
+            "changed_by": self.changed_by,
+            "validation_status": self.validation_status,
+            "validation_errors": self.validation_errors,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+        }
 
 
-class ConnectorConfigTemplate(Base):
-    """连接器配置模板表 - 用于快速创建配置"""
+# 工厂函数
 
-    __tablename__ = "connector_config_templates"
-
-    # 主键
-    id = Column(Integer, primary_key=True, autoincrement=True)
-
-    # 模板信息
-    name = Column(String, nullable=False)  # 模板名称
-    description = Column(Text)  # 模板描述
-    # 移除connector_type字段，不再依赖类型
-
-    # 模板内容
-    config_template = Column(JSON, nullable=False)  # 配置模板
-    config_schema = Column(JSON, nullable=False)  # Schema定义
-
-    # 分类和标签
-    category = Column(String)  # 模板分类
-    tags = Column(JSON)  # 标签列表
-
-    # 使用统计
-    usage_count = Column(Integer, default=0)  # 使用次数
-
-    # 状态
-    enabled = Column(Boolean, default=True)  # 是否启用
-
-    # 时间戳
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
-    updated_at = Column(
-        DateTime,
-        default=lambda: datetime.now(timezone.utc),
-        onupdate=lambda: datetime.now(timezone.utc),
+def create_new_connector(
+    connector_id: str, 
+    name: str, 
+    description: Optional[str] = None,
+    config_data: Optional[Dict[str, Any]] = None
+) -> Connector:
+    """创建新连接器实例"""
+    return Connector(
+        connector_id=connector_id,
+        name=name,
+        description=description,
+        enabled=True,  # 新连接器默认启用
+        status="stopped",  # 初始状态为停止
+        config_data=config_data or {},
+        connector_metadata={}
     )
 
-
-class EntityMetadata(Base):
-    """实体元数据表 - 知识图谱核心"""
-
-    __tablename__ = "entity_metadata"
-
-    id = Column(String, primary_key=True)
-    entity_type = Column(String, nullable=False, index=True)
-    name = Column(String, nullable=False)
-    description = Column(Text)
-    source_path = Column(String)  # 来源文件路径
-    entity_metadata = Column(JSON)  # 扩展属性
-    embedding_id = Column(String)  # 对应向量ID
-
-    # 时间戳
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
-    updated_at = Column(
-        DateTime,
-        default=lambda: datetime.now(timezone.utc),
-        onupdate=lambda: datetime.now(timezone.utc),
+def create_disabled_connector(
+    connector_id: str, 
+    name: str, 
+    description: Optional[str] = None
+) -> Connector:
+    """创建禁用连接器实例"""
+    return Connector(
+        connector_id=connector_id,
+        name=name,
+        description=description,
+        enabled=False,  # 禁用状态
+        status="stopped",
+        config_data={},
+        connector_metadata={}
     )
-    last_accessed = Column(DateTime)
-
-    # 统计信息
-    access_count = Column(Integer, default=0)
-    relevance_score = Column(Float, default=0.0)
-
-    def __repr__(self):
-        return f"<EntityMetadata(id='{self.id}', name='{self.name}', type='{self.entity_type}')>"
-
-
-class UserBehavior(Base):
-    """用户行为追踪表 - 推荐算法基础"""
-
-    __tablename__ = "user_behaviors"
-
-    id = Column(Integer, primary_key=True)
-    session_id = Column(String, nullable=False, index=True)
-    action_type = Column(String, nullable=False)  # search, view, click, create
-    target_entity = Column(String, index=True)
-    context_data = Column(JSON)  # 上下文信息
-
-    # 行为特征
-    duration_ms = Column(Integer)
-    scroll_depth = Column(Float)
-    interaction_strength = Column(Float)
-
-    # 时间信息
-    timestamp = Column(DateTime, default=lambda: datetime.now(timezone.utc), index=True)
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
-
-    def __repr__(self):
-        return f"<UserBehavior(id={self.id}, action='{self.action_type}', target='{self.target_entity}')>"
-
-
-class EntityRelationship(Base):
-    """实体关系表 - 知识图谱边"""
-
-    __tablename__ = "entity_relationships"
-
-    id = Column(Integer, primary_key=True)
-    source_entity = Column(String, nullable=False, index=True)
-    target_entity = Column(String, nullable=False, index=True)
-    relationship_type = Column(String, nullable=False)
-
-    # 关系属性
-    strength = Column(Float, default=1.0)
-    confidence = Column(Float, default=1.0)
-    relationship_data = Column(JSON)
-
-    # 时间信息
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
-    updated_at = Column(
-        DateTime,
-        default=lambda: datetime.now(timezone.utc),
-        onupdate=lambda: datetime.now(timezone.utc),
-    )
-
-    def __repr__(self):
-        return f"<EntityRelationship(id={self.id}, {self.source_entity} -> {self.target_entity})>"
-
-
-class AIConversation(Base):
-    """AI对话历史表 - 极高敏感数据"""
-
-    __tablename__ = "ai_conversations"
-
-    id = Column(Integer, primary_key=True)
-    session_id = Column(String, nullable=False, index=True)
-
-    # 对话内容
-    user_message = Column(Text, nullable=False)
-    ai_response = Column(Text, nullable=False)
-    context_entities = Column(JSON)  # 相关实体
-
-    # 对话特征
-    message_type = Column(String)  # question, command, chat
-    satisfaction_rating = Column(Integer)  # 用户反馈
-    processing_time_ms = Column(Integer)
-
-    # 时间信息
-    timestamp = Column(DateTime, default=lambda: datetime.now(timezone.utc), index=True)
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
-
-    def __repr__(self):
-        return f"<AIConversation(id={self.id}, session='{self.session_id}', type='{self.message_type}')>"

@@ -11,11 +11,13 @@ namespace linch_connector {
  */
 class IPCClient {
 public:
-    struct Response {
-        int statusCode = 0;
-        std::string body;
+    struct IPCResponse {
+        bool success = false;
+        std::string body;           // JSON格式的data或error
+        std::string error_code;     // 从error.code提取
+        std::string error_message;  // 从error.message提取
         
-        bool isSuccess() const { return statusCode >= 200 && statusCode < 300; }
+        bool isSuccess() const { return success; }
     };
 
     IPCClient();
@@ -36,19 +38,19 @@ public:
     bool connectNamedPipe(const std::string& pipe_name);
 
     /**
-     * 发送GET请求
+     * 发送查询消息
      * @param path API路径
      * @return 响应
      */
-    Response get(const std::string& path);
+    IPCResponse get(const std::string& path);
 
     /**
-     * 发送POST请求
+     * 发送数据消息
      * @param path API路径
      * @param jsonData JSON数据
      * @return 响应
      */
-    Response post(const std::string& path, const std::string& jsonData);
+    IPCResponse post(const std::string& path, const std::string& jsonData);
 
     /**
      * 设置请求头

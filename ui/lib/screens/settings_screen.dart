@@ -251,7 +251,7 @@ class SettingsScreen extends ConsumerWidget {
               _buildInfoRow('状态', daemonState.isRunning ? '运行中' : '未运行'),
 
               if (daemonState.daemonInfo != null) ...[
-                _buildInfoRow('地址', daemonState.daemonInfo!.baseUrl),
+                _buildInfoRow('通信路径', daemonState.daemonInfo!.socketPath),
                 _buildInfoRow('进程ID', daemonState.daemonInfo!.pid.toString()),
               ],
 

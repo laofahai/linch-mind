@@ -35,8 +35,7 @@ public:
             daemonInfo = daemonOpt.value();
             if (client->connect(daemonInfo)) {
                 daemonConnected = true;
-                std::cout << "[ConfigManager] 已连接到daemon (" 
-                         << client->getConnectionMode() << ")" << std::endl;
+                std::cout << "[ConfigManager] 已连接到daemon (IPC)" << std::endl;
                 return true;
             } else {
                 std::cerr << "[ConfigManager] 连接daemon失败" << std::endl;
@@ -50,11 +49,11 @@ public:
     }
 };
 
-ConfigManager::ConfigManager(const std::string& daemonUrl, const std::string& connectorId)
-    : m_daemonUrl(daemonUrl)
-    , m_connectorId(connectorId)
-    , pImpl(std::make_unique<Impl>())
-    , m_configLoaded(false) {
+ConfigManager::ConfigManager(const std::string& connectorId, const std::string& daemonUrl)
+    : pImpl(std::make_unique<Impl>()),
+      m_daemonUrl(daemonUrl), 
+      m_connectorId(connectorId),
+      m_configLoaded(false) {
 }
 
 ConfigManager::~ConfigManager() {
@@ -63,18 +62,15 @@ ConfigManager::~ConfigManager() {
 
 bool ConfigManager::loadFromDaemon() {
     try {
-        // 连接到daemon
         if (!pImpl->connectToDaemon()) {
-            std::cerr << "❌ Failed to connect to daemon for configuration" << std::endl;
+            std::cerr << "[ConfigManager] 无法连接到daemon" << std::endl;
             return false;
         }
-        
-        pImpl->client->setTimeout(30);
         
         std::string path = "/connector-config/current/" + m_connectorId;
         auto response = pImpl->client->get(path);
         
-        if (response.statusCode >= 200 && response.statusCode < 300) {
+        if (response.isSuccess()) {
             std::cout << "[ConfigManager] 配置加载响应: " << response.body.substr(0, 200) << "..." << std::endl;
             
             json configJson = json::parse(response.body);
@@ -106,13 +102,11 @@ bool ConfigManager::loadFromDaemon() {
             m_configLoaded = true;
             m_lastConfigLoad = std::chrono::steady_clock::now();
             
-            std::cout << "✅ Configuration loaded from daemon (" 
-                     << pImpl->client->getConnectionMode() << "): " 
-                     << m_config.size() << " items" << std::endl;
+            std::cout << "✅ Configuration loaded from daemon: " << m_config.size() << " items" << std::endl;
             return true;
         } else {
-            std::cerr << "❌ Failed to load configuration: Status " << response.statusCode 
-                     << ", Response: " << response.body.substr(0, 200) << std::endl;
+            std::cerr << "❌ Failed to load configuration: " << response.error_message 
+                      << " (code: " << response.error_code << ")" << std::endl;
             return false;
         }
     } catch (const std::exception& e) {
@@ -123,15 +117,17 @@ bool ConfigManager::loadFromDaemon() {
 
 void ConfigManager::startConfigMonitoring(int check_interval_seconds) {
     if (pImpl->monitoring.load()) {
-        return; // 已经在监控中
+        return;
     }
     
-    pImpl->monitoring.store(true);
-    pImpl->monitorThread = std::thread(&ConfigManager::configMonitorLoop, this, check_interval_seconds);
+    pImpl->monitoring = true;
+    pImpl->monitorThread = std::thread([this, check_interval_seconds]() {
+        configMonitorLoop(check_interval_seconds);
+    });
 }
 
 void ConfigManager::stopConfigMonitoring() {
-    pImpl->monitoring.store(false);
+    pImpl->monitoring = false;
     if (pImpl->monitorThread.joinable()) {
         pImpl->monitorThread.join();
     }
@@ -141,47 +137,49 @@ void ConfigManager::configMonitorLoop(int check_interval_seconds) {
     while (pImpl->monitoring.load()) {
         std::this_thread::sleep_for(std::chrono::seconds(check_interval_seconds));
         
-        if (pImpl->monitoring.load()) {
-            loadFromDaemon();
+        if (!pImpl->monitoring.load()) {
+            break;
         }
+        
+        loadFromDaemon();
     }
 }
 
 double ConfigManager::getCheckInterval() const {
-    std::string value = getConfigValue("check_interval", "1.0");
+    std::string value = getConfigValue("check_interval", "5");
     try {
         return std::stod(value);
     } catch (...) {
-        return 1.0;
+        return 5.0;
     }
 }
 
 int ConfigManager::getMinContentLength() const {
-    std::string value = getConfigValue("min_content_length", "5");
+    std::string value = getConfigValue("content_filters.min_length", "10");
     try {
         return std::stoi(value);
     } catch (...) {
-        return 5;
+        return 10;
     }
 }
 
 int ConfigManager::getMaxContentLength() const {
-    std::string value = getConfigValue("max_content_length", "50000");
+    std::string value = getConfigValue("content_filters.max_length", "10000");
     try {
         return std::stoi(value);
     } catch (...) {
-        return 50000;
+        return 10000;
     }
 }
 
 bool ConfigManager::getFilterUrls() const {
-    std::string value = getConfigValue("content_filters.filter_urls", "false");
-    return value == "true";
+    std::string value = getConfigValue("content_filters.filter_urls", "true");
+    return value == "true" || value == "1";
 }
 
 bool ConfigManager::getFilterSensitive() const {
     std::string value = getConfigValue("content_filters.filter_sensitive", "true");
-    return value == "true";
+    return value == "true" || value == "1";
 }
 
 std::string ConfigManager::getConfigValue(const std::string& key, const std::string& defaultValue) const {

@@ -59,13 +59,13 @@ class ConnectorConfigService:
                     schema_data = {
                         "schema": connector.config_schema,
                         "ui_schema": (
-                            connector.config.get("ui_schema", {})
-                            if connector.config
+                            connector.config_data.get("ui_schema", {})
+                            if connector.config_data
                             else {}
                         ),
                         "default_values": (
-                            connector.config.get("default_values", {})
-                            if connector.config
+                            connector.config_data.get("default_values", {})
+                            if connector.config_data
                             else {}
                         ),
                         "version": connector.config_version or "1.0.0",
@@ -126,7 +126,7 @@ class ConnectorConfigService:
                     return None
 
                 return {
-                    "current_config": connector.config or {},
+                    "current_config": connector.config_data or {},
                     "config_schema": connector.config_schema or {},
                     "config_version": connector.config_version or "1.0.0",
                     "config_valid": connector.config_valid,
@@ -193,10 +193,10 @@ class ConnectorConfigService:
                 validation_result = await self.validate_config(connector_id, new_config)
 
                 # 保存旧配置用于历史记录
-                old_config = connector.config or {}
+                old_config = connector.config_data or {}
 
                 # 更新配置
-                connector.config = new_config
+                connector.config_data = new_config
                 connector.config_version = config_version
                 connector.config_valid = validation_result["valid"]
                 connector.config_validation_errors = (
@@ -514,10 +514,10 @@ class ConnectorConfigService:
                     connector.config_schema = schema_data["schema"]
 
                     # 更新配置字段，合并默认值和UI schema
-                    if not connector.config:
-                        connector.config = {}
+                    if not connector.config_data:
+                        connector.config_data = {}
 
-                    connector.config.update(
+                    connector.config_data.update(
                         {
                             "ui_schema": schema_data["ui_schema"],
                             "default_values": schema_data["default_values"],

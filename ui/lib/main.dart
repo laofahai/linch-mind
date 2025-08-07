@@ -9,9 +9,15 @@ import 'screens/settings_screen.dart';
 import 'providers/app_providers.dart';
 import 'widgets/unified_app_bar.dart';
 import 'widgets/responsive_navigation.dart';
+import 'widgets/error_monitor_widget.dart';
+import 'utils/app_logger.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  
+  // 初始化日志系统
+  AppLogger.setDebugMode(kDebugMode);
+  AppLogger.info('应用启动', module: 'Main');
 
   // 只在桌面端配置窗口管理
   if (defaultTargetPlatform == TargetPlatform.macOS ||
@@ -23,22 +29,29 @@ void main() async {
     WindowOptions windowOptions = const WindowOptions(
       size: Size(1200, 800),
       center: true,
-      backgroundColor: Colors.transparent,
+      backgroundColor: Colors.transparent, // 使用透明背景减少闪烁
       skipTaskbar: false,
-      titleBarStyle: TitleBarStyle.hidden,
+      titleBarStyle: TitleBarStyle.hidden, // 保持隐藏标题栏
+      minimumSize: Size(800, 600),
+      alwaysOnTop: false,
+      fullScreen: false,
     );
 
     windowManager.waitUntilReadyToShow(windowOptions, () async {
+      // 优化窗口配置顺序，减少闪烁
+      if (defaultTargetPlatform == TargetPlatform.macOS) {
+        // 一次性配置所有属性，减少重绘次数
+        await Future.wait([
+          windowManager.setMovable(true),
+          windowManager.setResizable(true),
+          windowManager.setAsFrameless(),
+          windowManager.setHasShadow(true),
+        ]);
+      }
+      
+      // 最后显示窗口
       await windowManager.show();
       await windowManager.focus();
-      await windowManager.setAsFrameless();
-      await windowManager.setHasShadow(true);
-
-      // 确保支持macOS原生手势（三指拖动等）
-      if (defaultTargetPlatform == TargetPlatform.macOS) {
-        await windowManager.setMovable(true);
-        await windowManager.setResizable(true);
-      }
     });
   }
 
@@ -61,7 +74,9 @@ class LinchMindApp extends ConsumerWidget {
       theme: _buildLightTheme(),
       darkTheme: _buildDarkTheme(),
       themeMode: themeMode,
-      home: const AppInitializationWrapper(),
+      home: const ErrorMonitorWidget(
+        child: AppInitializationWrapper(),
+      ),
     );
   }
 

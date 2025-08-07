@@ -1,8 +1,21 @@
 import 'ipc_client.dart';
+import '../models/ipc_protocol.dart';
 
 /// IPC API适配器，提供HTTP风格的接口
 /// 将原有的HTTP API调用转换为IPC调用
 class IPCApiAdapter {
+  
+  /// 适配IPC响应数据为Map格式
+  Map<String, dynamic> _adaptResponseData(dynamic data) {
+    if (data is Map<String, dynamic>) {
+      return data;
+    } else if (data is List) {
+      // 如果是List，包装成Map返回
+      return {'data': data};
+    } else {
+      return data != null ? {'data': data} : {};
+    }
+  }
   final IPCClient _ipcClient = IPCService.instance;
   bool _isInitialized = false;
 
@@ -11,8 +24,11 @@ class IPCApiAdapter {
     if (_isInitialized) return;
     
     final connected = await _ipcClient.connect();
+    print('[DEBUG] IPC连接结果: connected=$connected');
+    
     if (!connected) {
-      throw Exception('无法连接到daemon IPC服务');
+      print('[ERROR] IPC连接失败，无法继续');
+      throw Exception('无法连接到daemon IPC服务，请确保daemon正在运行');
     }
     
     _isInitialized = true;
@@ -30,31 +46,32 @@ class IPCApiAdapter {
     
     final response = await _ipcClient.get(path, queryParams: queryParameters);
     
-    if (response.statusCode >= 400) {
-      throw IPCApiException('GET $path 失败: ${response.data}');
-    }
-    
-    return response.data;
+    // 返回标准化的响应格式，包含success字段
+    return {
+      'success': response.success,
+      'data': response.success ? _adaptResponseData(response.data) : null,
+      'error': response.success ? null : {
+        'message': response.error?.message ?? 'Unknown error',
+        'code': response.error?.code.toString() ?? 'unknown',
+      },
+    };
   }
 
   /// POST请求
   Future<Map<String, dynamic>> post(String path, {Map<String, dynamic>? data, Map<String, dynamic>? queryParameters}) async {
     await _ensureInitialized();
     
-    final message = IPCMessage(
-      method: 'POST',
-      path: path,
-      data: data ?? {},
-      queryParams: queryParameters ?? {},
-    );
+    final response = await _ipcClient.post(path, data: data);
     
-    final response = await _ipcClient.sendRequest(message);
-    
-    if (response.statusCode >= 400) {
-      throw IPCApiException('POST $path 失败: ${response.data}');
-    }
-    
-    return response.data;
+    // 返回标准化的响应格式，包含success字段
+    return {
+      'success': response.success,
+      'data': response.success ? _adaptResponseData(response.data) : null,
+      'error': response.success ? null : {
+        'message': response.error?.message ?? 'Unknown error',
+        'code': response.error?.code.toString() ?? 'unknown',
+      },
+    };
   }
 
   /// PUT请求
@@ -63,30 +80,38 @@ class IPCApiAdapter {
     
     final response = await _ipcClient.put(path, data: data);
     
-    if (response.statusCode >= 400) {
-      throw IPCApiException('PUT $path 失败: ${response.data}');
-    }
-    
-    return response.data;
+    // 返回标准化的响应格式，包含success字段
+    return {
+      'success': response.success,
+      'data': response.success ? _adaptResponseData(response.data) : null,
+      'error': response.success ? null : {
+        'message': response.error?.message ?? 'Unknown error',
+        'code': response.error?.code.toString() ?? 'unknown',
+      },
+    };
   }
 
   /// DELETE请求
   Future<Map<String, dynamic>> delete(String path, {Map<String, dynamic>? queryParameters}) async {
     await _ensureInitialized();
     
-    final message = IPCMessage(
+    final request = IPCRequest(
       method: 'DELETE',
       path: path,
       queryParams: queryParameters ?? {},
     );
     
-    final response = await _ipcClient.sendRequest(message);
+    final response = await _ipcClient.sendRequest(request);
     
-    if (response.statusCode >= 400) {
-      throw IPCApiException('DELETE $path 失败: ${response.data}');
-    }
-    
-    return response.data;
+    // 返回标准化的响应格式，包含success字段
+    return {
+      'success': response.success,
+      'data': response.success ? _adaptResponseData(response.data) : null,
+      'error': response.success ? null : {
+        'message': response.error?.message ?? 'Unknown error',
+        'code': response.error?.code.toString() ?? 'unknown',
+      },
+    };
   }
 }
 

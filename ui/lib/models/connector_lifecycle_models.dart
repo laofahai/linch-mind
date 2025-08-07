@@ -48,7 +48,7 @@ class ConnectorDefinition with _$ConnectorDefinition {
     @JsonKey(name: 'config_schema')
     @Default({})
     Map<String, dynamic> configSchema,
-    @JsonKey(name: 'default_config')
+    @JsonKey(name: 'config_default_values')
     @Default({})
     Map<String, dynamic> defaultConfig,
     // 添加path字段来直接处理路径信息
@@ -87,7 +87,7 @@ class ConnectorInfo with _$ConnectorInfo {
     @JsonKey(name: 'display_name') required String displayName,
     required ConnectorState state,
     @Default(true) bool enabled,
-    @JsonKey(name: 'auto_start') @Default(true) bool autoStart,
+    // 移除 auto_start 字段，因为数据库模型已经简化了逻辑
     @JsonKey(name: 'process_id') int? processId,
     @JsonKey(name: 'last_heartbeat') DateTime? lastHeartbeat,
     @JsonKey(name: 'data_count') @Default(0) int dataCount,
@@ -109,7 +109,7 @@ class InstallConnectorRequest with _$InstallConnectorRequest {
     @JsonKey(name: 'source') @Default('registry') String source, // registry, manual, scan
     @JsonKey(name: 'display_name') String? displayName,
     @Default({}) Map<String, dynamic> config,
-    @JsonKey(name: 'auto_start') @Default(false) bool autoStart,
+    // 移除 auto_start 字段，因为数据库模型已经简化了逻辑
     String? path, // for scan source
     String? description, // for manual source
   }) = _InstallConnectorRequest;
@@ -125,7 +125,7 @@ class CreateConnectorRequest with _$CreateConnectorRequest {
     @JsonKey(name: 'connector_id') required String connectorId,
     @JsonKey(name: 'display_name') required String displayName,
     @Default({}) Map<String, dynamic> config,
-    @JsonKey(name: 'auto_start') @Default(true) bool autoStart,
+    // 移除 auto_start 字段，因为数据库模型已经简化了逻辑
     @JsonKey(name: 'template_id') String? templateId,
   }) = _CreateConnectorRequest;
 

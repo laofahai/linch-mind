@@ -1,61 +1,22 @@
 """
-纯IPC路由系统 - 完全独立于FastAPI
-支持路由注册、中间件、错误处理等功能
+纯IPC路由系统 - 使用统一的IPC协议
+完全移除HTTP概念，使用纯IPC通信标准
 """
 
 import asyncio
 import inspect
-import json
 import logging
 import re
 from typing import Any, Awaitable, Callable, Dict, List, Optional, Tuple, Union
-from dataclasses import dataclass
 from functools import wraps
+
+from .ipc_protocol import IPCRequest, IPCResponse, IPCErrorCode, invalid_request_response, internal_error_response
 
 logger = logging.getLogger(__name__)
 
 
-@dataclass
-class IPCRequest:
-    """IPC请求对象"""
-    method: str
-    path: str
-    data: Optional[Dict[str, Any]] = None
-    headers: Optional[Dict[str, str]] = None
-    query_params: Optional[Dict[str, Any]] = None
-    path_params: Optional[Dict[str, str]] = None
-    
-    def get_header(self, name: str, default: Optional[str] = None) -> Optional[str]:
-        """获取请求头"""
-        if not self.headers:
-            return default
-        return self.headers.get(name.lower(), default)
-    
-    def get_query(self, name: str, default: Any = None) -> Any:
-        """获取查询参数"""
-        if not self.query_params:
-            return default
-        return self.query_params.get(name, default)
-
-
-@dataclass 
-class IPCResponse:
-    """IPC响应对象"""
-    status_code: int = 200
-    data: Optional[Dict[str, Any]] = None
-    headers: Optional[Dict[str, str]] = None
-    
-    def to_dict(self) -> Dict[str, Any]:
-        """转换为字典格式"""
-        return {
-            'status_code': self.status_code,
-            'data': self.data or {},
-            'headers': self.headers or {}
-        }
-
-
 # 路由处理函数类型
-RouteHandler = Callable[[IPCRequest], Awaitable[Union[IPCResponse, Dict[str, Any]]]]
+RouteHandler = Callable[[IPCRequest], Awaitable[IPCResponse]]
 
 # 中间件类型
 Middleware = Callable[[IPCRequest, Callable], Awaitable[IPCResponse]]
@@ -87,21 +48,21 @@ class RoutePattern:
 
 
 class IPCRouter:
-    """纯IPC路由器"""
+    """纯IPC路由器 - 使用统一IPC协议"""
     
     def __init__(self, prefix: str = ""):
         self.prefix = prefix.rstrip('/')
         self.routes: List[Tuple[RoutePattern, RouteHandler]] = []
         self.middlewares: List[Middleware] = []
-        self.error_handlers: Dict[int, RouteHandler] = {}
+        self.error_handlers: Dict[str, RouteHandler] = {}  # 使用error_code而非status_code
         
     def add_middleware(self, middleware: Middleware):
         """添加中间件"""
         self.middlewares.append(middleware)
         
-    def add_error_handler(self, status_code: int, handler: RouteHandler):
-        """添加错误处理器"""
-        self.error_handlers[status_code] = handler
+    def add_error_handler(self, error_code: str, handler: RouteHandler):
+        """添加错误处理器 - 使用IPC错误码"""
+        self.error_handlers[error_code] = handler
     
     def route(self, path: str, methods: List[str] = None):
         """路由装饰器"""
@@ -143,9 +104,11 @@ class IPCRouter:
             # 查找匹配的路由
             handler, path_params = self._find_route(request.method, request.path)
             if not handler:
-                return IPCResponse(
-                    status_code=404,
-                    data={"error": f"Route not found: {request.method} {request.path}"}
+                return IPCResponse.error_response(
+                    IPCErrorCode.RESOURCE_NOT_FOUND,
+                    f"Route not found: {request.method} {request.path}",
+                    {"method": request.method, "path": request.path},
+                    request.request_id
                 )
             
             # 设置路径参数
@@ -155,16 +118,18 @@ class IPCRouter:
             response = await self._apply_middlewares(request, handler)
             
             # 确保返回IPCResponse对象
-            if isinstance(response, dict):
-                response = IPCResponse(data=response)
-            elif not isinstance(response, IPCResponse):
-                response = IPCResponse(data={"result": response})
+            if not isinstance(response, IPCResponse):
+                logger.warning(f"Handler returned non-IPCResponse object: {type(response)}")
+                return IPCResponse.success_response(
+                    {"result": response},
+                    request.request_id
+                )
                 
             return response
             
         except Exception as e:
             logger.error(f"处理请求时出错: {e}", exc_info=True)
-            return await self._handle_error(500, request, str(e))
+            return await self._handle_error(IPCErrorCode.INTERNAL_ERROR.value, request, str(e))
     
     def _find_route(self, method: str, path: str) -> Tuple[Optional[RouteHandler], Dict[str, str]]:
         """查找匹配的路由"""
@@ -187,41 +152,43 @@ class IPCRouter:
         
         return await next_middleware(0)
     
-    async def _handle_error(self, status_code: int, request: IPCRequest, error_message: str) -> IPCResponse:
+    async def _handle_error(self, error_code: str, request: IPCRequest, error_message: str) -> IPCResponse:
         """处理错误"""
-        if status_code in self.error_handlers:
+        if error_code in self.error_handlers:
             try:
                 # 创建包含错误信息的临时请求
                 error_request = IPCRequest(
                     method=request.method,
                     path=request.path,
-                    data={"error": error_message, "status_code": status_code}
+                    data={"error": error_message, "error_code": error_code},
+                    request_id=request.request_id
                 )
-                return await self.error_handlers[status_code](error_request)
+                return await self.error_handlers[error_code](error_request)
             except Exception as e:
                 logger.error(f"错误处理器执行失败: {e}")
         
-        return IPCResponse(
-            status_code=status_code,
-            data={"error": error_message}
+        return IPCResponse.error_response(
+            error_code,
+            error_message,
+            request_id=request.request_id
         )
 
 
 class IPCApplication:
-    """IPC应用程序主类"""
+    """IPC应用程序主类 - 使用统一IPC协议"""
     
     def __init__(self):
         self.routers: List[IPCRouter] = []
         self.global_middlewares: List[Middleware] = []
-        self.global_error_handlers: Dict[int, RouteHandler] = {}
+        self.global_error_handlers: Dict[str, RouteHandler] = {}
         
     def add_middleware(self, middleware: Middleware):
         """添加全局中间件"""
         self.global_middlewares.append(middleware)
         
-    def add_error_handler(self, status_code: int, handler: RouteHandler):
+    def add_error_handler(self, error_code: str, handler: RouteHandler):
         """添加全局错误处理器"""
-        self.global_error_handlers[status_code] = handler
+        self.global_error_handlers[error_code] = handler
     
     def include_router(self, router: IPCRouter):
         """包含路由器"""
@@ -230,24 +197,28 @@ class IPCApplication:
             router.add_middleware(middleware)
         
         # 将全局错误处理器添加到路由器
-        for status_code, handler in self.global_error_handlers.items():
-            if status_code not in router.error_handlers:
-                router.add_error_handler(status_code, handler)
+        for error_code, handler in self.global_error_handlers.items():
+            if error_code not in router.error_handlers:
+                router.add_error_handler(error_code, handler)
         
         self.routers.append(router)
     
     async def handle_request(self, method: str, path: str, 
                            data: Optional[Dict[str, Any]] = None,
+                           query_params: Optional[Dict[str, Any]] = None,
                            headers: Optional[Dict[str, str]] = None,
-                           query_params: Optional[Dict[str, Any]] = None) -> IPCResponse:
+                           request_id: Optional[str] = None) -> IPCResponse:
         """处理请求"""
         request = IPCRequest(
             method=method,
             path=path,
             data=data,
-            headers=headers,
-            query_params=query_params
+            query_params=query_params,
+            request_id=request_id
         )
+        
+        # 设置头部信息以便中间件访问
+        request._headers = headers or {}
         
         # 尝试每个路由器
         for router in self.routers:
@@ -256,13 +227,17 @@ class IPCApplication:
                 continue
                 
             response = await router.handle_request(request)
-            if response.status_code != 404:
+            # 如果不是资源未找到错误，就返回响应
+            if (response.success or 
+                (response.error and response.error.code != IPCErrorCode.RESOURCE_NOT_FOUND.value)):
                 return response
         
         # 没有找到匹配的路由
-        return IPCResponse(
-            status_code=404,
-            data={"error": f"Route not found: {method} {path}"}
+        return IPCResponse.error_response(
+            IPCErrorCode.RESOURCE_NOT_FOUND,
+            f"Route not found: {method} {path}",
+            {"method": method, "path": path},
+            request_id
         )
 
 

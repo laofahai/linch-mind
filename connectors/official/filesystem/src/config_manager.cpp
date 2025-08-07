@@ -1,5 +1,4 @@
 #include "config_manager.hpp"
-#include "http_client.hpp"
 #include <nlohmann/json.hpp>
 #include <iostream>
 #include <thread>
@@ -65,7 +64,8 @@ bool ConfigManager::loadFromDaemon() {
             std::cout << "✅ Configuration loaded from daemon: " << m_config.size() << " items" << std::endl;
             return true;
         } else {
-            std::cerr << "❌ Failed to load configuration: HTTP " << response.statusCode << std::endl;
+            std::cerr << "❌ Failed to load configuration: " << response.error_message 
+                      << " (code: " << response.error_code << ")" << std::endl;
             return false;
         }
     } catch (const std::exception& e) {

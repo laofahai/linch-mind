@@ -22,7 +22,11 @@ NC='\033[0m' # No Color
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DAEMON_DIR="$PROJECT_ROOT/daemon"
 UI_DIR="$PROJECT_ROOT/ui"
-PID_FILE="$PROJECT_ROOT/.daemon.pid"
+RUNTIME_DIR="$HOME/.linch-mind"
+PID_FILE="$RUNTIME_DIR/daemon.pid"
+
+# 确保运行时目录存在
+mkdir -p "$RUNTIME_DIR"
 
 # 显示Logo
 show_logo() {
@@ -114,29 +118,42 @@ start_daemon() {
     fi
 
     cd "$DAEMON_DIR"
-    echo -e "${BLUE}📦 检查依赖...${NC}"
-    poetry install --only=main --quiet
+    # 跳过依赖检查，或使用--no-interaction避免卡住
+    # echo -e "${BLUE}📦 检查依赖...${NC}"
+    # poetry install --only=main --quiet --no-interaction
 
     echo -e "${GREEN}✅ 启动daemon服务...${NC}"
-    nohup poetry run python -m api.main > "$PROJECT_ROOT/.daemon.log" 2>&1 &
+    # 使用运行时目录的日志文件
+    nohup poetry run python ipc_main.py > "$RUNTIME_DIR/daemon.log" 2>&1 &
     
     DAEMON_PID=$!
-    echo $DAEMON_PID > "$PID_FILE"
+    # 不再由脚本创建PID文件，让daemon自己管理
+    # echo -e "${BLUE}   保存PID: $DAEMON_PID 到 $PID_FILE${NC}"
+    # echo $DAEMON_PID > "$PID_FILE"
     
+    # 等待daemon自己创建PID文件
     sleep 3
-    if kill -0 $DAEMON_PID 2>/dev/null; then
-        echo -e "${GREEN}✅ Daemon启动成功 (PID: $DAEMON_PID)${NC}"
-        # 等待IPC socket文件生成
-        for i in {1..10}; do
-            if [ -f "$HOME/.linch-mind/daemon.socket" ]; then
-                echo -e "${BLUE}   IPC: Unix Domain Socket 已就绪${NC}"
-                break
-            fi
-            sleep 1
-        done
+    
+    # 检查daemon是否成功启动（通过检查PID文件）
+    if [ -f "$PID_FILE" ]; then
+        ACTUAL_PID=$(cat "$PID_FILE")
+        if kill -0 $ACTUAL_PID 2>/dev/null; then
+            echo -e "${GREEN}✅ Daemon启动成功 (PID: $ACTUAL_PID)${NC}"
+            # 等待IPC socket文件生成
+            for i in {1..10}; do
+                if [ -f "$HOME/.linch-mind/daemon.socket" ]; then
+                    echo -e "${BLUE}   IPC: Unix Domain Socket 已就绪${NC}"
+                    break
+                fi
+                sleep 1
+            done
+        else
+            echo -e "${RED}❌ Daemon进程未运行${NC}"
+            rm -f "$PID_FILE"
+            exit 1
+        fi
     else
-        echo -e "${RED}❌ Daemon启动失败${NC}"
-        rm -f "$PID_FILE"
+        echo -e "${RED}❌ Daemon启动失败（无PID文件）${NC}"
         exit 1
     fi
 }
@@ -187,7 +204,7 @@ daemon_status() {
 
 # 查看daemon日志
 daemon_logs() {
-    LOG_FILE="$PROJECT_ROOT/.daemon.log"
+    LOG_FILE="$RUNTIME_DIR/daemon.log"
     if [ -f "$LOG_FILE" ]; then
         echo -e "${BLUE}📋 Daemon日志:${NC}"
         tail -n 50 "$LOG_FILE"

@@ -22,12 +22,12 @@ include_directories(include)
 
 # 源文件
 set(SOURCES
-    # src/http_client.cpp  # 已移除 - HTTP支持不再需要
     src/ipc_client.cpp
     src/unified_client.cpp
     src/daemon_discovery.cpp
     src/config_manager.cpp
     src/utils.cpp
+    src/connector_status.cpp
 )
 
 # 创建静态库
@@ -36,7 +36,7 @@ add_library(linch_connector_shared STATIC ${SOURCES})
 # 链接库
 target_link_libraries(linch_connector_shared
     nlohmann_json::nlohmann_json
-    # CURL::libcurl  # 已移除 - HTTP客户端不再需要
+    
 )
 
 if(WIN32)

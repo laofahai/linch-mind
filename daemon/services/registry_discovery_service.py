@@ -15,7 +15,6 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 import aiofiles
-import aiohttp
 
 logger = logging.getLogger(__name__)
 
@@ -228,13 +227,9 @@ class RegistryDiscoveryService:
             return self._get_builtin_fallback()
 
         else:
-            # HTTP(S) 请求
-            async with aiohttp.ClientSession() as session:
-                async with session.get(source.url, timeout=source.timeout) as response:
-                    if response.status == 200:
-                        return await response.json()
-                    else:
-                        raise Exception(f"HTTP {response.status}")
+            # IPC架构模式：跳过HTTP请求，使用本地源
+            logger.warning(f"IPC模式：跳过HTTP源 {source.url}，使用本地备用")
+            raise Exception("IPC模式下不支持HTTP源")
 
     async def _load_from_cache(self) -> Optional[Dict[str, Any]]:
         """从本地缓存加载"""

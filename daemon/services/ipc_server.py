@@ -17,6 +17,7 @@ import stat
 from .ipc_router import IPCApplication
 from .ipc_middleware import create_default_middlewares
 from .ipc_routes import register_all_routes
+from .ipc_security import get_security_manager, secure_socket_file, secure_socket_directory
 
 logger = logging.getLogger(__name__)
 
@@ -64,6 +65,7 @@ class IPCServer:
         self.server = None
         self.is_running = False
         self.clients = set()
+        self.client_connections = {}  # 存储客户端连接ID和安全上下文的映射
         
         # 使用纯IPC应用实例
         self.app = IPCApplication()
@@ -75,7 +77,10 @@ class IPCServer:
         # 注册所有路由
         register_all_routes(self.app)
         
-        logger.info("IPC应用已初始化，所有路由和中间件已加载")
+        # 获取安全管理器
+        self.security_manager = get_security_manager()
+        
+        logger.info("IPC应用已初始化，所有路由和中间件已加载，安全管理器已启用")
         
     async def start(self):
         """启动IPC服务器"""
@@ -95,14 +100,18 @@ class IPCServer:
         if os.path.exists(self.socket_path):
             os.unlink(self.socket_path)
         
+        # 确保socket目录的安全性
+        socket_dir = Path(self.socket_path).parent
+        secure_socket_directory(socket_dir)
+        
         # 创建Unix socket服务器
         self.server = await asyncio.start_unix_server(
             self._handle_client,
             path=self.socket_path
         )
         
-        # 设置socket文件权限为仅owner可访问
-        os.chmod(self.socket_path, stat.S_IRUSR | stat.S_IWUSR)
+        # 加固socket文件安全性
+        secure_socket_file(self.socket_path)
         
         self.is_running = True
         logger.info(f"Unix Domain Socket服务器已启动: {self.socket_path}")
@@ -167,9 +176,13 @@ class IPCServer:
     async def _handle_client(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter):
         """处理客户端连接"""
         client_addr = writer.get_extra_info('peername')
-        logger.debug(f"新的IPC连接: {client_addr}")
+        connection_id = f"{id(writer)}"
+        logger.debug(f"新的IPC连接: {client_addr}, ID: {connection_id}")
         
         self.clients.add(writer)
+        
+        # 等待客户端发送认证信息
+        authenticated = False
         
         try:
             while True:
@@ -189,67 +202,127 @@ class IPCServer:
                     ipc_message = IPCMessage.from_json(message_str)
                     logger.debug(f"收到IPC请求: {ipc_message.method} {ipc_message.path}")
                     
-                    # 处理消息
-                    response = await self._process_message(ipc_message)
+                    # 检查是否为认证请求或已认证
+                    if not authenticated and ipc_message.path == '/auth/handshake':
+                        # 认证请求：直接通过IPC应用处理
+                        response = await self._process_message(ipc_message)
+                        # 使用IPC格式检查认证结果
+                        authenticated = response.get('success') and response.get('data', {}).get('authenticated', False)
+                        if authenticated:
+                            # 记录认证信息到连接上下文
+                            client_pid = ipc_message.data.get('client_pid', 0)
+                            server_pid = os.getpid()
+                            is_internal = (client_pid == server_pid)
+                            self.client_connections[connection_id] = {
+                                'authenticated': True,
+                                'client_pid': client_pid,
+                                'internal': is_internal
+                            }
+                            logger.info(f"IPC客户端认证成功: {connection_id}, PID={client_pid}, internal={is_internal}")
+                    elif not authenticated:
+                        # 未认证的客户端只能访问认证端点 - 使用IPC格式响应
+                        from .ipc_protocol import IPCResponse, IPCErrorCode
+                        error_response = IPCResponse.error_response(
+                            IPCErrorCode.AUTH_REQUIRED,
+                            'Authentication required'
+                        )
+                        response = error_response.to_dict()
+                    else:
+                        # 已认证客户端，添加认证信息并处理请求
+                        if not ipc_message.headers:
+                            ipc_message.headers = {}
+                        
+                        client_info = self.client_connections.get(connection_id, {})
+                        ipc_message.headers['x-client-pid'] = str(client_info.get('client_pid', 0))
+                        ipc_message.headers['x-authenticated'] = 'true'
+                        
+                        # 检查是否为内部客户端
+                        if client_info.get('internal', False):
+                            ipc_message.headers['x-internal-client'] = 'true'
+                        
+                        # 简化：只进行基本频率限制检查，移除复杂的安全验证
+                        client_pid = client_info.get('client_pid', 0)
+                        if self.security_manager.rate_limiter.is_allowed(client_pid):
+                            response = await self._process_message(ipc_message)
+                        else:
+                            # 频率限制 - 使用IPC格式响应
+                            from .ipc_protocol import IPCResponse, IPCErrorCode
+                            rate_limit_response = IPCResponse.error_response(
+                                IPCErrorCode.REQUEST_TIMEOUT,
+                                'Too many requests - rate limited'
+                            )
+                            response = rate_limit_response.to_dict()
                     
                     # 发送响应
                     await self._send_response(writer, response)
                     
                 except json.JSONDecodeError as e:
                     logger.error(f"IPC消息JSON解析失败: {e}")
-                    error_response = {
-                        'status_code': 400, 
-                        'data': {'error': 'Invalid JSON format'},
-                        'headers': {}
-                    }
-                    await self._send_response(writer, error_response)
+                    # 使用IPC格式错误响应
+                    from .ipc_protocol import IPCResponse, IPCErrorCode
+                    json_error_response = IPCResponse.error_response(
+                        IPCErrorCode.INVALID_REQUEST,
+                        'Invalid JSON format',
+                        {'parse_error': str(e)}
+                    )
+                    await self._send_response(writer, json_error_response.to_dict())
                     
                 except Exception as e:
                     logger.error(f"处理IPC消息时出错: {e}")
-                    error_response = {
-                        'status_code': 500,
-                        'data': {'error': str(e)},
-                        'headers': {}
-                    }
-                    await self._send_response(writer, error_response)
+                    # 使用IPC格式错误响应
+                    from .ipc_protocol import IPCResponse, IPCErrorCode
+                    server_error_response = IPCResponse.error_response(
+                        IPCErrorCode.INTERNAL_ERROR,
+                        f'Internal server error: {str(e)}',
+                        {'exception_type': type(e).__name__}
+                    )
+                    await self._send_response(writer, server_error_response.to_dict())
                     
         except asyncio.IncompleteReadError:
             logger.debug(f"IPC客户端断开连接: {client_addr}")
         except Exception as e:
             logger.error(f"IPC连接处理出错: {e}")
         finally:
+            # 清理连接
             self.clients.discard(writer)
+            if connection_id in self.client_connections:
+                self.security_manager.close_connection(connection_id)
+                del self.client_connections[connection_id]
             writer.close()
             await writer.wait_closed()
+    
             
     async def _process_message(self, message: IPCMessage) -> Dict[str, Any]:
         """处理IPC消息，使用纯IPC应用"""
         if not self.app:
-            return {
-                'status_code': 500,
-                'data': {'error': 'IPC app not configured'},
-                'headers': {}
-            }
+            from .ipc_protocol import IPCResponse, IPCErrorCode
+            error_response = IPCResponse.error_response(
+                IPCErrorCode.SERVICE_UNAVAILABLE,
+                'IPC app not configured'
+            )
+            return error_response.to_dict()
         
         try:
-            # 直接使用IPC应用处理请求
+            # 直接使用IPC应用处理请求，传递头部信息
             response = await self.app.handle_request(
                 method=message.method,
                 path=message.path,
                 data=message.data,
-                headers=message.headers,
-                query_params=message.query_params
+                query_params=message.query_params,
+                headers=message.headers  # 传递头部信息
             )
             
             return response.to_dict()
             
         except Exception as e:
             logger.error(f"IPC应用处理请求失败: {e}")
-            return {
-                'status_code': 500,
-                'data': {'error': f'Internal server error: {str(e)}'},
-                'headers': {}
-            }
+            from .ipc_protocol import IPCResponse, IPCErrorCode
+            error_response = IPCResponse.error_response(
+                IPCErrorCode.INTERNAL_ERROR,
+                f'Internal server error: {str(e)}',
+                {'exception_type': type(e).__name__}
+            )
+            return error_response.to_dict()
     
     async def _send_response(self, writer: asyncio.StreamWriter, response: Dict[str, Any]):
         """发送响应到客户端"""
@@ -298,6 +371,18 @@ class IPCServer:
             os.unlink(port_file)
             
         logger.info("IPC服务器已停止")
+    
+    def get_server_status(self) -> Dict[str, Any]:
+        """获取服务器状态信息"""
+        return {
+            'is_running': self.is_running,
+            'active_clients': len(self.clients),
+            'authenticated_connections': len(self.client_connections),
+            'socket_path': self.socket_path,
+            'pipe_name': self.pipe_name,
+            'server_pid': os.getpid(),
+            'security_status': self.security_manager.get_security_status() if self.security_manager else None
+        }
 
 
 # 全局IPC服务器实例

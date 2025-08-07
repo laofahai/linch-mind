@@ -42,7 +42,7 @@ mixin _$ConnectorDefinition {
   List<String> get permissions => throw _privateConstructorUsedError;
   @JsonKey(name: 'config_schema')
   Map<String, dynamic> get configSchema => throw _privateConstructorUsedError;
-  @JsonKey(name: 'default_config')
+  @JsonKey(name: 'config_default_values')
   Map<String, dynamic> get defaultConfig =>
       throw _privateConstructorUsedError; // 添加path字段来直接处理路径信息
   String? get path => throw _privateConstructorUsedError;
@@ -87,7 +87,8 @@ abstract class $ConnectorDefinitionCopyWith<$Res> {
       List<String> dependencies,
       List<String> permissions,
       @JsonKey(name: 'config_schema') Map<String, dynamic> configSchema,
-      @JsonKey(name: 'default_config') Map<String, dynamic> defaultConfig,
+      @JsonKey(name: 'config_default_values')
+      Map<String, dynamic> defaultConfig,
       String? path,
       @JsonKey(name: 'is_registered') bool? isRegistered,
       @JsonKey(name: 'download_url') String? downloadUrl,
@@ -251,7 +252,8 @@ abstract class _$$ConnectorDefinitionImplCopyWith<$Res>
       List<String> dependencies,
       List<String> permissions,
       @JsonKey(name: 'config_schema') Map<String, dynamic> configSchema,
-      @JsonKey(name: 'default_config') Map<String, dynamic> defaultConfig,
+      @JsonKey(name: 'config_default_values')
+      Map<String, dynamic> defaultConfig,
       String? path,
       @JsonKey(name: 'is_registered') bool? isRegistered,
       @JsonKey(name: 'download_url') String? downloadUrl,
@@ -409,7 +411,7 @@ class _$ConnectorDefinitionImpl implements _ConnectorDefinition {
       final List<String> permissions = const [],
       @JsonKey(name: 'config_schema')
       final Map<String, dynamic> configSchema = const {},
-      @JsonKey(name: 'default_config')
+      @JsonKey(name: 'config_default_values')
       final Map<String, dynamic> defaultConfig = const {},
       this.path,
       @JsonKey(name: 'is_registered') this.isRegistered,
@@ -487,7 +489,7 @@ class _$ConnectorDefinitionImpl implements _ConnectorDefinition {
 
   final Map<String, dynamic> _defaultConfig;
   @override
-  @JsonKey(name: 'default_config')
+  @JsonKey(name: 'config_default_values')
   Map<String, dynamic> get defaultConfig {
     if (_defaultConfig is EqualUnmodifiableMapView) return _defaultConfig;
     // ignore: implicit_dynamic_type
@@ -639,7 +641,8 @@ abstract class _ConnectorDefinition implements ConnectorDefinition {
       final List<String> dependencies,
       final List<String> permissions,
       @JsonKey(name: 'config_schema') final Map<String, dynamic> configSchema,
-      @JsonKey(name: 'default_config') final Map<String, dynamic> defaultConfig,
+      @JsonKey(name: 'config_default_values')
+      final Map<String, dynamic> defaultConfig,
       final String? path,
       @JsonKey(name: 'is_registered') final bool? isRegistered,
       @JsonKey(name: 'download_url') final String? downloadUrl,
@@ -689,7 +692,7 @@ abstract class _ConnectorDefinition implements ConnectorDefinition {
   @JsonKey(name: 'config_schema')
   Map<String, dynamic> get configSchema;
   @override
-  @JsonKey(name: 'default_config')
+  @JsonKey(name: 'config_default_values')
   Map<String, dynamic> get defaultConfig; // 添加path字段来直接处理路径信息
   @override
   String? get path;
@@ -949,9 +952,8 @@ mixin _$ConnectorInfo {
   @JsonKey(name: 'display_name')
   String get displayName => throw _privateConstructorUsedError;
   ConnectorState get state => throw _privateConstructorUsedError;
-  bool get enabled => throw _privateConstructorUsedError;
-  @JsonKey(name: 'auto_start')
-  bool get autoStart => throw _privateConstructorUsedError;
+  bool get enabled =>
+      throw _privateConstructorUsedError; // 移除 auto_start 字段，因为数据库模型已经简化了逻辑
   @JsonKey(name: 'process_id')
   int? get processId => throw _privateConstructorUsedError;
   @JsonKey(name: 'last_heartbeat')
@@ -987,7 +989,6 @@ abstract class $ConnectorInfoCopyWith<$Res> {
       @JsonKey(name: 'display_name') String displayName,
       ConnectorState state,
       bool enabled,
-      @JsonKey(name: 'auto_start') bool autoStart,
       @JsonKey(name: 'process_id') int? processId,
       @JsonKey(name: 'last_heartbeat') DateTime? lastHeartbeat,
       @JsonKey(name: 'data_count') int dataCount,
@@ -1016,7 +1017,6 @@ class _$ConnectorInfoCopyWithImpl<$Res, $Val extends ConnectorInfo>
     Object? displayName = null,
     Object? state = null,
     Object? enabled = null,
-    Object? autoStart = null,
     Object? processId = freezed,
     Object? lastHeartbeat = freezed,
     Object? dataCount = null,
@@ -1041,10 +1041,6 @@ class _$ConnectorInfoCopyWithImpl<$Res, $Val extends ConnectorInfo>
       enabled: null == enabled
           ? _value.enabled
           : enabled // ignore: cast_nullable_to_non_nullable
-              as bool,
-      autoStart: null == autoStart
-          ? _value.autoStart
-          : autoStart // ignore: cast_nullable_to_non_nullable
               as bool,
       processId: freezed == processId
           ? _value.processId
@@ -1091,7 +1087,6 @@ abstract class _$$ConnectorInfoImplCopyWith<$Res>
       @JsonKey(name: 'display_name') String displayName,
       ConnectorState state,
       bool enabled,
-      @JsonKey(name: 'auto_start') bool autoStart,
       @JsonKey(name: 'process_id') int? processId,
       @JsonKey(name: 'last_heartbeat') DateTime? lastHeartbeat,
       @JsonKey(name: 'data_count') int dataCount,
@@ -1118,7 +1113,6 @@ class __$$ConnectorInfoImplCopyWithImpl<$Res>
     Object? displayName = null,
     Object? state = null,
     Object? enabled = null,
-    Object? autoStart = null,
     Object? processId = freezed,
     Object? lastHeartbeat = freezed,
     Object? dataCount = null,
@@ -1143,10 +1137,6 @@ class __$$ConnectorInfoImplCopyWithImpl<$Res>
       enabled: null == enabled
           ? _value.enabled
           : enabled // ignore: cast_nullable_to_non_nullable
-              as bool,
-      autoStart: null == autoStart
-          ? _value.autoStart
-          : autoStart // ignore: cast_nullable_to_non_nullable
               as bool,
       processId: freezed == processId
           ? _value.processId
@@ -1188,7 +1178,6 @@ class _$ConnectorInfoImpl implements _ConnectorInfo {
       @JsonKey(name: 'display_name') required this.displayName,
       required this.state,
       this.enabled = true,
-      @JsonKey(name: 'auto_start') this.autoStart = true,
       @JsonKey(name: 'process_id') this.processId,
       @JsonKey(name: 'last_heartbeat') this.lastHeartbeat,
       @JsonKey(name: 'data_count') this.dataCount = 0,
@@ -1212,9 +1201,7 @@ class _$ConnectorInfoImpl implements _ConnectorInfo {
   @override
   @JsonKey()
   final bool enabled;
-  @override
-  @JsonKey(name: 'auto_start')
-  final bool autoStart;
+// 移除 auto_start 字段，因为数据库模型已经简化了逻辑
   @override
   @JsonKey(name: 'process_id')
   final int? processId;
@@ -1244,7 +1231,7 @@ class _$ConnectorInfoImpl implements _ConnectorInfo {
 
   @override
   String toString() {
-    return 'ConnectorInfo(connectorId: $connectorId, displayName: $displayName, state: $state, enabled: $enabled, autoStart: $autoStart, processId: $processId, lastHeartbeat: $lastHeartbeat, dataCount: $dataCount, errorMessage: $errorMessage, createdAt: $createdAt, updatedAt: $updatedAt, config: $config)';
+    return 'ConnectorInfo(connectorId: $connectorId, displayName: $displayName, state: $state, enabled: $enabled, processId: $processId, lastHeartbeat: $lastHeartbeat, dataCount: $dataCount, errorMessage: $errorMessage, createdAt: $createdAt, updatedAt: $updatedAt, config: $config)';
   }
 
   @override
@@ -1258,8 +1245,6 @@ class _$ConnectorInfoImpl implements _ConnectorInfo {
                 other.displayName == displayName) &&
             (identical(other.state, state) || other.state == state) &&
             (identical(other.enabled, enabled) || other.enabled == enabled) &&
-            (identical(other.autoStart, autoStart) ||
-                other.autoStart == autoStart) &&
             (identical(other.processId, processId) ||
                 other.processId == processId) &&
             (identical(other.lastHeartbeat, lastHeartbeat) ||
@@ -1283,7 +1268,6 @@ class _$ConnectorInfoImpl implements _ConnectorInfo {
       displayName,
       state,
       enabled,
-      autoStart,
       processId,
       lastHeartbeat,
       dataCount,
@@ -1314,7 +1298,6 @@ abstract class _ConnectorInfo implements ConnectorInfo {
       @JsonKey(name: 'display_name') required final String displayName,
       required final ConnectorState state,
       final bool enabled,
-      @JsonKey(name: 'auto_start') final bool autoStart,
       @JsonKey(name: 'process_id') final int? processId,
       @JsonKey(name: 'last_heartbeat') final DateTime? lastHeartbeat,
       @JsonKey(name: 'data_count') final int dataCount,
@@ -1335,10 +1318,7 @@ abstract class _ConnectorInfo implements ConnectorInfo {
   @override
   ConnectorState get state;
   @override
-  bool get enabled;
-  @override
-  @JsonKey(name: 'auto_start')
-  bool get autoStart;
+  bool get enabled; // 移除 auto_start 字段，因为数据库模型已经简化了逻辑
   @override
   @JsonKey(name: 'process_id')
   int? get processId;
@@ -1382,9 +1362,8 @@ mixin _$InstallConnectorRequest {
       throw _privateConstructorUsedError; // registry, manual, scan
   @JsonKey(name: 'display_name')
   String? get displayName => throw _privateConstructorUsedError;
-  Map<String, dynamic> get config => throw _privateConstructorUsedError;
-  @JsonKey(name: 'auto_start')
-  bool get autoStart => throw _privateConstructorUsedError;
+  Map<String, dynamic> get config =>
+      throw _privateConstructorUsedError; // 移除 auto_start 字段，因为数据库模型已经简化了逻辑
   String? get path => throw _privateConstructorUsedError; // for scan source
   String? get description => throw _privateConstructorUsedError;
 
@@ -1409,7 +1388,6 @@ abstract class $InstallConnectorRequestCopyWith<$Res> {
       @JsonKey(name: 'source') String source,
       @JsonKey(name: 'display_name') String? displayName,
       Map<String, dynamic> config,
-      @JsonKey(name: 'auto_start') bool autoStart,
       String? path,
       String? description});
 }
@@ -1434,7 +1412,6 @@ class _$InstallConnectorRequestCopyWithImpl<$Res,
     Object? source = null,
     Object? displayName = freezed,
     Object? config = null,
-    Object? autoStart = null,
     Object? path = freezed,
     Object? description = freezed,
   }) {
@@ -1455,10 +1432,6 @@ class _$InstallConnectorRequestCopyWithImpl<$Res,
           ? _value.config
           : config // ignore: cast_nullable_to_non_nullable
               as Map<String, dynamic>,
-      autoStart: null == autoStart
-          ? _value.autoStart
-          : autoStart // ignore: cast_nullable_to_non_nullable
-              as bool,
       path: freezed == path
           ? _value.path
           : path // ignore: cast_nullable_to_non_nullable
@@ -1485,7 +1458,6 @@ abstract class _$$InstallConnectorRequestImplCopyWith<$Res>
       @JsonKey(name: 'source') String source,
       @JsonKey(name: 'display_name') String? displayName,
       Map<String, dynamic> config,
-      @JsonKey(name: 'auto_start') bool autoStart,
       String? path,
       String? description});
 }
@@ -1509,7 +1481,6 @@ class __$$InstallConnectorRequestImplCopyWithImpl<$Res>
     Object? source = null,
     Object? displayName = freezed,
     Object? config = null,
-    Object? autoStart = null,
     Object? path = freezed,
     Object? description = freezed,
   }) {
@@ -1530,10 +1501,6 @@ class __$$InstallConnectorRequestImplCopyWithImpl<$Res>
           ? _value._config
           : config // ignore: cast_nullable_to_non_nullable
               as Map<String, dynamic>,
-      autoStart: null == autoStart
-          ? _value.autoStart
-          : autoStart // ignore: cast_nullable_to_non_nullable
-              as bool,
       path: freezed == path
           ? _value.path
           : path // ignore: cast_nullable_to_non_nullable
@@ -1554,7 +1521,6 @@ class _$InstallConnectorRequestImpl implements _InstallConnectorRequest {
       @JsonKey(name: 'source') this.source = 'registry',
       @JsonKey(name: 'display_name') this.displayName,
       final Map<String, dynamic> config = const {},
-      @JsonKey(name: 'auto_start') this.autoStart = false,
       this.path,
       this.description})
       : _config = config;
@@ -1581,9 +1547,7 @@ class _$InstallConnectorRequestImpl implements _InstallConnectorRequest {
     return EqualUnmodifiableMapView(_config);
   }
 
-  @override
-  @JsonKey(name: 'auto_start')
-  final bool autoStart;
+// 移除 auto_start 字段，因为数据库模型已经简化了逻辑
   @override
   final String? path;
 // for scan source
@@ -1592,7 +1556,7 @@ class _$InstallConnectorRequestImpl implements _InstallConnectorRequest {
 
   @override
   String toString() {
-    return 'InstallConnectorRequest(connectorId: $connectorId, source: $source, displayName: $displayName, config: $config, autoStart: $autoStart, path: $path, description: $description)';
+    return 'InstallConnectorRequest(connectorId: $connectorId, source: $source, displayName: $displayName, config: $config, path: $path, description: $description)';
   }
 
   @override
@@ -1606,8 +1570,6 @@ class _$InstallConnectorRequestImpl implements _InstallConnectorRequest {
             (identical(other.displayName, displayName) ||
                 other.displayName == displayName) &&
             const DeepCollectionEquality().equals(other._config, _config) &&
-            (identical(other.autoStart, autoStart) ||
-                other.autoStart == autoStart) &&
             (identical(other.path, path) || other.path == path) &&
             (identical(other.description, description) ||
                 other.description == description));
@@ -1615,15 +1577,8 @@ class _$InstallConnectorRequestImpl implements _InstallConnectorRequest {
 
   @JsonKey(includeFromJson: false, includeToJson: false)
   @override
-  int get hashCode => Object.hash(
-      runtimeType,
-      connectorId,
-      source,
-      displayName,
-      const DeepCollectionEquality().hash(_config),
-      autoStart,
-      path,
-      description);
+  int get hashCode => Object.hash(runtimeType, connectorId, source, displayName,
+      const DeepCollectionEquality().hash(_config), path, description);
 
   /// Create a copy of InstallConnectorRequest
   /// with the given fields replaced by the non-null parameter values.
@@ -1648,7 +1603,6 @@ abstract class _InstallConnectorRequest implements InstallConnectorRequest {
       @JsonKey(name: 'source') final String source,
       @JsonKey(name: 'display_name') final String? displayName,
       final Map<String, dynamic> config,
-      @JsonKey(name: 'auto_start') final bool autoStart,
       final String? path,
       final String? description}) = _$InstallConnectorRequestImpl;
 
@@ -1665,10 +1619,7 @@ abstract class _InstallConnectorRequest implements InstallConnectorRequest {
   @JsonKey(name: 'display_name')
   String? get displayName;
   @override
-  Map<String, dynamic> get config;
-  @override
-  @JsonKey(name: 'auto_start')
-  bool get autoStart;
+  Map<String, dynamic> get config; // 移除 auto_start 字段，因为数据库模型已经简化了逻辑
   @override
   String? get path; // for scan source
   @override
@@ -1693,9 +1644,8 @@ mixin _$CreateConnectorRequest {
   String get connectorId => throw _privateConstructorUsedError;
   @JsonKey(name: 'display_name')
   String get displayName => throw _privateConstructorUsedError;
-  Map<String, dynamic> get config => throw _privateConstructorUsedError;
-  @JsonKey(name: 'auto_start')
-  bool get autoStart => throw _privateConstructorUsedError;
+  Map<String, dynamic> get config =>
+      throw _privateConstructorUsedError; // 移除 auto_start 字段，因为数据库模型已经简化了逻辑
   @JsonKey(name: 'template_id')
   String? get templateId => throw _privateConstructorUsedError;
 
@@ -1719,7 +1669,6 @@ abstract class $CreateConnectorRequestCopyWith<$Res> {
       {@JsonKey(name: 'connector_id') String connectorId,
       @JsonKey(name: 'display_name') String displayName,
       Map<String, dynamic> config,
-      @JsonKey(name: 'auto_start') bool autoStart,
       @JsonKey(name: 'template_id') String? templateId});
 }
 
@@ -1742,7 +1691,6 @@ class _$CreateConnectorRequestCopyWithImpl<$Res,
     Object? connectorId = null,
     Object? displayName = null,
     Object? config = null,
-    Object? autoStart = null,
     Object? templateId = freezed,
   }) {
     return _then(_value.copyWith(
@@ -1758,10 +1706,6 @@ class _$CreateConnectorRequestCopyWithImpl<$Res,
           ? _value.config
           : config // ignore: cast_nullable_to_non_nullable
               as Map<String, dynamic>,
-      autoStart: null == autoStart
-          ? _value.autoStart
-          : autoStart // ignore: cast_nullable_to_non_nullable
-              as bool,
       templateId: freezed == templateId
           ? _value.templateId
           : templateId // ignore: cast_nullable_to_non_nullable
@@ -1783,7 +1727,6 @@ abstract class _$$CreateConnectorRequestImplCopyWith<$Res>
       {@JsonKey(name: 'connector_id') String connectorId,
       @JsonKey(name: 'display_name') String displayName,
       Map<String, dynamic> config,
-      @JsonKey(name: 'auto_start') bool autoStart,
       @JsonKey(name: 'template_id') String? templateId});
 }
 
@@ -1805,7 +1748,6 @@ class __$$CreateConnectorRequestImplCopyWithImpl<$Res>
     Object? connectorId = null,
     Object? displayName = null,
     Object? config = null,
-    Object? autoStart = null,
     Object? templateId = freezed,
   }) {
     return _then(_$CreateConnectorRequestImpl(
@@ -1821,10 +1763,6 @@ class __$$CreateConnectorRequestImplCopyWithImpl<$Res>
           ? _value._config
           : config // ignore: cast_nullable_to_non_nullable
               as Map<String, dynamic>,
-      autoStart: null == autoStart
-          ? _value.autoStart
-          : autoStart // ignore: cast_nullable_to_non_nullable
-              as bool,
       templateId: freezed == templateId
           ? _value.templateId
           : templateId // ignore: cast_nullable_to_non_nullable
@@ -1840,7 +1778,6 @@ class _$CreateConnectorRequestImpl implements _CreateConnectorRequest {
       {@JsonKey(name: 'connector_id') required this.connectorId,
       @JsonKey(name: 'display_name') required this.displayName,
       final Map<String, dynamic> config = const {},
-      @JsonKey(name: 'auto_start') this.autoStart = true,
       @JsonKey(name: 'template_id') this.templateId})
       : _config = config;
 
@@ -1862,16 +1799,14 @@ class _$CreateConnectorRequestImpl implements _CreateConnectorRequest {
     return EqualUnmodifiableMapView(_config);
   }
 
-  @override
-  @JsonKey(name: 'auto_start')
-  final bool autoStart;
+// 移除 auto_start 字段，因为数据库模型已经简化了逻辑
   @override
   @JsonKey(name: 'template_id')
   final String? templateId;
 
   @override
   String toString() {
-    return 'CreateConnectorRequest(connectorId: $connectorId, displayName: $displayName, config: $config, autoStart: $autoStart, templateId: $templateId)';
+    return 'CreateConnectorRequest(connectorId: $connectorId, displayName: $displayName, config: $config, templateId: $templateId)';
   }
 
   @override
@@ -1884,8 +1819,6 @@ class _$CreateConnectorRequestImpl implements _CreateConnectorRequest {
             (identical(other.displayName, displayName) ||
                 other.displayName == displayName) &&
             const DeepCollectionEquality().equals(other._config, _config) &&
-            (identical(other.autoStart, autoStart) ||
-                other.autoStart == autoStart) &&
             (identical(other.templateId, templateId) ||
                 other.templateId == templateId));
   }
@@ -1893,7 +1826,7 @@ class _$CreateConnectorRequestImpl implements _CreateConnectorRequest {
   @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   int get hashCode => Object.hash(runtimeType, connectorId, displayName,
-      const DeepCollectionEquality().hash(_config), autoStart, templateId);
+      const DeepCollectionEquality().hash(_config), templateId);
 
   /// Create a copy of CreateConnectorRequest
   /// with the given fields replaced by the non-null parameter values.
@@ -1917,7 +1850,6 @@ abstract class _CreateConnectorRequest implements CreateConnectorRequest {
           {@JsonKey(name: 'connector_id') required final String connectorId,
           @JsonKey(name: 'display_name') required final String displayName,
           final Map<String, dynamic> config,
-          @JsonKey(name: 'auto_start') final bool autoStart,
           @JsonKey(name: 'template_id') final String? templateId}) =
       _$CreateConnectorRequestImpl;
 
@@ -1931,10 +1863,7 @@ abstract class _CreateConnectorRequest implements CreateConnectorRequest {
   @JsonKey(name: 'display_name')
   String get displayName;
   @override
-  Map<String, dynamic> get config;
-  @override
-  @JsonKey(name: 'auto_start')
-  bool get autoStart;
+  Map<String, dynamic> get config; // 移除 auto_start 字段，因为数据库模型已经简化了逻辑
   @override
   @JsonKey(name: 'template_id')
   String? get templateId;

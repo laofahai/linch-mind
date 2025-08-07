@@ -2,40 +2,36 @@ import 'dart:io';
 import 'dart:async';
 import 'dart:convert';
 
-/// Daemon信息数据类
+/// Daemon信息数据类 (纯IPC)
 class DaemonInfo {
-  final String host;
-  final int port;
   final int pid;
   final String startedAt;
+  final String socketPath;
+  final String socketType; // 'unix' or 'windows'
   final bool isAccessible;
 
   const DaemonInfo({
-    required this.host,
-    required this.port,
     required this.pid,
     required this.startedAt,
+    required this.socketPath,
+    required this.socketType,
     this.isAccessible = false,
   });
 
   factory DaemonInfo.fromJson(Map<String, dynamic> json) {
     return DaemonInfo(
-      host: json['host'] as String,
-      port: json['port'] as int,
       pid: json['pid'] as int,
       startedAt: json['started_at'] as String,
+      socketPath: json['path'] as String,
+      socketType: json['type'] as String,
     );
   }
-
-  String get baseUrl => 'http://$host:$port';
 }
 
-/// Daemon端口服务 - 安全地发现和连接daemon
+/// Daemon端口服务 - 安全地发现和连接daemon (纯IPC)
 class DaemonPortService {
-  static const String _socketFilePath = '.linch-mind/daemon.socket';
-  static const String _portFilePath = '.linch-mind/daemon.port';
-  static const int _defaultPort = 50001;
-  static const String _defaultHost = '127.0.0.1';
+  static const String _socketFileName = 'daemon.socket';
+  static const String _configDirName = '.linch-mind';
 
   static DaemonPortService? _instance;
   static DaemonPortService get instance => _instance ??= DaemonPortService._();
@@ -44,58 +40,79 @@ class DaemonPortService {
 
   DaemonInfo? _cachedDaemonInfo;
 
-  /// 发现daemon实例
+  /// 发现daemon实例 (仅IPC)
   Future<DaemonInfo?> discoverDaemon() async {
+    print('[DaemonPortService] discoverDaemon started');
     if (_cachedDaemonInfo != null) {
+      print('[DaemonPortService] Found cached daemon info: $_cachedDaemonInfo');
       // 验证缓存的daemon是否仍然有效
       if (await _testDaemonConnection(_cachedDaemonInfo!)) {
+        print('[DaemonPortService] Cached daemon is still valid');
         return _cachedDaemonInfo;
       } else {
+        print('[DaemonPortService] Cached daemon is invalid, clearing cache');
         _cachedDaemonInfo = null;
       }
     }
 
     try {
-      final homeDir =
-          Platform.environment['HOME'] ?? Platform.environment['USERPROFILE'];
-      if (homeDir == null) {
-        print('[DaemonPortService] 无法获取用户主目录');
+      final socketFile = await _getSocketFile();
+      print('[DaemonPortService] Socket file path: ${socketFile?.path}');
+      if (socketFile == null || !await socketFile.exists()) {
+        print('[DaemonPortService] Socket文件不存在');
         return null;
       }
 
-      // 优先尝试读取socket文件（IPC模式）
-      final socketFile = File('$homeDir/$_socketFilePath');
-      if (await socketFile.exists()) {
-        final daemonInfo = await _readSocketFile(socketFile, homeDir);
-        if (daemonInfo != null) {
-          return daemonInfo;
-        }
+      // 读取并解析socket文件
+      final daemonInfo = await _readSocketFile(socketFile);
+      print('[DaemonPortService] Parsed daemon info: $daemonInfo');
+      if (daemonInfo == null) {
+        return null;
       }
 
-      // 回退到端口文件（HTTP模式）
-      final portFile = File('$homeDir/$_portFilePath');
-      if (!await portFile.exists()) {
-        print('[DaemonPortService] 配置文件不存在: socket=${socketFile.path}, port=${portFile.path}');
-        return null;
+      // 测试连接性并更新缓存
+      final isAccessible = await _testDaemonConnection(daemonInfo);
+      print('[DaemonPortService] Connection test result: isAccessible=$isAccessible');
+      final accessibleDaemonInfo = DaemonInfo(
+        pid: daemonInfo.pid,
+        startedAt: daemonInfo.startedAt,
+        socketPath: daemonInfo.socketPath,
+        socketType: daemonInfo.socketType,
+        isAccessible: isAccessible,
+      );
+
+      if (isAccessible) {
+        _cachedDaemonInfo = accessibleDaemonInfo;
+        print('[DaemonPortService] 发现可访问的IPC daemon (PID: ${daemonInfo.pid})');
+      } else {
+        print('[DaemonPortService] IPC daemon (PID: ${daemonInfo.pid}) 不可访问');
       }
       
-      return await _readPortFile(portFile, homeDir);
+      return accessibleDaemonInfo;
 
     } catch (e) {
       print('[DaemonPortService] 发现daemon时出错: $e');
       return null;
     }
   }
+
+  Future<File?> _getSocketFile() async {
+    final homeDir = Platform.environment['HOME'] ?? Platform.environment['USERPROFILE'];
+    if (homeDir == null) {
+      print('[DaemonPortService] 无法获取用户主目录');
+      return null;
+    }
+    return File('$homeDir/$_configDirName/$_socketFileName');
+  }
   
-  /// 读取socket文件（IPC模式）
-  Future<DaemonInfo?> _readSocketFile(File socketFile, String homeDir) async {
+  /// 读取并解析socket文件
+  Future<DaemonInfo?> _readSocketFile(File socketFile) async {
     try {
       // 检查文件权限（Unix系统）
       if (!Platform.isWindows) {
         final stat = await socketFile.stat();
-        final mode = stat.mode;
-        if ((mode & 0x3F) != 0) {
-          print('[DaemonPortService] socket文件权限不安全，忽略');
+        if ((stat.mode & 0x3F) != 0) { // 检查其他用户或组的权限
+          print('[DaemonPortService] Socket文件权限不安全，忽略');
           return null;
         }
       }
@@ -104,115 +121,33 @@ class DaemonPortService {
       final socketContent = await socketFile.readAsString();
       final Map<String, dynamic> socketData = json.decode(socketContent);
       
-      // 解析socket信息
-      final String socketType = socketData['type'] ?? '';
-      final String socketPath = socketData['path'] ?? '';
-      final int pid = socketData['pid'] ?? 0;
-      
-      if (socketType.isEmpty || socketPath.isEmpty) {
-        print('[DaemonPortService] socket文件格式无效');
+      final pid = socketData['pid'] as int?;
+      final path = socketData['path'] as String?;
+      final type = socketData['type'] as String?;
+
+      if (pid == null || path == null || type == null) {
+        print('[DaemonPortService] Socket文件格式无效');
+        return null;
+      }
+
+      // 验证进程是否仍在运行
+      if (!await _verifyDaemonProcess(pid)) {
+        print('[DaemonPortService] Daemon进程 $pid 未运行，清理无效的socket文件');
+        await socketFile.delete();
         return null;
       }
       
-      print('[DaemonPortService] 检测到IPC模式: $socketType, path: $socketPath');
-      
-      // 注意：Flutter端目前还是使用HTTP模式，这里返回null让其回退到HTTP
-      // TODO: 在未来的版本中，这里应该返回一个标识IPC模式的DaemonInfo
-      return null;
+      return DaemonInfo(
+        pid: pid,
+        startedAt: DateTime.now().toIso8601String(), // 启动时间可以从文件元数据获取，但这里简化
+        socketPath: path,
+        socketType: type,
+      );
       
     } catch (e) {
       print('[DaemonPortService] 读取socket文件失败: $e');
       return null;
     }
-  }
-  
-  /// 读取端口文件（HTTP模式）
-  Future<DaemonInfo?> _readPortFile(File portFile, String homeDir) async {
-    try {
-      // 检查文件权限（Unix系统）
-      if (!Platform.isWindows) {
-        final stat = await portFile.stat();
-        final mode = stat.mode;
-        if ((mode & 0x3F) != 0) {
-          print('[DaemonPortService] 端口文件权限不安全，忽略');
-          return null;
-        }
-      }
-
-      final portContent = await portFile.readAsString();
-
-      // 解析格式: port:pid
-      try {
-        final parts = portContent.split(':');
-        if (parts.length != 2) {
-          print('[DaemonPortService] 端口文件格式无效，期望 "port:pid"');
-          return null;
-        }
-
-        final port = int.parse(parts[0]);
-        final pid = int.parse(parts[1]);
-
-        final portData = {
-          'host': _defaultHost,
-          'port': port,
-          'pid': pid,
-          'started_at': DateTime.now().toIso8601String(),
-        };
-
-        final daemonInfo = DaemonInfo.fromJson(portData);
-
-        // 验证进程是否运行（如果有PID）
-        if (daemonInfo.pid > 0 && !await _verifyDaemonProcess(daemonInfo.pid)) {
-          print('[DaemonPortService] Daemon进程 ${daemonInfo.pid} 未运行');
-          return null;
-        }
-
-        // 测试连接性
-        final isAccessible = await _testDaemonConnection(daemonInfo);
-        final accessibleDaemonInfo = DaemonInfo(
-          host: daemonInfo.host,
-          port: daemonInfo.port,
-          pid: daemonInfo.pid,
-          startedAt: daemonInfo.startedAt,
-          isAccessible: isAccessible,
-        );
-
-        if (isAccessible) {
-          _cachedDaemonInfo = accessibleDaemonInfo;
-          print(
-              '[DaemonPortService] 发现可访问的daemon: ${daemonInfo.host}:${daemonInfo.port}');
-        } else {
-          print(
-              '[DaemonPortService] Daemon不可访问: ${daemonInfo.host}:${daemonInfo.port}');
-        }
-
-        return accessibleDaemonInfo;
-      } catch (e) {
-        print('[DaemonPortService] 解析端口文件失败: $e');
-        return null;
-      }
-    } catch (e) {
-      print('[DaemonPortService] 发现daemon时出错: $e');
-      return null;
-    }
-  }
-
-  /// 获取daemon的基础URL（兼容旧接口）
-  Future<String> getDaemonBaseUrl() async {
-    final daemonInfo = await discoverDaemon();
-    if (daemonInfo != null && daemonInfo.isAccessible) {
-      return daemonInfo.baseUrl;
-    }
-
-    // 回退到默认配置
-    print('[DaemonPortService] 使用默认端口配置');
-    return 'http://$_defaultHost:$_defaultPort';
-  }
-
-  /// 获取daemon端口（仅端口号）
-  Future<int> getDaemonPort() async {
-    final daemonInfo = await discoverDaemon();
-    return daemonInfo?.port ?? _defaultPort;
   }
 
   /// 清除缓存的daemon信息（用于重新发现）
@@ -220,9 +155,10 @@ class DaemonPortService {
     _cachedDaemonInfo = null;
   }
 
-  /// 检查daemon是否可访问（兼容旧接口）
+  /// 检查daemon是否可访问
   Future<bool> isDaemonReachable() async {
     final daemonInfo = await discoverDaemon();
+    print('[DaemonPortService] isDaemonReachable: daemonInfo=$daemonInfo, isAccessible=${daemonInfo?.isAccessible}');
     return daemonInfo?.isAccessible ?? false;
   }
 
@@ -238,7 +174,6 @@ class DaemonPortService {
       if (daemonInfo != null && daemonInfo.isAccessible) {
         return daemonInfo;
       }
-
       await Future.delayed(checkInterval);
     }
 
@@ -248,81 +183,43 @@ class DaemonPortService {
 
   /// 验证daemon进程是否运行
   Future<bool> _verifyDaemonProcess(int pid) async {
-    if (Platform.isWindows) {
-      // Windows系统的进程验证
-      try {
-        final result = await Process.run('tasklist', ['/FI', 'PID eq $pid'],
-            runInShell: true);
-        return result.stdout.toString().contains(pid.toString());
-      } catch (e) {
-        print('[DaemonPortService] Windows进程验证失败: $e');
-        return false;
-      }
-    } else {
-      // Unix系统的进程验证
-      try {
-        final result =
-            await Process.run('ps', ['-p', pid.toString()], runInShell: true);
-        return result.exitCode == 0;
-      } catch (e) {
-        print('[DaemonPortService] Unix进程验证失败: $e');
-        return false;
-      }
-    }
-  }
-
-  /// 测试daemon连接 (使用IPC)
-  Future<bool> _testDaemonConnection(DaemonInfo daemonInfo,
-      {Duration timeout = const Duration(seconds: 3)}) async {
+    if (pid <= 0) return false;
     try {
-      // 如果检测到IPC模式，则使用IPC连接测试
-      if (daemonInfo.host == '127.0.0.1' && daemonInfo.port == 0) {
-        return await _testIPCConnection();
+      if (Platform.isWindows) {
+        final result = await Process.run('tasklist', ['/FI', 'PID eq $pid'], runInShell: true);
+        return result.stdout.toString().contains(pid.toString());
       } else {
-        // 备用HTTP测试（仅用于向后兼容）
-        return await _testHTTPConnection(daemonInfo, timeout: timeout);
+        final result = await Process.run('ps', ['-p', pid.toString()], runInShell: true);
+        return result.exitCode == 0;
       }
     } catch (e) {
-      print('[DaemonPortService] 连接测试失败: $e');
+      print('[DaemonPortService] 进程验证失败: $e');
       return false;
     }
   }
-  
-  /// 测试IPC连接
-  Future<bool> _testIPCConnection() async {
+
+  /// 测试daemon连接 (纯IPC)
+  Future<bool> _testDaemonConnection(DaemonInfo daemonInfo) async {
     try {
-      // 简单的IPC连接测试
-      final homeDir = Platform.environment['HOME'] ?? Platform.environment['USERPROFILE'];
-      if (homeDir == null) return false;
+      // 验证进程是否存在
+      if (!await _verifyDaemonProcess(daemonInfo.pid)) {
+        return false;
+      }
       
-      final socketFile = File('$homeDir/.linch-mind/daemon.socket');
-      if (!await socketFile.exists()) return false;
+      // 验证socket文件是否存在
+      if (daemonInfo.socketType == 'unix_socket') {
+        final socketFile = File(daemonInfo.socketPath);
+        if (!await socketFile.exists()) {
+          print('[DaemonPortService] Unix socket文件不存在: ${daemonInfo.socketPath}');
+          return false;
+        }
+      }
       
-      // 检查socket文件是否有效（包含有效JSON）
-      final content = await socketFile.readAsString();
-      final socketData = json.decode(content);
-      
-      return socketData['type'] != null && socketData['path'] != null;
+      // 如果进程存在且socket文件存在，认为daemon是可访问的
+      // 实际的连接测试会在IPCClient中进行
+      return true;
     } catch (e) {
       print('[DaemonPortService] IPC连接测试失败: $e');
-      return false;
-    }
-  }
-  
-  /// 测试HTTP连接（向后兼容）
-  Future<bool> _testHTTPConnection(DaemonInfo daemonInfo, {Duration? timeout}) async {
-    try {
-      final client = HttpClient();
-      client.connectionTimeout = timeout ?? const Duration(seconds: 3);
-
-      final uri = Uri.parse('${daemonInfo.baseUrl}/health');
-      final request = await client.getUrl(uri);
-      final response = await request.close();
-
-      client.close();
-      return response.statusCode == 200;
-    } catch (e) {
-      print('[DaemonPortService] HTTP连接测试失败: $e');
       return false;
     }
   }

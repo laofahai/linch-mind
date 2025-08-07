@@ -31,7 +31,7 @@ _$ConnectorDefinitionImpl _$$ConnectorDefinitionImplFromJson(
           const [],
       configSchema: json['config_schema'] as Map<String, dynamic>? ?? const {},
       defaultConfig:
-          json['default_config'] as Map<String, dynamic>? ?? const {},
+          json['config_default_values'] as Map<String, dynamic>? ?? const {},
       path: json['path'] as String?,
       isRegistered: json['is_registered'] as bool?,
       downloadUrl: json['download_url'] as String?,
@@ -58,7 +58,7 @@ Map<String, dynamic> _$$ConnectorDefinitionImplToJson(
       'dependencies': instance.dependencies,
       'permissions': instance.permissions,
       'config_schema': instance.configSchema,
-      'default_config': instance.defaultConfig,
+      'config_default_values': instance.defaultConfig,
       'path': instance.path,
       'is_registered': instance.isRegistered,
       'download_url': instance.downloadUrl,
@@ -91,7 +91,6 @@ _$ConnectorInfoImpl _$$ConnectorInfoImplFromJson(Map<String, dynamic> json) =>
       displayName: json['display_name'] as String,
       state: $enumDecode(_$ConnectorStateEnumMap, json['state']),
       enabled: json['enabled'] as bool? ?? true,
-      autoStart: json['auto_start'] as bool? ?? true,
       processId: (json['process_id'] as num?)?.toInt(),
       lastHeartbeat: json['last_heartbeat'] == null
           ? null
@@ -113,7 +112,6 @@ Map<String, dynamic> _$$ConnectorInfoImplToJson(_$ConnectorInfoImpl instance) =>
       'display_name': instance.displayName,
       'state': _$ConnectorStateEnumMap[instance.state]!,
       'enabled': instance.enabled,
-      'auto_start': instance.autoStart,
       'process_id': instance.processId,
       'last_heartbeat': instance.lastHeartbeat?.toIso8601String(),
       'data_count': instance.dataCount,
@@ -142,7 +140,6 @@ _$InstallConnectorRequestImpl _$$InstallConnectorRequestImplFromJson(
       source: json['source'] as String? ?? 'registry',
       displayName: json['display_name'] as String?,
       config: json['config'] as Map<String, dynamic>? ?? const {},
-      autoStart: json['auto_start'] as bool? ?? false,
       path: json['path'] as String?,
       description: json['description'] as String?,
     );
@@ -154,7 +151,6 @@ Map<String, dynamic> _$$InstallConnectorRequestImplToJson(
       'source': instance.source,
       'display_name': instance.displayName,
       'config': instance.config,
-      'auto_start': instance.autoStart,
       'path': instance.path,
       'description': instance.description,
     };
@@ -165,7 +161,6 @@ _$CreateConnectorRequestImpl _$$CreateConnectorRequestImplFromJson(
       connectorId: json['connector_id'] as String,
       displayName: json['display_name'] as String,
       config: json['config'] as Map<String, dynamic>? ?? const {},
-      autoStart: json['auto_start'] as bool? ?? true,
       templateId: json['template_id'] as String?,
     );
 
@@ -175,7 +170,6 @@ Map<String, dynamic> _$$CreateConnectorRequestImplToJson(
       'connector_id': instance.connectorId,
       'display_name': instance.displayName,
       'config': instance.config,
-      'auto_start': instance.autoStart,
       'template_id': instance.templateId,
     };
 

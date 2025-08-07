@@ -48,5 +48,158 @@
     "build_command": "./build.sh",
     "post_build": "echo 'C++ Filesystem connector build completed'"
   },
-  "config_schema_source": "runtime",
+  "config_schema_source": "static",
+  "config_schema": {
+    "type": "object",
+    "title": "文件系统连接器配置",
+    "description": "配置文件系统监控参数和过滤规则",
+    "required": ["watch_directories", "file_filters"],
+    "properties": {
+      "watch_directories": {
+        "type": "array",
+        "title": "监控目录",
+        "description": "要监控的目录路径列表",
+        "items": {
+          "type": "string"
+        },
+        "default": ["~/Documents", "~/Desktop"],
+        "minItems": 1
+      },
+      "file_filters": {
+        "type": "object",
+        "title": "文件过滤器",
+        "description": "配置要包含或排除的文件类型",
+        "properties": {
+          "include_extensions": {
+            "type": "array",
+            "title": "包含的文件扩展名",
+            "description": "只监控这些扩展名的文件",
+            "items": {
+              "type": "string"
+            },
+            "default": [".txt", ".md", ".pdf", ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx"]
+          },
+          "exclude_patterns": {
+            "type": "array", 
+            "title": "排除模式",
+            "description": "正则表达式模式，匹配的文件将被忽略",
+            "items": {
+              "type": "string"
+            },
+            "default": ["^\\..*", ".*\\.tmp$", ".*\\.log$", "__pycache__", "node_modules"]
+          },
+          "max_file_size": {
+            "type": "integer",
+            "title": "最大文件大小 (MB)",
+            "description": "超过此大小的文件将被忽略",
+            "default": 50,
+            "minimum": 1,
+            "maximum": 1000
+          }
+        }
+      },
+      "scan_options": {
+        "type": "object",
+        "title": "扫描选项",
+        "description": "控制文件扫描行为的高级选项",
+        "properties": {
+          "scan_interval": {
+            "type": "number",
+            "title": "扫描间隔 (秒)",
+            "description": "文件变化检查频率",
+            "default": 2.0,
+            "minimum": 0.5,
+            "maximum": 60.0
+          },
+          "recursive_depth": {
+            "type": "integer",
+            "title": "递归深度",
+            "description": "子目录扫描的最大深度",
+            "default": 5,
+            "minimum": 1,
+            "maximum": 20
+          },
+          "enable_content_indexing": {
+            "type": "boolean",
+            "title": "启用内容索引",
+            "description": "是否索引文件内容",
+            "default": true
+          }
+        }
+      }
+    }
+  },
+  "config_default_values": {
+    "watch_directories": ["~/Documents", "~/Desktop"],
+    "file_filters": {
+      "include_extensions": [".txt", ".md", ".pdf", ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx"],
+      "exclude_patterns": ["^\\..*", ".*\\.tmp$", ".*\\.log$", "__pycache__", "node_modules"],
+      "max_file_size": 50
+    },
+    "scan_options": {
+      "scan_interval": 2.0,
+      "recursive_depth": 5,
+      "enable_content_indexing": true
+    }
+  },
+  "config_ui_schema": {
+    "ui:sections": {
+      "directories_config": {
+        "ui:title": "监控目录",
+        "ui:icon": "folder",
+        "ui:collapsible": false,
+        "ui:description": "选择要监控的目录",
+        "ui:fields": {
+          "watch_directories": {
+            "ui:widget": "directory_picker",
+            "ui:help": "可以添加多个目录进行监控"
+          }
+        }
+      },
+      "filter_config": {
+        "ui:title": "文件过滤",
+        "ui:icon": "filter_alt",
+        "ui:collapsed": true,
+        "ui:collapsible": true,
+        "ui:description": "配置要监控的文件类型",
+        "ui:fields": {
+          "file_filters.include_extensions": {
+            "ui:widget": "tag_input",
+            "ui:help": "只监控指定扩展名的文件"
+          },
+          "file_filters.exclude_patterns": {
+            "ui:widget": "tag_input", 
+            "ui:help": "正则表达式，匹配的文件将被忽略"
+          },
+          "file_filters.max_file_size": {
+            "ui:widget": "slider",
+            "ui:help": "大文件通常处理耗时，建议设置合理上限"
+          }
+        }
+      },
+      "advanced_config": {
+        "ui:title": "高级选项",
+        "ui:icon": "settings",
+        "ui:collapsed": true,
+        "ui:collapsible": true,
+        "ui:description": "调整扫描性能参数",
+        "ui:fields": {
+          "scan_options.scan_interval": {
+            "ui:widget": "slider",
+            "ui:step": 0.5,
+            "ui:help": "检查频率，较小值消耗更多资源"
+          },
+          "scan_options.recursive_depth": {
+            "ui:widget": "slider",
+            "ui:help": "深层目录扫描可能影响性能"
+          },
+          "scan_options.enable_content_indexing": {
+            "ui:widget": "switch",
+            "ui:help": "索引文件内容用于搜索，但会消耗更多资源"
+          }
+        }
+      }
+    },
+    "ui_layout": "sections"
+  }
 }

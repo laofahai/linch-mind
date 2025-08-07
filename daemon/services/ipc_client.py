@@ -35,7 +35,7 @@ class IPCClient:
         self.writer = None
         
     async def connect(self):
-        """连接到IPC服务器"""
+        """连接到IPC服务器并自动认证（内部客户端）"""
         if not self.socket_path:
             # 自动发现socket路径
             self.socket_path = await self._discover_socket_path()
@@ -44,6 +44,8 @@ class IPCClient:
             raise NotImplementedError("Windows Named Pipe support not implemented yet")
         else:
             await self._connect_unix_socket()
+            # 内部客户端自动进行认证握手
+            await self._perform_internal_authentication()
     
     async def _discover_socket_path(self) -> str:
         """自动发现socket路径"""
@@ -171,24 +173,77 @@ class IPCClient:
         except json.JSONDecodeError as e:
             raise IPCConnectionError(f"Invalid response format: {e}")
     
+    async def _perform_internal_authentication(self):
+        """内部客户端自动认证握手"""
+        try:
+            # 构造认证消息
+            auth_message = {
+                'method': 'POST',
+                'path': '/auth/handshake',
+                'data': {
+                    'client_pid': os.getpid(),
+                    'client_type': 'internal_daemon_client'
+                },
+                'headers': {
+                    'x-client-pid': str(os.getpid()),
+                    'x-internal-client': 'true'
+                },
+                'query_params': {}
+            }
+            
+            # 发送认证请求
+            await self._send_message(auth_message)
+            response = await self._receive_response()
+            
+            if response.get('status_code') == 200:
+                logger.info("内部客户端认证成功")
+            else:
+                error = response.get('data', {}).get('error', 'Unknown error')
+                logger.error(f"内部客户端认证失败: {error}")
+                raise IPCConnectionError(f"Authentication failed: {error}")
+                
+        except Exception as e:
+            logger.error(f"内部客户端认证过程失败: {e}")
+            raise IPCConnectionError(f"Internal authentication failed: {e}")
+    
     # HTTP风格的便捷方法
     async def get(self, path: str, params: Optional[Dict[str, Any]] = None, 
                  headers: Optional[Dict[str, str]] = None) -> Dict[str, Any]:
         """GET请求"""
+        # 为daemon内部请求添加认证头部
+        if not headers:
+            headers = {}
+        headers['x-client-pid'] = str(os.getpid())
+        headers['x-internal-client'] = 'true'
         return await self.request('GET', path, query_params=params, headers=headers)
     
     async def post(self, path: str, data: Optional[Dict[str, Any]] = None,
                   headers: Optional[Dict[str, str]] = None) -> Dict[str, Any]:
         """POST请求"""
+        # 为daemon内部请求添加认证头部
+        if not headers:
+            headers = {}
+        headers['x-client-pid'] = str(os.getpid())
+        headers['x-internal-client'] = 'true'
         return await self.request('POST', path, data=data, headers=headers)
     
     async def put(self, path: str, data: Optional[Dict[str, Any]] = None,
                  headers: Optional[Dict[str, str]] = None) -> Dict[str, Any]:
         """PUT请求"""
+        # 为daemon内部请求添加认证头部
+        if not headers:
+            headers = {}
+        headers['x-client-pid'] = str(os.getpid())
+        headers['x-internal-client'] = 'true'
         return await self.request('PUT', path, data=data, headers=headers)
     
     async def delete(self, path: str, headers: Optional[Dict[str, str]] = None) -> Dict[str, Any]:
         """DELETE请求"""
+        # 为daemon内部请求添加认证头部
+        if not headers:
+            headers = {}
+        headers['x-client-pid'] = str(os.getpid())
+        headers['x-internal-client'] = 'true'
         return await self.request('DELETE', path, headers=headers)
     
     async def __aenter__(self):

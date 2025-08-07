@@ -38,7 +38,7 @@ class TestCoreConfigManager:
             "app_name": "Test Linch Mind",
             "version": "0.2.0",
             "debug": True,
-            "server": {"host": "127.0.0.1", "port": 8080, "reload": False},
+            "server": {"socket_path": "/tmp/linch-mind-test.sock", "reload": False},
             "database": {
                 "sqlite_url": "sqlite:///test.db",
                 "embedding_model": "test-model",
@@ -81,8 +81,7 @@ class TestCoreConfigManager:
             assert config_manager.config.app_name == "Test Linch Mind"
             assert config_manager.config.version == "0.2.0"
             assert config_manager.config.debug is True
-            assert config_manager.config.server.host == "127.0.0.1"
-            assert config_manager.config.server.port == 8080
+            assert config_manager.config.server.socket_path == "/tmp/linch-mind-test.sock"
 
     def test_fallback_config_migration(self, temp_config_root, sample_config_data):
         """测试项目根目录配置迁移"""

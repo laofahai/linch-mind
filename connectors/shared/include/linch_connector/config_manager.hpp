@@ -12,7 +12,7 @@ namespace linch_connector {
  */
 class ConfigManager {
 public:
-    ConfigManager(const std::string& daemonUrl, const std::string& connectorId);
+    ConfigManager(const std::string& connectorId, const std::string& daemonUrl);
     ~ConfigManager();
 
     /**

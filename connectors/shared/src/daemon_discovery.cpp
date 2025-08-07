@@ -151,10 +151,10 @@ public:
             int pid = std::stoi(pidStr);
             
             DaemonInfo daemonInfo;
-            daemonInfo.host = "127.0.0.1";
-            daemonInfo.port = port;
             daemonInfo.pid = pid;
-            daemonInfo.protocol = "http";
+            // HTTP模式已经不再支持，返回nullopt
+            std::cerr << "[DaemonDiscovery] HTTP mode is no longer supported" << std::endl;
+            return std::nullopt;
             
             return daemonInfo;
             
@@ -185,7 +185,8 @@ public:
                 if (socket_type == "unix_socket") {
                     daemonInfo.socket_path = match[1];
                 } else if (socket_type == "named_pipe") {
-                    daemonInfo.pipe_name = match[1];
+                    daemonInfo.socket_path = match[1];
+                    daemonInfo.socket_type = "pipe";
                 }
             }
             
@@ -195,9 +196,9 @@ public:
                 daemonInfo.pid = std::stoi(match[1]);
             }
             
-            daemonInfo.protocol = "ipc";
-            daemonInfo.host = "";
-            daemonInfo.port = 0;
+            if (socket_type == "unix_socket") {
+                daemonInfo.socket_type = "unix";
+            }
             
             return daemonInfo;
             
@@ -306,49 +307,37 @@ DaemonDiscovery::~DaemonDiscovery() = default;
 
 std::optional<DaemonInfo> DaemonDiscovery::discoverDaemon() {
     // 如果有缓存且有效，直接返回
-    if (pImpl->cachedDaemonInfo && testDaemonConnection(*pImpl->cachedDaemonInfo)) {
+    if (pImpl->cachedDaemonInfo && testIPCConnection(*pImpl->cachedDaemonInfo)) {
         return pImpl->cachedDaemonInfo;
     }
     
     // 清除无效缓存
     pImpl->cachedDaemonInfo = std::nullopt;
     
-    // 优先尝试IPC模式：读取socket文件
-    auto daemonInfo = pImpl->readSocketFile();
-    if (!daemonInfo) {
-        // 回退到HTTP模式：读取port文件
-        daemonInfo = pImpl->readPortFile();
-        if (!daemonInfo) {
-            return std::nullopt;
-        }
+    // 纯IPC模式，只读取socket文件
+    auto daemonInfoOpt = pImpl->readSocketFile();
+    if (!daemonInfoOpt) {
+        return std::nullopt;
     }
     
+    auto& daemonInfo = *daemonInfoOpt;
+
     // 验证进程是否运行
-    if (daemonInfo->pid > 0 && !pImpl->verifyDaemonProcess(daemonInfo->pid)) {
-        std::cerr << "[DaemonDiscovery] Daemon进程 " << daemonInfo->pid << " 未运行" << std::endl;
+    if (daemonInfo.pid > 0 && !pImpl->verifyDaemonProcess(daemonInfo.pid)) {
+        std::cerr << "[DaemonDiscovery] Daemon进程 " << daemonInfo.pid << " 未运行" << std::endl;
+        // 清理过时的socket文件
+        std::remove(pImpl->getSocketFilePath().c_str());
         return std::nullopt;
     }
     
     // 测试连接性
-    if (daemonInfo->isIPCMode()) {
-        daemonInfo->isAccessible = testIPCConnection(*daemonInfo);
-    } else {
-        daemonInfo->isAccessible = testDaemonConnection(*daemonInfo);
-    }
+    daemonInfo.is_accessible = testIPCConnection(daemonInfo);
     
-    if (daemonInfo->isAccessible) {
-        pImpl->cachedDaemonInfo = *daemonInfo;
-        if (daemonInfo->isIPCMode()) {
-            std::cout << "[DaemonDiscovery] 发现可访问的daemon (IPC): " << daemonInfo->getBaseUrl() << std::endl;
-        } else {
-            std::cout << "[DaemonDiscovery] 发现可访问的daemon (HTTP): " << daemonInfo->host << ":" << daemonInfo->port << std::endl;
-        }
+    if (daemonInfo.is_accessible) {
+        pImpl->cachedDaemonInfo = daemonInfo;
+        std::cout << "[DaemonDiscovery] 发现可访问的daemon (IPC): " << daemonInfo.socket_path << std::endl;
     } else {
-        if (daemonInfo->isIPCMode()) {
-            std::cout << "[DaemonDiscovery] Daemon不可访问 (IPC): " << daemonInfo->getBaseUrl() << std::endl;
-        } else {
-            std::cout << "[DaemonDiscovery] Daemon不可访问 (HTTP): " << daemonInfo->host << ":" << daemonInfo->port << std::endl;
-        }
+        std::cout << "[DaemonDiscovery] Daemon不可访问 (IPC): " << daemonInfo.socket_path << std::endl;
     }
     
     return daemonInfo;
@@ -362,7 +351,7 @@ std::optional<DaemonInfo> DaemonDiscovery::waitForDaemon(
     
     while (std::chrono::steady_clock::now() - startTime < timeout) {
         auto daemonInfo = discoverDaemon();
-        if (daemonInfo && daemonInfo->isAccessible) {
+        if (daemonInfo && daemonInfo->is_accessible) {
             return daemonInfo;
         }
         
@@ -374,7 +363,7 @@ std::optional<DaemonInfo> DaemonDiscovery::waitForDaemon(
 }
 
 bool DaemonDiscovery::testDaemonConnection(const DaemonInfo& daemonInfo) {
-    return pImpl->testConnection(daemonInfo.host, daemonInfo.port);
+    return testIPCConnection(daemonInfo);
 }
 
 bool DaemonDiscovery::testIPCConnection(const DaemonInfo& daemonInfo) {

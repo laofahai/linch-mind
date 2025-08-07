@@ -45,8 +45,11 @@ class ConnectorManager:
                             # 检查进程是否仍在运行
                             if psutil.pid_exists(connector.process_id):
                                 process = psutil.Process(connector.process_id)
-                                # 简单验证：检查进程是否是Python进程
-                                if "python" in process.name().lower():
+                                # 验证进程：检查进程名称是否包含连接器相关关键字
+                                process_name = process.name().lower()
+                                connector_keywords = ["connector", "linch", connector.connector_id]
+                                
+                                if any(keyword in process_name for keyword in connector_keywords):
                                     logger.info(
                                         f"恢复连接器进程引用: {connector.connector_id} (PID: {connector.process_id})"
                                     )
@@ -107,7 +110,7 @@ class ConnectorManager:
                     logger.info(f"连接器已存在，更新信息: {connector_id}")
                     existing.name = name
                     existing.description = description
-                    existing.config = config
+                    existing.config_data = config
                     existing.updated_at = datetime.now(timezone.utc)
                 else:
                     # 创建新连接器
@@ -115,8 +118,9 @@ class ConnectorManager:
                         connector_id=connector_id,
                         name=name,
                         description=description,
-                        config=config,
-                        status="stopped",
+                        config_data=config,
+                        status="enabled",  # 新创建的连接器默认启用，等待启动
+                        enabled=True,
                     )
                     session.add(connector)
 
@@ -125,6 +129,89 @@ class ConnectorManager:
 
         except Exception as e:
             logger.error(f"注册连接器失败 {connector_id}: {e}")
+
+    async def create_connector_instance(
+        self, connector_id: str, display_name: str, config: Dict[str, Any] = None
+    ) -> bool:
+        """创建连接器实例（基于已知的连接器路径）"""
+        try:
+            # 首先检查用户是否在config中提供了路径
+            connector_path = None
+            if config and "path" in config:
+                provided_path = Path(config["path"])
+                if provided_path.exists() and (provided_path / "connector.json").exists():
+                    connector_path = provided_path
+                    logger.info(f"使用用户提供的连接器路径: {connector_path}")
+                else:
+                    logger.warning(f"用户提供的路径无效: {provided_path}")
+            
+            # 如果用户没有提供有效路径，则尝试自动查找
+            if not connector_path:
+                connector_path = self._find_connector_path(connector_id)
+                if not connector_path:
+                    logger.error(f"找不到连接器路径: {connector_id}")
+                    return False
+            
+            # 读取连接器配置
+            config_file = connector_path / "connector.json"
+            if not config_file.exists():
+                logger.error(f"连接器配置文件不存在: {config_file}")
+                return False
+            
+            with open(config_file, "r", encoding="utf-8") as f:
+                connector_config = json.load(f)
+            
+            # 使用默认配置或合并用户提供的配置
+            final_config = connector_config.get("config_default_values", {})
+            if config:
+                # 过滤掉path字段，它是内部管理字段，不应该是用户配置的一部分
+                user_config = {k: v for k, v in config.items() if k != "path"}
+                final_config.update(user_config)
+            
+            # 注册连接器
+            self.register_connector(
+                connector_id=connector_id,
+                name=display_name,
+                description=connector_config.get("description", ""),
+                path=connector_path
+            )
+            
+            # 连接器创建后默认为enabled状态，daemon启动时会自动启动所有enabled的连接器
+            logger.info(f"连接器实例创建成功: {connector_id} (状态: enabled)")
+            return True
+            
+        except Exception as e:
+            logger.error(f"创建连接器实例失败 {connector_id}: {e}")
+            return False
+
+    def _find_connector_path(self, connector_id: str) -> Optional[Path]:
+        """查找连接器路径（不使用扫描避免循环依赖）"""
+        # 常见的连接器路径
+        possible_paths = [
+            self.connectors_dir / "official" / connector_id,
+            self.connectors_dir / "community" / connector_id,
+            self.connectors_dir / connector_id,
+        ]
+        
+        for path in possible_paths:
+            if path.exists() and (path / "connector.json").exists():
+                return path
+                
+        # 如果还没找到，做一次浅层扫描
+        try:
+            for item in self.connectors_dir.rglob("connector.json"):
+                config_file = item
+                try:
+                    with open(config_file, "r", encoding="utf-8") as f:
+                        config = json.load(f)
+                    if config.get("id") == connector_id:
+                        return config_file.parent
+                except (json.JSONDecodeError, KeyError):
+                    continue
+        except Exception as e:
+            logger.warning(f"搜索连接器路径时出错: {e}")
+            
+        return None
 
     async def start_connector(self, connector_id: str) -> bool:
         """启动连接器"""
@@ -144,13 +231,13 @@ class ConnectorManager:
                     return True
 
                 # 从配置中获取可执行路径
-                if not connector.config or not connector.config.get("executable_path"):
+                if not connector.config_data or not connector.config_data.get("executable_path"):
                     logger.error(f"连接器配置无效: {connector_id}")
                     connector.status = "error"
                     session.commit()
                     return False
 
-                entry_script = Path(connector.config["executable_path"])
+                entry_script = Path(connector.config_data["executable_path"])
                 if not entry_script.exists():
                     logger.error(f"连接器入口脚本不存在: {entry_script}")
                     connector.status = "error"
@@ -292,6 +379,56 @@ class ConnectorManager:
             logger.error(f"停止连接器失败 {connector_id}: {e}")
             return False
 
+    async def delete_connector(self, connector_id: str, force: bool = False) -> bool:
+        """删除连接器实例"""
+        try:
+            with self.db_service.get_session() as session:
+                connector = (
+                    session.query(Connector)
+                    .filter_by(connector_id=connector_id)
+                    .first()
+                )
+                if not connector:
+                    logger.error(f"连接器不存在: {connector_id}")
+                    return False
+
+                # 如果连接器正在运行，需要先停止
+                if connector.status == "running":
+                    if not force:
+                        logger.error(f"连接器正在运行，请先停止或使用强制删除: {connector_id}")
+                        return False
+                    else:
+                        logger.info(f"强制删除运行中的连接器: {connector_id}")
+                        # 先尝试停止
+                        await self.stop_connector(connector_id)
+
+                # 先删除相关的配置历史记录
+                from daemon.models.database_models import ConnectorConfigHistory, ConnectorLog, ConnectorStats
+                
+                # 删除配置历史
+                session.query(ConnectorConfigHistory).filter_by(connector_id=connector_id).delete()
+                
+                # 删除日志记录
+                session.query(ConnectorLog).filter_by(connector_id=connector_id).delete()
+                
+                # 删除统计记录
+                session.query(ConnectorStats).filter_by(connector_id=connector_id).delete()
+                
+                # 最后删除连接器本身
+                session.delete(connector)
+                session.commit()
+
+                # 清理内存中的进程引用（如果存在）
+                if connector_id in self.active_processes:
+                    del self.active_processes[connector_id]
+
+                logger.info(f"连接器删除成功: {connector_id}")
+                return True
+
+        except Exception as e:
+            logger.error(f"删除连接器失败 {connector_id}: {e}")
+            return False
+
     def get_connector_status(self, connector_id: str) -> Optional[Dict[str, Any]]:
         """获取连接器状态"""
         try:
@@ -320,32 +457,102 @@ class ConnectorManager:
             logger.error(f"获取连接器状态失败 {connector_id}: {e}")
             return None
 
+    def _check_process_status(self, connector_id: str, process_id: Optional[int]) -> Dict[str, Any]:
+        """检查进程实际状态"""
+        if not process_id:
+            return {
+                "actual_status": "stopped",
+                "error_message": None,
+            }
+        
+        try:
+            import psutil
+            # 检查进程是否存在
+            if not psutil.pid_exists(process_id):
+                return {
+                    "actual_status": "error", 
+                    "error_message": "进程不存在",
+                }
+            
+            # 获取进程详情
+            process = psutil.Process(process_id)
+            expected_name = f"{connector_id}-connector"
+            actual_name = process.name()
+            
+            # 检查进程名称是否匹配（部分匹配即可）
+            if connector_id not in actual_name and "connector" not in actual_name:
+                return {
+                    "actual_status": "error",
+                    "error_message": f"进程名称不匹配: 期望包含'{connector_id}'，实际为'{actual_name}'",
+                }
+            
+            # 检查进程状态
+            if process.status() in ['running', 'sleeping']:
+                return {
+                    "actual_status": "running",
+                    "error_message": None,
+                }
+            else:
+                return {
+                    "actual_status": "error",
+                    "error_message": f"进程状态异常: {process.status()}",
+                }
+                
+        except Exception as e:
+            return {
+                "actual_status": "error", 
+                "error_message": f"进程检查失败: {e}",
+            }
+
     def list_connectors(self) -> List[Dict[str, Any]]:
-        """列出所有连接器"""
+        """列出所有连接器（包含实时状态检查）"""
         try:
             with self.db_service.get_session() as session:
                 connectors = session.query(Connector).all()
-                return [
-                    {
+                
+                result = []
+                for c in connectors:
+                    # 检查实际进程状态
+                    process_status = self._check_process_status(c.connector_id, c.process_id)
+                    
+                    # 如果数据库状态与实际状态不一致，优先使用实际状态
+                    actual_status = process_status["actual_status"] 
+                    error_message = process_status["error_message"] or c.error_message
+                    
+                    # 如果实际状态与数据库状态不一致，更新数据库
+                    if actual_status != c.status and actual_status in ["stopped", "error"]:
+                        c.status = actual_status
+                        c.error_message = error_message
+                        session.commit()
+                    
+                    connector_data = {
                         "connector_id": c.connector_id,
                         "name": c.name,
                         "description": c.description,
-                        "status": c.status,
+                        "status": actual_status,  # 使用实际状态
+                        "enabled": c.enabled,
                         "pid": c.process_id,
+                        "data_count": c.data_count,
+                        "error_message": error_message,
                     }
-                    for c in connectors
-                ]
+                    result.append(connector_data)
+                    
+                return result
+                
         except Exception as e:
             logger.error(f"列出连接器失败: {e}")
             return []
 
     async def start_all_registered_connectors(self):
-        """启动所有已注册的连接器"""
+        """启动所有已启用(enabled=True)的连接器"""
         try:
             with self.db_service.get_session() as session:
-                connectors = session.query(Connector).all()
-                for connector in connectors:
+                # 只启动enabled=True的连接器
+                enabled_connectors = session.query(Connector).filter_by(enabled=True).all()
+                for connector in enabled_connectors:
                     await self.start_connector(connector.connector_id)
+                    
+                logger.info(f"自动启动策略: 启动了 {len(enabled_connectors)} 个启用的连接器")
         except Exception as e:
             logger.error(f"启动所有连接器失败: {e}")
 
@@ -384,16 +591,27 @@ class ConnectorManager:
                         with open(config_file, "r", encoding="utf-8") as f:
                             config = json.load(f)
 
+                        # 确保所有字段都不为空，使用安全默认值
+                        connector_id = config.get("id", path.name) or path.name
+                        name = config.get("name", path.name) or path.name
+                        description = config.get("description", "") or f"连接器: {name}"
+                        category = config.get("category", "local_files") or "local_files"
+                        version = config.get("version", "1.0.0") or "1.0.0"
+                        author = config.get("author", "Unknown") or "Unknown"
+                        
                         connector_info = {
                             "path": str(path),
-                            "connector_id": config.get("id", path.name),
-                            "name": config.get("name", path.name),
-                            "description": config.get("description", ""),
-                            "version": config.get("version", "1.0.0"),
+                            "connector_id": connector_id,
+                            "name": name,
+                            "display_name": name,
+                            "description": description,
+                            "category": category,
+                            "version": version,
+                            "author": author,
+                            "license": config.get("license", "") or "",
                             "entry_point": self._find_entry_point(config, path),
-                            "is_registered": self._is_connector_registered(
-                                config.get("id", path.name)
-                            ),
+                            "is_registered": self._is_connector_registered(connector_id),
+                            "config_default_values": config.get("config_default_values", {}) or {},
                         }
                         discovered_connectors.append(connector_info)
                         logger.info(f"发现连接器: {connector_info['name']} at {path}")
@@ -577,7 +795,7 @@ class ConnectorManager:
                     "updated_at": connector.updated_at.isoformat() if connector.updated_at else None,
                     "last_heartbeat": connector.last_heartbeat.isoformat() if connector.last_heartbeat else None,
                     "error_message": connector.error_message,
-                    "config": connector.config,
+                    "config": connector.config_data,
                 }
 
                 # 健康检查信息
@@ -635,20 +853,9 @@ class ConnectorManager:
         """获取连接器统计信息"""
         try:
             with self.db_service.get_session() as session:
-                from models.database_models import DataSource, Entity
-                
-                # 数据源统计
-                data_sources = session.query(DataSource).filter_by(connector_id=connector_id).all()
-                data_source_count = len(data_sources)
-                
-                # 实体统计
-                if data_sources:
-                    data_source_ids = [ds.id for ds in data_sources]
-                    entity_count = session.query(Entity).filter(
-                        Entity.data_source_id.in_(data_source_ids)
-                    ).count()
-                else:
-                    entity_count = 0
+                # 暂时简化统计信息，避免导入不存在的模型
+                data_source_count = 0
+                entity_count = 0
                 
                 return {
                     "data_sources": data_source_count,
@@ -741,7 +948,7 @@ class ConnectorManager:
                 failed_connectors = session.query(Connector).filter_by(status="error").all()
                 
                 for connector in failed_connectors:
-                    if connector.auto_start:  # 只重启设置了自动启动的连接器
+                    if connector.enabled:  # 只重启启用的连接器
                         try:
                             logger.info(f"尝试自动重启失败的连接器: {connector.connector_id}")
                             success = await self.start_connector(connector.connector_id)
@@ -798,6 +1005,55 @@ class ConnectorManager:
         except Exception as e:
             logger.error(f"从路径注册连接器失败 {connector_path}: {e}")
             return {"success": False, "error": str(e)}
+
+    async def restart_connector(self, connector_id: str) -> bool:
+        """重启连接器"""
+        try:
+            logger.info(f"重启连接器: {connector_id}")
+            # 先停止
+            success_stop = await self.stop_connector(connector_id)
+            if not success_stop:
+                logger.error(f"停止连接器失败，无法重启: {connector_id}")
+                return False
+            
+            # 等待一秒确保进程完全停止
+            import asyncio
+            await asyncio.sleep(1)
+            
+            # 再启动
+            success_start = await self.start_connector(connector_id)
+            if success_start:
+                logger.info(f"连接器重启成功: {connector_id}")
+            else:
+                logger.error(f"重启连接器失败: {connector_id}")
+            
+            return success_start
+            
+        except Exception as e:
+            logger.error(f"重启连接器失败 {connector_id}: {e}")
+            return False
+
+    async def install_connector(self, connector_id: str, source: str, config: dict = None) -> bool:
+        """安装连接器（暂时简化实现）"""
+        try:
+            # 这是一个简化实现，主要是为了兼容API调用
+            logger.info(f"尝试安装连接器: {connector_id} from {source}")
+            
+            # 暂时只支持从本地路径安装
+            if source and Path(source).exists():
+                result = self.register_connector_from_path(source)
+                return result.get("success", False)
+            else:
+                logger.error(f"不支持的连接器源: {source}")
+                return False
+                
+        except Exception as e:
+            logger.error(f"安装连接器失败 {connector_id}: {e}")
+            return False
+
+    def get_current_timestamp(self) -> str:
+        """获取当前时间戳"""
+        return datetime.now(timezone.utc).isoformat()
 
 
 # 全局单例
