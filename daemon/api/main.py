@@ -17,7 +17,6 @@ sys.path.insert(0, str(project_root))
 
 # 导入依赖管理
 from api.dependencies import cleanup_services, get_config_manager
-
 # 导入IPC服务器 - 完全独立系统
 from services.ipc_server import start_ipc_server, stop_ipc_server
 
@@ -238,14 +237,14 @@ def main():
 
         # 启动纯IPC服务器
         import asyncio
-        
+
         async def run_ipc_service():
             # 手动触发应用的lifespan
             async with lifespan():
                 # 保持服务运行
                 while True:
                     await asyncio.sleep(1)
-        
+
         asyncio.run(run_ipc_service())
 
     except KeyboardInterrupt:

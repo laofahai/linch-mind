@@ -81,7 +81,9 @@ class TestCoreConfigManager:
             assert config_manager.config.app_name == "Test Linch Mind"
             assert config_manager.config.version == "0.2.0"
             assert config_manager.config.debug is True
-            assert config_manager.config.server.socket_path == "/tmp/linch-mind-test.sock"
+            assert (
+                config_manager.config.server.socket_path == "/tmp/linch-mind-test.sock"
+            )
 
     def test_fallback_config_migration(self, temp_config_root, sample_config_data):
         """测试项目根目录配置迁移"""

@@ -63,11 +63,11 @@ class ConnectorRegistryService:
             # IPC模式下使用本地注册表缓存
             logger.warning("IPC架构模式：使用本地连接器注册表")
             registry_data = self._get_local_fallback_registry()
-            
+
             # 更新缓存
             self._cache = registry_data
             self._cache_expiry = datetime.now() + self._cache_duration
-            
+
             logger.info(
                 f"本地注册表加载完成，包含 {len(registry_data.get('connectors', {}))} 个连接器"
             )
@@ -86,7 +86,7 @@ class ConnectorRegistryService:
                 "total_count": 2,
                 "repository": "laofahai/linch-mind",
                 "commit": "local",
-                "release_tag": "local-ipc"
+                "release_tag": "local-ipc",
             },
             "connectors": {
                 "filesystem": {
@@ -100,11 +100,11 @@ class ConnectorRegistryService:
                     "platforms": {
                         "linux-x64": {"supported": True},
                         "darwin-x64": {"supported": True},
-                        "darwin-arm64": {"supported": True}
+                        "darwin-arm64": {"supported": True},
                     },
                     "capabilities": {"file_monitoring": True, "content_indexing": True},
                     "permissions": ["read_files", "monitor_filesystem"],
-                    "last_updated": datetime.now().isoformat()
+                    "last_updated": datetime.now().isoformat(),
                 },
                 "clipboard": {
                     "id": "clipboard",
@@ -117,13 +117,16 @@ class ConnectorRegistryService:
                     "platforms": {
                         "linux-x64": {"supported": True},
                         "darwin-x64": {"supported": True},
-                        "darwin-arm64": {"supported": True}
+                        "darwin-arm64": {"supported": True},
                     },
-                    "capabilities": {"clipboard_monitoring": True, "history_management": True},
+                    "capabilities": {
+                        "clipboard_monitoring": True,
+                        "history_management": True,
+                    },
                     "permissions": ["read_clipboard", "monitor_clipboard"],
-                    "last_updated": datetime.now().isoformat()
-                }
-            }
+                    "last_updated": datetime.now().isoformat(),
+                },
+            },
         }
 
     def _is_cache_valid(self) -> bool:
@@ -145,22 +148,25 @@ class ConnectorRegistryService:
             installed_connector_ids = set()
             try:
                 from services.connectors.connector_manager import get_connector_manager
+
                 manager = get_connector_manager()
                 installed_connectors = manager.list_connectors()
-                installed_connector_ids = {c["connector_id"] for c in installed_connectors}
+                installed_connector_ids = {
+                    c["connector_id"] for c in installed_connectors
+                }
             except Exception as e:
                 logger.warning(f"获取已安装连接器列表失败: {e}")
-            
+
             connectors = []
             for connector_id, connector_info in registry.get("connectors", {}).items():
                 # 转换为UI需要的格式，兼容GitHub registry格式
                 actual_id = connector_info.get(
                     "id", connector_info.get("connector_id", connector_id)
                 )
-                
+
                 # 检查是否已安装
                 is_installed = actual_id in installed_connector_ids
-                
+
                 connector_data = {
                     "connector_id": actual_id,
                     "name": connector_info.get("name", actual_id),

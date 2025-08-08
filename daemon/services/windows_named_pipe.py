@@ -9,8 +9,8 @@ import logging
 import os
 import platform
 import threading
-from typing import Any, Dict, Optional
 import time
+from typing import Any, Dict, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -19,10 +19,10 @@ logger = logging.getLogger(__name__)
 
 if platform.system() == 'Windows':
     try:
-        import win32pipe
-        import win32file
-        import win32api
         import pywintypes
+        import win32api
+        import win32file
+        import win32pipe
         WINDOWS_SUPPORT = True
     except ImportError:
         WINDOWS_SUPPORT = False
@@ -139,9 +139,9 @@ class WindowsNamedPipeServer:
     def _process_message_sync(self, message_str: str) -> str:
         """同步处理消息（Named Pipe在线程中运行）- 纯IPC版本"""
         try:
-            from .ipc_server import IPCMessage
             from .ipc_router import IPCRequest, IPCResponse
-            
+            from .ipc_server import IPCMessage
+
             # 解析IPC消息
             message_data = json.loads(message_str)
             ipc_message = IPCMessage(

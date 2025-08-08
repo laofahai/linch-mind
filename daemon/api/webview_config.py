@@ -4,13 +4,13 @@ WebView配置API - 为连接器提供WebView配置界面
 """
 
 import logging
-from fastapi import APIRouter, HTTPException, Depends
-from fastapi.responses import HTMLResponse
-from typing import Dict, Any, Optional
+from typing import Any, Dict, Optional
 
-from services.webview_config_service import WebViewConfigService
 from config.core_config import CoreConfigManager
+from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import HTMLResponse
 from models.api_models import ApiResponse
+from services.webview_config_service import WebViewConfigService
 
 logger = logging.getLogger(__name__)
 
@@ -42,19 +42,24 @@ async def get_connector_webview_html(
         # 获取配置管理器
 
         # 获取连接器的配置schema
-        schema_data = await webview_service.connector_config_service.get_config_schema(connector_id)
+        schema_data = await webview_service.connector_config_service.get_config_schema(
+            connector_id
+        )
         if not schema_data:
             logger.error(f"未找到连接器 {connector_id} 的配置schema")
             raise HTTPException(
-                status_code=404, 
-                detail=f"连接器 {connector_id} 的配置schema不存在"
+                status_code=404, detail=f"连接器 {connector_id} 的配置schema不存在"
             )
 
         config_schema = schema_data.get("config_schema", {})
         ui_schema = schema_data.get("ui_schema", {})
 
         # 获取当前配置
-        current_config = await webview_service.connector_config_service.get_current_config(connector_id)
+        current_config = (
+            await webview_service.connector_config_service.get_current_config(
+                connector_id
+            )
+        )
         if current_config is None:
             current_config = {}
 
@@ -89,7 +94,9 @@ async def check_webview_support(
     """检查连接器WebView支持情况"""
     try:
         # 获取连接器的配置schema
-        schema_data = await webview_service.connector_config_service.get_config_schema(connector_id)
+        schema_data = await webview_service.connector_config_service.get_config_schema(
+            connector_id
+        )
 
         if not schema_data:
             return ApiResponse(
@@ -100,7 +107,7 @@ async def check_webview_support(
         # 检查是否支持WebView配置
         ui_schema = schema_data.get("ui_schema", {})
         webview_config = ui_schema.get("ui:webview", {})
-        
+
         supports_webview = webview_config.get("enabled", False)
         template_name = webview_config.get("template")
         custom_html = webview_config.get("custom_html")
@@ -137,7 +144,7 @@ async def get_available_templates(
     """获取可用模板列表"""
     try:
         templates = await webview_service.get_available_templates()
-        
+
         return ApiResponse(
             success=True,
             data=templates,
@@ -263,7 +270,9 @@ async def preview_connector_webview(
         # 获取配置管理器
 
         # 获取连接器的配置schema
-        schema_data = await webview_service.connector_config_service.get_config_schema(connector_id)
+        schema_data = await webview_service.connector_config_service.get_config_schema(
+            connector_id
+        )
         if not schema_data:
             # 生成示例schema用于预览
             config_schema = {

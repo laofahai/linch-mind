@@ -22,7 +22,8 @@ from config.core_config import CoreConfigManager
 from models.database_models import Base, Connector
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from tests.ipc_test_client import IPCTestClient, MockIPCDaemon, create_mock_daemon_with_routes
+from tests.ipc_test_client import (IPCTestClient, MockIPCDaemon,
+                                   create_mock_daemon_with_routes)
 
 
 @pytest.fixture(scope="session")
@@ -110,7 +111,7 @@ def mock_connector_manager():
         },
         {
             "connector_id": "clipboard",
-            "name": "Clipboard Connector",  
+            "name": "Clipboard Connector",
             "status": "configured",
             "pid": None,
         },
@@ -153,10 +154,10 @@ async def mock_ipc_daemon():
 async def ipc_client(mock_ipc_daemon):
     """创建IPC测试客户端"""
     daemon, socket_path = mock_ipc_daemon
-    
+
     # 等待daemon启动
     await asyncio.sleep(0.1)
-    
+
     client = IPCTestClient(socket_path)
     yield client
     client.close()
@@ -211,31 +212,37 @@ def sample_connector_discovery_response():
 def mock_ipc_server():
     """模拟IPC服务器fixture"""
     from services.ipc_server import IPCServer
-    
+
     server = Mock(spec=IPCServer)
     server.start = AsyncMock()
     server.stop = AsyncMock()
     server.is_running = True
-    
+
     return server
 
 
-@pytest.fixture 
+@pytest.fixture
 def pure_ipc_daemon(mock_config_manager, mock_database_service, mock_connector_manager):
     """创建纯IPC daemon测试实例"""
     # 设置测试环境变量
     os.environ["TESTING"] = "true"
     os.environ["IPC_ONLY"] = "true"
-    
+
     # 模拟所有依赖
-    with patch("services.database_service.get_database_service", return_value=mock_database_service):
-        with patch("services.connectors.connector_manager.get_connector_manager", return_value=mock_connector_manager):
+    with patch(
+        "services.database_service.get_database_service",
+        return_value=mock_database_service,
+    ):
+        with patch(
+            "services.connectors.connector_manager.get_connector_manager",
+            return_value=mock_connector_manager,
+        ):
             from services.ipc_server import get_ipc_server
-            
+
             # 创建模拟IPC服务器
             ipc_server = get_ipc_server()
             yield ipc_server
-    
+
     # 清理环境变量
     os.environ.pop("TESTING", None)
     os.environ.pop("IPC_ONLY", None)
@@ -265,7 +272,7 @@ def create_test_connector(session, **kwargs):
 async def wait_for_ipc_server(socket_path: str, timeout: float = 5.0) -> bool:
     """等待IPC服务器启动"""
     start_time = asyncio.get_event_loop().time()
-    
+
     while asyncio.get_event_loop().time() - start_time < timeout:
         try:
             client = IPCTestClient(socket_path)
@@ -275,18 +282,18 @@ async def wait_for_ipc_server(socket_path: str, timeout: float = 5.0) -> bool:
         except Exception:
             pass
         await asyncio.sleep(0.1)
-    
+
     return False
 
 
 def create_ipc_test_environment(temp_dir: Path) -> dict:
     """创建IPC测试环境配置"""
     socket_path = temp_dir / "test_daemon.sock"
-    
+
     return {
-        'socket_path': str(socket_path),
-        'app_data': temp_dir / "app_data",
-        'config': temp_dir / "config",
-        'logs': temp_dir / "logs",
-        'database': temp_dir / "database"
+        "socket_path": str(socket_path),
+        "app_data": temp_dir / "app_data",
+        "config": temp_dir / "config",
+        "logs": temp_dir / "logs",
+        "database": temp_dir / "database",
     }

@@ -430,7 +430,9 @@ class CoreConfigManager:
         logger.info(f"获取连接器配置: {connector_id}")
         return {}
 
-    def update_connector_config(self, connector_id: str, config: Dict[str, Any]) -> bool:
+    def update_connector_config(
+        self, connector_id: str, config: Dict[str, Any]
+    ) -> bool:
         """更新连接器配置"""
         try:
             # 这里应该将配置保存到数据库或文件系统
@@ -461,7 +463,7 @@ class CoreConfigManager:
                 if hasattr(self.config, key):
                     setattr(self.config, key, value)
                     logger.info(f"更新系统配置: {key} = {value}")
-            
+
             # 保存配置到文件
             self.save_config()
             return True

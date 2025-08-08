@@ -19,7 +19,6 @@ sys.path.insert(0, str(project_root / "daemon"))
 
 # 导入依赖管理
 from api.dependencies import cleanup_services, get_config_manager
-
 # 导入纯IPC服务器
 from services.ipc_server import start_ipc_server, stop_ipc_server
 
@@ -44,20 +43,23 @@ async def auto_start_connectors():
     logger.info("🔌 开始启动连接器...")
 
     try:
-        from services.connectors.connector_manager import get_connector_manager
         from pathlib import Path
+
         from config.core_config import get_connector_config
+        from services.connectors.connector_manager import get_connector_manager
 
         # 获取简化连接器管理器
         manager = get_connector_manager()
-        
+
         # 首先自动注册本地连接器（如果尚未注册）
         try:
             connector_config = get_connector_config()
             connectors_dir = Path(connector_config.config_dir)
-            
+
             # 扫描并注册未注册的连接器
-            discovered_connectors = manager.scan_directory_for_connectors(str(connectors_dir))
+            discovered_connectors = manager.scan_directory_for_connectors(
+                str(connectors_dir)
+            )
             for connector in discovered_connectors:
                 if not connector.get("is_registered", False):
                     logger.info(f"自动注册连接器: {connector['name']}")

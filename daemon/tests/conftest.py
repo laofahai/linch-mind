@@ -138,9 +138,6 @@ def mock_process_manager():
     return manager
 
 
-
-
-
 @pytest.fixture
 def api_headers():
     """API请求头"""

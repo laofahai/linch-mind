@@ -3,12 +3,13 @@
 WebView配置服务 - 为复杂连接器提供HTML配置界面
 """
 
-import os
 import json
 import logging
-from typing import Dict, Any, Optional, List
+import os
 from datetime import datetime
 from pathlib import Path
+from typing import Any, Dict, List, Optional
+
 import jinja2
 from config.core_config import CoreConfigManager
 from services.connectors.connector_config_service import ConnectorConfigService
@@ -37,7 +38,7 @@ class WebViewConfigService:
         # 设置Jinja2环境
         self.jinja_env = jinja2.Environment(
             loader=jinja2.FileSystemLoader([str(d) for d in self.template_dirs]),
-            autoescape=jinja2.select_autoescape(['html', 'xml']),
+            autoescape=jinja2.select_autoescape(["html", "xml"]),
             trim_blocks=True,
             lstrip_blocks=True,
         )
@@ -47,60 +48,60 @@ class WebViewConfigService:
 
     def _register_custom_filters(self):
         """注册自定义Jinja2过滤器"""
-        
+
         def json_encode_filter(obj):
             return json.dumps(obj, ensure_ascii=False, indent=2)
-        
+
         def field_type_to_input(field_type, field_schema):
             """将JSON Schema字段类型转换为HTML输入类型"""
             type_mapping = {
-                'string': 'text',
-                'number': 'number',
-                'integer': 'number',
-                'boolean': 'checkbox',
-                'password': 'password',
+                "string": "text",
+                "number": "number",
+                "integer": "number",
+                "boolean": "checkbox",
+                "password": "password",
             }
-            
+
             # 检查特殊格式
-            if field_type == 'string':
-                field_format = field_schema.get('format', '')
-                if field_format == 'password':
-                    return 'password'
-                elif field_format == 'email':
-                    return 'email'
-                elif field_format == 'url':
-                    return 'url'
-                elif field_format == 'textarea':
-                    return 'textarea'
-                elif field_schema.get('enum'):
-                    return 'select'
-                    
-            return type_mapping.get(field_type, 'text')
+            if field_type == "string":
+                field_format = field_schema.get("format", "")
+                if field_format == "password":
+                    return "password"
+                elif field_format == "email":
+                    return "email"
+                elif field_format == "url":
+                    return "url"
+                elif field_format == "textarea":
+                    return "textarea"
+                elif field_schema.get("enum"):
+                    return "select"
+
+            return type_mapping.get(field_type, "text")
 
         def get_field_validation(field_name, field_schema, required_fields):
             """获取字段验证属性"""
             validation = {}
-            
+
             if field_name in required_fields:
-                validation['required'] = True
-                
-            if field_schema.get('minLength'):
-                validation['minlength'] = field_schema['minLength']
-            if field_schema.get('maxLength'):
-                validation['maxlength'] = field_schema['maxLength']
-            if field_schema.get('minimum'):
-                validation['min'] = field_schema['minimum']
-            if field_schema.get('maximum'):
-                validation['max'] = field_schema['maximum']
-            if field_schema.get('pattern'):
-                validation['pattern'] = field_schema['pattern']
-                
+                validation["required"] = True
+
+            if field_schema.get("minLength"):
+                validation["minlength"] = field_schema["minLength"]
+            if field_schema.get("maxLength"):
+                validation["maxlength"] = field_schema["maxLength"]
+            if field_schema.get("minimum"):
+                validation["min"] = field_schema["minimum"]
+            if field_schema.get("maximum"):
+                validation["max"] = field_schema["maximum"]
+            if field_schema.get("pattern"):
+                validation["pattern"] = field_schema["pattern"]
+
             return validation
-        
+
         # 注册过滤器到Jinja环境
-        self.jinja_env.filters['json_encode'] = json_encode_filter
-        self.jinja_env.filters['field_type_to_input'] = field_type_to_input
-        self.jinja_env.filters['get_field_validation'] = get_field_validation
+        self.jinja_env.filters["json_encode"] = json_encode_filter
+        self.jinja_env.filters["field_type_to_input"] = field_type_to_input
+        self.jinja_env.filters["get_field_validation"] = get_field_validation
 
     async def generate_webview_html(
         self,
@@ -130,29 +131,31 @@ class WebViewConfigService:
 
             # 准备模板变量
             template_vars = {
-                'connector_id': connector_id,
-                'connector_name': self._get_connector_display_name(connector_id),
-                'config_schema': config_schema,
-                'ui_schema': ui_schema,
-                'current_config': current_config,
-                'properties': config_schema.get('properties', {}),
-                'required_fields': config_schema.get('required', []),
-                'sections': ui_schema.get('ui:sections', {}),
-                'form_title': ui_schema.get('ui:title', f'{connector_id} 配置'),
-                'form_description': ui_schema.get('ui:description', '配置连接器参数'),
-                'timestamp': datetime.now().isoformat(),
-                'debug_mode': os.environ.get('DEBUG', '').lower() == 'true',
+                "connector_id": connector_id,
+                "connector_name": self._get_connector_display_name(connector_id),
+                "config_schema": config_schema,
+                "ui_schema": ui_schema,
+                "current_config": current_config,
+                "properties": config_schema.get("properties", {}),
+                "required_fields": config_schema.get("required", []),
+                "sections": ui_schema.get("ui:sections", {}),
+                "form_title": ui_schema.get("ui:title", f"{connector_id} 配置"),
+                "form_description": ui_schema.get("ui:description", "配置连接器参数"),
+                "timestamp": datetime.now().isoformat(),
+                "debug_mode": os.environ.get("DEBUG", "").lower() == "true",
             }
 
             # 渲染模板
             html_content = template.render(**template_vars)
-            
+
             logger.info(f"成功生成WebView HTML，长度: {len(html_content)} 字符")
             return html_content
 
         except jinja2.TemplateNotFound as e:
             logger.error(f"模板文件不存在: {e}")
-            return self._generate_fallback_html(connector_id, config_schema, current_config)
+            return self._generate_fallback_html(
+                connector_id, config_schema, current_config
+            )
         except Exception as e:
             logger.error(f"生成WebView HTML失败: {e}")
             return self._generate_error_html(str(e))
@@ -169,10 +172,10 @@ class WebViewConfigService:
         """获取连接器显示名称"""
         # 可以从配置或连接器注册信息中获取
         display_names = {
-            'filesystem': '文件系统连接器',
-            'clipboard': '剪贴板连接器',
-            'browser': '浏览器连接器',
-            'email': '邮件连接器',
+            "filesystem": "文件系统连接器",
+            "clipboard": "剪贴板连接器",
+            "browser": "浏览器连接器",
+            "email": "邮件连接器",
         }
         return display_names.get(connector_id, connector_id.title())
 
@@ -180,69 +183,77 @@ class WebViewConfigService:
         self,
         connector_id: str,
         config_schema: Dict[str, Any],
-        current_config: Dict[str, Any]
+        current_config: Dict[str, Any],
     ) -> str:
         """生成后备HTML（当模板不存在时）"""
-        properties = config_schema.get('properties', {})
-        required_fields = config_schema.get('required', [])
+        properties = config_schema.get("properties", {})
+        required_fields = config_schema.get("required", [])
 
         html_parts = [
-            '<!DOCTYPE html>',
+            "<!DOCTYPE html>",
             '<html lang="zh-CN">',
-            '<head>',
+            "<head>",
             '    <meta charset="UTF-8">',
             '    <meta name="viewport" content="width=device-width, initial-scale=1.0">',
-            f'    <title>{connector_id} 配置</title>',
-            '    <style>',
+            f"    <title>{connector_id} 配置</title>",
+            "    <style>",
             self._get_default_css(),
-            '    </style>',
-            '</head>',
-            '<body>',
+            "    </style>",
+            "</head>",
+            "<body>",
             '    <div class="container">',
             '        <div class="header">',
-            f'            <h1>{self._get_connector_display_name(connector_id)}</h1>',
-            '            <p>配置连接器参数</p>',
-            '        </div>',
+            f"            <h1>{self._get_connector_display_name(connector_id)}</h1>",
+            "            <p>配置连接器参数</p>",
+            "        </div>",
             '        <form id="config-form" class="config-form">',
         ]
 
         # 生成表单字段
         for field_name, field_schema in properties.items():
-            field_type = field_schema.get('type', 'string')
-            field_title = field_schema.get('title', field_name)
-            field_description = field_schema.get('description', '')
-            current_value = current_config.get(field_name, '')
+            field_type = field_schema.get("type", "string")
+            field_title = field_schema.get("title", field_name)
+            field_description = field_schema.get("description", "")
+            current_value = current_config.get(field_name, "")
             is_required = field_name in required_fields
 
-            html_parts.extend([
-                '            <div class="form-group">',
-                f'                <label for="{field_name}" class="form-label">',
-                f'                    {field_title}',
-                f'                    {"<span class=\"required\">*</span>" if is_required else ""}',
-                '                </label>',
-            ])
+            html_parts.extend(
+                [
+                    '            <div class="form-group">',
+                    f'                <label for="{field_name}" class="form-label">',
+                    f"                    {field_title}",
+                    f'                    {"<span class=\"required\">*</span>" if is_required else ""}',
+                    "                </label>",
+                ]
+            )
 
             # 根据类型生成输入控件
-            if field_type == 'boolean':
-                checked = 'checked' if current_value else ''
-                html_parts.extend([
-                    f'                <div class="checkbox-group">',
-                    f'                    <input type="checkbox" id="{field_name}" name="{field_name}" {checked}>',
-                    f'                    <label for="{field_name}">启用</label>',
-                    f'                </div>',
-                ])
-            elif field_schema.get('enum'):
-                html_parts.append(f'                <select id="{field_name}" name="{field_name}" class="form-input">')
-                for option in field_schema['enum']:
-                    selected = 'selected' if str(current_value) == str(option) else ''
-                    html_parts.append(f'                    <option value="{option}" {selected}>{option}</option>')
-                html_parts.append('                </select>')
+            if field_type == "boolean":
+                checked = "checked" if current_value else ""
+                html_parts.extend(
+                    [
+                        f'                <div class="checkbox-group">',
+                        f'                    <input type="checkbox" id="{field_name}" name="{field_name}" {checked}>',
+                        f'                    <label for="{field_name}">启用</label>',
+                        f"                </div>",
+                    ]
+                )
+            elif field_schema.get("enum"):
+                html_parts.append(
+                    f'                <select id="{field_name}" name="{field_name}" class="form-input">'
+                )
+                for option in field_schema["enum"]:
+                    selected = "selected" if str(current_value) == str(option) else ""
+                    html_parts.append(
+                        f'                    <option value="{option}" {selected}>{option}</option>'
+                    )
+                html_parts.append("                </select>")
             else:
-                input_type = 'text'
-                if field_type in ['number', 'integer']:
-                    input_type = 'number'
-                elif field_schema.get('format') == 'password':
-                    input_type = 'password'
+                input_type = "text"
+                if field_type in ["number", "integer"]:
+                    input_type = "number"
+                elif field_schema.get("format") == "password":
+                    input_type = "password"
 
                 html_parts.append(
                     f'                <input type="{input_type}" id="{field_name}" '
@@ -251,29 +262,33 @@ class WebViewConfigService:
                 )
 
             if field_description:
-                html_parts.append(f'                <div class="form-description">{field_description}</div>')
+                html_parts.append(
+                    f'                <div class="form-description">{field_description}</div>'
+                )
 
-            html_parts.append('            </div>')
+            html_parts.append("            </div>")
 
-        html_parts.extend([
-            '        </form>',
-            '        <div class="actions">',
-            '            <button type="button" onclick="resetForm()" class="btn btn-secondary">重置</button>',
-            '            <button type="button" onclick="saveConfig()" class="btn btn-primary">保存配置</button>',
-            '        </div>',
-            '    </div>',
-            '    <script>',
-            self._get_default_javascript(config_schema, current_config),
-            '    </script>',
-            '</body>',
-            '</html>',
-        ])
+        html_parts.extend(
+            [
+                "        </form>",
+                '        <div class="actions">',
+                '            <button type="button" onclick="resetForm()" class="btn btn-secondary">重置</button>',
+                '            <button type="button" onclick="saveConfig()" class="btn btn-primary">保存配置</button>',
+                "        </div>",
+                "    </div>",
+                "    <script>",
+                self._get_default_javascript(config_schema, current_config),
+                "    </script>",
+                "</body>",
+                "</html>",
+            ]
+        )
 
-        return '\n'.join(html_parts)
+        return "\n".join(html_parts)
 
     def _generate_error_html(self, error_message: str) -> str:
         """生成错误页面HTML"""
-        return f'''
+        return f"""
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
@@ -307,11 +322,11 @@ class WebViewConfigService:
     </div>
 </body>
 </html>
-        '''
+        """
 
     def _get_default_css(self) -> str:
         """获取默认CSS样式"""
-        return '''
+        return """
         * {
             margin: 0;
             padding: 0;
@@ -418,15 +433,13 @@ class WebViewConfigService:
             background: #6c757d;
             color: white;
         }
-        '''
+        """
 
     def _get_default_javascript(
-        self, 
-        config_schema: Dict[str, Any], 
-        current_config: Dict[str, Any]
+        self, config_schema: Dict[str, Any], current_config: Dict[str, Any]
     ) -> str:
         """获取默认JavaScript代码"""
-        return f'''
+        return f"""
         const configSchema = {json.dumps(config_schema, ensure_ascii=False)};
         const initialConfig = {json.dumps(current_config, ensure_ascii=False)};
         
@@ -501,29 +514,29 @@ class WebViewConfigService:
                 }});
             }});
         }});
-        '''
+        """
 
     async def save_custom_template(
         self,
         connector_id: str,
         template_content: str,
-        template_name: Optional[str] = None
+        template_name: Optional[str] = None,
     ) -> bool:
         """保存自定义模板"""
         try:
             template_file = template_name or f"{connector_id}_config.html"
             template_path = self.template_dirs[0] / template_file
-            
+
             # 确保目录存在
             template_path.parent.mkdir(parents=True, exist_ok=True)
-            
+
             # 写入模板内容
-            with open(template_path, 'w', encoding='utf-8') as f:
+            with open(template_path, "w", encoding="utf-8") as f:
                 f.write(template_content)
-            
+
             logger.info(f"保存自定义模板: {template_path}")
             return True
-            
+
         except Exception as e:
             logger.error(f"保存自定义模板失败: {e}")
             return False
@@ -531,25 +544,25 @@ class WebViewConfigService:
     async def get_available_templates(self) -> List[Dict[str, Any]]:
         """获取可用模板列表"""
         templates = []
-        
+
         try:
             for template_dir in self.template_dirs:
                 if template_dir.exists():
                     for template_file in template_dir.glob("*.html"):
                         template_info = {
-                            'name': template_file.stem,
-                            'filename': template_file.name,
-                            'path': str(template_file),
-                            'size': template_file.stat().st_size,
-                            'modified': datetime.fromtimestamp(
+                            "name": template_file.stem,
+                            "filename": template_file.name,
+                            "path": str(template_file),
+                            "size": template_file.stat().st_size,
+                            "modified": datetime.fromtimestamp(
                                 template_file.stat().st_mtime
                             ).isoformat(),
                         }
                         templates.append(template_info)
-                        
+
         except Exception as e:
             logger.error(f"获取模板列表失败: {e}")
-            
+
         return templates
 
     def validate_template(self, template_content: str) -> Dict[str, Any]:
@@ -557,33 +570,33 @@ class WebViewConfigService:
         try:
             # 尝试解析模板
             template = jinja2.Template(template_content)
-            
+
             # 基本渲染测试
             test_vars = {
-                'connector_id': 'test',
-                'connector_name': 'Test Connector',
-                'config_schema': {'properties': {}},
-                'ui_schema': {},
-                'current_config': {},
+                "connector_id": "test",
+                "connector_name": "Test Connector",
+                "config_schema": {"properties": {}},
+                "ui_schema": {},
+                "current_config": {},
             }
-            
+
             template.render(**test_vars)
-            
+
             return {
-                'valid': True,
-                'message': '模板验证通过',
+                "valid": True,
+                "message": "模板验证通过",
             }
-            
+
         except jinja2.TemplateSyntaxError as e:
             return {
-                'valid': False,
-                'error_type': 'syntax_error',
-                'message': f'模板语法错误: {e}',
-                'line_number': e.lineno,
+                "valid": False,
+                "error_type": "syntax_error",
+                "message": f"模板语法错误: {e}",
+                "line_number": e.lineno,
             }
         except Exception as e:
             return {
-                'valid': False,
-                'error_type': 'render_error',
-                'message': f'模板渲染错误: {e}',
+                "valid": False,
+                "error_type": "render_error",
+                "message": f"模板渲染错误: {e}",
             }
