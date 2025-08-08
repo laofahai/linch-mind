@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import Any, Dict, Optional, Tuple
 from unittest.mock import AsyncMock, Mock
 
-from services.ipc_protocol import IPCMessage, IPCResponse
+from services.ipc_protocol import IPCRequest, IPCResponse
 from services.ipc_router import IPCRouter
 
 
@@ -37,7 +37,7 @@ class IPCTestClient:
         if not self.socket:
             raise RuntimeError("Not connected to IPC server")
 
-        message = IPCMessage(
+        message = IPCRequest(
             method=method,
             params=params or {},
             request_id="test_request_" + str(asyncio.get_event_loop().time())
@@ -115,7 +115,7 @@ class MockIPCDaemon:
 
                 # 解析消息
                 message_data = json.loads(data.decode())
-                message = IPCMessage.from_dict(message_data)
+                message = IPCRequest.from_dict(message_data)
 
                 # 路由处理
                 try:
