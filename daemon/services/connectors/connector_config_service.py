@@ -1,602 +1,472 @@
 #!/usr/bin/env python3
 """
-连接器配置管理服务
-实现Schema驱动的配置系统
+连接器配置服务
+提供连接器配置的schema获取、验证、更新等功能
+替代已删除的unified_connector_service
 """
 
-import importlib.util
 import json
 import logging
-import sys
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from jsonschema import ValidationError, validate
-
 from models.database_models import Connector, ConnectorConfigHistory
-from services.database_service import get_database_service
-
-from .connector_config_schema import create_basic_config_schema
+from core.service_facade import get_database_service
+from .connector_config_schema import (
+    ConnectorConfigSchema,
+    create_basic_config_schema,
+    COMMON_FIELD_TEMPLATES,
+)
 
 logger = logging.getLogger(__name__)
 
 
 class ConnectorConfigService:
-    """连接器配置管理服务"""
+    """连接器配置服务
+    
+    提供配置相关的核心功能：
+    - 配置schema获取和管理
+    - 配置验证和更新
+    - 配置历史记录
+    """
 
-    def __init__(self):
+    def __init__(self, connectors_dir: Optional[Path] = None):
         self.db_service = get_database_service()
-        self._schema_cache = {}  # 缓存已加载的schema
-        self._runtime_schemas = {}  # 运行时注册的schema
-
+        self.connectors_dir = connectors_dir or Path("connectors")
+        
     async def get_config_schema(self, connector_id: str) -> Optional[Dict[str, Any]]:
-        """获取连接器的配置schema - 语言无关版本，优先使用静态schema"""
+        """获取连接器的配置schema"""
         try:
-            # 1. 优先从connector.json读取静态schema（推荐方式）
-            static_schema = await self._load_static_schema_from_manifest(connector_id)
-            if static_schema:
-                return static_schema
-
-            # 2. 向后兼容：使用运行时注册的schema
-            if connector_id in self._runtime_schemas:
-                logger.info(f"使用运行时schema: {connector_id}")
-                return self._runtime_schemas[connector_id]
-
-            # 3. 从数据库获取存储的schema
-            with self.db_service.get_session() as session:
-                connector = (
-                    session.query(Connector)
-                    .filter_by(connector_id=connector_id)
-                    .first()
-                )
-                if not connector:
-                    logger.warning(f"连接器不存在: {connector_id}")
-                    return None
-
-                # 如果数据库中有schema，返回它
-                if connector.config_schema:
-                    logger.info(f"使用数据库存储schema: {connector_id}")
-                    schema_data = {
-                        "schema": connector.config_schema,
-                        "ui_schema": (
-                            connector.config_data.get("ui_schema", {})
-                            if connector.config_data
-                            else {}
-                        ),
-                        "default_values": (
-                            connector.config_data.get("default_values", {})
-                            if connector.config_data
-                            else {}
-                        ),
-                        "version": connector.config_version or "1.0.0",
-                    }
-                    self._schema_cache[connector_id] = schema_data
-                    return schema_data
-
-            # 4. 向后兼容：尝试从连接器代码动态加载schema
-            schema_data = await self._load_schema_from_connector(connector_id)
-            if schema_data:
-                logger.info(f"使用代码动态schema: {connector_id}")
-                return schema_data
-
-            # 5. 生成默认基础schema
-            logger.info(f"为连接器 {connector_id} 生成默认配置schema")
-            return self._generate_default_schema(connector_id)
-
+            # 首先尝试从连接器目录加载schema文件
+            schema_data = self._load_schema_from_file(connector_id)
+            
+            if not schema_data:
+                # 如果没有schema文件，生成基础schema
+                schema_data = self._generate_basic_schema(connector_id)
+            
+            logger.debug(f"获取配置schema成功: {connector_id}")
+            return schema_data
+            
         except Exception as e:
             logger.error(f"获取配置schema失败 {connector_id}: {e}")
             return None
 
-    async def register_runtime_schema(
-        self, connector_id: str, schema_data: Dict[str, Any]
-    ):
-        """注册运行时schema（连接器启动时调用）"""
+    def _load_schema_from_file(self, connector_id: str) -> Optional[Dict[str, Any]]:
+        """从文件加载schema"""
         try:
-            self._runtime_schemas[connector_id] = {
-                "schema": schema_data.get("config_schema", {}),
-                "ui_schema": schema_data.get("ui_schema", {}),
-                "default_values": schema_data.get("default_config", {}),
-                "version": "runtime",
-                "connector_name": schema_data.get("connector_name", connector_id),
-                "description": schema_data.get("connector_description", ""),
-            }
-
-            # 同步更新数据库
-            await self._update_schema_in_database(
-                connector_id, self._runtime_schemas[connector_id]
-            )
-
-            logger.info(f"运行时schema注册成功: {connector_id}")
-            return True
-
+            # 查找schema文件的多个可能路径
+            potential_paths = [
+                self.connectors_dir / "official" / connector_id / "config_schema.json",
+                self.connectors_dir / "official" / connector_id / "schema.json",
+                self.connectors_dir / connector_id / "config_schema.json",
+            ]
+            
+            for schema_path in potential_paths:
+                if schema_path.exists():
+                    with open(schema_path, 'r', encoding='utf-8') as f:
+                        schema_data = json.load(f)
+                    
+                    logger.debug(f"从文件加载schema: {schema_path}")
+                    return schema_data
+            
+            return None
+            
         except Exception as e:
-            logger.error(f"注册运行时schema失败 {connector_id}: {e}")
-            return False
+            logger.warning(f"从文件加载schema失败 {connector_id}: {e}")
+            return None
+
+    def _generate_basic_schema(self, connector_id: str) -> Dict[str, Any]:
+        """生成基础的配置schema"""
+        try:
+            # 从数据库获取连接器信息
+            with self.db_service.get_session() as session:
+                connector = session.query(Connector).filter_by(
+                    connector_id=connector_id
+                ).first()
+                
+                connector_name = connector.name if connector else connector_id
+            
+            # 创建基础schema
+            basic_schema = create_basic_config_schema(connector_id, connector_name)
+            
+            return {
+                "json_schema": basic_schema.to_json_schema(),
+                "ui_schema": basic_schema.to_ui_schema(),
+                "metadata": {
+                    "schema_version": basic_schema.schema_version,
+                    "connector_id": connector_id,
+                    "connector_name": connector_name,
+                    "generated": True
+                }
+            }
+            
+        except Exception as e:
+            logger.error(f"生成基础schema失败 {connector_id}: {e}")
+            # 返回最小schema
+            return {
+                "json_schema": {
+                    "$schema": "http://json-schema.org/draft-07/schema#",
+                    "type": "object",
+                    "properties": {},
+                    "additionalProperties": True
+                },
+                "ui_schema": {},
+                "metadata": {
+                    "schema_version": "1.0.0",
+                    "connector_id": connector_id,
+                    "error": "Failed to generate schema"
+                }
+            }
 
     async def get_current_config(self, connector_id: str) -> Optional[Dict[str, Any]]:
         """获取连接器当前配置"""
         try:
             with self.db_service.get_session() as session:
-                connector = (
-                    session.query(Connector)
-                    .filter_by(connector_id=connector_id)
-                    .first()
-                )
+                connector = session.query(Connector).filter_by(
+                    connector_id=connector_id
+                ).first()
+                
                 if not connector:
+                    logger.warning(f"连接器不存在: {connector_id}")
                     return None
-
-                return {
-                    "current_config": connector.config_data or {},
-                    "config_schema": connector.config_schema or {},
-                    "config_version": connector.config_version or "1.0.0",
-                    "config_valid": connector.config_valid,
-                    "validation_errors": connector.config_validation_errors,
-                    "updated_at": (
-                        connector.updated_at.isoformat()
-                        if connector.updated_at
-                        else None
-                    ),
-                }
+                
+                # 返回配置数据，如果为空则返回空字典
+                config_data = connector.config_data or {}
+                logger.debug(f"获取当前配置成功: {connector_id}")
+                return config_data
+                
         except Exception as e:
             logger.error(f"获取当前配置失败 {connector_id}: {e}")
             return None
 
-    async def validate_config(
-        self, connector_id: str, config: Dict[str, Any]
-    ) -> Dict[str, Any]:
+    async def validate_config(self, connector_id: str, config: Dict[str, Any]) -> Dict[str, Any]:
         """验证配置数据"""
         try:
-            # 获取schema
+            # 获取schema进行验证
             schema_data = await self.get_config_schema(connector_id)
+            
             if not schema_data:
                 return {
                     "valid": False,
-                    "errors": [f"无法获取连接器 {connector_id} 的配置schema"],
+                    "errors": [{"message": "无法获取配置schema"}]
                 }
-
-            json_schema = schema_data["schema"]
-
-            # 使用jsonschema验证
-            try:
-                validate(instance=config, schema=json_schema)
-                return {"valid": True, "normalized_config": config, "warnings": []}
-            except ValidationError as e:
-                return {
-                    "valid": False,
-                    "errors": [str(e)],
-                    "error_path": list(e.path) if hasattr(e, "path") else [],
-                }
-
+            
+            json_schema = schema_data.get("json_schema", {})
+            
+            # 基础验证：检查必需字段
+            errors = []
+            required_fields = json_schema.get("required", [])
+            
+            for field in required_fields:
+                if field not in config:
+                    errors.append({
+                        "field": field,
+                        "message": f"必需字段 '{field}' 缺失"
+                    })
+            
+            # 类型验证
+            properties = json_schema.get("properties", {})
+            for field_name, field_value in config.items():
+                if field_name in properties:
+                    field_schema = properties[field_name]
+                    field_type = field_schema.get("type", "string")
+                    
+                    if not self._validate_field_type(field_value, field_type):
+                        errors.append({
+                            "field": field_name,
+                            "message": f"字段 '{field_name}' 类型错误，期望 {field_type}"
+                        })
+            
+            is_valid = len(errors) == 0
+            
+            logger.debug(f"配置验证完成: {connector_id}, valid={is_valid}")
+            
+            return {
+                "valid": is_valid,
+                "errors": errors,
+                "warnings": []  # 可以添加警告信息
+            }
+            
         except Exception as e:
-            logger.error(f"配置验证异常 {connector_id}: {e}")
-            return {"valid": False, "errors": [f"配置验证过程中发生错误: {str(e)}"]}
+            logger.error(f"配置验证失败 {connector_id}: {e}")
+            return {
+                "valid": False,
+                "errors": [{"message": f"验证过程出错: {str(e)}"}]
+            }
+
+    def _validate_field_type(self, value: Any, expected_type: str) -> bool:
+        """验证字段类型"""
+        try:
+            if expected_type == "string":
+                return isinstance(value, str)
+            elif expected_type == "integer":
+                return isinstance(value, int)
+            elif expected_type == "number":
+                return isinstance(value, (int, float))
+            elif expected_type == "boolean":
+                return isinstance(value, bool)
+            elif expected_type == "array":
+                return isinstance(value, list)
+            elif expected_type == "object":
+                return isinstance(value, dict)
+            else:
+                return True  # 未知类型，假设有效
+        except:
+            return False
 
     async def update_config(
-        self,
-        connector_id: str,
-        new_config: Dict[str, Any],
+        self, 
+        connector_id: str, 
+        config: Dict[str, Any], 
         config_version: str = "1.0.0",
-        change_reason: str = "用户更新",
+        change_reason: str = "用户更新"
     ) -> Dict[str, Any]:
         """更新连接器配置"""
         try:
-            with self.db_service.get_session() as session:
-                connector = (
-                    session.query(Connector)
-                    .filter_by(connector_id=connector_id)
-                    .first()
-                )
-                if not connector:
-                    raise ValueError(f"连接器不存在: {connector_id}")
-
-                # 先验证新配置
-                validation_result = await self.validate_config(connector_id, new_config)
-
-                # 保存旧配置用于历史记录
-                old_config = connector.config_data or {}
-
-                # 更新配置
-                connector.config_data = new_config
-                connector.config_version = config_version
-                connector.config_valid = validation_result["valid"]
-                connector.config_validation_errors = (
-                    validation_result.get("errors")
-                    if not validation_result["valid"]
-                    else None
-                )
-                connector.updated_at = datetime.now(timezone.utc)
-
-                session.commit()
-
-                # 记录配置变更历史
-                await self._record_config_history(
-                    connector_id, old_config, new_config, change_reason
-                )
-
-                # 检查是否支持热重载
-                hot_reload_applied = await self._try_hot_reload_config(
-                    connector_id, new_config
-                )
-
+            # 首先验证配置
+            validation_result = await self.validate_config(connector_id, config)
+            
+            if not validation_result["valid"]:
                 return {
-                    "config_version": config_version,
-                    "hot_reload_applied": hot_reload_applied,
-                    "requires_restart": not hot_reload_applied,
-                    "updated_at": connector.updated_at.isoformat(),
+                    "success": False,
+                    "error": "配置验证失败",
+                    "validation_errors": validation_result["errors"]
                 }
-
+            
+            with self.db_service.get_session() as session:
+                # 获取连接器
+                connector = session.query(Connector).filter_by(
+                    connector_id=connector_id
+                ).first()
+                
+                if not connector:
+                    return {
+                        "success": False,
+                        "error": f"连接器不存在: {connector_id}"
+                    }
+                
+                # 保存旧配置到历史记录
+                old_config = connector.config_data or {}
+                
+                if old_config != config:
+                    self._save_config_history(
+                        session=session,
+                        connector_id=connector_id,
+                        old_config=old_config,
+                        new_config=config,
+                        config_version=config_version,
+                        change_reason=change_reason
+                    )
+                
+                # 更新连接器配置
+                connector.config_data = config
+                connector.updated_at = datetime.now(timezone.utc)
+                session.commit()
+                
+                logger.info(f"配置更新成功: {connector_id}")
+                
+                return {
+                    "success": True,
+                    "message": "配置更新成功",
+                    "config_version": config_version
+                }
+                
         except Exception as e:
             logger.error(f"更新配置失败 {connector_id}: {e}")
-            raise
+            return {
+                "success": False,
+                "error": f"更新配置时出错: {str(e)}"
+            }
 
-    async def reset_config(
-        self, connector_id: str, to_defaults: bool = True
-    ) -> Dict[str, Any]:
+    def _save_config_history(
+        self, 
+        session, 
+        connector_id: str, 
+        old_config: Dict[str, Any],
+        new_config: Dict[str, Any],
+        config_version: str,
+        change_reason: str
+    ):
+        """保存配置历史记录"""
+        try:
+            history_record = ConnectorConfigHistory(
+                connector_id=connector_id,
+                config_data=new_config,
+                config_version=config_version,
+                schema_version="1.0.0",
+                change_type="update",
+                change_description=change_reason,
+                changed_by="user",
+                validation_status="valid"
+            )
+            
+            session.add(history_record)
+            logger.debug(f"配置历史记录已保存: {connector_id}")
+            
+        except Exception as e:
+            logger.warning(f"保存配置历史失败 {connector_id}: {e}")
+
+    async def reset_config(self, connector_id: str, to_defaults: bool = True) -> Dict[str, Any]:
         """重置连接器配置"""
         try:
-            if to_defaults:
-                # 重置为默认配置
-                schema_data = await self.get_config_schema(connector_id)
-                if schema_data and schema_data.get("default_values"):
-                    new_config = schema_data["default_values"]
+            with self.db_service.get_session() as session:
+                connector = session.query(Connector).filter_by(
+                    connector_id=connector_id
+                ).first()
+                
+                if not connector:
+                    return {
+                        "success": False,
+                        "error": f"连接器不存在: {connector_id}"
+                    }
+                
+                # 保存旧配置到历史记录
+                old_config = connector.config_data or {}
+                
+                if to_defaults:
+                    # 重置为默认配置
+                    schema_data = await self.get_config_schema(connector_id)
+                    default_config = self._extract_default_config(schema_data)
                 else:
-                    new_config = {}
-            else:
-                # 重置为空配置
-                new_config = {}
-
-            result = await self.update_config(
-                connector_id, new_config, "1.0.0", "重置配置"
-            )
-            result["config"] = new_config
-            return result
-
+                    # 重置为空配置
+                    default_config = {}
+                
+                # 保存历史记录
+                if old_config != default_config:
+                    self._save_config_history(
+                        session=session,
+                        connector_id=connector_id,
+                        old_config=old_config,
+                        new_config=default_config,
+                        config_version="1.0.0",
+                        change_reason="重置配置"
+                    )
+                
+                # 更新连接器配置
+                connector.config_data = default_config
+                connector.updated_at = datetime.now(timezone.utc)
+                session.commit()
+                
+                logger.info(f"配置重置成功: {connector_id}")
+                
+                return {
+                    "success": True,
+                    "message": "配置重置成功",
+                    "config": default_config
+                }
+                
         except Exception as e:
             logger.error(f"重置配置失败 {connector_id}: {e}")
-            raise
+            return {
+                "success": False,
+                "error": f"重置配置时出错: {str(e)}"
+            }
+
+    def _extract_default_config(self, schema_data: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+        """从schema中提取默认配置"""
+        if not schema_data:
+            return {}
+        
+        json_schema = schema_data.get("json_schema", {})
+        properties = json_schema.get("properties", {})
+        
+        default_config = {}
+        for field_name, field_schema in properties.items():
+            if "default" in field_schema:
+                default_config[field_name] = field_schema["default"]
+        
+        return default_config
 
     async def get_config_history(
-        self, connector_id: str, limit: int = 10, offset: int = 0
+        self, 
+        connector_id: str, 
+        limit: int = 10, 
+        offset: int = 0
     ) -> Dict[str, Any]:
         """获取配置变更历史"""
         try:
             with self.db_service.get_session() as session:
                 # 查询历史记录
-                query = (
-                    session.query(ConnectorConfigHistory)
-                    .filter_by(connector_id=connector_id)
-                    .order_by(ConnectorConfigHistory.created_at.desc())
-                )
-
-                total = query.count()
-                records = query.offset(offset).limit(limit).all()
-
+                history_query = session.query(ConnectorConfigHistory).filter_by(
+                    connector_id=connector_id
+                ).order_by(ConnectorConfigHistory.created_at.desc())
+                
+                total_count = history_query.count()
+                history_records = history_query.offset(offset).limit(limit).all()
+                
                 # 转换为字典格式
-                history_records = []
-                for record in records:
-                    history_records.append(
-                        {
-                            "id": record.id,
-                            "config_data": record.config_data,
-                            "config_version": record.config_version,
-                            "schema_version": record.schema_version,
-                            "change_type": record.change_type,
-                            "change_description": record.change_description,
-                            "changed_by": record.changed_by,
-                            "validation_status": record.validation_status,
-                            "validation_errors": record.validation_errors,
-                            "created_at": (
-                                record.created_at.isoformat()
-                                if record.created_at
-                                else None
-                            ),
-                        }
-                    )
-
+                history_data = []
+                for record in history_records:
+                    history_data.append({
+                        "id": record.id,
+                        "connector_id": record.connector_id,
+                        "config_data": record.config_data,
+                        "config_version": record.config_version,
+                        "schema_version": record.schema_version,
+                        "change_type": record.change_type,
+                        "change_description": record.change_description,
+                        "changed_by": record.changed_by,
+                        "validation_status": record.validation_status,
+                        "validation_errors": record.validation_errors,
+                        "created_at": record.created_at.isoformat() if record.created_at else None
+                    })
+                
+                logger.debug(f"获取配置历史成功: {connector_id}, {len(history_data)} 条记录")
+                
                 return {
-                    "records": history_records,
-                    "total": total,
-                    "has_more": (offset + limit) < total,
+                    "history": history_data,
+                    "total": total_count,
+                    "limit": limit,
+                    "offset": offset
                 }
-
+                
         except Exception as e:
             logger.error(f"获取配置历史失败 {connector_id}: {e}")
-            return {"records": [], "total": 0, "has_more": False}
+            return {
+                "history": [],
+                "total": 0,
+                "limit": limit,
+                "offset": offset,
+                "error": str(e)
+            }
 
-    async def get_all_schemas(self) -> List[Dict[str, Any]]:
-        """获取所有连接器的配置schema概览"""
+    async def get_all_schemas(self) -> Dict[str, Any]:
+        """获取所有连接器的配置Schema概览"""
         try:
-            schemas = []
-
-            # 获取数据库中的所有连接器
             with self.db_service.get_session() as session:
+                # 获取所有连接器
                 connectors = session.query(Connector).all()
-
+                
+                schemas = {}
                 for connector in connectors:
-                    schema_info = {
-                        "connector_id": connector.connector_id,
-                        "connector_name": connector.name,
-                        "has_schema": bool(connector.config_schema),
-                        "has_runtime_schema": connector.connector_id
-                        in self._runtime_schemas,
-                        "config_version": connector.config_version or "1.0.0",
-                        "last_updated": (
-                            connector.updated_at.isoformat()
-                            if connector.updated_at
-                            else None
-                        ),
-                    }
-                    schemas.append(schema_info)
-
-            return schemas
-
+                    schema_data = await self.get_config_schema(connector.connector_id)
+                    if schema_data:
+                        schemas[connector.connector_id] = {
+                            "connector_id": connector.connector_id,
+                            "connector_name": connector.name,
+                            "schema_version": schema_data.get("metadata", {}).get("schema_version", "1.0.0"),
+                            "has_custom_schema": not schema_data.get("metadata", {}).get("generated", False),
+                            "field_count": len(schema_data.get("json_schema", {}).get("properties", {}))
+                        }
+                
+                logger.debug(f"获取所有schema成功，共 {len(schemas)} 个连接器")
+                
+                return {
+                    "schemas": schemas,
+                    "total": len(schemas)
+                }
+                
         except Exception as e:
             logger.error(f"获取所有schema失败: {e}")
-            return []
-
-    async def _load_static_schema_from_manifest(
-        self, connector_id: str
-    ) -> Optional[Dict[str, Any]]:
-        """从connector.json读取静态配置schema - 语言无关方式"""
-        try:
-            # 查找连接器manifest文件
-            connector_path = self._find_connector_path(connector_id)
-            if not connector_path:
-                return None
-
-            manifest_file = connector_path / "connector.json"
-            if not manifest_file.exists():
-                logger.debug(f"未找到manifest文件: {manifest_file}")
-                return None
-
-            # 读取manifest
-            with open(manifest_file, "r", encoding="utf-8") as f:
-                manifest = json.load(f)
-
-            # 检查schema来源
-            schema_source = manifest.get("config_schema_source", "runtime")
-            if schema_source not in ["static", "embedded"]:
-                logger.debug(
-                    f"连接器 {connector_id} 使用 {schema_source} schema，跳过静态读取"
-                )
-                return None
-
-            # 读取静态schema
-            config_schema = manifest.get("config_schema")
-            if not config_schema:
-                logger.debug(f"连接器 {connector_id} 没有定义config_schema")
-                return None
-
-            # 构建完整schema数据
-            schema_data = {
-                "schema": config_schema,
-                "ui_schema": manifest.get("config_ui_schema", {}),
-                "default_values": manifest.get("config_default_values", {}),
-                "version": manifest.get("version", "1.0.0"),
-                "connector_name": manifest.get("name", connector_id),
-                "description": manifest.get("description", ""),
-                "source": f"static_manifest_{schema_source}",
-            }
-
-            # 缓存schema
-            self._schema_cache[connector_id] = schema_data
-
-            logger.info(f"成功从manifest读取静态schema: {connector_id}")
-            return schema_data
-
-        except Exception as e:
-            logger.error(f"从manifest读取静态schema失败 {connector_id}: {e}")
-            return None
-
-    async def _load_schema_from_connector(
-        self, connector_id: str
-    ) -> Optional[Dict[str, Any]]:
-        """从连接器Python代码动态加载schema"""
-        try:
-            # 查找连接器主模块路径
-            connector_path = self._find_connector_path(connector_id)
-            if not connector_path:
-                return None
-
-            # 添加connectors目录到Python路径，以便导入shared模块
-            connectors_root = connector_path.parent.parent
-            if str(connectors_root) not in sys.path:
-                sys.path.insert(0, str(connectors_root))
-
-            # 动态导入连接器模块
-            spec = importlib.util.spec_from_file_location(
-                f"{connector_id}_connector", connector_path / "main.py"
-            )
-            if not spec or not spec.loader:
-                return None
-
-            module = importlib.util.module_from_spec(spec)
-            spec.loader.exec_module(module)
-
-            # 查找连接器类
-            connector_class = None
-            for attr_name in dir(module):
-                attr = getattr(module, attr_name)
-                if (
-                    isinstance(attr, type)
-                    and hasattr(attr, "get_config_schema")
-                    and attr.__name__ != "BaseConnector"
-                ):
-                    connector_class = attr
-                    break
-
-            if not connector_class:
-                return None
-
-            # 获取schema
-            config_schema = connector_class.get_config_schema()
-            ui_schema = getattr(connector_class, "get_config_ui_schema", lambda: {})()
-
             return {
-                "schema": config_schema,
-                "ui_schema": ui_schema,
-                "default_values": self._extract_defaults_from_schema(config_schema),
-                "version": "1.0.0",
+                "schemas": {},
+                "total": 0,
+                "error": str(e)
             }
 
-        except Exception as e:
-            logger.error(f"从连接器代码加载schema失败 {connector_id}: {e}")
-            return None
 
-    def _find_connector_path(self, connector_id: str) -> Optional[Path]:
-        """查找连接器路径"""
-        # 查找官方连接器
-        official_path = (
-            Path(__file__).parent.parent.parent.parent
-            / "connectors"
-            / "official"
-            / connector_id
-        )
-        if official_path.exists():
-            return official_path
-
-        # 查找社区连接器
-        community_path = (
-            Path(__file__).parent.parent.parent.parent
-            / "connectors"
-            / "community"
-            / connector_id
-        )
-        if community_path.exists():
-            return community_path
-
-        return None
-
-    def _generate_default_schema(self, connector_id: str) -> Dict[str, Any]:
-        """生成默认配置schema"""
-        with self.db_service.get_session() as session:
-            connector = (
-                session.query(Connector).filter_by(connector_id=connector_id).first()
-            )
-            connector_name = connector.name if connector else connector_id
-
-        schema_obj = create_basic_config_schema(connector_id, connector_name)
-
-        return {
-            "schema": schema_obj.to_json_schema(),
-            "ui_schema": schema_obj.to_ui_schema(),
-            "default_values": self._extract_defaults_from_schema(
-                schema_obj.to_json_schema()
-            ),
-            "version": schema_obj.schema_version,
-        }
-
-    def _extract_defaults_from_schema(
-        self, json_schema: Dict[str, Any]
-    ) -> Dict[str, Any]:
-        """从JSON Schema提取默认值"""
-        defaults = {}
-        properties = json_schema.get("properties", {})
-
-        for key, prop in properties.items():
-            if "default" in prop:
-                defaults[key] = prop["default"]
-
-        return defaults
-
-    async def _update_schema_in_database(
-        self, connector_id: str, schema_data: Dict[str, Any]
-    ):
-        """更新数据库中的schema"""
-        try:
-            with self.db_service.get_session() as session:
-                connector = (
-                    session.query(Connector)
-                    .filter_by(connector_id=connector_id)
-                    .first()
-                )
-                if connector:
-                    connector.config_schema = schema_data["schema"]
-
-                    # 更新配置字段，合并默认值和UI schema
-                    if not connector.config_data:
-                        connector.config_data = {}
-
-                    connector.config_data.update(
-                        {
-                            "ui_schema": schema_data["ui_schema"],
-                            "default_values": schema_data["default_values"],
-                        }
-                    )
-
-                    session.commit()
-
-        except Exception as e:
-            logger.error(f"更新数据库schema失败 {connector_id}: {e}")
-
-    async def _record_config_history(
-        self,
-        connector_id: str,
-        old_config: Dict[str, Any],
-        new_config: Dict[str, Any],
-        change_reason: str,
-    ):
-        """记录配置变更历史"""
-        try:
-            with self.db_service.get_session() as session:
-                # 获取当前连接器信息
-                connector = (
-                    session.query(Connector)
-                    .filter_by(connector_id=connector_id)
-                    .first()
-                )
-                if not connector:
-                    return
-
-                # 创建历史记录
-                history_record = ConnectorConfigHistory(
-                    connector_id=connector_id,
-                    config_data=new_config,
-                    config_version=connector.config_version or "1.0.0",
-                    schema_version=connector.config_version or "1.0.0",
-                    change_type="update",
-                    change_description=change_reason,
-                    changed_by="system",
-                    validation_status="valid" if connector.config_valid else "invalid",
-                    validation_errors=connector.config_validation_errors,
-                )
-
-                session.add(history_record)
-                session.commit()
-
-                logger.info(f"配置变更历史记录成功: {connector_id} - {change_reason}")
-
-        except Exception as e:
-            logger.error(f"记录配置变更历史失败 {connector_id}: {e}")
-
-    async def _try_hot_reload_config(
-        self, connector_id: str, new_config: Dict[str, Any]
-    ) -> bool:
-        """尝试对运行中的连接器进行热重载"""
-        try:
-            # 检查连接器是否支持热重载
-            schema_data = await self.get_config_schema(connector_id)
-            if not schema_data:
-                return False
-
-            # 简化实现：通过daemon通知连接器重新加载配置
-            # 实际可以通过信号或IPC机制实现
-            logger.info(f"尝试热重载连接器配置: {connector_id}")
-            return True  # 假设成功
-
-        except Exception as e:
-            logger.error(f"热重载配置失败 {connector_id}: {e}")
-            return False
-
-
-# 全局单例
-_config_service = None
-
-
-def get_connector_config_service() -> ConnectorConfigService:
-    """获取连接器配置服务单例"""
-    global _config_service
-    if _config_service is None:
-        _config_service = ConnectorConfigService()
-    return _config_service
+# 全局服务实例获取函数
+def get_connector_config_service(connectors_dir: Optional[Path] = None) -> ConnectorConfigService:
+    """获取连接器配置服务实例"""
+    return ConnectorConfigService(connectors_dir)
