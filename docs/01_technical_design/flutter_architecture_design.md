@@ -41,17 +41,17 @@ Linch Mind Flutter应用采用现代化的跨平台架构设计，基于Riverpod
 │               Service Layer                     │
 │  ┌─────────────────────────────────────────────┐ │
 │  │  API Clients + Business Logic              │ │
-│  │  ├── ApiClient (Daemon HTTP客户端)         │ │
+│  │  ├── IPCClient (Daemon IPC客户端)          │ │
 │  │  ├── ConnectorLifecycleApiClient          │ │
 │  │  └── LocalStorageService                  │ │
 │  └─────────────────────────────────────────────┘ │
 └─────────────────────────────────────────────────┘
-                      ↕ HTTP/SQLite
+                      ↕ IPC/SQLite
 ┌─────────────────────────────────────────────────┐
 │                Data Layer                       │
 │  ┌─────────────────────────────────────────────┐ │
 │  │  Data Models + Repositories                │ │
-│  │  ├── API Models (网络数据模型)              │ │
+│  │  ├── IPC Models (IPC数据模型)               │ │
 │  │  ├── Local Models (本地数据模型)            │ │
 │  │  └── Data Transfer Objects                │ │
 │  └─────────────────────────────────────────────┘ │
@@ -227,14 +227,14 @@ class LocalStorageService {
 
 ---
 
-## 🌐 网络层架构设计
+## 🔄 通信层架构设计
 
-### HTTP客户端配置
+### IPC客户端配置
 
 ```dart
-// Dio HTTP客户端配置
-class ApiClient {
-  late final Dio _dio;
+// IPC客户端配置
+class IPCClient {
+  late final String _socketPath;
   final String baseUrl;
   
   ApiClient({required this.baseUrl}) {
@@ -253,7 +253,7 @@ class ApiClient {
       LogInterceptor(
         requestBody: true,
         responseBody: true,
-        logPrint: (obj) => developer.log(obj.toString(), name: 'API'),
+        logPrint: (obj) => developer.log(obj.toString(), name: 'IPC'),
       ),
       ErrorInterceptor(),
       RetryInterceptor(),
@@ -262,11 +262,11 @@ class ApiClient {
 }
 ```
 
-### API接口设计模式
+### IPC接口设计模式
 
 ```dart
-// RESTful API客户端
-class ApiClient {
+// IPC通信客户端
+class IPCClient {
   // === 知识图谱相关 ===
   Future<GraphDataResponse> getGraphData() async {
     final response = await _dio.get('/api/v1/graph/data');
@@ -309,8 +309,8 @@ class ErrorInterceptor extends Interceptor {
     
     // 记录错误日志
     developer.log(
-      'API Error: ${err.requestOptions.path}',
-      name: 'API_ERROR',
+      'IPC Error: ${method}',
+      name: 'IPC_ERROR',
       error: errorMessage,
     );
     
@@ -350,11 +350,11 @@ class ErrorInterceptor extends Interceptor {
 ### 数据模型组织
 
 ```dart
-// API数据模型 (与Daemon通信)
+// IPC数据模型 (与Daemon通信)
 lib/models/
-├── api_models.dart                 // API响应模型
-├── api_models.freezed.dart         // Freezed生成的不可变类
-├── api_models.g.dart               // JSON序列化代码
+├── ipc_protocol.dart               // IPC协议模型
+├── ipc_protocol.freezed.dart       // Freezed生成的不可变类
+├── ipc_protocol.g.dart             // JSON序列化代码
 ├── connector_lifecycle_models.dart  // 连接器生命周期模型
 ├── connector_lifecycle_models.freezed.dart
 └── connector_lifecycle_models.g.dart
@@ -920,7 +920,7 @@ void main() {
 ### 核心依赖
 - **Flutter**: 3.24+ (跨平台UI框架)
 - **Riverpod**: 2.4+ (响应式状态管理)
-- **Dio**: 5.3+ (HTTP网络请求)
+- **dart:io**: Socket (IPC通信)
 - **Freezed**: 2.5+ (不可变数据类)
 - **GoRouter**: 12.0+ (声明式路由)
 

@@ -8,15 +8,15 @@ import logging
 from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
+
+from sqlalchemy import create_engine, event, text
+from sqlalchemy.engine import Engine
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import StaticPool
 
 from config.core_config import get_database_config
 from models.database_models import Base
-from sqlalchemy import create_engine, event, text
-from sqlalchemy.engine import Engine
-from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy.orm import Session, sessionmaker
-from sqlalchemy.pool import StaticPool
 
 logger = logging.getLogger(__name__)
 
@@ -199,9 +199,9 @@ class OptimizedSQLiteService:
                 tables_result = conn.execute(
                     text(
                         """
-                    SELECT name, 
+                    SELECT name,
                            (SELECT COUNT(*) FROM sqlite_master WHERE name = s.name) as count
-                    FROM sqlite_master s 
+                    FROM sqlite_master s
                     WHERE type = 'table' AND name NOT LIKE 'sqlite_%'
                 """
                     )
@@ -275,7 +275,7 @@ class OptimizedSQLiteService:
                 tables_result = conn.execute(
                     text(
                         """
-                    SELECT name FROM sqlite_master 
+                    SELECT name FROM sqlite_master
                     WHERE type = 'table' AND name NOT LIKE 'sqlite_%'
                 """
                     )

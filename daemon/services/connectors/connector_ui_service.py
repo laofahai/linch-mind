@@ -193,7 +193,7 @@ class ConnectorUIService:
             widgets = []
 
             # 获取已注册的组件
-            for widget_key, widget_info in self._registered_widgets.items():
+            for _widget_key, widget_info in self._registered_widgets.items():
                 if widget_info["connector_id"] == connector_id:
                     widgets.append(
                         {
@@ -358,12 +358,12 @@ class ConnectorUIService:
                 <h2>连接器自定义组件</h2>
                 <p><strong>连接器ID:</strong> {connector_id}</p>
                 <p><strong>组件名称:</strong> {component_name}</p>
-                
+
                 <h3>请求参数</h3>
                 <div class="params">
                     <pre>{json.dumps(params, indent=2, ensure_ascii=False)}</pre>
                 </div>
-                
+
                 <p><em>这是默认的iframe内容。连接器可以通过实现自定义处理器来替换此内容。</em></p>
             </div>
         </body>

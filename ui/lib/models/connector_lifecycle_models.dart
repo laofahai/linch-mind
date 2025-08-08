@@ -106,7 +106,9 @@ class ConnectorInfo with _$ConnectorInfo {
 class InstallConnectorRequest with _$InstallConnectorRequest {
   const factory InstallConnectorRequest({
     @JsonKey(name: 'connector_id') required String connectorId,
-    @JsonKey(name: 'source') @Default('registry') String source, // registry, manual, scan
+    @JsonKey(name: 'source')
+    @Default('registry')
+    String source, // registry, manual, scan
     @JsonKey(name: 'display_name') String? displayName,
     @Default({}) Map<String, dynamic> config,
     // 移除 auto_start 字段，因为数据库模型已经简化了逻辑

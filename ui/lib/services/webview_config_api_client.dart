@@ -33,9 +33,12 @@ class WebViewConfigApiClient {
   }
 
   /// 获取连接器WebView配置HTML内容
-  Future<String> getWebViewConfigHtml(String connectorId, {String? templateName}) async {
+  Future<String> getWebViewConfigHtml(String connectorId,
+      {String? templateName}) async {
     try {
-      final queryParams = templateName != null ? {'template_name': templateName} : <String, dynamic>{};
+      final queryParams = templateName != null
+          ? {'template_name': templateName}
+          : <String, dynamic>{};
       final responseData = await _ipcApi.get(
         '/webview-config/html/$connectorId',
         queryParameters: queryParams,
@@ -53,9 +56,12 @@ class WebViewConfigApiClient {
   }
 
   /// 获取预览HTML内容
-  Future<String> getPreviewHtml(String connectorId, {String? templateName}) async {
+  Future<String> getPreviewHtml(String connectorId,
+      {String? templateName}) async {
     try {
-      final queryParams = templateName != null ? {'template_name': templateName} : <String, dynamic>{};
+      final queryParams = templateName != null
+          ? {'template_name': templateName}
+          : <String, dynamic>{};
       final responseData = await _ipcApi.get(
         '/webview-config/preview/$connectorId',
         queryParameters: queryParams,
@@ -146,26 +152,28 @@ final webViewConfigApiClientProvider = Provider<WebViewConfigApiClient>((ref) {
 });
 
 /// WebView支持检查提供者
-final webViewSupportProvider = FutureProvider.family<bool, String>((ref, connectorId) async {
+final webViewSupportProvider =
+    FutureProvider.family<bool, String>((ref, connectorId) async {
   final client = ref.read(webViewConfigApiClientProvider);
   final response = await client.checkWebViewSupport(connectorId);
-  
+
   if (response.success && response.data != null) {
     final data = response.data as Map<String, dynamic>;
     return data['supports_webview'] as bool? ?? false;
   }
-  
+
   return false;
 });
 
 /// 可用模板列表提供者
-final availableTemplatesProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
+final availableTemplatesProvider =
+    FutureProvider<List<Map<String, dynamic>>>((ref) async {
   final client = ref.read(webViewConfigApiClientProvider);
   final response = await client.getAvailableTemplates();
-  
+
   if (response.success && response.data != null) {
     return List<Map<String, dynamic>>.from(response.data as List);
   }
-  
+
   return [];
 });

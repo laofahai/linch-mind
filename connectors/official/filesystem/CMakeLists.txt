@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-project(filesystem-connector VERSION 0.1.0)
+project(linch-mind-filesystem VERSION 0.1.0)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -34,52 +34,52 @@ set(SOURCES
 )
 
 # Create executable
-add_executable(filesystem-connector ${SOURCES})
+add_executable(linch-mind-filesystem ${SOURCES})
 
 # Include directories
-target_include_directories(filesystem-connector PRIVATE
+target_include_directories(linch-mind-filesystem PRIVATE
     src
     ../../shared/include  # shared库头文件
 )
 
 # Link libraries
-target_link_libraries(filesystem-connector
+target_link_libraries(linch-mind-filesystem
     linch_connector_shared  # 使用shared库
     nlohmann_json::nlohmann_json
     ${PLATFORM_LIBS}
 )
 
 # Compile definitions
-target_compile_definitions(filesystem-connector PRIVATE ${PLATFORM_COMPILE_DEFINITIONS})
+target_compile_definitions(linch-mind-filesystem PRIVATE ${PLATFORM_COMPILE_DEFINITIONS})
 
 # Compiler flags
 if(UNIX)
-    target_compile_options(filesystem-connector PRIVATE -Wall -Wextra)
+    target_compile_options(linch-mind-filesystem PRIVATE -Wall -Wextra)
 endif()
 
 # Release build optimizations
 if(CMAKE_BUILD_TYPE STREQUAL "Release")
     # Maximum optimization
-    target_compile_options(filesystem-connector PRIVATE
+    target_compile_options(linch-mind-filesystem PRIVATE
         -O3 -DNDEBUG
         -ffunction-sections -fdata-sections
     )
     
     # Link-time optimization and dead code elimination
     if(UNIX AND NOT APPLE)
-        target_link_options(filesystem-connector PRIVATE
+        target_link_options(linch-mind-filesystem PRIVATE
             -Wl,--gc-sections
             -Wl,--strip-all
         )
     elseif(APPLE)
-        target_link_options(filesystem-connector PRIVATE
+        target_link_options(linch-mind-filesystem PRIVATE
             -Wl,-dead_strip
         )
     endif()
 endif()
 
 # Install target
-install(TARGETS filesystem-connector
+install(TARGETS linch-mind-filesystem
     RUNTIME DESTINATION bin
 )
 

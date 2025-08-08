@@ -6,11 +6,12 @@
 
 import logging
 from datetime import datetime, timedelta, timezone
-from typing import Any, Dict
+from typing import Any, Dict, List
+
+from sqlalchemy import and_, func, or_, select
 
 from models.database_models import EntityMetadata, EntityRelationship
 from services.optimized_sqlite_service import get_optimized_sqlite_service
-from sqlalchemy import and_, func, select
 
 from .models import DataQualityReport
 

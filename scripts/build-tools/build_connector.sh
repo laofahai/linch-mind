@@ -75,8 +75,8 @@ fi
 
 echo "✅ Binary verified: $BUILT_BINARY"
 
-# Copy to output directory with standard name
-FINAL_BINARY="$OUTPUT_DIR/${CONNECTOR_ID}-connector"
+# Copy to output directory with new linch-mind naming standard
+FINAL_BINARY="$OUTPUT_DIR/linch-mind-${CONNECTOR_ID}"
 cp "$BUILT_BINARY" "$FINAL_BINARY"
 
 # Get final binary size
@@ -85,10 +85,10 @@ echo "📊 Final binary size: $SIZE"
 
 # Create ZIP package
 cd "$OUTPUT_DIR"
-ZIP_NAME="${CONNECTOR_ID}-connector.zip"
+ZIP_NAME="linch-mind-${CONNECTOR_ID}.zip"
 
 echo "📦 Creating ZIP package: $ZIP_NAME"
-zip "$ZIP_NAME" "${CONNECTOR_ID}-connector" || { echo "Warning: Failed to add binary to ZIP"; }
+zip "$ZIP_NAME" "linch-mind-${CONNECTOR_ID}" || { echo "Warning: Failed to add binary to ZIP"; }
 
 # Add connector.json
 zip "$ZIP_NAME" -j "$CONNECTOR_PATH/connector.json" || { echo "Warning: Failed to add connector.json to ZIP"; }

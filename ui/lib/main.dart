@@ -14,7 +14,7 @@ import 'utils/app_logger.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
+
   // 初始化日志系统
   AppLogger.setDebugMode(kDebugMode);
   AppLogger.info('应用启动', module: 'Main');
@@ -48,7 +48,7 @@ void main() async {
           windowManager.setHasShadow(true),
         ]);
       }
-      
+
       // 最后显示窗口
       await windowManager.show();
       await windowManager.focus();

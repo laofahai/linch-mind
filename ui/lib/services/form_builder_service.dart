@@ -150,14 +150,32 @@ class FormBuilderService {
     );
   }
 
-  /// 创建数组控件
-  static FormArray<dynamic> _createArrayControl(
+  /// 创建数组控件 - 智能类型检测
+  static AbstractControl<dynamic> _createArrayControl(
     Map<String, dynamic> fieldSchema,
     dynamic initialValue,
     List<Validator<dynamic>> validators,
   ) {
-    final List<AbstractControl<dynamic>> controls = [];
     final items = fieldSchema['items'] as Map<String, dynamic>?;
+
+    // 对于简单的字符串数组，使用 FormControl<List<String>>
+    // 这种类型更适合标签输入等场景
+    if (items != null && items['type'] == 'string') {
+      final List<String> initialList;
+      if (initialValue is List) {
+        initialList = initialValue.cast<String>();
+      } else {
+        initialList = <String>[];
+      }
+
+      return FormControl<List<String>>(
+        value: initialList,
+        validators: validators.cast<Validator<List<String>>>(),
+      );
+    }
+
+    // 对于复杂数组（对象数组等），继续使用 FormArray
+    final List<AbstractControl<dynamic>> controls = [];
 
     if (initialValue is List) {
       for (final item in initialValue) {

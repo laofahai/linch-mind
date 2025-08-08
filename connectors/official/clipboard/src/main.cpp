@@ -11,6 +11,7 @@
 #include <linch_connector/config_manager.hpp>
 #include <linch_connector/unified_client.hpp>
 #include <linch_connector/utils.hpp>
+#include <linch_connector/connector_status.hpp>
 
 // 本地头文件
 #include "clipboard_monitor.hpp"
@@ -167,6 +168,11 @@ int main(int argc, char* argv[]) {
     
     std::cout << "🔗 Connected to daemon via IPC." << std::endl;
     
+    // 初始化状态管理器
+    ConnectorStatusManager statusManager("clipboard", "剪贴板连接器");
+    statusManager.setState(ConnectorRunningState::STARTING);
+    statusManager.notifyStarting(unifiedClient);
+    
     ConfigManager configManager("clipboard", "");
     if (!configManager.loadFromDaemon()) {
         std::cerr << "⚠️  Failed to load configuration from daemon, using defaults" << std::endl;
@@ -202,16 +208,38 @@ int main(int argc, char* argv[]) {
     if (!clipboardMonitor.startMonitoring(clipboardCallback, 
                                          static_cast<int>(configManager.getCheckInterval() * 1000))) {
         std::cerr << "❌ Failed to start clipboard monitoring" << std::endl;
+        statusManager.setError("Failed to start clipboard monitoring");
+        statusManager.sendStatusUpdate(unifiedClient);
         return 1;
     }
     
-    // 主循环
+    // 设置为运行状态
+    statusManager.setState(ConnectorRunningState::RUNNING);
+    statusManager.sendStatusUpdate(unifiedClient);
+    
+    std::cout << "✅ Clipboard connector is now running with heartbeat support" << std::endl;
+    
+    // 主循环 - 加入心跳发送
+    auto lastHeartbeat = std::chrono::system_clock::now();
+    const auto heartbeatInterval = std::chrono::seconds(30); // 30秒心跳间隔
+    
     while (!g_shouldStop) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        auto now = std::chrono::system_clock::now();
+        
+        // 检查是否应该发送心跳
+        if (now - lastHeartbeat >= heartbeatInterval) {
+            statusManager.sendHeartbeat(unifiedClient);
+            lastHeartbeat = now;
+        }
+        
+        std::this_thread::sleep_for(std::chrono::milliseconds(1000));
     }
     
     // 清理
     std::cout << "🛑 Stopping clipboard connector..." << std::endl;
+    statusManager.setState(ConnectorRunningState::STOPPING);
+    statusManager.notifyStopping(unifiedClient);
+    
     clipboardMonitor.stopMonitoring();
     
     std::cout << "📋 Clipboard connector stopped" << std::endl;

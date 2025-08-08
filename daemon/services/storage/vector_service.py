@@ -5,14 +5,13 @@ FAISS向量搜索服务 - 语义搜索和内容相似性计算
 """
 
 import asyncio
-import json
 import logging
 import pickle
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional
 
 import faiss
 import numpy as np
@@ -406,7 +405,7 @@ class VectorService:
 
             # 转换结果
             results = []
-            for i, (score, internal_id) in enumerate(zip(scores[0], indices[0])):
+            for _i, (score, internal_id) in enumerate(zip(scores[0], indices[0])):
                 if internal_id == -1:  # FAISS返回-1表示无效结果
                     continue
 

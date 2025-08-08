@@ -14,7 +14,7 @@ class ConnectorConfigApiClient {
     String defaultSuccessMessage,
   ) {
     final success = ipcResponse['success'] as bool? ?? false;
-    
+
     if (success) {
       return ConnectorApiResponse(
         success: true,
@@ -25,7 +25,7 @@ class ConnectorConfigApiClient {
       final error = ipcResponse['error'] as Map<String, dynamic>?;
       final errorMessage = error?['message'] as String? ?? '未知错误';
       final errorCode = error?['code'] as String?;
-      
+
       return ConnectorApiResponse(
         success: false,
         message: errorMessage,
@@ -38,7 +38,8 @@ class ConnectorConfigApiClient {
   /// 获取连接器配置Schema
   Future<ConnectorApiResponse> getConfigSchema(String connectorId) async {
     try {
-      final responseData = await _ipcApi.get('/connector-config/schema/$connectorId');
+      final responseData =
+          await _ipcApi.get('/connector-config/schema/$connectorId');
       return _convertIpcToApiResponse(responseData, '获取配置Schema成功');
     } catch (e) {
       return ConnectorApiResponse(
@@ -52,7 +53,8 @@ class ConnectorConfigApiClient {
   /// 获取当前配置
   Future<ConnectorApiResponse> getCurrentConfig(String connectorId) async {
     try {
-      final responseData = await _ipcApi.get('/connector-config/current/$connectorId');
+      final responseData =
+          await _ipcApi.get('/connector-config/current/$connectorId');
       return _convertIpcToApiResponse(responseData, '获取当前配置成功');
     } catch (e) {
       return ConnectorApiResponse(

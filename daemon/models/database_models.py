@@ -7,10 +7,17 @@ from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Dict, Optional
 
-from sqlalchemy import (JSON, Boolean, Column, DateTime, ForeignKey, Integer, String,
-                        Text)
-from sqlalchemy.orm import declarative_base
-from sqlalchemy.orm import relationship
+from sqlalchemy import (
+    JSON,
+    Boolean,
+    Column,
+    DateTime,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
+)
+from sqlalchemy.orm import declarative_base, relationship
 from sqlalchemy.sql import func
 
 from .connector_status import ConnectorRunningState
@@ -290,28 +297,37 @@ class ConnectorConfigHistory(Base):
 
 # 数据模型类
 
+
 class EntityMetadata(Base):
     """实体元数据模型"""
+
     __tablename__ = "entity_metadata"
-    
+
     id = Column(Integer, primary_key=True, autoincrement=True)
     entity_id = Column(String(255), unique=True, nullable=False, index=True)
     name = Column(String(500), nullable=False)
     type = Column(String(100), nullable=False)  # file, person, concept等
     description = Column(Text, nullable=True)
-    
+
     # 元数据
     properties = Column(JSON, nullable=True)
     tags = Column(JSON, nullable=True)  # 标签列表
-    
+
     # 统计信息
     access_count = Column(Integer, default=0)
     last_accessed = Column(DateTime(timezone=True), nullable=True)
-    
+
     # 时间戳
-    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
-    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
-    
+    created_at = Column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    updated_at = Column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False,
+    )
+
     def to_dict(self) -> Dict[str, Any]:
         return {
             "id": self.id,
@@ -322,7 +338,9 @@ class EntityMetadata(Base):
             "properties": self.properties,
             "tags": self.tags,
             "access_count": self.access_count,
-            "last_accessed": self.last_accessed.isoformat() if self.last_accessed else None,
+            "last_accessed": (
+                self.last_accessed.isoformat() if self.last_accessed else None
+            ),
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,
         }
@@ -330,27 +348,41 @@ class EntityMetadata(Base):
 
 class EntityRelationship(Base):
     """实体关系模型"""
+
     __tablename__ = "entity_relationships"
-    
+
     id = Column(Integer, primary_key=True, autoincrement=True)
-    source_entity_id = Column(String(255), ForeignKey("entity_metadata.entity_id"), nullable=False)
-    target_entity_id = Column(String(255), ForeignKey("entity_metadata.entity_id"), nullable=False)
-    
-    relationship_type = Column(String(100), nullable=False)  # related_to, contains, depends_on等
+    source_entity_id = Column(
+        String(255), ForeignKey("entity_metadata.entity_id"), nullable=False
+    )
+    target_entity_id = Column(
+        String(255), ForeignKey("entity_metadata.entity_id"), nullable=False
+    )
+
+    relationship_type = Column(
+        String(100), nullable=False
+    )  # related_to, contains, depends_on等
     strength = Column(Integer, default=1, nullable=False)  # 关系强度 1-10
     description = Column(Text, nullable=True)
-    
+
     # 元数据
     properties = Column(JSON, nullable=True)
-    
+
     # 时间戳
-    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
-    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
-    
+    created_at = Column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    updated_at = Column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False,
+    )
+
     # 关系
     source_entity = relationship("EntityMetadata", foreign_keys=[source_entity_id])
     target_entity = relationship("EntityMetadata", foreign_keys=[target_entity_id])
-    
+
     def to_dict(self) -> Dict[str, Any]:
         return {
             "id": self.id,
@@ -367,23 +399,28 @@ class EntityRelationship(Base):
 
 class UserBehavior(Base):
     """用户行为记录模型"""
+
     __tablename__ = "user_behaviors"
-    
+
     id = Column(Integer, primary_key=True, autoincrement=True)
     session_id = Column(String(255), nullable=True)  # 会话ID
-    
+
     # 行为信息
     action_type = Column(String(100), nullable=False)  # view, search, click, etc.
-    target_entity_id = Column(String(255), ForeignKey("entity_metadata.entity_id"), nullable=True)
+    target_entity_id = Column(
+        String(255), ForeignKey("entity_metadata.entity_id"), nullable=True
+    )
     context = Column(JSON, nullable=True)  # 上下文信息
-    
+
     # 时间和位置
-    timestamp = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    timestamp = Column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
     duration = Column(Integer, nullable=True)  # 持续时间（毫秒）
-    
+
     # 关系
     target_entity = relationship("EntityMetadata", foreign_keys=[target_entity_id])
-    
+
     def to_dict(self) -> Dict[str, Any]:
         return {
             "id": self.id,
@@ -398,27 +435,30 @@ class UserBehavior(Base):
 
 class AIConversation(Base):
     """AI对话记录模型"""
+
     __tablename__ = "ai_conversations"
-    
+
     id = Column(Integer, primary_key=True, autoincrement=True)
     session_id = Column(String(255), nullable=False, index=True)
-    
+
     # 对话内容
     user_input = Column(Text, nullable=False)
     ai_response = Column(Text, nullable=False)
-    
+
     # 元数据
     model_name = Column(String(100), nullable=True)
     prompt_tokens = Column(Integer, nullable=True)
     completion_tokens = Column(Integer, nullable=True)
     context = Column(JSON, nullable=True)
-    
+
     # 相关实体
     mentioned_entities = Column(JSON, nullable=True)  # 对话中提到的实体ID列表
-    
+
     # 时间戳
-    timestamp = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
-    
+    timestamp = Column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
     def to_dict(self) -> Dict[str, Any]:
         return {
             "id": self.id,

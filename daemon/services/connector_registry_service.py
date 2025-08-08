@@ -4,7 +4,6 @@
 从GitHub Release获取连接器市场信息
 """
 
-import asyncio
 import logging
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional

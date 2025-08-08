@@ -8,9 +8,7 @@ import json
 import logging
 import os
 import platform
-import socket
-from pathlib import Path
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -18,13 +16,9 @@ logger = logging.getLogger(__name__)
 class IPCConnectionError(Exception):
     """IPC连接错误"""
 
-    pass
-
 
 class IPCTimeoutError(Exception):
     """IPC超时错误"""
-
-    pass
 
 
 class IPCClient:
@@ -53,7 +47,7 @@ class IPCClient:
         """自动发现socket路径"""
         # 尝试从配置文件读取
         try:
-            from api.dependencies import get_config_manager
+            from config.dependencies import get_config_manager
 
             config_manager = get_config_manager()
 
@@ -203,7 +197,9 @@ class IPCClient:
             await self._send_message(auth_message)
             response = await self._receive_response()
 
-            if response.get("status_code") == 200:
+            if response.get("success") and response.get("data", {}).get(
+                "authenticated"
+            ):
                 logger.info("内部客户端认证成功")
             else:
                 error = response.get("data", {}).get("error", "Unknown error")

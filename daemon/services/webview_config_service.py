@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import jinja2
+
 from config.core_config import CoreConfigManager
 from services.connectors.connector_config_service import ConnectorConfigService
 
@@ -296,19 +297,19 @@ class WebViewConfigService:
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>配置加载错误</title>
     <style>
-        body {{ 
-            font-family: -apple-system, BlinkMacSystemFont, sans-serif; 
-            background: #f5f5f5; 
-            padding: 40px; 
-            text-align: center; 
+        body {{
+            font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+            background: #f5f5f5;
+            padding: 40px;
+            text-align: center;
         }}
-        .error {{ 
-            background: white; 
-            padding: 40px; 
-            border-radius: 8px; 
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1); 
-            max-width: 500px; 
-            margin: 0 auto; 
+        .error {{
+            background: white;
+            padding: 40px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            max-width: 500px;
+            margin: 0 auto;
         }}
         .error h1 {{ color: #d73527; margin-bottom: 16px; }}
         .error p {{ color: #666; line-height: 1.5; }}
@@ -332,14 +333,14 @@ class WebViewConfigService:
             padding: 0;
             box-sizing: border-box;
         }
-        
+
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             background: #fafafa;
             padding: 20px;
             line-height: 1.6;
         }
-        
+
         .container {
             max-width: 800px;
             margin: 0 auto;
@@ -348,37 +349,37 @@ class WebViewConfigService:
             box-shadow: 0 2px 10px rgba(0,0,0,0.1);
             overflow: hidden;
         }
-        
+
         .header {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
             padding: 24px;
         }
-        
+
         .header h1 {
             font-size: 24px;
             margin-bottom: 8px;
         }
-        
+
         .config-form {
             padding: 24px;
         }
-        
+
         .form-group {
             margin-bottom: 20px;
         }
-        
+
         .form-label {
             display: block;
             margin-bottom: 8px;
             font-weight: 600;
             color: #333;
         }
-        
+
         .required {
             color: #dc3545;
         }
-        
+
         .form-input {
             width: 100%;
             padding: 12px;
@@ -387,24 +388,24 @@ class WebViewConfigService:
             font-size: 14px;
             transition: border-color 0.2s;
         }
-        
+
         .form-input:focus {
             outline: none;
             border-color: #667eea;
         }
-        
+
         .checkbox-group {
             display: flex;
             align-items: center;
             gap: 8px;
         }
-        
+
         .form-description {
             font-size: 12px;
             color: #666;
             margin-top: 4px;
         }
-        
+
         .actions {
             display: flex;
             gap: 12px;
@@ -413,7 +414,7 @@ class WebViewConfigService:
             background: #f8f9fa;
             border-top: 1px solid #e9ecef;
         }
-        
+
         .btn {
             padding: 12px 24px;
             border: none;
@@ -423,12 +424,12 @@ class WebViewConfigService:
             cursor: pointer;
             transition: all 0.2s;
         }
-        
+
         .btn-primary {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
         }
-        
+
         .btn-secondary {
             background: #6c757d;
             color: white;
@@ -442,12 +443,12 @@ class WebViewConfigService:
         return f"""
         const configSchema = {json.dumps(config_schema, ensure_ascii=False)};
         const initialConfig = {json.dumps(current_config, ensure_ascii=False)};
-        
+
         function getFormData() {{
             const formData = {{}};
             const form = document.getElementById('config-form');
             const inputs = form.querySelectorAll('input, select, textarea');
-            
+
             inputs.forEach(input => {{
                 if (input.type === 'checkbox') {{
                     formData[input.name] = input.checked;
@@ -457,19 +458,19 @@ class WebViewConfigService:
                     formData[input.name] = input.value;
                 }}
             }});
-            
+
             return formData;
         }}
-        
+
         function resetForm() {{
             if (confirm('确定要重置为初始值吗？')) {{
                 const form = document.getElementById('config-form');
                 const inputs = form.querySelectorAll('input, select, textarea');
-                
+
                 inputs.forEach(input => {{
                     const fieldName = input.name;
                     const initialValue = initialConfig[fieldName];
-                    
+
                     if (input.type === 'checkbox') {{
                         input.checked = initialValue === true;
                     }} else {{
@@ -478,10 +479,10 @@ class WebViewConfigService:
                 }});
             }}
         }}
-        
+
         function saveConfig() {{
             const formData = getFormData();
-            
+
             // 发送到Flutter
             if (window.FlutterConfigBridge) {{
                 const message = JSON.stringify({{
@@ -492,16 +493,16 @@ class WebViewConfigService:
                 window.FlutterConfigBridge.postMessage(message);
             }}
         }}
-        
+
         // 监听表单变化
         document.addEventListener('DOMContentLoaded', function() {{
             const form = document.getElementById('config-form');
             const inputs = form.querySelectorAll('input, select, textarea');
-            
+
             inputs.forEach(input => {{
                 input.addEventListener('change', function() {{
                     const formData = getFormData();
-                    
+
                     // 通知Flutter配置变化
                     if (window.FlutterConfigBridge) {{
                         const message = JSON.stringify({{

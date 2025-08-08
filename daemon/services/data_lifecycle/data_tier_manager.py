@@ -8,9 +8,10 @@ import logging
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict
 
+from sqlalchemy import and_, func, or_, select, text
+
 from models.database_models import EntityMetadata
 from services.optimized_sqlite_service import get_optimized_sqlite_service
-from sqlalchemy import and_, func, or_, select, text
 
 from .models import DataTier, TierStatistics
 
@@ -107,7 +108,7 @@ class DataTierManager:
                 hot_update_result = session.execute(
                     text(
                         """
-                        UPDATE entity_metadata 
+                        UPDATE entity_metadata
                         SET relevance_score = 1.0
                         WHERE (last_accessed >= :hot_threshold OR last_accessed IS NULL)
                         AND access_count >= 5
@@ -121,9 +122,9 @@ class DataTierManager:
                 warm_update_result = session.execute(
                     text(
                         """
-                        UPDATE entity_metadata 
+                        UPDATE entity_metadata
                         SET relevance_score = 0.5
-                        WHERE last_accessed < :hot_threshold 
+                        WHERE last_accessed < :hot_threshold
                         AND last_accessed >= :warm_threshold
                         AND access_count >= 2
                     """
@@ -136,7 +137,7 @@ class DataTierManager:
                 cold_update_result = session.execute(
                     text(
                         """
-                        UPDATE entity_metadata 
+                        UPDATE entity_metadata
                         SET relevance_score = 0.1
                         WHERE last_accessed < :warm_threshold
                         OR access_count < 2

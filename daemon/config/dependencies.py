@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-简化的依赖注入模块 - Session V65
-移除复杂的连接器管理，使用简化的服务
+核心依赖注入模块 - 纯IPC架构
+从api/dependencies.py中提取，移除所有FastAPI依赖
 """
 
 import logging
@@ -14,8 +14,10 @@ project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
 from config.core_config import CoreConfigManager, get_core_config
-from services.connectors.connector_manager import (ConnectorManager,
-                                                   get_connector_manager)
+from services.connectors.connector_manager import (
+    ConnectorManager,
+    get_connector_manager,
+)
 from services.database_service import DatabaseService, get_database_service
 
 logger = logging.getLogger(__name__)
@@ -52,24 +54,3 @@ async def cleanup_services():
         logger.error(f"清理连接器管理器时出错: {e}")
 
     logger.info("所有服务资源清理完成")
-
-
-# FastAPI依赖函数
-async def get_db():
-    """FastAPI依赖: 获取数据库会话"""
-    db_service = get_database_service()
-    db = db_service.get_session()
-    try:
-        yield db
-    finally:
-        db.close()
-
-
-async def get_db_service() -> DatabaseService:
-    """FastAPI依赖: 获取数据库服务"""
-    return get_database_service()
-
-
-async def get_connectors() -> ConnectorManager:
-    """FastAPI依赖: 获取连接器管理器"""
-    return get_connector_manager()

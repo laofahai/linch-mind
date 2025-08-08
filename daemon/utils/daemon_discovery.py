@@ -116,7 +116,7 @@ class DaemonDiscovery:
                 cmdline = " ".join(proc.cmdline())
                 if any(
                     keyword in cmdline.lower()
-                    for keyword in ["api/main", "daemon", "linch-mind", "uvicorn"]
+                    for keyword in ["ipc_main", "main.py", "daemon", "linch-mind"]
                 ):
                     return True
 

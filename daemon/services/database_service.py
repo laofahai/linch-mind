@@ -1,28 +1,36 @@
 #!/usr/bin/env python3
 """
-简化的数据库服务 - Session V66 模型清理
-只保留连接器管理的基本功能
+高性能数据库服务 - 集成优化连接池
+使用读写分离和智能查询路由提升性能
 """
 
 import logging
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-from config.core_config import get_database_config
-from models.database_models import Base, Connector
 from sqlalchemy import create_engine
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session, sessionmaker
+
+from config.core_config import get_database_config
+from models.database_models import Base, Connector
+
+from .optimized_connection_pool import (
+    HighPerformanceConnectionPool,
+    get_connection_pool,
+)
 
 logger = logging.getLogger(__name__)
 
 
 class DatabaseService:
-    """简化的数据库服务 - 只管理连接器"""
+    """高性能数据库服务 - 集成优化连接池"""
 
     def __init__(self, db_path: Optional[str] = None):
         self.db_config = get_database_config()
-        # 如果提供了db_path，使用它，否则使用配置中的路径
+        self.connection_pool: Optional[HighPerformanceConnectionPool] = None
+
+        # 兼容传统接口的备用引擎
         if db_path:
             database_url = (
                 f"sqlite:///{db_path}"
@@ -44,12 +52,17 @@ class DatabaseService:
         self._initialize_database()
 
     async def initialize(self):
-        """异步初始化方法（为了兼容测试接口）"""
-        # 当前实现是同步的，这里只是提供异步接口
-        pass
+        """异步初始化高性能连接池"""
+        try:
+            self.connection_pool = await get_connection_pool()
+            logger.info("高性能连接池初始化完成")
+        except Exception as e:
+            logger.warning(f"高性能连接池初始化失败，使用传统连接: {e}")
 
     async def close(self):
-        """异步关闭方法（为了兼容测试接口）"""
+        """异步关闭方法"""
+        if self.connection_pool:
+            await self.connection_pool.cleanup()
         self.cleanup()
 
     def _initialize_database(self):

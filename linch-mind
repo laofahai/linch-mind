@@ -124,7 +124,7 @@ start_daemon() {
 
     echo -e "${GREEN}✅ 启动daemon服务...${NC}"
     # 使用运行时目录的日志文件
-    nohup poetry run python ipc_main.py > "$RUNTIME_DIR/daemon.log" 2>&1 &
+    nohup poetry run linch-daemon > "$RUNTIME_DIR/daemon.log" 2>&1 &
     
     DAEMON_PID=$!
     # 不再由脚本创建PID文件，让daemon自己管理

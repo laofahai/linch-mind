@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-project(clipboard-connector VERSION 0.1.0)
+project(linch-mind-clipboard VERSION 0.1.0)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -31,6 +31,14 @@ else()
     set(PLATFORM_COMPILE_DEFINITIONS)
 endif()
 
+# Set output directories based on build type BEFORE creating executable
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/bin)
+if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+    set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/bin/debug)
+else()
+    set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/bin/release)
+endif()
+
 # Source files (移除了重复的http_client.cpp和config_manager.cpp)
 set(SOURCES
     src/main.cpp
@@ -39,52 +47,52 @@ set(SOURCES
 )
 
 # Create executable
-add_executable(clipboard-connector ${SOURCES})
+add_executable(linch-mind-clipboard ${SOURCES})
 
 # Include directories
-target_include_directories(clipboard-connector PRIVATE
+target_include_directories(linch-mind-clipboard PRIVATE
     src
     ../../shared/include  # shared库头文件
 )
 
 # Link libraries
-target_link_libraries(clipboard-connector
+target_link_libraries(linch-mind-clipboard
     linch_connector_shared  # 使用shared库
     nlohmann_json::nlohmann_json
     ${PLATFORM_LIBS}
 )
 
 # Compile definitions
-target_compile_definitions(clipboard-connector PRIVATE ${PLATFORM_COMPILE_DEFINITIONS})
+target_compile_definitions(linch-mind-clipboard PRIVATE ${PLATFORM_COMPILE_DEFINITIONS})
 
 # Compiler flags
 if(UNIX)
-    target_compile_options(clipboard-connector PRIVATE -Wall -Wextra)
+    target_compile_options(linch-mind-clipboard PRIVATE -Wall -Wextra)
 endif()
 
 # Release build optimizations
 if(CMAKE_BUILD_TYPE STREQUAL "Release")
     # Maximum optimization
-    target_compile_options(clipboard-connector PRIVATE
+    target_compile_options(linch-mind-clipboard PRIVATE
         -O3 -DNDEBUG
         -ffunction-sections -fdata-sections
     )
     
     # Link-time optimization and dead code elimination
     if(UNIX AND NOT APPLE)
-        target_link_options(clipboard-connector PRIVATE
+        target_link_options(linch-mind-clipboard PRIVATE
             -Wl,--gc-sections
             -Wl,--strip-all
         )
     elseif(APPLE)
-        target_link_options(clipboard-connector PRIVATE
+        target_link_options(linch-mind-clipboard PRIVATE
             -Wl,-dead_strip
         )
     endif()
 endif()
 
 # Install target
-install(TARGETS clipboard-connector
+install(TARGETS linch-mind-clipboard
     RUNTIME DESTINATION bin
 )
 

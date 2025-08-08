@@ -25,16 +25,16 @@ mkdir -p ../dist/bin
 
 # Copy executable to dist
 if [[ "$OSTYPE" == "msys" || "$OSTYPE" == "win32" ]]; then
-    cp filesystem-connector.exe ../dist/bin/
-    echo "✅ Windows executable created: dist/bin/filesystem-connector.exe"
+    cp linch-mind-filesystem.exe ../dist/bin/
+    echo "✅ Windows executable created: dist/bin/linch-mind-filesystem.exe"
 else
-    cp filesystem-connector ../dist/bin/
-    echo "✅ Executable created: dist/bin/filesystem-connector"
+    cp linch-mind-filesystem ../dist/bin/
+    echo "✅ Executable created: dist/bin/linch-mind-filesystem"
 fi
 
 # Install (optional)
 if [[ "$1" == "--install" ]]; then
-    echo "📥 Installing filesystem-connector..."
+    echo "📥 Installing linch-mind-filesystem..."
     make install
 fi
 
@@ -44,10 +44,10 @@ echo "📁 Executable location: $(pwd)/../dist/bin/"
 # Show binary info
 if command -v file >/dev/null 2>&1; then
     echo "📊 Binary info:"
-    file ../dist/bin/filesystem-connector* | head -1
+    file ../dist/bin/linch-mind-filesystem* | head -1
 fi
 
 if command -v ls >/dev/null 2>&1; then
     echo "📊 Binary size:"
-    ls -lh ../dist/bin/filesystem-connector* | awk '{print $5, $9}'
+    ls -lh ../dist/bin/linch-mind-filesystem* | awk '{print $5, $9}'
 fi

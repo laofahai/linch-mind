@@ -6,9 +6,14 @@ WebView配置路由
 
 import logging
 
-from ..ipc_protocol import (IPCErrorCode, IPCRequest, IPCResponse,
-                            internal_error_response, invalid_request_response,
-                            resource_not_found_response)
+from ..ipc_protocol import (
+    IPCErrorCode,
+    IPCRequest,
+    IPCResponse,
+    internal_error_response,
+    invalid_request_response,
+    resource_not_found_response,
+)
 from ..ipc_router import IPCRouter
 
 logger = logging.getLogger(__name__)
@@ -28,8 +33,9 @@ def create_webview_config_router() -> IPCRouter:
             )
 
         try:
-            from daemon.services.connectors.connector_config_service import \
-                get_connector_config_service
+            from daemon.services.connectors.connector_config_service import (
+                get_connector_config_service,
+            )
 
             service = get_connector_config_service()
             schema_data = await service.get_config_schema(connector_id)
@@ -78,8 +84,9 @@ def create_webview_config_router() -> IPCRouter:
 
         try:
             from daemon.config.core_config import get_core_config_manager
-            from daemon.services.connectors.connector_config_service import \
-                get_connector_config_service
+            from daemon.services.connectors.connector_config_service import (
+                get_connector_config_service,
+            )
             from daemon.services.webview_config_service import WebViewConfigService
 
             # 获取配置和schema数据
@@ -140,8 +147,9 @@ def create_webview_config_router() -> IPCRouter:
         try:
             # 使用相同的逻辑生成预览HTML，但可能使用测试数据
             from daemon.config.core_config import get_core_config_manager
-            from daemon.services.connectors.connector_config_service import \
-                get_connector_config_service
+            from daemon.services.connectors.connector_config_service import (
+                get_connector_config_service,
+            )
             from daemon.services.webview_config_service import WebViewConfigService
 
             config_service = get_connector_config_service()

@@ -21,9 +21,14 @@ logger = logging.getLogger(__name__)
 
 # 向后兼容性导入
 try:
-    from .ipc_routes import (create_auth_router, create_connector_config_router,
-                             create_connector_lifecycle_router, create_health_router,
-                             create_system_config_router, register_all_routes)
+    from .ipc_routes import (
+        create_auth_router,
+        create_connector_config_router,
+        create_connector_lifecycle_router,
+        create_health_router,
+        create_system_config_router,
+        register_all_routes,
+    )
 except ImportError:
     # 如果新的模块化结构不可用，则退回到警告
     warnings.warn(

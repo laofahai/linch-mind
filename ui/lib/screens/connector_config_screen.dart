@@ -38,7 +38,7 @@ class _ConnectorConfigScreenState extends ConsumerState<ConnectorConfigScreen>
   bool _isSaving = false;
   String? _errorMessage;
   List<String> _validationErrors = [];
-  
+
   // WebView相关状态
   bool _supportsWebView = false;
   bool _useWebView = false;
@@ -190,11 +190,13 @@ class _ConnectorConfigScreenState extends ConsumerState<ConnectorConfigScreen>
     }
   }
 
-  Future<bool> _checkWebViewSupport(WebViewConfigApiClient webViewService) async {
+  Future<bool> _checkWebViewSupport(
+      WebViewConfigApiClient webViewService) async {
     try {
       setState(() => _checkingWebViewSupport = true);
-      
-      final response = await webViewService.checkWebViewSupport(widget.connectorId);
+
+      final response =
+          await webViewService.checkWebViewSupport(widget.connectorId);
       if (response.success && response.data != null) {
         final data = response.data as Map<String, dynamic>;
         return data['supports_webview'] as bool? ?? false;
@@ -613,6 +615,37 @@ class _ConnectorConfigScreenState extends ConsumerState<ConnectorConfigScreen>
   Widget _buildBasicConfigForm() {
     final properties =
         _configSchema['properties'] as Map<String, dynamic>? ?? {};
+
+    // 处理空配置情况
+    if (properties.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.settings_outlined,
+              size: 64,
+              color: Theme.of(context).disabledColor,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              '此连接器无需额外配置',
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    color: Theme.of(context).disabledColor,
+                  ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              '连接器使用默认设置运行，如有需要可联系管理员自定义配置。',
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: Theme.of(context).disabledColor,
+                  ),
+            ),
+          ],
+        ),
+      );
+    }
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),

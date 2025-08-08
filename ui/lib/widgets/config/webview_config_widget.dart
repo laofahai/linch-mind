@@ -29,7 +29,8 @@ class WebViewConfigWidget extends ConsumerStatefulWidget {
   });
 
   @override
-  ConsumerState<WebViewConfigWidget> createState() => _WebViewConfigWidgetState();
+  ConsumerState<WebViewConfigWidget> createState() =>
+      _WebViewConfigWidgetState();
 }
 
 class _WebViewConfigWidgetState extends ConsumerState<WebViewConfigWidget> {
@@ -106,11 +107,11 @@ class _WebViewConfigWidgetState extends ConsumerState<WebViewConfigWidget> {
     });
     try {
       final apiClient = ref.read(webViewConfigApiClientProvider);
-      final htmlContent = await apiClient.getWebViewConfigHtml(widget.connectorId);
-      
+      final htmlContent =
+          await apiClient.getWebViewConfigHtml(widget.connectorId);
+
       // 使用loadHtmlString加载从IPC获取的HTML
       await _controller?.loadHtmlString(htmlContent);
-
     } catch (e) {
       setState(() {
         _hasError = true;
@@ -144,13 +145,13 @@ class _WebViewConfigWidgetState extends ConsumerState<WebViewConfigWidget> {
             widget.onSave!();
           }
           break;
-        
+
         case 'requestInitialData':
-           _sendMessageToWebView('updateConfig', widget.currentConfig);
-           _sendMessageToWebView('updateSchema', {
-              'configSchema': widget.configSchema,
-              'uiSchema': widget.uiSchema,
-            });
+          _sendMessageToWebView('updateConfig', widget.currentConfig);
+          _sendMessageToWebView('updateSchema', {
+            'configSchema': widget.configSchema,
+            'uiSchema': widget.uiSchema,
+          });
           break;
 
         default:
@@ -173,7 +174,8 @@ class _WebViewConfigWidgetState extends ConsumerState<WebViewConfigWidget> {
       });
 
       // 使用 runJavaScript 而不是不安全的 evaluateJavascript
-      await _controller!.runJavaScript('window.receiveFlutterMessage(\'$message\');');
+      await _controller!
+          .runJavaScript('window.receiveFlutterMessage(\'$message\');');
     } catch (e) {
       debugPrint('向WebView发送消息失败: $e');
     }
@@ -229,8 +231,8 @@ class _WebViewConfigWidgetState extends ConsumerState<WebViewConfigWidget> {
                 _errorMessage,
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: Colors.red.shade700,
-                ),
+                      color: Colors.red.shade700,
+                    ),
               ),
             ),
             const SizedBox(height: 16),
@@ -245,8 +247,7 @@ class _WebViewConfigWidgetState extends ConsumerState<WebViewConfigWidget> {
 
     return Stack(
       children: [
-        if (_controller != null)
-          WebViewWidget(controller: _controller!),
+        if (_controller != null) WebViewWidget(controller: _controller!),
         if (_isLoading || widget.isLoading)
           const AbsorbPointer(
             child: Center(

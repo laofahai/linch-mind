@@ -72,7 +72,8 @@ class DaemonPortService {
 
       // 测试连接性并更新缓存
       final isAccessible = await _testDaemonConnection(daemonInfo);
-      print('[DaemonPortService] Connection test result: isAccessible=$isAccessible');
+      print(
+          '[DaemonPortService] Connection test result: isAccessible=$isAccessible');
       final accessibleDaemonInfo = DaemonInfo(
         pid: daemonInfo.pid,
         startedAt: daemonInfo.startedAt,
@@ -87,9 +88,8 @@ class DaemonPortService {
       } else {
         print('[DaemonPortService] IPC daemon (PID: ${daemonInfo.pid}) 不可访问');
       }
-      
-      return accessibleDaemonInfo;
 
+      return accessibleDaemonInfo;
     } catch (e) {
       print('[DaemonPortService] 发现daemon时出错: $e');
       return null;
@@ -97,30 +97,32 @@ class DaemonPortService {
   }
 
   Future<File?> _getSocketFile() async {
-    final homeDir = Platform.environment['HOME'] ?? Platform.environment['USERPROFILE'];
+    final homeDir =
+        Platform.environment['HOME'] ?? Platform.environment['USERPROFILE'];
     if (homeDir == null) {
       print('[DaemonPortService] 无法获取用户主目录');
       return null;
     }
     return File('$homeDir/$_configDirName/$_socketFileName');
   }
-  
+
   /// 读取并解析socket文件
   Future<DaemonInfo?> _readSocketFile(File socketFile) async {
     try {
       // 检查文件权限（Unix系统）
       if (!Platform.isWindows) {
         final stat = await socketFile.stat();
-        if ((stat.mode & 0x3F) != 0) { // 检查其他用户或组的权限
+        if ((stat.mode & 0x3F) != 0) {
+          // 检查其他用户或组的权限
           print('[DaemonPortService] Socket文件权限不安全，忽略');
           return null;
         }
       }
-      
+
       // 读取JSON内容
       final socketContent = await socketFile.readAsString();
       final Map<String, dynamic> socketData = json.decode(socketContent);
-      
+
       final pid = socketData['pid'] as int?;
       final path = socketData['path'] as String?;
       final type = socketData['type'] as String?;
@@ -136,14 +138,13 @@ class DaemonPortService {
         await socketFile.delete();
         return null;
       }
-      
+
       return DaemonInfo(
         pid: pid,
         startedAt: DateTime.now().toIso8601String(), // 启动时间可以从文件元数据获取，但这里简化
         socketPath: path,
         socketType: type,
       );
-      
     } catch (e) {
       print('[DaemonPortService] 读取socket文件失败: $e');
       return null;
@@ -158,7 +159,8 @@ class DaemonPortService {
   /// 检查daemon是否可访问
   Future<bool> isDaemonReachable() async {
     final daemonInfo = await discoverDaemon();
-    print('[DaemonPortService] isDaemonReachable: daemonInfo=$daemonInfo, isAccessible=${daemonInfo?.isAccessible}');
+    print(
+        '[DaemonPortService] isDaemonReachable: daemonInfo=$daemonInfo, isAccessible=${daemonInfo?.isAccessible}');
     return daemonInfo?.isAccessible ?? false;
   }
 
@@ -186,10 +188,12 @@ class DaemonPortService {
     if (pid <= 0) return false;
     try {
       if (Platform.isWindows) {
-        final result = await Process.run('tasklist', ['/FI', 'PID eq $pid'], runInShell: true);
+        final result = await Process.run('tasklist', ['/FI', 'PID eq $pid'],
+            runInShell: true);
         return result.stdout.toString().contains(pid.toString());
       } else {
-        final result = await Process.run('ps', ['-p', pid.toString()], runInShell: true);
+        final result =
+            await Process.run('ps', ['-p', pid.toString()], runInShell: true);
         return result.exitCode == 0;
       }
     } catch (e) {
@@ -205,16 +209,17 @@ class DaemonPortService {
       if (!await _verifyDaemonProcess(daemonInfo.pid)) {
         return false;
       }
-      
+
       // 验证socket文件是否存在
       if (daemonInfo.socketType == 'unix_socket') {
         final socketFile = File(daemonInfo.socketPath);
         if (!await socketFile.exists()) {
-          print('[DaemonPortService] Unix socket文件不存在: ${daemonInfo.socketPath}');
+          print(
+              '[DaemonPortService] Unix socket文件不存在: ${daemonInfo.socketPath}');
           return false;
         }
       }
-      
+
       // 如果进程存在且socket文件存在，认为daemon是可访问的
       // 实际的连接测试会在IPCClient中进行
       return true;

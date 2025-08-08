@@ -13,10 +13,14 @@ import sqlite3
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Set, Tuple
+from typing import Dict, Optional
 
-from models.database_models import (AIConversation, EntityMetadata, EntityRelationship,
-                                    UserBehavior)
+from models.database_models import (
+    AIConversation,
+    EntityMetadata,
+    EntityRelationship,
+    UserBehavior,
+)
 
 from ..database_service import get_database_service
 from .storage_orchestrator import get_storage_orchestrator

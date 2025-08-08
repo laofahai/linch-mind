@@ -128,24 +128,45 @@ make install
 
 cd ..
 
-# Copy binary to current directory
-cp "$INSTALL_DIR/bin/clipboard-connector" .
+# Create bin/release directory for new naming convention
+mkdir -p bin/release
+
+# Copy binary to new standard location with new naming (if old binary exists)
+if [ -f "$INSTALL_DIR/bin/clipboard-connector" ]; then
+    cp "$INSTALL_DIR/bin/clipboard-connector" "bin/release/linch-mind-clipboard"
+    # Also copy to current directory for backward compatibility
+    cp "$INSTALL_DIR/bin/clipboard-connector" "linch-mind-clipboard"
+else
+    echo "ℹ️  CMake already placed binary in correct location: bin/release/linch-mind-clipboard"
+fi
 
 echo ""
 echo "⚡ Post-build optimizations..."
 
-# Strip symbols for smaller size
+# Strip symbols for smaller size (apply to new binary)
 if command -v strip &> /dev/null; then
     echo "🗜️  Stripping debug symbols..."
-    strip clipboard-connector
+    if [ -f "bin/release/linch-mind-clipboard" ]; then
+        strip "bin/release/linch-mind-clipboard"
+    fi
+    if [ -f "linch-mind-clipboard" ]; then
+        strip "linch-mind-clipboard"
+    fi
 fi
 
 # Optional UPX compression (if available)
 if command -v upx &> /dev/null; then
     echo "🗜️  Applying UPX compression..."
-    upx --best --lzma clipboard-connector 2>/dev/null || {
-        echo "⚠️  UPX compression failed, continuing without compression"
-    }
+    if [ -f "bin/release/linch-mind-clipboard" ]; then
+        upx --best --lzma "bin/release/linch-mind-clipboard" 2>/dev/null || {
+            echo "⚠️  UPX compression failed for release binary, continuing without compression"
+        }
+    fi
+    if [ -f "linch-mind-clipboard" ]; then
+        upx --best --lzma "linch-mind-clipboard" 2>/dev/null || {
+            echo "⚠️  UPX compression failed for root binary, continuing without compression"
+        }
+    fi
 else
     echo "ℹ️  UPX not found, skipping compression (install with: brew install upx)"
 fi
@@ -154,16 +175,16 @@ echo ""
 echo "📊 Build Results:"
 echo "================================================================"
 
-# Show binary information
-if [ -f "clipboard-connector" ]; then
-    SIZE=$(ls -lh clipboard-connector | awk '{print $5}')
-    echo "✅ Binary created: clipboard-connector"
+# Show binary information (check new binary)
+if [ -f "bin/release/linch-mind-clipboard" ]; then
+    SIZE=$(ls -lh "bin/release/linch-mind-clipboard" | awk '{print $5}')
+    echo "✅ Binary created: bin/release/linch-mind-clipboard"
     echo "   Size: $SIZE"
     
     # Test execution
     echo ""
     echo "🧪 Testing binary..."
-    if ./clipboard-connector --help 2>/dev/null || echo "Binary appears functional"; then
+    if ./bin/release/linch-mind-clipboard --help 2>/dev/null || echo "Binary appears functional"; then
         echo "✅ Binary test passed"
     else
         echo "⚠️  Binary test warning (this may be normal)"
@@ -182,7 +203,8 @@ echo "   2. Check daemon connection is working"
 echo "   3. Monitor clipboard changes"
 echo ""
 echo "📁 Build artifacts:"
-echo "   - Binary: ./clipboard-connector"
+echo "   - Binary: ./bin/release/linch-mind-clipboard"
+echo "   - Legacy Binary: ./linch-mind-clipboard"
 echo "   - Build files: ./$BUILD_DIR/"
 echo "   - Install files: ./$INSTALL_DIR/"
 echo ""

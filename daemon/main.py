@@ -17,25 +17,26 @@ project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 sys.path.insert(0, str(project_root / "daemon"))
 
-# 导入依赖管理
-from api.dependencies import cleanup_services, get_config_manager
+from config.dependencies import cleanup_services
+from config.logging_config import get_logger, setup_global_logging
+
+# 导入统一配置和日志系统
+from config.unified_config import get_config, get_config_manager
+
 # 导入纯IPC服务器
 from services.ipc_server import start_ipc_server, stop_ipc_server
 
 # 初始化配置和日志
 config_manager = get_config_manager()
-settings = config_manager.config
+config = get_config()
 
-log_file = (
-    config_manager.get_paths()["logs"]
-    / f"daemon-ipc-{datetime.now().strftime('%Y%m%d')}.log"
+# 设置全局日志
+setup_global_logging(
+    level=config.server.log_level, console=config.server.debug, json_format=False
 )
-logging.basicConfig(
-    level=getattr(logging, settings.server.log_level.upper()),
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    handlers=[logging.FileHandler(log_file), logging.StreamHandler()],
-)
-logger = logging.getLogger(__name__)
+
+# 获取日志记录器
+logger = get_logger(__name__)
 
 
 async def auto_start_connectors():
@@ -181,7 +182,7 @@ def check_existing_process():
                     proc = psutil.Process(old_pid)
                     if "python" in proc.name().lower() and (
                         "main" in " ".join(proc.cmdline())
-                        or "ipc_main" in " ".join(proc.cmdline())
+                        or "linch-daemon" in " ".join(proc.cmdline())
                     ):
                         print(f"❌ Daemon 已在运行 (PID: {old_pid})")
                         print(f"   请先停止现有进程: kill {old_pid}")

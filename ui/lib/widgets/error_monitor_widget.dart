@@ -7,7 +7,7 @@ import '../utils/error_monitor.dart';
 class ErrorMonitorWidget extends StatefulWidget {
   final Widget child;
   final bool showInRelease;
-  
+
   const ErrorMonitorWidget({
     super.key,
     required this.child,
@@ -23,37 +23,37 @@ class _ErrorMonitorWidgetState extends State<ErrorMonitorWidget> {
   StreamSubscription<ErrorReport>? _errorSubscription;
   final List<ErrorReport> _recentErrors = [];
   bool _showErrorPanel = false;
-  
+
   @override
   void initState() {
     super.initState();
-    
+
     // 只在调试模式或明确允许的情况下启用
     if (widget.showInRelease || _isDebugMode()) {
       _errorSubscription = _monitor.errorStream.listen(_onNewError);
     }
   }
-  
+
   bool _isDebugMode() {
     bool debugMode = false;
     assert(debugMode = true);
     return debugMode;
   }
-  
+
   void _onNewError(ErrorReport error) {
     setState(() {
       _recentErrors.insert(0, error);
       if (_recentErrors.length > 10) {
         _recentErrors.removeAt(_recentErrors.length - 1);
       }
-      
+
       // 如果是关键错误，自动显示面板
       if (error.severity == ErrorSeverity.critical) {
         _showErrorPanel = true;
       }
     });
   }
-  
+
   @override
   void dispose() {
     _errorSubscription?.cancel();
@@ -65,11 +65,11 @@ class _ErrorMonitorWidgetState extends State<ErrorMonitorWidget> {
     if (!widget.showInRelease && !_isDebugMode()) {
       return widget.child;
     }
-    
+
     return Stack(
       children: [
         widget.child,
-        
+
         // 错误指示器
         if (_recentErrors.isNotEmpty)
           Positioned(
@@ -77,7 +77,7 @@ class _ErrorMonitorWidgetState extends State<ErrorMonitorWidget> {
             right: 16,
             child: _buildErrorIndicator(),
           ),
-        
+
         // 错误面板
         if (_showErrorPanel)
           Positioned.fill(
@@ -86,15 +86,17 @@ class _ErrorMonitorWidgetState extends State<ErrorMonitorWidget> {
       ],
     );
   }
-  
+
   Widget _buildErrorIndicator() {
-    final criticalCount = _recentErrors.where((e) => e.severity == ErrorSeverity.critical).length;
-    final highCount = _recentErrors.where((e) => e.severity == ErrorSeverity.high).length;
-    
+    final criticalCount =
+        _recentErrors.where((e) => e.severity == ErrorSeverity.critical).length;
+    final highCount =
+        _recentErrors.where((e) => e.severity == ErrorSeverity.high).length;
+
     Color indicatorColor;
     IconData indicatorIcon;
     String tooltip;
-    
+
     if (criticalCount > 0) {
       indicatorColor = Colors.red;
       indicatorIcon = Icons.error;
@@ -108,7 +110,7 @@ class _ErrorMonitorWidgetState extends State<ErrorMonitorWidget> {
       indicatorIcon = Icons.info;
       tooltip = '有 ${_recentErrors.length} 个警告';
     }
-    
+
     return GestureDetector(
       onTap: () => setState(() => _showErrorPanel = !_showErrorPanel),
       child: Tooltip(
@@ -149,7 +151,7 @@ class _ErrorMonitorWidgetState extends State<ErrorMonitorWidget> {
       ),
     );
   }
-  
+
   Widget _buildErrorPanel() {
     return Material(
       color: Colors.black.withValues(alpha: 0.5),
@@ -191,7 +193,8 @@ class _ErrorMonitorWidgetState extends State<ErrorMonitorWidget> {
                       child: Text(
                         '错误监控 (${_recentErrors.length} 个错误)',
                         style: TextStyle(
-                          color: Theme.of(context).colorScheme.onPrimaryContainer,
+                          color:
+                              Theme.of(context).colorScheme.onPrimaryContainer,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
@@ -206,7 +209,7 @@ class _ErrorMonitorWidgetState extends State<ErrorMonitorWidget> {
                   ],
                 ),
               ),
-              
+
               // 错误列表
               Expanded(
                 child: ListView.builder(
@@ -217,7 +220,7 @@ class _ErrorMonitorWidgetState extends State<ErrorMonitorWidget> {
                   },
                 ),
               ),
-              
+
               // 底部操作
               Container(
                 padding: const EdgeInsets.all(16),
@@ -255,12 +258,12 @@ class _ErrorMonitorWidgetState extends State<ErrorMonitorWidget> {
       ),
     );
   }
-  
+
   Widget _buildErrorCard(ErrorReport error) {
     Color severityColor;
     IconData severityIcon;
     String severityText;
-    
+
     switch (error.severity) {
       case ErrorSeverity.low:
         severityColor = Colors.blue;
@@ -283,7 +286,7 @@ class _ErrorMonitorWidgetState extends State<ErrorMonitorWidget> {
         severityText = '严重';
         break;
     }
-    
+
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
       child: ExpansionTile(
@@ -356,11 +359,11 @@ class _ErrorMonitorWidgetState extends State<ErrorMonitorWidget> {
       ),
     );
   }
-  
+
   String _formatTime(DateTime time) {
     final now = DateTime.now();
     final diff = now.difference(time);
-    
+
     if (diff.inSeconds < 60) {
       return '${diff.inSeconds}秒前';
     } else if (diff.inMinutes < 60) {
@@ -369,7 +372,7 @@ class _ErrorMonitorWidgetState extends State<ErrorMonitorWidget> {
       return '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}';
     }
   }
-  
+
   void _exportErrorLog() {
     // TODO: 实现错误日志导出功能
     ScaffoldMessenger.of(context).showSnackBar(
@@ -384,7 +387,7 @@ class _ErrorMonitorWidgetState extends State<ErrorMonitorWidget> {
 class ErrorIndicator extends StatelessWidget {
   final ErrorStats stats;
   final VoidCallback? onTap;
-  
+
   const ErrorIndicator({
     super.key,
     required this.stats,
@@ -396,11 +399,11 @@ class ErrorIndicator extends StatelessWidget {
     if (stats.totalCount == 0) {
       return const SizedBox.shrink();
     }
-    
+
     Color color;
     IconData icon;
     String text;
-    
+
     if (stats.criticalCount > 0) {
       color = Colors.red;
       icon = Icons.error;
@@ -414,7 +417,7 @@ class ErrorIndicator extends StatelessWidget {
       icon = Icons.info;
       text = '${stats.totalCount} 警告';
     }
-    
+
     return GestureDetector(
       onTap: onTap,
       child: Container(

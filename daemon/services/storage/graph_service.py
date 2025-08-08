@@ -11,7 +11,7 @@ from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Set, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple
 
 import networkx as nx
 
@@ -277,7 +277,7 @@ class GraphService:
             neighbors = set()
             current_level = {entity_id}
 
-            for depth in range(max_depth):
+            for _depth in range(max_depth):
                 next_level = set()
                 for node in current_level:
                     # 出边邻居
@@ -626,7 +626,7 @@ class GraphService:
     async def _update_metrics(self):
         """更新性能指标"""
         try:
-            import sys
+            pass
 
             import psutil
 

@@ -8,10 +8,10 @@ import logging
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List
 
-from models.database_models import (AIConversation, EntityMetadata, EntityRelationship,
-                                    UserBehavior)
+from sqlalchemy import and_, func, or_, select, text
+
+from models.database_models import EntityMetadata, EntityRelationship
 from services.optimized_sqlite_service import get_optimized_sqlite_service
-from sqlalchemy import and_, func, select, text
 
 from .models import DataCleanupSuggestion
 
@@ -200,11 +200,11 @@ class DataCleanupEngine:
                 behavior_delete_result = session.execute(
                     text(
                         """
-                        DELETE FROM user_behaviors 
+                        DELETE FROM user_behaviors
                         WHERE timestamp < :cutoff_date
                         AND session_id NOT IN (
-                            SELECT DISTINCT session_id 
-                            FROM user_behaviors 
+                            SELECT DISTINCT session_id
+                            FROM user_behaviors
                             WHERE timestamp >= :recent_threshold
                         )
                     """
@@ -221,7 +221,7 @@ class DataCleanupEngine:
                 conversation_delete_result = session.execute(
                     text(
                         """
-                        DELETE FROM ai_conversations 
+                        DELETE FROM ai_conversations
                         WHERE timestamp < :cutoff_date
                         AND satisfaction_rating IS NULL
                         AND message_type != 'important'
@@ -237,7 +237,7 @@ class DataCleanupEngine:
                 relationship_cleanup_result = session.execute(
                     text(
                         """
-                        DELETE FROM entity_relationships 
+                        DELETE FROM entity_relationships
                         WHERE source_entity NOT IN (SELECT id FROM entity_metadata)
                         OR target_entity NOT IN (SELECT id FROM entity_metadata)
                     """
@@ -265,7 +265,7 @@ class DataCleanupEngine:
                 cleanup_result = session.execute(
                     text(
                         """
-                        DELETE FROM entity_relationships 
+                        DELETE FROM entity_relationships
                         WHERE source_entity NOT IN (SELECT id FROM entity_metadata)
                         OR target_entity NOT IN (SELECT id FROM entity_metadata)
                     """

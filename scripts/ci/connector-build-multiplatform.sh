@@ -63,13 +63,20 @@ for connector_path in $CHANGED_CONNECTORS; do
                 ;;
         esac
         
-        # 原始文件名
-        original_binary="../$OUTPUT_DIR/${connector_id}-connector"
+        # 查找实际的二进制文件（支持新旧命名格式）
+        original_binary=""
+        for binary_candidate in "../$OUTPUT_DIR/linch-mind-${connector_id}" "../$OUTPUT_DIR/${connector_id}-connector" "../$OUTPUT_DIR/${connector_id}"; do
+            if [ -f "${binary_candidate}${binary_ext}" ]; then
+                original_binary="${binary_candidate}${binary_ext}"
+                break
+            fi
+        done
+        
         original_zip="../$OUTPUT_DIR/${connector_id}-connector.zip"
         
-        # 平台特定的文件名
-        platform_binary="../$OUTPUT_DIR/${connector_id}-connector-${ARTIFACT_SUFFIX}${binary_ext}"
-        platform_zip="../$OUTPUT_DIR/${connector_id}-connector-${ARTIFACT_SUFFIX}.zip"
+        # 平台特定的文件名（使用新的命名格式）
+        platform_binary="../$OUTPUT_DIR/linch-mind-${connector_id}-${ARTIFACT_SUFFIX}${binary_ext}"
+        platform_zip="../$OUTPUT_DIR/linch-mind-${connector_id}-${ARTIFACT_SUFFIX}.zip"
         
         # 重命名二进制文件
         if [ -f "$original_binary" ]; then

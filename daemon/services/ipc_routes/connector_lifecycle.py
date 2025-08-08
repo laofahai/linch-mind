@@ -6,13 +6,17 @@
 
 import logging
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
 
 from models.connector_status import ConnectorRunningState, ConnectorStatus
 
-from ..ipc_protocol import (IPCErrorCode, IPCRequest, IPCResponse,
-                            connector_not_found_response, internal_error_response,
-                            invalid_request_response, resource_not_found_response)
+from ..ipc_protocol import (
+    IPCErrorCode,
+    IPCRequest,
+    IPCResponse,
+    connector_not_found_response,
+    internal_error_response,
+    invalid_request_response,
+)
 from ..ipc_router import IPCRouter
 
 logger = logging.getLogger(__name__)
@@ -28,8 +32,7 @@ def create_connector_lifecycle_router() -> IPCRouter:
     async def get_connectors(request: IPCRequest) -> IPCResponse:
         """获取连接器列表"""
         try:
-            from daemon.services.connectors.connector_manager import \
-                get_connector_manager
+            from services.connectors.connector_manager import get_connector_manager
 
             manager = get_connector_manager()
             connectors = manager.list_connectors()
@@ -60,9 +63,11 @@ def create_connector_lifecycle_router() -> IPCRouter:
                     "display_name": conn["name"],
                     "state": ui_state,
                     "enabled": conn["enabled"],
-                    "process_id": conn["pid"],
-                    "data_count": conn["data_count"] or 0,
-                    "error_message": conn["error_message"],
+                    "process_id": conn["process_id"],  # 修复字段名
+                    "data_count": conn.get("data_count", 0),  # 使用get避免KeyError
+                    "error_message": conn.get(
+                        "error_message", None
+                    ),  # 使用get避免KeyError
                     "config": {},  # 默认空配置，实际配置需要单独获取
                 }
                 connector_infos.append(connector_info)
@@ -103,8 +108,7 @@ def create_connector_lifecycle_router() -> IPCRouter:
                     "display_name is required", {"missing_field": "display_name"}
                 )
 
-            from daemon.services.connectors.connector_manager import \
-                get_connector_manager
+            from services.connectors.connector_manager import get_connector_manager
 
             manager = get_connector_manager()
 
@@ -162,8 +166,7 @@ def create_connector_lifecycle_router() -> IPCRouter:
             force = force.lower() == "true"
 
         try:
-            from daemon.services.connectors.connector_manager import \
-                get_connector_manager
+            from services.connectors.connector_manager import get_connector_manager
 
             manager = get_connector_manager()
 
@@ -207,8 +210,7 @@ def create_connector_lifecycle_router() -> IPCRouter:
             )
 
         try:
-            from daemon.services.connectors.connector_manager import \
-                get_connector_manager
+            from services.connectors.connector_manager import get_connector_manager
 
             manager = get_connector_manager()
             result = await manager.start_connector(connector_id)
@@ -248,8 +250,7 @@ def create_connector_lifecycle_router() -> IPCRouter:
             )
 
         try:
-            from daemon.services.connectors.connector_manager import \
-                get_connector_manager
+            from services.connectors.connector_manager import get_connector_manager
 
             manager = get_connector_manager()
             result = await manager.stop_connector(connector_id)
@@ -289,8 +290,7 @@ def create_connector_lifecycle_router() -> IPCRouter:
             )
 
         try:
-            from daemon.services.connectors.connector_manager import \
-                get_connector_manager
+            from services.connectors.connector_manager import get_connector_manager
 
             manager = get_connector_manager()
             result = await manager.restart_connector(connector_id)
@@ -503,8 +503,7 @@ def create_connector_lifecycle_router() -> IPCRouter:
             from pathlib import Path
 
             from daemon.config.core_config import get_connector_config
-            from daemon.services.connectors.connector_manager import \
-                get_connector_manager
+            from services.connectors.connector_manager import get_connector_manager
 
             manager = get_connector_manager()
             connector_config = get_connector_config()
@@ -544,8 +543,7 @@ def create_connector_lifecycle_router() -> IPCRouter:
 
             from pathlib import Path
 
-            from daemon.services.connectors.connector_manager import \
-                get_connector_manager
+            from services.connectors.connector_manager import get_connector_manager
 
             # 验证目录路径
             path = Path(directory_path)

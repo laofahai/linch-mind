@@ -21,7 +21,7 @@ def create_auth_router() -> IPCRouter:
     async def auth_handshake(request: IPCRequest) -> IPCResponse:
         """认证握手处理"""
         try:
-            from ..ipc_security import get_security_manager
+            pass
 
             # 从请求中提取客户端PID
             client_pid = request.data.get("client_pid")

@@ -5,13 +5,10 @@ IPC中间件系统 - 提供身份验证、日志记录、错误处理等功能
 import asyncio
 import json
 import logging
-import os
 import time
-from datetime import datetime
 from typing import Any, Callable, Dict, Optional
 
 from .ipc_protocol import IPCErrorCode, IPCRequest, IPCResponse
-from .ipc_router import Middleware
 
 logger = logging.getLogger(__name__)
 
@@ -294,7 +291,7 @@ def create_default_middlewares(debug: bool = False, secure_mode: bool = True) ->
         # 兼容模式
         middlewares.extend(
             [
-                CORSMiddleware(),
+                # CORSMiddleware(),  # 不需要，因为使用IPC而非HTTP
                 RateLimitMiddleware(max_requests=300, time_window=60),
             ]
         )

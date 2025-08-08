@@ -38,7 +38,7 @@ class IPCMetadata with _$IPCMetadata {
 class IPCResponse with _$IPCResponse {
   const factory IPCResponse({
     required bool success,
-    dynamic data,  // 允许任何类型的data，包括Map、List等
+    dynamic data, // 允许任何类型的data，包括Map、List等
     IPCError? error,
     IPCMetadata? metadata,
   }) = _IPCResponse;
@@ -218,10 +218,12 @@ class ConnectorStatusV2 with _$ConnectorStatusV2 {
     @Default(true) bool enabled, // 是否启用（基本状态）
     @JsonKey(name: 'running_state')
     @Default(ConnectorRunningState.stopped)
-        ConnectorRunningState runningState, // 运行状态
+    ConnectorRunningState runningState, // 运行状态
     @JsonKey(name: 'is_installed') @Default(true) bool isInstalled, // 虚拟字段
     @JsonKey(name: 'is_healthy') @Default(false) bool isHealthy, // 是否健康
-    @JsonKey(name: 'should_be_running') @Default(false) bool shouldBeRunning, // 是否应该运行
+    @JsonKey(name: 'should_be_running')
+    @Default(false)
+    bool shouldBeRunning, // 是否应该运行
     @JsonKey(name: 'process_id') int? processId,
     @JsonKey(name: 'last_heartbeat') String? lastHeartbeat,
     @JsonKey(name: 'data_count') @Default(0) int dataCount,
@@ -268,18 +270,18 @@ class IPCErrorCode {
   static const String connectionFailed = 'IPC_CONNECTION_FAILED';
   static const String authRequired = 'IPC_AUTH_REQUIRED';
   static const String authFailed = 'IPC_AUTH_FAILED';
-  
+
   // 请求处理错误
   static const String invalidRequest = 'IPC_INVALID_REQUEST';
   static const String missingParameter = 'IPC_MISSING_PARAMETER';
   static const String requestTimeout = 'IPC_REQUEST_TIMEOUT';
-  
+
   // 连接器相关错误
   static const String connectorNotFound = 'CONNECTOR_NOT_FOUND';
   static const String connectorConfigInvalid = 'CONNECTOR_CONFIG_INVALID';
   static const String connectorStartFailed = 'CONNECTOR_START_FAILED';
   static const String connectorStopFailed = 'CONNECTOR_STOP_FAILED';
-  
+
   // 系统错误
   static const String internalError = 'INTERNAL_ERROR';
   static const String serviceUnavailable = 'SERVICE_UNAVAILABLE';

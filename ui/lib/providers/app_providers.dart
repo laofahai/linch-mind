@@ -70,7 +70,8 @@ final backgroundDaemonInitProvider = FutureProvider<bool>((ref) async {
       return true;
     } else {
       AppLogger.daemonError('Daemon启动失败', data: {'error': result.error});
-      AppErrorReporter.error('Daemon启动失败', module: 'Daemon', context: {'error': result.error});
+      AppErrorReporter.error('Daemon启动失败',
+          module: 'Daemon', context: {'error': result.error});
       ref
           .read(appStateProvider.notifier)
           .setError(result.error ?? 'Daemon启动失败');
@@ -90,11 +91,15 @@ final healthCheckProvider = FutureProvider<bool>((ref) async {
     final apiClient = ref.watch(connectorLifecycleApiProvider);
     // 使用简单的连接器列表API来检查连通性，避免复杂的健康检查模型解析
     final response = await apiClient.getConnectors();
-    AppLogger.debug('健康检查响应', module: 'HealthCheck', data: {'success': response.success, 'connectorsCount': response.connectors.length});
+    AppLogger.debug('健康检查响应', module: 'HealthCheck', data: {
+      'success': response.success,
+      'connectorsCount': response.connectors.length
+    });
     return response.success;
   } catch (e) {
     AppLogger.error('健康检查失败', module: 'HealthCheck', exception: e);
-    AppErrorReporter.warn('健康检查失败', module: 'HealthCheck', context: {'exception': e.toString()});
+    AppErrorReporter.warn('健康检查失败',
+        module: 'HealthCheck', context: {'exception': e.toString()});
     return false;
   }
 });

@@ -5,21 +5,27 @@
 """
 
 import asyncio
-import json
 import logging
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from pathlib import Path
-from typing import Any, Dict, List, Optional, Set, Tuple, Union
+from typing import Any, Dict, List, Optional
 
-from models.database_models import (AIConversation, EntityMetadata, EntityRelationship,
-                                    UserBehavior)
+from models.database_models import (
+    AIConversation,
+    EntityMetadata,
+    EntityRelationship,
+    UserBehavior,
+)
 
 from ..database_service import DatabaseService, get_database_service
 from .embedding_service import EmbeddingService, get_embedding_service
 from .graph_service import EntityNode, GraphService, RelationshipEdge, get_graph_service
-from .vector_service import (SearchResult, VectorDocument, VectorService,
-                             get_vector_service)
+from .vector_service import (
+    SearchResult,
+    VectorDocument,
+    VectorService,
+    get_vector_service,
+)
 
 logger = logging.getLogger(__name__)
 

@@ -80,25 +80,7 @@ daemon/
 
 ### 3.3. IPC通信协议
 
-#### 消息格式
-```json
-{
-    "method": "GET|POST|PUT|DELETE",
-    "path": "/api/endpoint",
-    "data": {...},
-    "headers": {...},
-    "query_params": {...}
-}
-```
-
-#### 响应格式
-```json
-{
-    "status_code": 200,
-    "data": {...},
-    "headers": {...}
-}
-```
+IPC 消息格式遵循 [IPC协议完整规范 (ipc_protocol_specification.md)](ipc_protocol_specification.md) 中定义的标准。
 
 #### 通信机制
 - **消息长度前缀**: 4字节 (big endian)

@@ -32,7 +32,9 @@ class IPCTestClient:
         except Exception:
             return False
 
-    async def send_message(self, method: str, params: Dict[str, Any] = None) -> Dict[str, Any]:
+    async def send_message(
+        self, method: str, params: Dict[str, Any] = None
+    ) -> Dict[str, Any]:
         """发送IPC消息"""
         if not self.socket:
             raise RuntimeError("Not connected to IPC server")
@@ -40,12 +42,12 @@ class IPCTestClient:
         message = IPCRequest(
             method=method,
             params=params or {},
-            request_id="test_request_" + str(asyncio.get_event_loop().time())
+            request_id="test_request_" + str(asyncio.get_event_loop().time()),
         )
 
         # 发送消息
         data = json.dumps(message.to_dict()).encode()
-        self.socket.sendall(len(data).to_bytes(4, 'big'))
+        self.socket.sendall(len(data).to_bytes(4, "big"))
         self.socket.sendall(data)
 
         # 接收响应
@@ -53,9 +55,9 @@ class IPCTestClient:
         if not length_bytes:
             raise RuntimeError("Connection closed")
 
-        length = int.from_bytes(length_bytes, 'big')
+        length = int.from_bytes(length_bytes, "big")
         response_data = self.socket.recv(length)
-        
+
         return json.loads(response_data.decode())
 
     def close(self):
@@ -107,9 +109,9 @@ class MockIPCDaemon:
                 if not length_bytes:
                     break
 
-                length = int.from_bytes(length_bytes, 'big')
+                length = int.from_bytes(length_bytes, "big")
                 data = client_socket.recv(length)
-                
+
                 if not data:
                     break
 
@@ -119,22 +121,20 @@ class MockIPCDaemon:
 
                 # 路由处理
                 try:
-                    result = await self.router.handle_request(message.method, message.params)
+                    result = await self.router.handle_request(
+                        message.method, message.params
+                    )
                     response = IPCResponse(
-                        success=True,
-                        data=result,
-                        request_id=message.request_id
+                        success=True, data=result, request_id=message.request_id
                     )
                 except Exception as e:
                     response = IPCResponse(
-                        success=False,
-                        error=str(e),
-                        request_id=message.request_id
+                        success=False, error=str(e), request_id=message.request_id
                     )
 
                 # 发送响应
                 response_data = json.dumps(response.to_dict()).encode()
-                client_socket.sendall(len(response_data).to_bytes(4, 'big'))
+                client_socket.sendall(len(response_data).to_bytes(4, "big"))
                 client_socket.sendall(response_data)
 
         except Exception:
@@ -147,7 +147,7 @@ def create_mock_daemon_with_routes() -> Tuple[MockIPCDaemon, str]:
     """创建带有模拟路由的daemon"""
     temp_dir = tempfile.mkdtemp()
     socket_path = str(Path(temp_dir) / "test_daemon.sock")
-    
+
     daemon = MockIPCDaemon(socket_path)
 
     # 注册模拟路由
@@ -161,38 +161,24 @@ def create_mock_daemon_with_routes() -> Tuple[MockIPCDaemon, str]:
                     "connector_id": "filesystem",
                     "name": "FileSystem Connector",
                     "status": "running",
-                    "pid": 1234
+                    "pid": 1234,
                 }
             ]
         }
 
     async def mock_connector_start(params: Dict[str, Any]):
         connector_id = params.get("connector_id")
-        return {
-            "success": True,
-            "connector_id": connector_id,
-            "pid": 1234
-        }
+        return {"success": True, "connector_id": connector_id, "pid": 1234}
 
     async def mock_connector_stop(params: Dict[str, Any]):
         connector_id = params.get("connector_id")
-        return {
-            "success": True,
-            "connector_id": connector_id
-        }
+        return {"success": True, "connector_id": connector_id}
 
     async def mock_system_config_get(params: Dict[str, Any]):
-        return {
-            "daemon_port": 58471,
-            "log_level": "INFO",
-            "max_connections": 100
-        }
+        return {"daemon_port": 58471, "log_level": "INFO", "max_connections": 100}
 
     async def mock_system_config_update(params: Dict[str, Any]):
-        return {
-            "success": True,
-            "updated_config": params.get("config", {})
-        }
+        return {"success": True, "updated_config": params.get("config", {})}
 
     # 注册所有模拟路由
     daemon.register_route("health.check", mock_health)
@@ -210,19 +196,18 @@ async def create_test_ipc_environment() -> Tuple[MockIPCDaemon, IPCTestClient]:
     """创建完整的测试IPC环境"""
     daemon, socket_path = create_mock_daemon_with_routes()
     await daemon.start()
-    
+
     client = IPCTestClient(socket_path)
     await client.connect()
-    
+
     return daemon, client
 
 
-def create_mock_ipc_response(success: bool = True, data: Any = None, error: str = None) -> Dict[str, Any]:
+def create_mock_ipc_response(
+    success: bool = True, data: Any = None, error: str = None
+) -> Dict[str, Any]:
     """创建模拟IPC响应"""
     response = IPCResponse(
-        success=success,
-        data=data,
-        error=error,
-        request_id="test_request"
+        success=success, data=data, error=error, request_id="test_request"
     )
     return response.to_dict()

@@ -46,6 +46,35 @@ class IPCErrorCode(Enum):
 
 
 @dataclass
+class IPCMessage:
+    """IPC基础消息类"""
+
+    method: str
+    path: str
+    data: Dict[str, Any] = None
+    headers: Dict[str, str] = None
+    query_params: Dict[str, Any] = None
+
+    def __post_init__(self):
+        if self.data is None:
+            self.data = {}
+        if self.headers is None:
+            self.headers = {}
+        if self.query_params is None:
+            self.query_params = {}
+
+    def to_json(self) -> str:
+        """序列化为JSON字符串"""
+        return json.dumps(asdict(self), ensure_ascii=False)
+
+    @classmethod
+    def from_json(cls, json_str: str) -> "IPCMessage":
+        """从JSON字符串反序列化"""
+        data = json.loads(json_str)
+        return cls(**data)
+
+
+@dataclass
 class IPCError:
     """IPC错误信息"""
 
@@ -261,7 +290,14 @@ class IPCRequest:
         return cls.from_dict(json.loads(json_str))
 
 
-# 常用的错误响应工厂函数
+# 常用的响应工厂函数
+
+
+def success_response(
+    data: Optional[Dict[str, Any]] = None, request_id: Optional[str] = None
+) -> IPCResponse:
+    """创建成功响应的便捷函数"""
+    return IPCResponse.success_response(data, request_id)
 
 
 def connection_failed_response(

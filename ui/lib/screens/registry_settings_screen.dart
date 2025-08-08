@@ -80,7 +80,8 @@ class RegistryConfigService {
 
   static Future<RegistryConfig> updateConfig(RegistryConfig config) async {
     try {
-      final data = await _ipcApi.put('/system-config/registry', data: config.toJson());
+      final data =
+          await _ipcApi.put('/system-config/registry', data: config.toJson());
       return RegistryConfig.fromJson(data);
     } catch (e) {
       throw Exception('更新注册表配置失败: $e');
@@ -89,7 +90,8 @@ class RegistryConfigService {
 
   static Future<Map<String, dynamic>> testUrl(String url) async {
     try {
-      return await _ipcApi.post('/system-config/registry/test', queryParameters: {'test_url': url});
+      return await _ipcApi.post('/system-config/registry/test',
+          queryParameters: {'test_url': url});
     } catch (e) {
       throw Exception('测试URL失败: $e');
     }

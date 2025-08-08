@@ -575,8 +575,8 @@ class _ReactiveArrayInput
           formControlName: formControlName,
           builder: (field) {
             return _ArrayInputWidget(
-              value: field.value ?? [],
-              onChanged: field.didChange,
+              value: field.value ?? <dynamic>[],
+              onChanged: (List<dynamic> value) => field.didChange(value),
               fieldConfig: fieldConfig,
               hasError: field.control.invalid,
               errorText: field.errorText,
@@ -738,8 +738,8 @@ class _ReactiveObjectEditor
           formControlName: formControlName,
           builder: (field) {
             return _ObjectEditorWidget(
-              value: field.value ?? {},
-              onChanged: field.didChange,
+              value: field.value ?? <String, dynamic>{},
+              onChanged: (Map<String, dynamic> value) => field.didChange(value),
               fieldConfig: fieldConfig,
               hasError: field.control.invalid,
               errorText: field.errorText,

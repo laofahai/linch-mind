@@ -188,13 +188,13 @@
   "entry": {
     "development": {
       "command": "bash",
-      "args": ["-c", "[[ ! -f clipboard-connector || src/main.cpp -nt clipboard-connector ]] && echo '🔨 Quick build needed...' && ./build.sh > /dev/null 2>&1 || true; ./clipboard-connector"],
+      "args": ["-c", "# Smart build and run\nexe_name='linch-mind-clipboard'\n[[ '$OSTYPE' == 'msys' || '$OSTYPE' == 'win32' ]] && exe_name='$exe_name.exe'\n\n# Check if build is needed\nif [[ ! -f \"bin/release/$exe_name\" && ! -f \"bin/debug/$exe_name\" ]] || [[ src/main.cpp -nt \"bin/release/$exe_name\" ]] || [[ src/main.cpp -nt \"bin/debug/$exe_name\" ]]; then\n  echo '🔨 Building connector...'\n  ./build.sh > /dev/null 2>&1 || { echo 'Build failed'; exit 1; }\nfi\n\n# Run the newest build\nif [[ -f \"bin/debug/$exe_name\" ]]; then\n  exec \"./bin/debug/$exe_name\"\nelif [[ -f \"bin/release/$exe_name\" ]]; then\n  exec \"./bin/release/$exe_name\"\nelse\n  echo '❌ No executable found after build'\n  exit 1\nfi"],
       "working_dir": "."
     },
     "production": {
-      "linux": "clipboard-connector",
-      "macos": "clipboard-connector",
-      "windows": "clipboard-connector.exe"
+      "linux": "bin/release/linch-mind-clipboard",
+      "macos": "bin/release/linch-mind-clipboard", 
+      "windows": "bin/release/linch-mind-clipboard.exe"
     }
   },
   "homepage": "https://github.com/linch-mind/connectors/clipboard",

@@ -21,8 +21,9 @@ class ConnectorLifecycleApiClient {
       final responseData = await _ipcApi.get('/connector-lifecycle/discovery');
 
       // 安全地获取data结构
-      final data = responseData['data'] as Map<String, dynamic>? ?? responseData;
-      
+      final data =
+          responseData['data'] as Map<String, dynamic>? ?? responseData;
+
       // 检查响应是否成功 - 从data字段中获取success状态
       final success = data['success'] ?? (responseData['status_code'] == 200);
       if (!success) {
@@ -59,13 +60,13 @@ class ConnectorLifecycleApiClient {
       // 从IPC响应中提取数据构造OperationResponse
       final data = responseData['data'] as Map<String, dynamic>? ?? {};
       final connector = data['connector'] as Map<String, dynamic>? ?? {};
-      
+
       return OperationResponse(
         success: responseData['success'] ?? true,
         message: data['message'] ?? 'Connector created successfully',
         connectorId: connector['connector_id'] ?? request.connectorId,
         state: ConnectorState.values.firstWhere(
-          (e) => e.name == (connector['running_state'] ?? 'stopped'),
+          (e) => e.name == (connector['state'] ?? 'configured'),
           orElse: () => ConnectorState.configured,
         ),
         hotReloadApplied: null,
@@ -75,7 +76,8 @@ class ConnectorLifecycleApiClient {
     } catch (e, stackTrace) {
       print('创建连接器异常详情: $e');
       print('堆栈跟踪: $stackTrace');
-      throw ConnectorApiException('Failed to create connector: $e\nStack: $stackTrace');
+      throw ConnectorApiException(
+          'Failed to create connector: $e\nStack: $stackTrace');
     }
   }
 
@@ -89,22 +91,26 @@ class ConnectorLifecycleApiClient {
       if (connectorId != null) queryParams['connector_id'] = connectorId;
       if (state != null) queryParams['state'] = state;
 
-      AppLogger.debug('开始请求getConnectors', module: 'ConnectorAPI', data: queryParams);
+      AppLogger.debug('开始请求getConnectors',
+          module: 'ConnectorAPI', data: queryParams);
 
       final responseData = await _ipcApi.get(
         '/connector-lifecycle/connectors',
         queryParameters: queryParams,
       );
 
-      AppLogger.debug('原始API响应', module: 'ConnectorAPI', data: {'response': responseData});
-      
-      // 检查响应数据结构
-      AppLogger.debug('响应数据键值', module: 'ConnectorAPI', data: {'keys': responseData.keys.toList()});
+      AppLogger.debug('原始API响应',
+          module: 'ConnectorAPI', data: {'response': responseData});
 
-      // 安全地转换嵌套的data结构为平铺结构  
-      // 从日志看，实际结构可能直接就是 {connectors: [...], total: N}
-      final data = responseData;
-      AppLogger.debug('提取的data段', module: 'ConnectorAPI', data: {'extracted_data': data});
+      // 检查响应数据结构
+      AppLogger.debug('响应数据键值',
+          module: 'ConnectorAPI', data: {'keys': responseData.keys.toList()});
+
+      // 安全地转换嵌套的data结构为平铺结构
+      // API返回格式: {success: true, data: {connectors: [...], total: N}, error: null}
+      final data = responseData['data'] ?? responseData;
+      AppLogger.debug('提取的data段',
+          module: 'ConnectorAPI', data: {'extracted_data': data});
 
       final connectorsData = data['connectors'] ?? data['collectors'] ?? [];
       AppLogger.debug('连接器数据数组', module: 'ConnectorAPI', data: {
@@ -119,7 +125,8 @@ class ConnectorLifecycleApiClient {
         'total_count': data['total'] ?? 0,
       };
 
-      AppLogger.debug('构造的flatResponse', module: 'ConnectorAPI', data: flatResponse);
+      AppLogger.debug('构造的flatResponse',
+          module: 'ConnectorAPI', data: flatResponse);
 
       final result = ConnectorListResponse.fromJson(flatResponse);
       AppLogger.debug('解析后的结果', module: 'ConnectorAPI', data: {
@@ -137,15 +144,18 @@ class ConnectorLifecycleApiClient {
 
       return result;
     } catch (e, stackTrace) {
-      AppLogger.error('getConnectors异常', module: 'ConnectorAPI', exception: e, stackTrace: stackTrace);
-      throw ConnectorApiException('Failed to get connectors: $e\nStack: $stackTrace');
+      AppLogger.error('getConnectors异常',
+          module: 'ConnectorAPI', exception: e, stackTrace: stackTrace);
+      throw ConnectorApiException(
+          'Failed to get connectors: $e\nStack: $stackTrace');
     }
   }
 
   /// 获取连接器详情
   Future<ConnectorDetailResponse> getConnector(String connectorId) async {
     try {
-      final responseData = await _ipcApi.get('/connector-lifecycle/connectors/$connectorId');
+      final responseData =
+          await _ipcApi.get('/connector-lifecycle/connectors/$connectorId');
       return ConnectorDetailResponse.fromJson(responseData);
     } catch (e) {
       throw ConnectorApiException('Failed to get connector $connectorId: $e');
@@ -155,8 +165,28 @@ class ConnectorLifecycleApiClient {
   /// 启动连接器
   Future<OperationResponse> startConnector(String connectorId) async {
     try {
-      final responseData = await _ipcApi.post('/connector-lifecycle/connectors/$connectorId/actions/start');
-      return OperationResponse.fromJson(responseData);
+      final responseData = await _ipcApi
+          .post('/connector-lifecycle/connectors/$connectorId/actions/start');
+
+      // 处理嵌套响应结构
+      final success = responseData['success'] ?? false;
+      final data = responseData['data'] as Map<String, dynamic>? ?? {};
+      final error = responseData['error'] as Map<String, dynamic>?;
+
+      if (!success || error != null) {
+        throw ConnectorApiException(
+            'Failed to start connector: ${error?['message'] ?? 'Unknown error'}');
+      }
+
+      return OperationResponse(
+        success: data['success'] ?? success,
+        message: data['message'] ?? 'Connector started successfully',
+        connectorId: data['connector_id'] ?? connectorId,
+        state: ConnectorState.values.firstWhere(
+          (e) => e.name == (data['state'] ?? 'running'),
+          orElse: () => ConnectorState.running,
+        ),
+      );
     } catch (e) {
       throw ConnectorApiException('Failed to start connector $connectorId: $e');
     }
@@ -171,7 +201,26 @@ class ConnectorLifecycleApiClient {
         '/connector-lifecycle/connectors/$connectorId/actions/stop',
         queryParameters: queryParams,
       );
-      return OperationResponse.fromJson(responseData);
+
+      // 处理嵌套响应结构
+      final success = responseData['success'] ?? false;
+      final data = responseData['data'] as Map<String, dynamic>? ?? {};
+      final error = responseData['error'] as Map<String, dynamic>?;
+
+      if (!success || error != null) {
+        throw ConnectorApiException(
+            'Failed to stop connector: ${error?['message'] ?? 'Unknown error'}');
+      }
+
+      return OperationResponse(
+        success: data['success'] ?? success,
+        message: data['message'] ?? 'Connector stopped successfully',
+        connectorId: data['connector_id'] ?? connectorId,
+        state: ConnectorState.values.firstWhere(
+          (e) => e.name == (data['state'] ?? 'enabled'),
+          orElse: () => ConnectorState.enabled,
+        ),
+      );
     } catch (e) {
       throw ConnectorApiException('Failed to stop connector $connectorId: $e');
     }
@@ -180,10 +229,31 @@ class ConnectorLifecycleApiClient {
   /// 重启连接器
   Future<OperationResponse> restartConnector(String connectorId) async {
     try {
-      final responseData = await _ipcApi.post('/connector-lifecycle/connectors/$connectorId/actions/restart');
-      return OperationResponse.fromJson(responseData);
+      final responseData = await _ipcApi
+          .post('/connector-lifecycle/connectors/$connectorId/actions/restart');
+
+      // 处理嵌套响应结构
+      final success = responseData['success'] ?? false;
+      final data = responseData['data'] as Map<String, dynamic>? ?? {};
+      final error = responseData['error'] as Map<String, dynamic>?;
+
+      if (!success || error != null) {
+        throw ConnectorApiException(
+            'Failed to restart connector: ${error?['message'] ?? 'Unknown error'}');
+      }
+
+      return OperationResponse(
+        success: data['success'] ?? success,
+        message: data['message'] ?? 'Connector restarted successfully',
+        connectorId: data['connector_id'] ?? connectorId,
+        state: ConnectorState.values.firstWhere(
+          (e) => e.name == (data['state'] ?? 'running'),
+          orElse: () => ConnectorState.running,
+        ),
+      );
     } catch (e) {
-      throw ConnectorApiException('Failed to restart connector $connectorId: $e');
+      throw ConnectorApiException(
+          'Failed to restart connector $connectorId: $e');
     }
   }
 
@@ -197,7 +267,8 @@ class ConnectorLifecycleApiClient {
       );
       return OperationResponse.fromJson(responseData);
     } catch (e) {
-      throw ConnectorApiException('Failed to update connector config $connectorId: $e');
+      throw ConnectorApiException(
+          'Failed to update connector config $connectorId: $e');
     }
   }
 
@@ -210,16 +281,37 @@ class ConnectorLifecycleApiClient {
         '/connector-lifecycle/connectors/$connectorId',
         queryParameters: queryParams,
       );
-      return OperationResponse.fromJson(responseData);
+
+      // 处理嵌套响应结构
+      final success = responseData['success'] ?? false;
+      final data = responseData['data'] as Map<String, dynamic>? ?? {};
+      final error = responseData['error'] as Map<String, dynamic>?;
+
+      if (!success || error != null) {
+        throw ConnectorApiException(
+            'Failed to delete connector: ${error?['message'] ?? 'Unknown error'}');
+      }
+
+      return OperationResponse(
+        success: data['success'] ?? success,
+        message: data['message'] ?? 'Connector deleted successfully',
+        connectorId: data['connector_id'] ?? connectorId,
+        state: ConnectorState.values.firstWhere(
+          (e) => e.name == (data['state'] ?? 'uninstalling'),
+          orElse: () => ConnectorState.uninstalling,
+        ),
+      );
     } catch (e) {
-      throw ConnectorApiException('Failed to delete connector $connectorId: $e');
+      throw ConnectorApiException(
+          'Failed to delete connector $connectorId: $e');
     }
   }
 
   /// 获取所有连接器状态概览
   Future<ConnectorStatesOverview> getStatesOverview() async {
     try {
-      final responseData = await _ipcApi.get('/connector-lifecycle/system/states');
+      final responseData =
+          await _ipcApi.get('/connector-lifecycle/system/states');
       return ConnectorStatesOverview.fromJson(responseData);
     } catch (e) {
       throw ConnectorApiException('Failed to get states overview: $e');
@@ -229,7 +321,8 @@ class ConnectorLifecycleApiClient {
   /// 系统健康检查
   Future<ConnectorHealthResponse> getHealthCheck() async {
     try {
-      final responseData = await _ipcApi.get('/connector-lifecycle/system/health');
+      final responseData =
+          await _ipcApi.get('/connector-lifecycle/system/health');
       return ConnectorHealthResponse.fromJson(responseData);
     } catch (e) {
       throw ConnectorApiException('Failed to get health check: $e');
@@ -239,7 +332,8 @@ class ConnectorLifecycleApiClient {
   /// 关闭所有连接器实例
   Future<ConnectorApiResponse> shutdownAllConnectors() async {
     try {
-      final responseData = await _ipcApi.post('/connector-lifecycle/shutdown-all');
+      final responseData =
+          await _ipcApi.post('/connector-lifecycle/shutdown-all');
       return ConnectorApiResponse.fromJson(responseData);
     } catch (e) {
       throw ConnectorApiException('Failed to shutdown all connectors: $e');
@@ -256,20 +350,22 @@ class ConnectorLifecycleApiClient {
 
       // IPC可能返回扁平格式或嵌套格式的数据，自动检测并适配
       Map<String, dynamic> data;
-      if (responseData.containsKey('connectors') || responseData.containsKey('success')) {
+      if (responseData.containsKey('connectors') ||
+          responseData.containsKey('success')) {
         // 扁平格式：直接包含业务数据
         data = responseData;
-      } else if (responseData.containsKey('data') && responseData['data'] is Map) {
+      } else if (responseData.containsKey('data') &&
+          responseData['data'] is Map) {
         // 嵌套格式：数据在data字段中
         data = (responseData['data'] as Map<String, dynamic>?) ?? {};
       } else {
         // 兜底：直接使用响应数据
         data = responseData;
       }
-      
+
       // 检查响应是否成功
       final success = data['success'] ?? false;
-      
+
       if (!success) {
         final error = data['error'] ?? 'Unknown error';
         throw ConnectorApiException('Scan failed: $error');
@@ -293,13 +389,14 @@ class ConnectorLifecycleApiClient {
   }
 
   /// 统一的连接器安装接口
-  Future<OperationResponse> installConnector(InstallConnectorRequest request) async {
+  Future<OperationResponse> installConnector(
+      InstallConnectorRequest request) async {
     try {
       final data = <String, dynamic>{
         'connector_id': request.connectorId,
         'source': request.source,
       };
-      
+
       // 根据安装源添加额外字段
       if (request.displayName != null) {
         data['display_name'] = request.displayName;
@@ -317,17 +414,18 @@ class ConnectorLifecycleApiClient {
       if (request.description != null) {
         data['description'] = request.description;
       }
-      
+
       final responseData = await _ipcApi.post(
         '/connector-lifecycle/connectors',
         data: data,
       );
       return OperationResponse.fromJson(responseData);
     } catch (e) {
-      throw ConnectorApiException('Failed to install connector ${request.connectorId}: $e');
+      throw ConnectorApiException(
+          'Failed to install connector ${request.connectorId}: $e');
     }
   }
-  
+
   /// 简化版本 - 从registry安装连接器
   Future<OperationResponse> installFromRegistry(String connectorId) async {
     return installConnector(InstallConnectorRequest(

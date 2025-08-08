@@ -6,7 +6,7 @@ import 'dart:io';
 class AppLogger {
   static const String _appName = 'LinchMind';
   static bool _debugMode = true;
-  
+
   /// 日志级别
   static const int _levelTrace = 500;
   static const int _levelDebug = 700;
@@ -21,66 +21,84 @@ class AppLogger {
   }
 
   /// TRACE级别日志 - 最详细的执行流程
-  static void trace(String message, {String? module, Map<String, dynamic>? data}) {
+  static void trace(String message,
+      {String? module, Map<String, dynamic>? data}) {
     if (!_debugMode) return;
     _log(_levelTrace, 'TRACE', message, module: module, data: data);
   }
 
   /// DEBUG级别日志 - 调试信息
-  static void debug(String message, {String? module, Map<String, dynamic>? data}) {
+  static void debug(String message,
+      {String? module, Map<String, dynamic>? data}) {
     if (!_debugMode) return;
     _log(_levelDebug, 'DEBUG', message, module: module, data: data);
   }
 
   /// INFO级别日志 - 一般信息
-  static void info(String message, {String? module, Map<String, dynamic>? data}) {
+  static void info(String message,
+      {String? module, Map<String, dynamic>? data}) {
     _log(_levelInfo, 'INFO', message, module: module, data: data);
   }
 
   /// WARN级别日志 - 警告信息
-  static void warn(String message, {String? module, Map<String, dynamic>? data}) {
+  static void warn(String message,
+      {String? module, Map<String, dynamic>? data}) {
     _log(_levelWarn, 'WARN', message, module: module, data: data);
   }
 
   /// ERROR级别日志 - 错误信息
-  static void error(String message, {String? module, Map<String, dynamic>? data, dynamic exception, StackTrace? stackTrace}) {
-    _log(_levelError, 'ERROR', message, module: module, data: data, exception: exception, stackTrace: stackTrace);
+  static void error(String message,
+      {String? module,
+      Map<String, dynamic>? data,
+      dynamic exception,
+      StackTrace? stackTrace}) {
+    _log(_levelError, 'ERROR', message,
+        module: module,
+        data: data,
+        exception: exception,
+        stackTrace: stackTrace);
   }
 
   /// CRITICAL级别日志 - 严重错误
-  static void critical(String message, {String? module, Map<String, dynamic>? data, dynamic exception, StackTrace? stackTrace}) {
-    _log(_levelCritical, 'CRITICAL', message, module: module, data: data, exception: exception, stackTrace: stackTrace);
+  static void critical(String message,
+      {String? module,
+      Map<String, dynamic>? data,
+      dynamic exception,
+      StackTrace? stackTrace}) {
+    _log(_levelCritical, 'CRITICAL', message,
+        module: module,
+        data: data,
+        exception: exception,
+        stackTrace: stackTrace);
   }
 
   /// 内部日志记录方法
   static void _log(
-    int level, 
-    String levelName, 
-    String message, 
-    {
-      String? module, 
-      Map<String, dynamic>? data,
-      dynamic exception,
-      StackTrace? stackTrace,
-    }
-  ) {
+    int level,
+    String levelName,
+    String message, {
+    String? module,
+    Map<String, dynamic>? data,
+    dynamic exception,
+    StackTrace? stackTrace,
+  }) {
     final timestamp = DateTime.now().toIso8601String();
     final moduleStr = module ?? 'App';
-    
+
     // 构建日志消息
     final logMessage = StringBuffer();
     logMessage.write('[$levelName] [$moduleStr] $message');
-    
+
     // 添加数据信息
     if (data != null && data.isNotEmpty) {
       logMessage.write(' | Data: ${data.toString()}');
     }
-    
+
     // 添加异常信息
     if (exception != null) {
       logMessage.write(' | Exception: $exception');
     }
-    
+
     // 使用developer.log输出到调试控制台
     developer.log(
       logMessage.toString(),
@@ -90,7 +108,7 @@ class AppLogger {
       error: exception,
       stackTrace: stackTrace,
     );
-    
+
     // 同时输出到控制台便于实时查看
     if (_debugMode || level >= _levelError) {
       final consoleMessage = '[$timestamp] ${logMessage.toString()}';
@@ -119,8 +137,13 @@ class AppLogger {
     warn(message, module: 'IPC', data: data);
   }
 
-  static void ipcError(String message, {Map<String, dynamic>? data, dynamic exception, StackTrace? stackTrace}) {
-    error(message, module: 'IPC', data: data, exception: exception, stackTrace: stackTrace);
+  static void ipcError(String message,
+      {Map<String, dynamic>? data, dynamic exception, StackTrace? stackTrace}) {
+    error(message,
+        module: 'IPC',
+        data: data,
+        exception: exception,
+        stackTrace: stackTrace);
   }
 
   /// Daemon相关日志
@@ -140,8 +163,13 @@ class AppLogger {
     warn(message, module: 'Daemon', data: data);
   }
 
-  static void daemonError(String message, {Map<String, dynamic>? data, dynamic exception, StackTrace? stackTrace}) {
-    error(message, module: 'Daemon', data: data, exception: exception, stackTrace: stackTrace);
+  static void daemonError(String message,
+      {Map<String, dynamic>? data, dynamic exception, StackTrace? stackTrace}) {
+    error(message,
+        module: 'Daemon',
+        data: data,
+        exception: exception,
+        stackTrace: stackTrace);
   }
 
   /// UI相关日志
@@ -161,8 +189,10 @@ class AppLogger {
     warn(message, module: 'UI', data: data);
   }
 
-  static void uiError(String message, {Map<String, dynamic>? data, dynamic exception, StackTrace? stackTrace}) {
-    error(message, module: 'UI', data: data, exception: exception, stackTrace: stackTrace);
+  static void uiError(String message,
+      {Map<String, dynamic>? data, dynamic exception, StackTrace? stackTrace}) {
+    error(message,
+        module: 'UI', data: data, exception: exception, stackTrace: stackTrace);
   }
 }
 

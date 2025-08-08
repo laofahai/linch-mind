@@ -6,9 +6,13 @@
 
 import logging
 
-from ..ipc_protocol import (IPCErrorCode, IPCRequest, IPCResponse,
-                            internal_error_response, invalid_request_response,
-                            resource_not_found_response)
+from ..ipc_protocol import (
+    IPCRequest,
+    IPCResponse,
+    internal_error_response,
+    invalid_request_response,
+    resource_not_found_response,
+)
 from ..ipc_router import IPCRouter
 
 logger = logging.getLogger(__name__)
@@ -28,10 +32,11 @@ def create_connector_config_router() -> IPCRouter:
             )
 
         try:
-            from daemon.services.connectors.connector_config_service import \
-                get_connector_config_service
+            from daemon.services.connectors.unified_connector_service import (
+                get_unified_connector_service,
+            )
 
-            service = get_connector_config_service()
+            service = get_unified_connector_service()
             schema_data = await service.get_config_schema(connector_id)
 
             if not schema_data:
@@ -60,10 +65,11 @@ def create_connector_config_router() -> IPCRouter:
             )
 
         try:
-            from daemon.services.connectors.connector_config_service import \
-                get_connector_config_service
+            from daemon.services.connectors.unified_connector_service import (
+                get_unified_connector_service,
+            )
 
-            service = get_connector_config_service()
+            service = get_unified_connector_service()
             config_data = await service.get_current_config(connector_id)
 
             if config_data is None:
@@ -95,10 +101,11 @@ def create_connector_config_router() -> IPCRouter:
         config = data["config"]
 
         try:
-            from daemon.services.connectors.connector_config_service import \
-                get_connector_config_service
+            from daemon.services.connectors.unified_connector_service import (
+                get_unified_connector_service,
+            )
 
-            service = get_connector_config_service()
+            service = get_unified_connector_service()
             validation_result = await service.validate_config(connector_id, config)
 
             return IPCResponse.success_response(
@@ -128,10 +135,11 @@ def create_connector_config_router() -> IPCRouter:
         change_reason = data.get("change_reason", "用户更新")
 
         try:
-            from daemon.services.connectors.connector_config_service import \
-                get_connector_config_service
+            from daemon.services.connectors.unified_connector_service import (
+                get_unified_connector_service,
+            )
 
-            service = get_connector_config_service()
+            service = get_unified_connector_service()
             result = await service.update_config(
                 connector_id, config, config_version, change_reason
             )
@@ -161,10 +169,11 @@ def create_connector_config_router() -> IPCRouter:
         to_defaults = data.get("to_defaults", True)
 
         try:
-            from daemon.services.connectors.connector_config_service import \
-                get_connector_config_service
+            from daemon.services.connectors.unified_connector_service import (
+                get_unified_connector_service,
+            )
 
-            service = get_connector_config_service()
+            service = get_unified_connector_service()
             result = await service.reset_config(connector_id, to_defaults)
 
             return IPCResponse.success_response(
@@ -191,10 +200,11 @@ def create_connector_config_router() -> IPCRouter:
         offset = int(request.query_params.get("offset", 0))
 
         try:
-            from daemon.services.connectors.connector_config_service import \
-                get_connector_config_service
+            from daemon.services.connectors.unified_connector_service import (
+                get_unified_connector_service,
+            )
 
-            service = get_connector_config_service()
+            service = get_unified_connector_service()
             history = await service.get_config_history(connector_id, limit, offset)
 
             return IPCResponse.success_response(
@@ -212,10 +222,11 @@ def create_connector_config_router() -> IPCRouter:
     async def get_all_schemas(request: IPCRequest) -> IPCResponse:
         """获取所有连接器的配置Schema概览"""
         try:
-            from daemon.services.connectors.connector_config_service import \
-                get_connector_config_service
+            from daemon.services.connectors.unified_connector_service import (
+                get_unified_connector_service,
+            )
 
-            service = get_connector_config_service()
+            service = get_unified_connector_service()
             schemas = await service.get_all_schemas()
 
             return IPCResponse.success_response(

@@ -69,9 +69,8 @@ class _ConnectorManagementScreenState
         _installedConnectors = connectorResponse.connectors;
         _installedLoading = false;
       });
-      AppLogger.uiDebug('UI状态更新完成', data: {
-        'installed_connectors_length': _installedConnectors.length
-      });
+      AppLogger.uiDebug('UI状态更新完成',
+          data: {'installed_connectors_length': _installedConnectors.length});
     } catch (e, stackTrace) {
       AppLogger.uiError('加载已安装连接器失败', exception: e, stackTrace: stackTrace);
       setState(() {
@@ -461,9 +460,9 @@ class _ConnectorManagementScreenState
             padding: const EdgeInsets.all(16),
             gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: crossAxisCount,
+              childAspectRatio: 4.2, // 增加卡片高度，避免溢出
               crossAxisSpacing: 12,
               mainAxisSpacing: 8,
-              childAspectRatio: 4.2, // 增加卡片高度，避免溢出
             ),
             itemCount: filteredConnectors.length,
             itemBuilder: (context, index) {
@@ -561,9 +560,9 @@ class _ConnectorManagementScreenState
             padding: const EdgeInsets.all(16),
             gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: crossAxisCount,
+              childAspectRatio: 2.2, // 调整为垂直卡片布局
               crossAxisSpacing: 16,
               mainAxisSpacing: 16,
-              childAspectRatio: 2.2, // 调整为垂直卡片布局
             ),
             itemCount: filteredConnectors.length,
             itemBuilder: (context, index) {

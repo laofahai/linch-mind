@@ -7,10 +7,10 @@
 import logging
 from collections import defaultdict
 from datetime import datetime, timezone
-from functools import lru_cache
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional
 
 import networkx as nx
+
 from models.database_models import EntityMetadata, EntityRelationship
 from services.optimized_sqlite_service import get_optimized_sqlite_service
 
@@ -406,7 +406,7 @@ class CachedNetworkXService:
             try:
                 clustering = nx.clustering(self.knowledge_graph, entity_id)
                 centrality_metrics["clustering"] = clustering
-            except:
+            except Exception:
                 centrality_metrics["clustering"] = 0.0
 
             # 缓存结果

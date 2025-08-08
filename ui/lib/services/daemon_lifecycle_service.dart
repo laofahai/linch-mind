@@ -42,7 +42,7 @@ class DaemonStartResult {
 /// Daemon生命周期管理服务
 class DaemonLifecycleService {
   static const Duration _startupTimeout = Duration(seconds: 30);
-  static const Duration _healthCheckInterval = Duration(seconds: 5);
+  static const Duration _healthCheckInterval = Duration(seconds: 30);
 
   static DaemonLifecycleService? _instance;
   static DaemonLifecycleService get instance =>

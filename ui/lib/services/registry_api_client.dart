@@ -41,28 +41,33 @@ class RegistryApiClient {
 
       if (responseData['data'] != null) {
         final List<dynamic> data = responseData['data'] as List;
-        return data.map((item) {
-          // 安全地处理可能为null的item
-          if (item == null) return null;
-          
-          try {
-            // 首先尝试使用标准fromJson
-            if (item is Map<String, dynamic>) {
-              return ConnectorDefinition.fromJson(item);
-            } else {
-              print('[WARNING] 跳过非Map类型的连接器项: $item');
-              return null;
-            }
-          } catch (e) {
-            // 如果标准fromJson失败，尝试使用Registry专用的解析
-            try {
-              return ConnectorDefinitionRegistry.fromRegistryJson(item as Map<String, dynamic>);
-            } catch (e2) {
-              print('[ERROR] 解析连接器定义失败: $e2, 数据: $item');
-              return null;
-            }
-          }
-        }).where((item) => item != null).cast<ConnectorDefinition>().toList();
+        return data
+            .map((item) {
+              // 安全地处理可能为null的item
+              if (item == null) return null;
+
+              try {
+                // 首先尝试使用标准fromJson
+                if (item is Map<String, dynamic>) {
+                  return ConnectorDefinition.fromJson(item);
+                } else {
+                  print('[WARNING] 跳过非Map类型的连接器项: $item');
+                  return null;
+                }
+              } catch (e) {
+                // 如果标准fromJson失败，尝试使用Registry专用的解析
+                try {
+                  return ConnectorDefinitionRegistry.fromRegistryJson(
+                      item as Map<String, dynamic>);
+                } catch (e2) {
+                  print('[ERROR] 解析连接器定义失败: $e2, 数据: $item');
+                  return null;
+                }
+              }
+            })
+            .where((item) => item != null)
+            .cast<ConnectorDefinition>()
+            .toList();
       } else {
         return [];
       }
@@ -98,7 +103,8 @@ class RegistryApiClient {
   /// 刷新注册表
   static Future<Map<String, dynamic>> refreshRegistry() async {
     try {
-      final responseData = await _ipcApi.post('/system-config/registry/refresh');
+      final responseData =
+          await _ipcApi.post('/system-config/registry/refresh');
       return responseData;
     } catch (e) {
       throw Exception('刷新注册表失败: $e');
@@ -128,7 +134,7 @@ extension ConnectorDefinitionRegistry on ConnectorDefinition {
       version: json['version'] ?? '1.0.0',
       author: json['author'] ?? 'Unknown',
       category: json['category'] ?? 'other',
-      isRegistered: json['is_registered'] ?? false,  // 从后端数据获取实际状态
+      isRegistered: json['is_registered'] ?? false, // 从后端数据获取实际状态
       path: null, // Registry中的连接器没有本地路径
       downloadUrl: json['download_url'],
       platforms: json['platforms'] ?? {},

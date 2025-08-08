@@ -13,10 +13,16 @@ import uuid
 from pathlib import Path
 from typing import Any, Dict, Optional
 
-from models.database_models import (AIConversation, Base, EntityMetadata,
-                                    EntityRelationship, UserBehavior)
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import Session, sessionmaker
+
+from models.database_models import (
+    AIConversation,
+    Base,
+    EntityMetadata,
+    EntityRelationship,
+    UserBehavior,
+)
 
 logger = logging.getLogger(__name__)
 

@@ -36,7 +36,7 @@ class DatabaseMigration:
         # 确保迁移表存在
         self._ensure_migration_table()
 
-        logger.info(f"数据库迁移管理器初始化完成")
+        logger.info("数据库迁移管理器初始化完成")
         logger.info(f"数据库路径: {self.db_path}")
         logger.info(f"迁移目录: {self.migrations_dir}")
 
@@ -66,9 +66,9 @@ class DatabaseMigration:
             cursor = conn.cursor()
             cursor.execute(
                 """
-                SELECT version FROM schema_migrations 
-                WHERE success = 1 
-                ORDER BY applied_at DESC 
+                SELECT version FROM schema_migrations
+                WHERE success = 1
+                ORDER BY applied_at DESC
                 LIMIT 1
             """
             )
@@ -82,7 +82,7 @@ class DatabaseMigration:
             cursor.execute(
                 """
                 SELECT version, name, applied_at, success, execution_time_ms
-                FROM schema_migrations 
+                FROM schema_migrations
                 ORDER BY applied_at
             """
             )
@@ -202,7 +202,7 @@ class DatabaseMigration:
                         ),
                     )
                     conn.commit()
-            except:
+            except Exception:
                 pass  # 忽略记录失败的错误
 
             return False

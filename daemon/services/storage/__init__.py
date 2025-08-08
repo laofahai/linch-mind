@@ -9,16 +9,37 @@
 - 智能数据生命周期管理
 """
 
-from .data_lifecycle_manager import (DataHealthReport, DataLifecycleConfig,
-                                     DataLifecycleManager, cleanup_lifecycle_manager,
-                                     get_lifecycle_manager)
-from .graph_service import (EntityNode, GraphMetrics, GraphService, RelationshipEdge,
-                            cleanup_graph_service, get_graph_service)
-from .storage_orchestrator import (KnowledgeEntity, SmartRecommendation, StorageMetrics,
-                                   StorageOrchestrator, cleanup_storage_orchestrator,
-                                   get_storage_orchestrator)
-from .vector_service import (SearchResult, VectorDocument, VectorMetrics, VectorService,
-                             cleanup_vector_service, get_vector_service)
+from .data_lifecycle_manager import (
+    DataHealthReport,
+    DataLifecycleConfig,
+    DataLifecycleManager,
+    cleanup_lifecycle_manager,
+    get_lifecycle_manager,
+)
+from .graph_service import (
+    EntityNode,
+    GraphMetrics,
+    GraphService,
+    RelationshipEdge,
+    cleanup_graph_service,
+    get_graph_service,
+)
+from .storage_orchestrator import (
+    KnowledgeEntity,
+    SmartRecommendation,
+    StorageMetrics,
+    StorageOrchestrator,
+    cleanup_storage_orchestrator,
+    get_storage_orchestrator,
+)
+from .vector_service import (
+    SearchResult,
+    VectorDocument,
+    VectorMetrics,
+    VectorService,
+    cleanup_vector_service,
+    get_vector_service,
+)
 
 __all__ = [
     # 图服务
@@ -55,8 +76,8 @@ async def initialize_storage_system():
     """初始化整个存储系统"""
     try:
         # 按依赖顺序初始化
-        orchestrator = await get_storage_orchestrator()
-        lifecycle_manager = await get_lifecycle_manager()
+        await get_storage_orchestrator()
+        await get_lifecycle_manager()
 
         return True
     except Exception as e:

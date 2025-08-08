@@ -4,6 +4,7 @@ from datetime import datetime
 from typing import Dict, Optional
 
 import psutil
+
 from models.api_models import ConnectorStatus
 
 logger = logging.getLogger(__name__)

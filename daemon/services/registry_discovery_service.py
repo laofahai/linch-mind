@@ -215,6 +215,40 @@ class RegistryDiscoveryService:
         logger.error("所有注册表源都失败，无法获取注册表数据")
         return None, None
 
+    async def refresh_cache(self, force: bool = False) -> bool:
+        """刷新注册表缓存
+
+        Args:
+            force: 是否强制刷新，忽略缓存时间
+
+        Returns:
+            bool: 刷新是否成功
+        """
+        try:
+            if force:
+                # 强制刷新：删除现有缓存
+                if self.cache_file.exists():
+                    self.cache_file.unlink()
+                    logger.debug("已删除现有缓存文件")
+                if self.cache_meta_file.exists():
+                    self.cache_meta_file.unlink()
+                    logger.debug("已删除现有缓存元数据")
+
+            # 重新获取注册表数据
+            registry_data, source = await self._fetch_registry_data()
+
+            if registry_data and source:
+                await self._save_to_cache(registry_data, source)
+                logger.info(f"缓存刷新成功，来源：{source.description}")
+                return True
+            else:
+                logger.warning("缓存刷新失败：无法获取注册表数据")
+                return False
+
+        except Exception as e:
+            logger.error(f"缓存刷新失败: {e}")
+            return False
+
     async def _fetch_from_source(
         self, source: RegistrySource
     ) -> Optional[Dict[str, Any]]:

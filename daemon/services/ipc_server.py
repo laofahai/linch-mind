@@ -8,17 +8,19 @@ import json
 import logging
 import os
 import platform
-import socket
 import stat
 import tempfile
 from pathlib import Path
-from typing import Any, Dict, Optional, Union
+from typing import Any, Dict, Optional
 
 from .ipc_middleware import create_default_middlewares
 from .ipc_router import IPCApplication
 from .ipc_routes import register_all_routes
-from .ipc_security import (get_security_manager, secure_socket_directory,
-                           secure_socket_file)
+from .ipc_security import (
+    get_security_manager,
+    secure_socket_directory,
+    secure_socket_file,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -146,7 +148,7 @@ class IPCServer:
 
     def _write_socket_info(self):
         """写入socket信息到配置文件"""
-        from api.dependencies import get_config_manager
+        from config.dependencies import get_config_manager
 
         config_manager = get_config_manager()
 
@@ -386,7 +388,7 @@ class IPCServer:
             os.unlink(self.socket_path)
 
         # 清理配置文件
-        from api.dependencies import get_config_manager
+        from config.dependencies import get_config_manager
 
         config_manager = get_config_manager()
 

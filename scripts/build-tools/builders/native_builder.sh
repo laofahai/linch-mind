@@ -23,6 +23,13 @@ echo "🚀 Running build script..."
 
 # Find built binary (common patterns)
 BINARY_CANDIDATES=(
+    # New linch-mind naming convention
+    "linch-mind-${CONNECTOR_ID}"
+    "bin/release/linch-mind-${CONNECTOR_ID}"
+    "bin/debug/linch-mind-${CONNECTOR_ID}"
+    "dist/bin/linch-mind-${CONNECTOR_ID}"
+    
+    # Legacy naming patterns for backward compatibility
     "${CONNECTOR_ID}-connector"
     "clipboard-connector"
     "filesystem-connector" 

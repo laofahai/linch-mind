@@ -4,15 +4,12 @@
 负责将现有的SQLite数据迁移到图数据库和向量数据库
 """
 
-import asyncio
 import logging
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, Optional
 
-from models.database_models import (AIConversation, EntityMetadata, EntityRelationship,
-                                    UserBehavior)
+from models.database_models import EntityMetadata, EntityRelationship
 
 from ..database_service import get_database_service
 from .embedding_service import get_embedding_service
