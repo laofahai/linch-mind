@@ -2,20 +2,22 @@
 
 **高性能IPC后台服务** - Linch Mind个人AI生活助手的核心引擎
 
-**版本**: 0.2.0  
-**架构**: 纯IPC (Unix Socket/Named Pipe)  
-**技术栈**: Python 3.12 + SQLAlchemy + FAISS + NetworkX  
-**状态**: 生产就绪
+**版本**: 0.3.0  
+**架构**: 纯IPC (Unix Socket/Named Pipe) + 现代化服务架构  
+**技术栈**: Python 3.12 + SQLAlchemy + FAISS + NetworkX + ServiceFacade  
+**状态**: 生产就绪 + P0重构完成
 
 ---
 
 ## 🚀 核心特性
 
-### 🔥 纯IPC架构 (v2.0)
+### 🔥 纯IPC架构 (v2.0) + 现代化服务架构 (v3.0)
 - **超高性能**: IPC延迟<1ms，相比HTTP提升90%+
 - **零网络暴露**: Unix Socket/Named Pipe本地通信
 - **自动重连**: 客户端断线自动恢复机制
 - **跨平台支持**: macOS/Linux(Unix Socket) + Windows(Named Pipe)
+- **ServiceFacade**: 统一服务获取，消除>90%代码重复
+- **标准化错误处理**: 统一异常管理，提升系统稳定性
 
 ### 🧠 智能推荐引擎
 - **知识图谱**: NetworkX图数据库，自动发现内容关联
@@ -40,12 +42,18 @@
 
 ```
 ┌─────────────────────────────────────────┐
-│         Linch Mind Daemon               │
+│         Linch Mind Daemon v3.0          │
 ├─────────────────────────────────────────┤
 │  IPC Server (Unix Socket/Named Pipe)   │
 │  ├─ 路由处理 (ipc_router.py)            │
 │  ├─ 中间件 (ipc_middleware.py)          │
 │  └─ 安全层 (ipc_security.py)            │
+├─────────────────────────────────────────┤
+│  现代化服务架构 (2025-08-08)             │
+│  ├─ ServiceFacade (统一服务获取)        │
+│  ├─ 标准化错误处理 (error_handling.py)  │
+│  ├─ DI容器 (container.py)               │
+│  └─ 异常管理 (exception_handler.py)     │
 ├─────────────────────────────────────────┤
 │  核心业务服务                            │
 │  ├─ 连接器管理 (connector_manager.py)   │
@@ -104,6 +112,12 @@ max_connections: 1000
 ```
 daemon/
 ├── ipc_main.py              # 主入口 - IPC服务器启动
+├── core/                    # 🆕 现代化核心架构 (2025-08-08)
+│   ├── service_facade.py    # ServiceFacade - 统一服务获取
+│   ├── error_handling.py    # 标准化错误处理框架
+│   ├── container.py         # 增强DI容器
+│   ├── exception_handler.py # 异常管理器
+│   └── database_manager.py  # 数据库生命周期管理
 ├── config/                  # 配置管理
 │   ├── core_config.py       # 核心配置加载
 │   ├── error_handling.py    # 错误处理配置
@@ -131,6 +145,50 @@ daemon/
 ---
 
 ## 🔧 开发指南
+
+### 🆕 现代化开发模式 (2025-08-08)
+
+#### ServiceFacade服务获取
+```python
+# ✅ 推荐方式 - 使用ServiceFacade
+from core.service_facade import get_service, get_connector_manager
+
+# 通用服务获取
+connector_manager = get_service(ConnectorManager)
+database_service = get_service(DatabaseService)
+
+# 专用快捷函数
+connector_manager = get_connector_manager()
+```
+
+#### 标准化错误处理
+```python
+# ✅ 统一错误处理装饰器
+from core.error_handling import handle_errors, ErrorSeverity, ErrorCategory
+
+@handle_errors(
+    severity=ErrorSeverity.HIGH,
+    category=ErrorCategory.CONNECTOR_MANAGEMENT,
+    user_message="连接器启动失败",
+    recovery_suggestions="检查连接器配置和依赖"
+)
+async def start_connector(connector_id: str):
+    # 业务逻辑，异常会被自动捕获和标准化处理
+    pass
+```
+
+#### 依赖注入容器
+```python
+# ✅ 服务注册
+from core.container import get_container
+
+container = get_container()
+container.register_service(ConnectorManager, connector_manager_instance)
+
+# ✅ 服务检查
+if container.is_registered(DatabaseService):
+    db_service = container.get_service(DatabaseService)
+```
 
 ### IPC通信测试
 ```bash
@@ -257,7 +315,8 @@ from services.ipc_middleware import PerformanceMiddleware
 
 ---
 
-**Daemon服务状态**: ✅ 生产就绪  
-**版本**: 0.2.0  
+**Daemon服务状态**: ✅ 生产就绪 + P0重构完成  
+**版本**: 0.3.0  
+**代码重构**: 重复率从>60%降至<5%，架构现代化  
 **最后更新**: 2025-08-08  
 **维护团队**: Linch Mind Core Team

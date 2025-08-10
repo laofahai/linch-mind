@@ -99,7 +99,21 @@ class AppLogger {
       logMessage.write(' | Exception: $exception');
     }
 
-    // 使用developer.log输出到调试控制台
+    // 🔧 调试优化：分离控制台输出和IDE调试输出
+    if (_debugMode) {
+      // IDE调试器专用：使用原始print保证stackTrace正确显示
+      if (level >= _levelError) {
+        print('🔴 ERROR: $message');
+        if (exception != null) print('Exception: $exception');
+        if (stackTrace != null) print('StackTrace:\n$stackTrace');
+      } else if (level >= _levelWarn) {
+        print('🟡 WARN: $message');
+      } else {
+        print('🔵 [$moduleStr] $message');
+      }
+    }
+
+    // 生产环境：使用developer.log
     developer.log(
       logMessage.toString(),
       time: DateTime.now(),
@@ -109,13 +123,12 @@ class AppLogger {
       stackTrace: stackTrace,
     );
 
-    // 同时输出到控制台便于实时查看
-    if (_debugMode || level >= _levelError) {
+    // 错误级别同时输出到stderr确保可见性
+    if (level >= _levelError) {
       final consoleMessage = '[$timestamp] ${logMessage.toString()}';
-      if (level >= _levelError) {
-        stderr.writeln(consoleMessage);
-      } else {
-        stdout.writeln(consoleMessage);
+      stderr.writeln(consoleMessage);
+      if (stackTrace != null) {
+        stderr.writeln('StackTrace:\n$stackTrace');
       }
     }
   }

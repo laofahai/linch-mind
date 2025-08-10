@@ -2,6 +2,7 @@ import 'dart:async';
 import '../models/connector_lifecycle_models.dart';
 import '../utils/app_logger.dart';
 import 'ipc_api_adapter.dart';
+import 'response_parser.dart';
 
 /// 专门的连接器生命周期API客户端
 /// 对应 daemon 的 /connector-lifecycle 端点
@@ -20,20 +21,17 @@ class ConnectorLifecycleApiClient {
     try {
       final responseData = await _ipcApi.get('/connector-lifecycle/discovery');
 
-      // 安全地获取data结构
-      final data =
-          responseData['data'] as Map<String, dynamic>? ?? responseData;
-
-      // 检查响应是否成功 - 从data字段中获取success状态
-      final success = data['success'] ?? (responseData['status_code'] == 200);
-      if (!success) {
-        final error = data['error'] ?? 'Unknown error';
+      // 使用ResponseParser统一解析
+      if (!ResponseParser.isSuccess(responseData)) {
+        final error = ResponseParser.getError(responseData) ?? 'Unknown error';
         throw ConnectorApiException('Discovery failed: $error');
       }
 
+      final data = ResponseParser.extractData(responseData);
       final flatResponse = {
-        'success': success,
-        'message': data['message'] ?? 'Connectors discovered successfully',
+        'success': true,
+        'message': ResponseParser.getMessage(responseData) ?? 
+                  'Connectors discovered successfully',
         'connectors': data['connectors'] ?? [],
       };
 
@@ -66,8 +64,8 @@ class ConnectorLifecycleApiClient {
         message: data['message'] ?? 'Connector created successfully',
         connectorId: connector['connector_id'] ?? request.connectorId,
         state: ConnectorState.values.firstWhere(
-          (e) => e.name == (connector['state'] ?? 'configured'),
-          orElse: () => ConnectorState.configured,
+          (e) => e.name == (connector['state'] ?? 'stopped'),
+          orElse: () => ConnectorState.stopped,
         ),
         hotReloadApplied: null,
         requiresRestart: null,
@@ -217,8 +215,8 @@ class ConnectorLifecycleApiClient {
         message: data['message'] ?? 'Connector stopped successfully',
         connectorId: data['connector_id'] ?? connectorId,
         state: ConnectorState.values.firstWhere(
-          (e) => e.name == (data['state'] ?? 'enabled'),
-          orElse: () => ConnectorState.enabled,
+          (e) => e.name == (data['state'] ?? 'stopped'),
+          orElse: () => ConnectorState.stopped,
         ),
       );
     } catch (e) {
@@ -282,14 +280,23 @@ class ConnectorLifecycleApiClient {
         queryParameters: queryParams,
       );
 
-      // 处理嵌套响应结构
+      // 处理响应结构 - 支持字符串和Map两种错误格式
       final success = responseData['success'] ?? false;
       final data = responseData['data'] as Map<String, dynamic>? ?? {};
-      final error = responseData['error'] as Map<String, dynamic>?;
-
+      final error = responseData['error'];
+      
       if (!success || error != null) {
+        String errorMessage;
+        if (error is Map<String, dynamic>) {
+          errorMessage = error['message'] ?? 'Unknown error';
+        } else if (error is String) {
+          errorMessage = error;
+        } else {
+          errorMessage = 'Unknown error';
+        }
+        
         throw ConnectorApiException(
-            'Failed to delete connector: ${error?['message'] ?? 'Unknown error'}');
+            'Failed to delete connector: $errorMessage');
       }
 
       return OperationResponse(
@@ -350,14 +357,13 @@ class ConnectorLifecycleApiClient {
 
       // IPC可能返回扁平格式或嵌套格式的数据，自动检测并适配
       Map<String, dynamic> data;
-      if (responseData.containsKey('connectors') ||
-          responseData.containsKey('success')) {
+      if (responseData.containsKey('data') &&
+          responseData['data'] is Map) {
+        // 嵌套格式：数据在data字段中（这是实际情况）
+        data = (responseData['data'] as Map<String, dynamic>?) ?? {};
+      } else if (responseData.containsKey('connectors')) {
         // 扁平格式：直接包含业务数据
         data = responseData;
-      } else if (responseData.containsKey('data') &&
-          responseData['data'] is Map) {
-        // 嵌套格式：数据在data字段中
-        data = (responseData['data'] as Map<String, dynamic>?) ?? {};
       } else {
         // 兜底：直接使用响应数据
         data = responseData;

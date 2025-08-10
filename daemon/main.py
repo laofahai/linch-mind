@@ -53,24 +53,7 @@ async def auto_start_connectors():
         container = get_container()
         manager = container.get_service(ConnectorManager)
 
-        # 首先自动注册本地连接器（如果尚未注册）
-        try:
-            connector_config = get_connector_config()
-            connectors_dir = Path(connector_config.config_dir)
-
-            # 扫描并注册未注册的连接器
-            discovered_connectors = manager.scan_directory_for_connectors(
-                str(connectors_dir)
-            )
-            for connector in discovered_connectors:
-                if not connector.get("is_registered", False):
-                    logger.info(f"自动注册连接器: {connector['name']}")
-                    connector_path = Path(connector["path"])
-                    manager.register_connector_from_path(str(connector_path))
-        except Exception as e:
-            logger.warning(f"自动注册连接器时出现问题: {e}")
-
-        # 启动所有已注册连接器
+        # 启动所有已注册连接器（不再自动注册新连接器）
         await manager.start_all_registered_connectors()
 
         # 获取启动结果
@@ -97,26 +80,22 @@ async def auto_start_connectors():
 
 async def start_health_check_scheduler():
     """启动健康检查调度器"""
-    from core.container import get_container
-    from services.connectors.connector_manager import ConnectorManager
+    from core.service_facade import get_service
+    from services.connectors.health import ConnectorHealthChecker
 
-    async def health_check_loop():
-        """定期健康检查循环"""
-        # 🔧 使用DI容器获取连接器管理器
-        container = get_container()
-        manager = container.get_service(ConnectorManager)
+    try:
+        # 🏥 使用ServiceFacade获取健康检查器
+        health_checker = get_service(ConnectorHealthChecker)
         
-        while True:
-            try:
-                await asyncio.sleep(30)  # 每30秒检查一次
-                manager.health_check_all_connectors()
-                logger.debug("健康检查完成")
-            except Exception as e:
-                logger.error(f"健康检查失败: {e}")
-
-    # 启动后台任务
-    asyncio.create_task(health_check_loop())
-    logger.info("✅ 健康检查调度器已启动 (30秒间隔)")
+        # 启动专门的健康监控任务
+        await health_checker.start_monitoring()
+        
+        logger.info("✅ 连接器健康检查服务已启动")
+        
+    except Exception as e:
+        logger.error(f"❌ 启动健康检查服务失败: {e}")
+        import traceback
+        logger.error(f"详细错误信息: {traceback.format_exc()}")
 
 
 def initialize_di_container():
@@ -149,18 +128,6 @@ def initialize_di_container():
     container.register_singleton(DatabaseService, create_database_service)
     logger.debug("已注册: DatabaseService")
     
-    # 🔌 连接器管理服务
-    def create_connector_manager():
-        from services.connectors.connector_manager import ConnectorManager
-        from config.core_config import get_connector_config
-        connector_config = get_connector_config()
-        # 将相对路径转换为项目根目录的绝对路径
-        connectors_dir = project_root / connector_config.config_dir
-        return ConnectorManager(connectors_dir=connectors_dir)
-    
-    container.register_singleton(ConnectorManager, create_connector_manager)
-    logger.debug("已注册: ConnectorManager")
-    
     # 🔧 连接器配置服务
     def create_connector_config_service():
         from services.connectors.connector_config_service import ConnectorConfigService
@@ -174,6 +141,70 @@ def initialize_di_container():
     from services.connectors.connector_config_service import ConnectorConfigService
     container.register_singleton(ConnectorConfigService, create_connector_config_service)
     logger.debug("已注册: ConnectorConfigService")
+    
+    # 🔄 进程管理服务
+    def create_process_manager():
+        from services.connectors.process_manager import ProcessManager
+        return ProcessManager()
+    
+    from services.connectors.process_manager import ProcessManager
+    container.register_singleton(ProcessManager, create_process_manager)
+    logger.debug("已注册: ProcessManager")
+    
+    # 📋 连接器注册服务  
+    def create_connector_registry_service():
+        from services.connector_registry_service import ConnectorRegistryService
+        return ConnectorRegistryService()
+    
+    from services.connector_registry_service import ConnectorRegistryService
+    container.register_singleton(ConnectorRegistryService, create_connector_registry_service)
+    logger.debug("已注册: ConnectorRegistryService")
+    
+    # 🔌 连接器管理服务
+    def create_connector_manager():
+        from services.connectors.connector_manager import ConnectorManager
+        from config.core_config import get_connector_config
+        connector_config = get_connector_config()
+        # 将相对路径转换为项目根目录的绝对路径
+        connectors_dir = project_root / connector_config.config_dir
+        
+        # 手动依赖注入，避免ServiceFacade循环问题
+        db_service = container.get_service(DatabaseService)
+        process_manager = container.get_service(ProcessManager)
+        config_service = container.get_service(ConnectorConfigService)
+        registry_service = container.get_service(ConnectorRegistryService)
+        config_manager = container.get_service(CoreConfigManager)
+        
+        return ConnectorManager(
+            connectors_dir=connectors_dir,
+            db_service=db_service,
+            process_manager=process_manager,
+            config_service=config_service,
+            registry_service=registry_service,
+            config_manager=config_manager
+        )
+    
+    container.register_singleton(ConnectorManager, create_connector_manager)
+    logger.debug("已注册: ConnectorManager")
+    
+    # 🏥 连接器健康检查服务
+    def create_connector_health_checker():
+        from services.connectors.health import ConnectorHealthChecker
+        # ConnectorHealthChecker将通过ServiceFacade自动获取ConnectorManager依赖
+        return ConnectorHealthChecker()
+    
+    from services.connectors.health import ConnectorHealthChecker
+    container.register_singleton(ConnectorHealthChecker, create_connector_health_checker)
+    logger.debug("已注册: ConnectorHealthChecker")
+    
+    # 🛠️ 系统配置服务
+    def create_system_config_service():
+        from services.system_config_service import SystemConfigService
+        return SystemConfigService()
+    
+    from services.system_config_service import SystemConfigService
+    container.register_singleton(SystemConfigService, create_system_config_service)
+    logger.debug("已注册: SystemConfigService")
     
     # 🗄️ 存储服务
     def create_vector_service():
@@ -200,6 +231,17 @@ def initialize_di_container():
     logger.info(f"📦 已注册 {len(registered_services)} 个核心服务:")
     for i, service_name in enumerate(registered_services, 1):
         logger.info(f"    {i}. {service_name}")
+    
+    # 🔧 调试：验证容器实例一致性
+    from core.service_facade import _service_facade
+    facade_container = _service_facade.container
+    logger.debug(f"Main容器ID: {id(container)}, ServiceFacade容器ID: {id(facade_container)}")
+    logger.debug(f"Main容器服务数: {len(container.get_all_services())}, Facade容器服务数: {len(facade_container.get_all_services())}")
+    
+    # 🔧 重置ServiceFacade容器，确保获取最新的已注册服务
+    from core.service_facade import reset_service_facade
+    reset_service_facade()
+    logger.debug("ServiceFacade已重置，确保获取最新容器")
     
     return container
 

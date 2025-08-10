@@ -345,8 +345,8 @@ class IPCConnectionFactory:
                                 "available": True,
                             }
                         )
-                except:
-                    pass
+                except (OSError, RuntimeError) as e:
+                    logger.debug(f"检查Named Pipe可用性失败: {e}")
             except ImportError:
                 pass
         else:
@@ -369,8 +369,8 @@ class IPCConnectionFactory:
                             "available": True,
                         }
                     )
-            except:
-                pass
+            except (OSError, PermissionError) as e:
+                logger.debug(f"检查Unix Socket可用性失败: {e}")
 
         return available
 

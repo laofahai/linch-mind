@@ -11,7 +11,7 @@ from typing import Any, Dict, Optional
 
 from models.database_models import EntityMetadata, EntityRelationship
 
-from ..database_service import get_database_service
+from core.service_facade import get_database_service
 from .embedding_service import get_embedding_service
 from .storage_orchestrator import StorageOrchestrator, get_storage_orchestrator
 

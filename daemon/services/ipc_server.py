@@ -14,57 +14,17 @@ from pathlib import Path
 from typing import Any, Dict, Optional
 
 from .ipc_middleware import create_default_middlewares
+from .ipc_protocol import IPCMessage, IPCRequest
 from .ipc_router import IPCApplication
 from .ipc_routes import register_all_routes
 from .ipc_security import (
-    get_security_manager,
+    IPCSecurityManager,
     secure_socket_directory,
     secure_socket_file,
 )
 
 logger = logging.getLogger(__name__)
 
-
-class IPCMessage:
-    """IPC消息格式定义"""
-
-    def __init__(
-        self,
-        method: str,
-        path: str,
-        data: Optional[Dict[str, Any]] = None,
-        headers: Optional[Dict[str, str]] = None,
-        query_params: Optional[Dict[str, Any]] = None,
-    ):
-        self.method = method.upper()
-        self.path = path
-        self.data = data or {}
-        self.headers = headers or {}
-        self.query_params = query_params or {}
-
-    def to_json(self) -> str:
-        """序列化为JSON字符串"""
-        return json.dumps(
-            {
-                "method": self.method,
-                "path": self.path,
-                "data": self.data,
-                "headers": self.headers,
-                "query_params": self.query_params,
-            }
-        )
-
-    @classmethod
-    def from_json(cls, json_str: str) -> "IPCMessage":
-        """从JSON字符串反序列化"""
-        data = json.loads(json_str)
-        return cls(
-            method=data["method"],
-            path=data["path"],
-            data=data.get("data"),
-            headers=data.get("headers"),
-            query_params=data.get("query_params"),
-        )
 
 
 class IPCServer:
@@ -90,8 +50,19 @@ class IPCServer:
         # 注册所有路由
         register_all_routes(self.app)
 
-        # 获取安全管理器
-        self.security_manager = get_security_manager()
+        # 使用依赖注入获取安全管理器
+        from core.container import get_container
+        container = get_container()
+        
+        try:
+            self.security_manager = container.get_service(IPCSecurityManager)
+            logger.info("✅ 通过依赖注入获取IPC安全管理器成功")
+        except Exception as e:
+            logger.error(f"❌ 获取IPC安全管理器失败: {e}")
+            # 临时回退到直接创建实例
+            from .ipc_security import create_security_manager
+            self.security_manager = create_security_manager()
+            logger.warning("⚠️ 使用临时安全管理器实例")
 
         logger.info("IPC应用已初始化，所有路由和中间件已加载，安全管理器已启用")
 
@@ -175,20 +146,6 @@ class IPCServer:
 
         logger.info(f"Socket信息已写入: {socket_file}")
 
-        # 向后兼容：同时写入daemon.port文件（供现有客户端使用）
-        # 使用特殊端口0表示IPC模式
-        port_file = config_manager.get_paths()["app_data"] / "daemon.port"
-        try:
-            with open(port_file, "w") as f:
-                f.write(f"0:{os.getpid()}")
-
-            if platform.system() != "Windows":
-                os.chmod(port_file, stat.S_IRUSR | stat.S_IWUSR)
-
-            logger.info(f"兼容性端口文件已写入: {port_file} (port=0表示IPC模式)")
-        except Exception as e:
-            logger.warning(f"写入兼容性端口文件失败: {e}")
-
     async def _handle_client(
         self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter
     ):
@@ -217,22 +174,59 @@ class IPCServer:
 
                 # 解析IPC消息
                 try:
-                    ipc_message = IPCMessage.from_json(message_str)
+                    ipc_request = IPCRequest.from_json(message_str)
                     logger.debug(
-                        f"收到IPC请求: {ipc_message.method} {ipc_message.path}"
+                        f"收到IPC请求: {ipc_request.method} {ipc_request.path}"
                     )
 
                     # 检查是否为认证请求或已认证
-                    if not authenticated and ipc_message.path == "/auth/handshake":
-                        # 认证请求：直接通过IPC应用处理
-                        response = await self._process_message(ipc_message)
+                    if not authenticated and ipc_request.path == "/auth/handshake":
+                        # 🔐 认证请求：注入真实客户端PID，防止PID欺骗
+                        if not ipc_request.headers:
+                            ipc_request.headers = {}
+                        
+                        # 使用改进的跨平台PID获取机制
+                        try:
+                            from .ipc.peer_credentials import get_socket_peer_credentials
+                            
+                            sock = writer.get_extra_info('socket')
+                            if sock:
+                                credentials = get_socket_peer_credentials(sock)
+                                
+                                if credentials.pid and credentials.confidence in ["high", "medium"]:
+                                    # 注入验证过的真实PID到请求头
+                                    ipc_request.headers["x-real-client-pid"] = str(credentials.pid)
+                                    ipc_request.headers["x-pid-source"] = credentials.source
+                                    ipc_request.headers["x-pid-confidence"] = credentials.confidence
+                                    
+                                    logger.debug(f"安全PID注入成功: PID={credentials.pid}, 来源={credentials.source}, 可信度={credentials.confidence}")
+                                    
+                                elif credentials.pid and credentials.confidence == "low":
+                                    # 低可信度时也注入，但标记
+                                    ipc_request.headers["x-real-client-pid"] = str(credentials.pid)
+                                    ipc_request.headers["x-pid-source"] = credentials.source
+                                    ipc_request.headers["x-pid-confidence"] = credentials.confidence
+                                    
+                                    logger.debug(f"低可信度PID注入: PID={credentials.pid}, 来源={credentials.source}")
+                                    
+                                else:
+                                    # PID获取完全失败，但不输出警告（客户端声明的PID仍可用于基本验证）
+                                    logger.debug(f"无法获取可靠的客户端PID: 来源={credentials.source}")
+                            else:
+                                logger.debug("无法获取socket对象，跳过PID注入")
+                                
+                        except Exception as e:
+                            logger.debug(f"PID获取过程出错: {e}")  # 降级为debug级别
+                        
+                        # 处理认证请求
+                        response = await self._process_message(ipc_request)
                         # 使用IPC格式检查认证结果
                         authenticated = response.get("success") and response.get(
                             "data", {}
                         ).get("authenticated", False)
                         if authenticated:
                             # 记录认证信息到连接上下文
-                            client_pid = ipc_message.data.get("client_pid", 0)
+                            client_pid = ipc_request.data.get("client_pid", 0)
                             server_pid = os.getpid()
                             is_internal = client_pid == server_pid
                             self.client_connections[connection_id] = {
@@ -253,23 +247,23 @@ class IPCServer:
                         response = error_response.to_dict()
                     else:
                         # 已认证客户端，添加认证信息并处理请求
-                        if not ipc_message.headers:
-                            ipc_message.headers = {}
+                        if not ipc_request.headers:
+                            ipc_request.headers = {}
 
                         client_info = self.client_connections.get(connection_id, {})
-                        ipc_message.headers["x-client-pid"] = str(
+                        ipc_request.headers["x-client-pid"] = str(
                             client_info.get("client_pid", 0)
                         )
-                        ipc_message.headers["x-authenticated"] = "true"
+                        ipc_request.headers["x-authenticated"] = "true"
 
                         # 检查是否为内部客户端
                         if client_info.get("internal", False):
-                            ipc_message.headers["x-internal-client"] = "true"
+                            ipc_request.headers["x-internal-client"] = "true"
 
                         # 简化：只进行基本频率限制检查，移除复杂的安全验证
                         client_pid = client_info.get("client_pid", 0)
                         if self.security_manager.rate_limiter.is_allowed(client_pid):
-                            response = await self._process_message(ipc_message)
+                            response = await self._process_message(ipc_request)
                         else:
                             # 频率限制 - 使用IPC格式响应
                             from .ipc_protocol import IPCErrorCode, IPCResponse
@@ -317,10 +311,18 @@ class IPCServer:
             if connection_id in self.client_connections:
                 self.security_manager.close_connection(connection_id)
                 del self.client_connections[connection_id]
-            writer.close()
-            await writer.wait_closed()
+            
+            # 安全关闭连接
+            try:
+                if not writer.is_closing():
+                    writer.close()
+                    await writer.wait_closed()
+            except (BrokenPipeError, ConnectionResetError, ConnectionAbortedError):
+                logger.debug("连接已断开，无需等待关闭")
+            except Exception as e:
+                logger.debug(f"关闭连接时出错: {e}")
 
-    async def _process_message(self, message: IPCMessage) -> Dict[str, Any]:
+    async def _process_message(self, request: IPCRequest) -> Dict[str, Any]:
         """处理IPC消息，使用纯IPC应用"""
         if not self.app:
             from .ipc_protocol import IPCErrorCode, IPCResponse
@@ -331,13 +333,14 @@ class IPCServer:
             return error_response.to_dict()
 
         try:
-            # 直接使用IPC应用处理请求，传递头部信息
+            # 直接使用IPC应用处理请求
             response = await self.app.handle_request(
-                method=message.method,
-                path=message.path,
-                data=message.data,
-                query_params=message.query_params,
-                headers=message.headers,  # 传递头部信息
+                method=request.method,
+                path=request.path,
+                data=request.data,
+                query_params=request.query_params,
+                headers=request.headers,
+                request_id=request.request_id,
             )
 
             return response.to_dict()
@@ -353,20 +356,39 @@ class IPCServer:
             )
             return error_response.to_dict()
 
+    def _discover_client_pid(self, writer: asyncio.StreamWriter) -> Optional[int]:
+        """
+        发现客户端进程PID（向后兼容方法，推荐使用peer_credentials模块）
+        """
+        try:
+            from .ipc.peer_credentials import discover_client_pid
+            return discover_client_pid(writer)
+        except Exception as e:
+            logger.debug(f"客户端PID发现失败: {e}")
+            return None
+
     async def _send_response(
         self, writer: asyncio.StreamWriter, response: Dict[str, Any]
     ):
         """发送响应到客户端"""
-        response_json = json.dumps(response)
-        response_bytes = response_json.encode("utf-8")
+        try:
+            response_json = json.dumps(response)
+            response_bytes = response_json.encode("utf-8")
 
-        # 发送消息长度前缀
-        length_bytes = len(response_bytes).to_bytes(4, byteorder="big")
-        writer.write(length_bytes)
+            # 发送消息长度前缀
+            length_bytes = len(response_bytes).to_bytes(4, byteorder="big")
+            writer.write(length_bytes)
 
-        # 发送消息内容
-        writer.write(response_bytes)
-        await writer.drain()
+            # 发送消息内容
+            writer.write(response_bytes)
+            await writer.drain()
+            
+        except (BrokenPipeError, ConnectionResetError, ConnectionAbortedError) as e:
+            logger.debug(f"客户端连接已断开，无法发送响应: {e}")
+            # 连接已断开，不需要进一步处理
+        except Exception as e:
+            logger.error(f"发送IPC响应时出错: {e}")
+            raise
 
     async def stop(self):
         """停止IPC服务器"""
@@ -396,11 +418,6 @@ class IPCServer:
         socket_file = config_manager.get_paths()["app_data"] / "daemon.socket"
         if socket_file.exists():
             os.unlink(socket_file)
-
-        # 清理兼容性port文件
-        port_file = config_manager.get_paths()["app_data"] / "daemon.port"
-        if port_file.exists():
-            os.unlink(port_file)
 
         logger.info("IPC服务器已停止")
 

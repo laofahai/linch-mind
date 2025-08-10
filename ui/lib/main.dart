@@ -10,7 +10,10 @@ import 'providers/app_providers.dart';
 import 'widgets/unified_app_bar.dart';
 import 'widgets/responsive_navigation.dart';
 import 'widgets/error_monitor_widget.dart';
+import 'widgets/smart_error_display.dart';
 import 'utils/app_logger.dart';
+import 'utils/enhanced_error_handler.dart';
+import 'config/app_constants.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -18,6 +21,24 @@ void main() async {
   // 初始化日志系统
   AppLogger.setDebugMode(kDebugMode);
   AppLogger.info('应用启动', module: 'Main');
+
+  // 🔧 设置全局错误处理器
+  final errorHandler = EnhancedErrorHandler();
+  
+  // 处理Flutter框架错误
+  FlutterError.onError = (FlutterErrorDetails details) {
+    errorHandler.handleFlutterError(details);
+  };
+
+  // 处理异步错误和未捕获的错误
+  PlatformDispatcher.instance.onError = (error, stack) {
+    errorHandler.handleException(
+      error,
+      operation: 'Platform Dispatcher',
+      stackTrace: stack,
+    );
+    return true;
+  };
 
   // 只在桌面端配置窗口管理
   if (defaultTargetPlatform == TargetPlatform.macOS ||
@@ -27,12 +48,12 @@ void main() async {
     await windowManager.ensureInitialized();
 
     WindowOptions windowOptions = const WindowOptions(
-      size: Size(1200, 800),
+      size: AppWindowConstants.defaultSize,
       center: true,
       backgroundColor: Colors.transparent, // 使用透明背景减少闪烁
       skipTaskbar: false,
       titleBarStyle: TitleBarStyle.hidden, // 保持隐藏标题栏
-      minimumSize: Size(800, 600),
+      minimumSize: AppWindowConstants.minimumSize,
       alwaysOnTop: false,
       fullScreen: false,
     );
@@ -74,7 +95,7 @@ class LinchMindApp extends ConsumerWidget {
       theme: _buildLightTheme(),
       darkTheme: _buildDarkTheme(),
       themeMode: themeMode,
-      home: const ErrorMonitorWidget(
+      home: const SmartErrorDisplay(
         child: AppInitializationWrapper(),
       ),
     );

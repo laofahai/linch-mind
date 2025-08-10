@@ -17,19 +17,11 @@
   "category": "system",
   "config_default_values": {
     "check_interval": 1.0,
+    "min_content_length": 5,
+    "max_content_length": 50000,
     "content_filters": {
       "filter_sensitive": true,
-      "filter_urls": false,
-      "ignore_patterns": [
-        "^\\s*$",
-        "^[a-zA-Z0-9+/]+=*$"
-      ]
-    },
-    "max_content_length": 50000,
-    "min_content_length": 5,
-    "performance": {
-      "batch_size": 10,
-      "enable_deduplication": true
+      "filter_urls": false
     }
   },
   "config_schema": {
@@ -42,6 +34,22 @@
         "minimum": 0.1,
         "title": "检查间隔 (秒)",
         "type": "number"
+      },
+      "min_content_length": {
+        "default": 5,
+        "description": "内容少于此长度将被忽略",
+        "maximum": 1000,
+        "minimum": 1,
+        "title": "最小内容长度",
+        "type": "integer"
+      },
+      "max_content_length": {
+        "default": 50000,
+        "description": "内容超过此长度将被截断",
+        "maximum": 1000000,
+        "minimum": 100,
+        "title": "最大内容长度",
+        "type": "integer"
       },
       "content_filters": {
         "description": "配置内容过滤规则",
@@ -57,58 +65,9 @@
             "description": "是否忽略纯URL内容",
             "title": "过滤URL",
             "type": "boolean"
-          },
-          "ignore_patterns": {
-            "default": [
-              "^\\s*$",
-              "^[a-zA-Z0-9+/]+=*$"
-            ],
-            "description": "正则表达式模式，匹配的内容将被忽略",
-            "items": {
-              "type": "string"
-            },
-            "title": "忽略模式",
-            "type": "array"
           }
         },
         "title": "内容过滤",
-        "type": "object"
-      },
-      "max_content_length": {
-        "default": 50000,
-        "description": "内容超过此长度将被截断",
-        "maximum": 1000000,
-        "minimum": 100,
-        "title": "最大内容长度",
-        "type": "integer"
-      },
-      "min_content_length": {
-        "default": 5,
-        "description": "内容少于此长度将被忽略",
-        "maximum": 1000,
-        "minimum": 1,
-        "title": "最小内容长度",
-        "type": "integer"
-      },
-      "performance": {
-        "description": "性能相关配置",
-        "properties": {
-          "batch_size": {
-            "default": 10,
-            "description": "批量处理剪贴板变化的数量",
-            "maximum": 100,
-            "minimum": 1,
-            "title": "批处理大小",
-            "type": "integer"
-          },
-          "enable_deduplication": {
-            "default": true,
-            "description": "避免重复处理相同内容",
-            "title": "启用去重",
-            "type": "boolean"
-          }
-        },
-        "title": "性能设置",
         "type": "object"
       }
     },
@@ -129,24 +88,30 @@
         "ui:fields": {
           "check_interval": {
             "ui:help": "检查频率，影响响应速度和CPU占用",
-            "ui:step": 0.1,
-            "ui:widget": "slider"
+            "ui:step": 0.5,
+            "ui:widget": "slider",
+            "ui:unit": "秒"
+          },
+          "min_content_length": {
+            "ui:help": "太短的内容通常没有价值，建议保持默认值",
+            "ui:step": 5,
+            "ui:widget": "slider",
+            "ui:unit": "字符"
           },
           "max_content_length": {
             "ui:help": "限制内容长度，避免处理过大文件",
-            "ui:widget": "slider"
-          },
-          "min_content_length": {
-            "ui:help": "太短的内容通常没有价值"
+            "ui:step": 10000,
+            "ui:widget": "slider",
+            "ui:unit": "字符"
           }
         },
         "ui:icon": "clipboard",
         "ui:title": "基础设置"
       },
       "filter_config": {
-        "ui:collapsed": true,
+        "ui:collapsed": false,
         "ui:collapsible": true,
-        "ui:description": "配置要忽略的内容类型",
+        "ui:description": "配置要过滤的内容类型",
         "ui:fields": {
           "content_filters.filter_sensitive": {
             "ui:help": "自动检测并过滤密码、密钥等敏感内容",
@@ -155,31 +120,10 @@
           "content_filters.filter_urls": {
             "ui:help": "网址通常价值有限，可选择忽略",
             "ui:widget": "switch"
-          },
-          "content_filters.ignore_patterns": {
-            "ui:help": "自定义正则表达式，匹配的内容将被忽略",
-            "ui:widget": "tag_input"
           }
         },
         "ui:icon": "filter_alt",
         "ui:title": "内容过滤"
-      },
-      "performance_config": {
-        "ui:collapsed": true,
-        "ui:collapsible": true,
-        "ui:description": "调整性能相关参数",
-        "ui:fields": {
-          "performance.batch_size": {
-            "ui:help": "批量处理可提高效率，但会增加延迟",
-            "ui:widget": "slider"
-          },
-          "performance.enable_deduplication": {
-            "ui:help": "避免重复处理相同内容，节省资源",
-            "ui:widget": "switch"
-          }
-        },
-        "ui:icon": "speed",
-        "ui:title": "性能优化"
       }
     },
     "ui_layout": "sections"

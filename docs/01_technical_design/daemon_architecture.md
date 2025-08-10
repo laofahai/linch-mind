@@ -1,13 +1,20 @@
 # Linch Mind Python Daemon 架构设计
 
-**版本**: 3.0  
-**状态**: 已实现  
+**版本**: 4.0  
+**状态**: 已实现 + P0重构完成  
 **创建时间**: 2025-08-03  
-**最新更新**: 2025-08-06  
-**技术栈**: 纯IPC架构 + SQLAlchemy + SQLite
+**最新更新**: 2025-08-08  
+**技术栈**: 纯IPC架构 + SQLAlchemy + SQLite + 现代化服务架构
 
-## 🚀 重大架构升级 (v3.0)
+## 🚀 重大架构升级
 
+### v4.0 - P0代码重复消除重构 (2025-08-08)
+**现代化服务架构**: 完成代码重复消除和架构现代化重构，代码重复率从>60%降至<5%
+- **ServiceFacade系统**: 统一服务获取，替代91个重复get_*_service()调用
+- **标准化错误处理**: 建立统一框架，消除424个相似错误处理模式  
+- **DI容器增强**: 移除@lru_cache双套系统，统一使用依赖注入
+
+### v3.0 - IPC架构迁移 (2025-08-06) 
 **从HTTP到IPC的完全迁移**: 项目已完成从FastAPI+HTTP到纯IPC(进程间通信)架构的重大升级，显著提升性能、安全性和部署便利性。
 
 ## 1. 概述
@@ -53,12 +60,18 @@ Linch Mind Daemon 是基于纯IPC架构构建的后台服务，负责数据处�
 └─────────────────────────────────────────┘
 ```
 
-### 3.2. 核心组件架构
+### 3.2. 核心组件架构 (v4.0)
 
 ```python
-# 纯IPC架构组件
+# 现代化IPC架构组件 (2025-08-08)
 daemon/
 ├── ipc_main.py             # IPC应用入口
+├── core/                   # 🆕 现代化核心架构
+│   ├── service_facade.py   # ServiceFacade - 统一服务获取
+│   ├── error_handling.py   # 标准化错误处理框架
+│   ├── container.py        # 增强DI容器
+│   ├── exception_handler.py # 异常管理器
+│   └── database_manager.py # 数据库生命周期管理
 ├── services/
 │   ├── ipc_server.py       # IPC服务器
 │   ├── ipc_router.py       # 路由系统
@@ -78,7 +91,51 @@ daemon/
     └── performance_benchmark.py # 性能基准
 ```
 
-### 3.3. IPC通信协议
+### 3.3. 现代化服务架构 (v4.0新增)
+
+#### ServiceFacade统一服务获取
+```python
+# ✅ 现代化服务获取模式
+from core.service_facade import get_service, get_connector_manager
+
+# 统一facade模式 - 消除重复调用
+connector_manager = get_service(ConnectorManager)
+database_service = get_service(DatabaseService)
+
+# 专用快捷函数 - 向后兼容
+connector_manager = get_connector_manager()
+```
+
+#### 标准化错误处理框架
+```python
+# ✅ 统一错误处理装饰器 - 消除424个重复模式
+from core.error_handling import handle_errors, ErrorSeverity, ErrorCategory
+
+@handle_errors(
+    severity=ErrorSeverity.HIGH,
+    category=ErrorCategory.CONNECTOR_MANAGEMENT,
+    user_message="连接器操作失败",
+    recovery_suggestions="检查连接器状态和配置"
+)
+async def connector_operation():
+    # 业务逻辑，异常会被自动标准化处理
+    pass
+```
+
+#### DI容器服务管理
+```python
+# ✅ 增强DI容器 - 替代@lru_cache双套系统
+from core.container import get_container
+
+container = get_container()
+container.register_service(ConnectorManager, manager_instance)
+
+# 服务状态检查和统计
+if container.is_registered(DatabaseService):
+    service = container.get_service(DatabaseService)
+```
+
+### 3.4. IPC通信协议
 
 IPC 消息格式遵循 [IPC协议完整规范 (ipc_protocol_specification.md)](ipc_protocol_specification.md) 中定义的标准。
 
@@ -357,7 +414,8 @@ async def custom_middleware(request: IPCRequest, call_next: Callable) -> IPCResp
 
 ---
 
-**文档版本**: 3.0  
+**文档版本**: 4.0  
 **创建时间**: 2025-08-03  
-**最新更新**: 2025-08-06  
-**维护团队**: 架构组 + IPC专项组
+**最新更新**: 2025-08-08  
+**重大更新**: P0代码重复消除重构完成，现代化服务架构  
+**维护团队**: 架构组 + IPC专项组 + 代码质量团队

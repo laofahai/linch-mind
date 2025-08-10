@@ -202,8 +202,8 @@ class DatabaseMigration:
                         ),
                     )
                     conn.commit()
-            except Exception:
-                pass  # 忽略记录失败的错误
+            except (sqlite3.Error, OSError) as e:
+                logger.debug(f"记录失败迁移信息时出错: {e}")  # 忽略记录失败的错误
 
             return False
 

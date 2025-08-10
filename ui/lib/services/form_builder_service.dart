@@ -1,20 +1,59 @@
+import 'package:flutter/foundation.dart';
 import 'package:reactive_forms/reactive_forms.dart';
 
 /// JSON Schema 到 ReactiveForm 的映射服务
 class FormBuilderService {
-  /// 从 JSON Schema 构建 FormGroup
+  /// 安全的Map类型转换
+  static Map<String, dynamic>? _safeMapCast(dynamic value) {
+    if (value == null) return null;
+    if (value is Map<String, dynamic>) return value;
+    
+    // 尝试转换Map<dynamic, dynamic>或其他Map类型
+    if (value is Map) {
+      try {
+        return Map<String, dynamic>.from(value);
+      } catch (e) {
+        debugPrint('[WARNING] Map cast failed: $e');
+        return null;
+      }
+    }
+    
+    debugPrint('[WARNING] Expected Map but got ${value.runtimeType}');
+    return null;
+  }
+
+  /// 安全的List类型转换
+  static List<T>? _safeListCast<T>(dynamic value) {
+    if (value == null) return null;
+    if (value is List<T>) return value;
+    
+    if (value is List) {
+      try {
+        return List<T>.from(value);
+      } catch (e) {
+        debugPrint('[WARNING] List cast failed: $e');
+        return null;
+      }
+    }
+    
+    debugPrint('[WARNING] Expected List but got ${value.runtimeType}');
+    return null;
+  }
+  /// 从 JSON Schema 构建 FormGroup - 原生嵌套结构，无字符替换
   static FormGroup buildFormFromSchema({
     required Map<String, dynamic> schema,
     Map<String, dynamic>? initialData,
     Map<String, dynamic>? uiSchema,
   }) {
-    final properties = schema['properties'] as Map<String, dynamic>? ?? {};
-    final required = List<String>.from(schema['required'] ?? []);
+    final properties = _safeMapCast(schema['properties']) ?? <String, dynamic>{};
+    
+    final required = _safeListCast<String>(schema['required']) ?? <String>[];
     final controls = <String, AbstractControl<dynamic>>{};
 
+    // 直接构建原生嵌套结构，完全消除字符替换转换
     for (final entry in properties.entries) {
       final fieldName = entry.key;
-      final fieldSchema = entry.value as Map<String, dynamic>;
+      final fieldSchema = _safeMapCast(entry.value) ?? <String, dynamic>{};
       final isRequired = required.contains(fieldName);
       final initialValue = initialData?[fieldName];
 
@@ -27,6 +66,7 @@ class FormBuilderService {
 
     return FormGroup(controls);
   }
+
 
   /// 为单个字段创建控件
   static AbstractControl<dynamic> _createControlForField({
@@ -113,8 +153,8 @@ class FormBuilderService {
     );
   }
 
-  /// 创建数值控件
-  static FormControl<num> _createNumberControl(
+  /// 创建数值控件 - 使用动态类型以支持各种数值组件
+  static AbstractControl<dynamic> _createNumberControl(
     Map<String, dynamic> fieldSchema,
     dynamic initialValue,
     List<Validator<dynamic>> validators,
@@ -129,25 +169,53 @@ class FormBuilderService {
       validators.add(Validators.max(maximum));
     }
 
+    // 智能类型推断 - 根据组件类型决定最合适的数据类型
+    final inferredWidget = inferWidgetType(fieldSchema);
     final isInteger = fieldSchema['type'] == 'integer';
-    num? value;
-
-    if (initialValue != null) {
-      if (isInteger) {
-        value = initialValue is int
-            ? initialValue
-            : int.tryParse(initialValue.toString());
-      } else {
-        value = initialValue is num
-            ? initialValue
-            : double.tryParse(initialValue.toString());
-      }
+    
+    // Slider组件优先使用double类型，确保兼容性
+    if (inferredWidget == 'slider') {
+      final doubleValue = _safeConvertToDouble(initialValue);
+      return FormControl<double>(
+        value: doubleValue,
+        validators: validators,
+      );
     }
-
+    
+    // 其他数值组件使用num类型，保持灵活性
+    final numValue = _safeConvertToNum(initialValue, isInteger);
     return FormControl<num>(
-      value: value,
+      value: numValue,
       validators: validators,
     );
+  }
+
+  /// 安全转换为double类型
+  static double? _safeConvertToDouble(dynamic value) {
+    if (value == null) return null;
+    if (value is double) return value;
+    if (value is int) return value.toDouble();
+    if (value is String) return double.tryParse(value);
+    return double.tryParse(value.toString());
+  }
+
+  /// 安全转换为num类型
+  static num? _safeConvertToNum(dynamic value, bool preferInt) {
+    if (value == null) return null;
+    if (value is num) return value;
+    if (value is String) {
+      if (preferInt) {
+        return int.tryParse(value) ?? double.tryParse(value);
+      } else {
+        return double.tryParse(value) ?? int.tryParse(value);
+      }
+    }
+    final str = value.toString();
+    if (preferInt) {
+      return int.tryParse(str) ?? double.tryParse(str);
+    } else {
+      return double.tryParse(str) ?? int.tryParse(str);
+    }
   }
 
   /// 创建数组控件 - 智能类型检测
@@ -156,21 +224,63 @@ class FormBuilderService {
     dynamic initialValue,
     List<Validator<dynamic>> validators,
   ) {
-    final items = fieldSchema['items'] as Map<String, dynamic>?;
+    final items = _safeMapCast(fieldSchema['items']);
 
     // 对于简单的字符串数组，使用 FormControl<List<String>>
     // 这种类型更适合标签输入等场景
     if (items != null && items['type'] == 'string') {
-      final List<String> initialList;
+      late final List<String> initialList;
       if (initialValue is List) {
-        initialList = initialValue.cast<String>();
+        // 安全转换，确保所有项都是字符串类型
+        try {
+          initialList = initialValue.map((item) => item?.toString() ?? '').where((str) => str.isNotEmpty).toList();
+        } catch (e) {
+          debugPrint('[WARNING] Failed to convert array items to strings: $e');
+          initialList = <String>[];
+        }
       } else {
         initialList = <String>[];
       }
 
+      // 创建适用于List<String>的验证器 - 使用动态类型以兼容reactive_forms 17.0
+      final listValidators = <Validator<dynamic>>[];
+      
+      // 对于required验证，使用Validators.delegate
+      if (validators.any((v) => v == Validators.required)) {
+        listValidators.add(Validators.delegate((AbstractControl control) {
+          final value = control.value as List<String>?;
+          return (value == null || value.isEmpty) 
+            ? <String, dynamic>{'required': true}
+            : null;
+        }));
+      }
+      
+      // 对于minItems验证（如果schema中定义了）
+      final minItems = fieldSchema['minItems'] as int?;
+      if (minItems != null && minItems > 0) {
+        listValidators.add(Validators.delegate((AbstractControl control) {
+          final value = control.value as List<String>?;
+          return (value == null || value.length < minItems)
+            ? <String, dynamic>{'minItems': {'requiredLength': minItems, 'actualLength': value?.length ?? 0}}
+            : null;
+        }));
+      }
+      
+      // 对于maxItems验证
+      final maxItems = fieldSchema['maxItems'] as int?;
+      if (maxItems != null && maxItems > 0) {
+        listValidators.add(Validators.delegate((AbstractControl control) {
+          final value = control.value as List<String>?;
+          return (value != null && value.length > maxItems)
+            ? <String, dynamic>{'maxItems': {'requiredLength': maxItems, 'actualLength': value.length}}
+            : null;
+        }));
+      }
+      
+      debugPrint('[DEBUG] Creating FormControl<List<String>> for array field with ${initialList.length} items');
       return FormControl<List<String>>(
         value: initialList,
-        validators: validators.cast<Validator<List<String>>>(),
+        validators: listValidators,
       );
     }
 
@@ -208,7 +318,7 @@ class FormBuilderService {
     );
   }
 
-  /// 创建对象控件
+  /// 创建对象控件 - 递归构建嵌套FormGroup
   static FormGroup _createObjectControl(
     Map<String, dynamic> fieldSchema,
     dynamic initialValue,
@@ -220,28 +330,30 @@ class FormBuilderService {
     );
   }
 
-  /// 获取字段的UI配置
+  /// 获取字段的UI配置 - 支持点号路径访问
   static Map<String, dynamic> getFieldUIConfig(
-    String fieldName,
+    String fieldPath,
     Map<String, dynamic> fieldSchema,
     Map<String, dynamic>? uiSchema,
   ) {
     final config = Map<String, dynamic>.from(fieldSchema);
 
     // 合并UI schema配置
-    final fieldUIConfig =
-        uiSchema?['properties']?[fieldName] as Map<String, dynamic>?;
+    final fieldUIConfig = _safeMapCast(uiSchema?['properties']?[fieldPath]);
     if (fieldUIConfig != null) {
       config.addAll(fieldUIConfig);
     }
 
-    // 从sections中查找字段配置
-    final sections = uiSchema?['ui:sections'] as Map<String, dynamic>?;
+    // 从sections中查找字段配置 - 直接使用点号路径
+    final sections = _safeMapCast(uiSchema?['ui:sections']);
     if (sections != null) {
       for (final section in sections.values) {
-        final sectionConfig = section as Map<String, dynamic>;
-        final fields = sectionConfig['ui:fields'] as Map<String, dynamic>?;
-        final fieldConfig = fields?[fieldName] as Map<String, dynamic>?;
+        final sectionConfig = _safeMapCast(section);
+        if (sectionConfig == null) continue;
+        final fields = _safeMapCast(sectionConfig['ui:fields']);
+        
+        // 直接查找点号路径字段配置
+        final fieldConfig = fields != null ? _safeMapCast(fields[fieldPath]) : null;
         if (fieldConfig != null) {
           config.addAll(fieldConfig);
         }
@@ -250,16 +362,35 @@ class FormBuilderService {
 
     return config;
   }
+  
+  /// 根据点号路径获取嵌套字段的Schema配置
+  static Map<String, dynamic> getNestedFieldSchema(
+    String fieldPath,
+    Map<String, dynamic> rootSchema,
+  ) {
+    final parts = fieldPath.split('.');
+    Map<String, dynamic> currentSchema = rootSchema;
+    
+    for (final part in parts) {
+      final properties = _safeMapCast(currentSchema['properties']) ?? {};
+      currentSchema = _safeMapCast(properties[part]) ?? {};
+      if (currentSchema.isEmpty) break;
+    }
+    
+    return currentSchema;
+  }
 
   /// 推断Widget类型
   static String inferWidgetType(Map<String, dynamic> fieldSchema) {
     // 优先使用明确指定的widget类型
     final explicitWidget = fieldSchema['ui:widget'] as String?;
     if (explicitWidget != null) {
+      debugPrint('[DEBUG] Using explicit widget type: $explicitWidget');
       return explicitWidget;
     }
 
     final type = fieldSchema['type'] as String?;
+    debugPrint('[DEBUG] Inferring widget type for field type: $type');
 
     switch (type) {
       case 'boolean':
@@ -276,10 +407,12 @@ class FormBuilderService {
         return 'number_input';
 
       case 'array':
-        final items = fieldSchema['items'] as Map<String, dynamic>?;
-        if (items?['type'] == 'string') {
+        final items = _safeMapCast(fieldSchema['items']);
+        if (items != null && items['type'] == 'string') {
+          debugPrint('[DEBUG] Array of strings detected, using tag_input widget');
           return 'tag_input';
         }
+        debugPrint('[DEBUG] Complex array detected, using array_input widget');
         return 'array_input';
 
       case 'string':
@@ -306,12 +439,13 @@ class FormBuilderService {
         return 'object_editor';
 
       default:
+        debugPrint('[WARNING] Unknown field type: $type, falling back to text_input');
         return 'text_input';
     }
   }
 
-  /// 从FormGroup提取数据
-  static Map<String, dynamic> extractFormData(FormGroup form) {
+  /// 从FormGroup提取数据 - 原生嵌套结构，类型安全转换
+  static Map<String, dynamic> extractFormData(FormGroup form, [Map<String, dynamic>? schema]) {
     final data = <String, dynamic>{};
 
     for (final entry in form.controls.entries) {
@@ -319,19 +453,72 @@ class FormBuilderService {
       final control = entry.value;
 
       if (control is FormGroup) {
-        data[key] = extractFormData(control);
+        // 递归处理嵌套表单组 - 直接保持嵌套结构
+        final nestedSchema = _safeMapCast(schema?['properties']?[key]);
+        final nestedData = extractFormData(control, nestedSchema);
+        if (nestedData.isNotEmpty) {
+          data[key] = nestedData;
+        }
       } else if (control is FormArray) {
-        data[key] = control.controls.map((c) {
+        // 处理数组类型控件
+        final arrayData = control.controls.map((c) {
           if (c is FormGroup) {
-            return extractFormData(c);
+            return extractFormData(c, null); // 数组项通常没有直接的schema引用
           }
           return c.value;
         }).toList();
+        if (arrayData.isNotEmpty) {
+          data[key] = arrayData;
+        }
       } else {
-        data[key] = control.value;
+        // 处理简单值，进行类型安全转换
+        final value = control.value;
+        if (value != null) {
+          data[key] = _convertValueToSchemaType(value, key, schema);
+        }
       }
     }
 
     return data;
+  }
+
+  /// 根据 Schema 将值转换为正确类型
+  static dynamic _convertValueToSchemaType(dynamic value, String fieldName, Map<String, dynamic>? schema) {
+    if (schema == null) return value;
+    
+    final properties = _safeMapCast(schema['properties']);
+    if (properties == null) return value;
+    
+    final fieldSchema = _safeMapCast(properties[fieldName]);
+    if (fieldSchema == null) return value;
+    
+    final expectedType = fieldSchema['type'] as String?;
+    
+    switch (expectedType) {
+      case 'integer':
+        if (value is int) return value;
+        if (value is double) return value.round();
+        if (value is String) return int.tryParse(value) ?? value;
+        if (value is num) return value.toInt();
+        break;
+        
+      case 'number':
+        if (value is num) return value;
+        if (value is String) return double.tryParse(value) ?? value;
+        break;
+        
+      case 'string':
+        if (value is String) return value;
+        return value.toString();
+        
+      case 'boolean':
+        if (value is bool) return value;
+        if (value is String) {
+          return value.toLowerCase() == 'true';
+        }
+        break;
+    }
+    
+    return value;
   }
 }

@@ -8,6 +8,16 @@ import logging
 from datetime import datetime, timezone
 
 from models.connector_status import ConnectorRunningState, ConnectorStatus
+from core.service_facade import get_connector_manager, get_service
+from services.connectors.connector_config_service import ConnectorConfigService
+from core.error_handling import (
+    handle_connector_errors, 
+    handle_errors, 
+    ErrorSeverity, 
+    ErrorCategory,
+    ErrorContext,
+    get_enhanced_error_handler
+)
 
 from ..ipc_protocol import (
     IPCErrorCode,
@@ -22,6 +32,28 @@ from ..ipc_router import IPCRouter
 logger = logging.getLogger(__name__)
 
 
+def _map_daemon_state_to_ui(status: str, enabled: bool) -> str:
+    """
+    简化的状态映射逻辑：直接传递daemon原始状态给UI
+    
+    状态说明：
+    - running: 正在运行
+    - starting: 启动中
+    - stopping: 停止中
+    - stopped: 已停止
+    - error: 错误状态
+    
+    Args:
+        status: 数据库中的运行状态
+        enabled: 是否启用 (UI通过enabled字段判断用户意图)
+        
+    Returns:
+        UI端对应的状态字符串 (直接使用daemon状态)
+    """
+    # 直接传递daemon状态给UI，让UI根据status+enabled组合显示
+    return status
+
+
 def create_connector_lifecycle_router() -> IPCRouter:
     """创建连接器生命周期管理路由 - 使用新状态模型"""
     router = IPCRouter(prefix="/connector-lifecycle")
@@ -29,34 +61,35 @@ def create_connector_lifecycle_router() -> IPCRouter:
     # ==================== 基础CRUD操作 ====================
 
     @router.get("/connectors")
+    @handle_connector_errors("获取连接器列表失败")
     async def get_connectors(request: IPCRequest) -> IPCResponse:
         """获取连接器列表"""
         try:
-            from services.connectors.connector_manager import get_connector_manager
-
             manager = get_connector_manager()
             connectors = manager.list_connectors()
+            
+            # 获取配置服务
+            config_service = get_service(ConnectorConfigService)
 
             # 转换为UI端期待的格式 (ConnectorInfo)
             connector_infos = []
             for conn in connectors:
                 # conn 是字典，需要使用字典访问方式
-                # 状态映射：数据库的status字段 -> UI的state字段
+                # 状态映射：数据库的status字段 + enabled字段 -> UI的state字段
                 status = conn["status"]
-                # 状态映射逻辑
-                if status == "running":
-                    ui_state = "running"
-                elif status == "error":
-                    ui_state = "error"
-                elif status == "stopping":
-                    ui_state = "stopping"
-                elif status == "starting":
-                    ui_state = "enabled"  # 启动中显示为已启用
-                elif status == "stopped":
-                    ui_state = "configured"
-                else:
-                    # enabled 状态映射为configured（已配置但未运行）
-                    ui_state = "configured"
+                enabled = conn["enabled"]
+                
+                # 修正后的状态映射逻辑：考虑运行状态和启用状态
+                ui_state = _map_daemon_state_to_ui(status, enabled)
+                
+                # 获取连接器的实际配置
+                connector_config = {}
+                try:
+                    current_config = config_service.get_connector_config(conn["connector_id"])
+                    if current_config:
+                        connector_config = current_config
+                except Exception as e:
+                    logger.warning(f"Failed to get config for {conn['connector_id']}: {e}")
 
                 connector_info = {
                     "connector_id": conn["connector_id"],
@@ -68,7 +101,7 @@ def create_connector_lifecycle_router() -> IPCRouter:
                     "error_message": conn.get(
                         "error_message", None
                     ),  # 使用get避免KeyError
-                    "config": {},  # 默认空配置，实际配置需要单独获取
+                    "config": connector_config,  # 使用实际配置
                 }
                 connector_infos.append(connector_info)
 
@@ -78,10 +111,19 @@ def create_connector_lifecycle_router() -> IPCRouter:
             )
 
         except Exception as e:
-            logger.error(f"获取连接器列表失败: {e}")
-            return internal_error_response(
-                f"Failed to get connectors: {str(e)}", {"operation": "get_connectors"}
+            # 使用增强错误处理器处理错误
+            enhanced_handler = get_enhanced_error_handler()
+            context = ErrorContext(
+                function_name="get_connectors",
+                module_name=__name__,
+                severity=ErrorSeverity.HIGH,
+                category=ErrorCategory.CONNECTOR_MANAGEMENT,
+                user_message="获取连接器列表失败",
+                recovery_suggestions="检查连接器服务状态"
             )
+            
+            processed_error = enhanced_handler.process_error(e, context, request.request_id)
+            return IPCResponse.from_processed_error(processed_error, request.request_id)
 
     @router.post("/connectors")
     async def create_connector(request: IPCRequest) -> IPCResponse:
@@ -108,13 +150,14 @@ def create_connector_lifecycle_router() -> IPCRouter:
                     "display_name is required", {"missing_field": "display_name"}
                 )
 
-            from services.connectors.connector_manager import get_connector_manager
-
             manager = get_connector_manager()
 
-            # 创建连接器实例
-            success = await manager.create_connector_instance(
-                connector_id=connector_id, display_name=display_name, config=config
+            # 注册连接器（不需要路径，会从connector.json读取）
+            custom_description = config.get("description", "") if config else None
+            success = await manager.register_connector(
+                connector_id=connector_id, 
+                name=display_name, 
+                description=custom_description
             )
 
             if success:
@@ -166,8 +209,6 @@ def create_connector_lifecycle_router() -> IPCRouter:
             force = force.lower() == "true"
 
         try:
-            from services.connectors.connector_manager import get_connector_manager
-
             manager = get_connector_manager()
 
             # 执行删除操作
@@ -210,8 +251,6 @@ def create_connector_lifecycle_router() -> IPCRouter:
             )
 
         try:
-            from services.connectors.connector_manager import get_connector_manager
-
             manager = get_connector_manager()
             result = await manager.start_connector(connector_id)
 
@@ -250,8 +289,6 @@ def create_connector_lifecycle_router() -> IPCRouter:
             )
 
         try:
-            from services.connectors.connector_manager import get_connector_manager
-
             manager = get_connector_manager()
             result = await manager.stop_connector(connector_id)
 
@@ -260,7 +297,7 @@ def create_connector_lifecycle_router() -> IPCRouter:
                     data={
                         "success": True,
                         "connector_id": connector_id,
-                        "state": "configured",
+                        "state": "stopped",
                         "message": f"连接器 '{connector_id}' 停止成功",
                     },
                     request_id=request.request_id,
@@ -290,8 +327,6 @@ def create_connector_lifecycle_router() -> IPCRouter:
             )
 
         try:
-            from services.connectors.connector_manager import get_connector_manager
-
             manager = get_connector_manager()
             result = await manager.restart_connector(connector_id)
 
@@ -344,7 +379,7 @@ def create_connector_lifecycle_router() -> IPCRouter:
             )
 
         try:
-            from daemon.services.database_service import get_database_service
+            from core.service_facade import get_database_service
 
             with get_database_service().get_session() as session:
                 from daemon.models.database_models import Connector
@@ -398,7 +433,7 @@ def create_connector_lifecycle_router() -> IPCRouter:
                 )
 
             # 更新数据库中的心跳信息
-            from daemon.services.database_service import get_database_service
+            from core.service_facade import get_database_service
 
             with get_database_service().get_session() as session:
                 from daemon.models.database_models import Connector
@@ -444,7 +479,7 @@ def create_connector_lifecycle_router() -> IPCRouter:
                 )
 
             # 更新数据库中的连接器状态
-            from daemon.services.database_service import get_database_service
+            from core.service_facade import get_database_service
 
             with get_database_service().get_session() as session:
                 from daemon.models.database_models import Connector
@@ -503,8 +538,6 @@ def create_connector_lifecycle_router() -> IPCRouter:
             from pathlib import Path
 
             from daemon.config.core_config import get_connector_config
-            from services.connectors.connector_manager import get_connector_manager
-
             manager = get_connector_manager()
             connector_config = get_connector_config()
             connectors_dir = Path(connector_config.config_dir)
@@ -542,11 +575,16 @@ def create_connector_lifecycle_router() -> IPCRouter:
                 )
 
             from pathlib import Path
+            
+            # 添加IPC路由层调试信息
+            logger.info(f"[IPC路由] 收到扫描请求，原始路径: '{directory_path}'")
+            logger.info(f"[IPC路由] 路径类型: {type(directory_path)}")
 
-            from services.connectors.connector_manager import get_connector_manager
+            # 使用统一的service facade获取连接器管理器
 
             # 验证目录路径
             path = Path(directory_path)
+            logger.info(f"[IPC路由] Path对象: {path}, 绝对路径: {path.resolve()}")
             if not path.exists():
                 return IPCResponse.error_response(
                     IPCErrorCode.RESOURCE_NOT_FOUND,
@@ -562,15 +600,44 @@ def create_connector_lifecycle_router() -> IPCRouter:
                 )
 
             manager = get_connector_manager()
-            connectors = manager.scan_directory_for_connectors(str(path))
+            raw_connectors = manager.scan_directory_for_connectors(str(path))
+            
+            # 转换为UI端期待的ConnectorDefinition格式
+            transformed_connectors = []
+            for conn in raw_connectors:
+                # 将daemon返回的格式转换为UI期待的ConnectorDefinition格式
+                transformed = {
+                    "connector_id": conn["connector_id"],
+                    "name": conn["name"],
+                    "display_name": conn["name"],  # UI期待display_name字段
+                    "description": conn["description"],
+                    "category": conn.get("type", "unknown"),
+                    "version": conn["version"],
+                    "author": conn.get("config", {}).get("author", "Unknown"),
+                    "license": conn.get("config", {}).get("license", ""),
+                    "auto_discovery": conn.get("config", {}).get("auto_discovery", False),
+                    "hot_config_reload": conn.get("config", {}).get("hot_config_reload", True),
+                    "health_check": conn.get("config", {}).get("health_check", True),
+                    "entry_point": conn.get("config", {}).get("entry_point", "main.py"),
+                    "dependencies": conn.get("config", {}).get("dependencies", []),
+                    "permissions": conn.get("config", {}).get("permissions", []),
+                    "config_schema": conn.get("config", {}).get("config_schema", {}),
+                    "config_default_values": conn.get("config", {}).get("default_config", {}),
+                    "path": conn["path"],
+                    "is_registered": conn["is_registered"],
+                    "platforms": {},
+                    "capabilities": {},
+                    "last_updated": None
+                }
+                transformed_connectors.append(transformed)
 
             return IPCResponse.success_response(
                 data={
                     "success": True,
-                    "connectors": connectors,
-                    "count": len(connectors),
+                    "connectors": transformed_connectors,
+                    "count": len(transformed_connectors),
                     "directory_path": directory_path,
-                    "message": f"扫描目录完成，发现 {len(connectors)} 个连接器",
+                    "message": f"扫描目录完成，发现 {len(transformed_connectors)} 个连接器",
                 },
                 request_id=request.request_id,
             )

@@ -61,4 +61,30 @@ def create_health_router() -> IPCRouter:
             request_id=request.request_id,
         )
 
+    @router.post("/heartbeat")
+    async def heartbeat(request: IPCRequest) -> IPCResponse:
+        """连接器心跳检查"""
+        try:
+            data = request.data or {}
+            connector_id = data.get("connector_id", "unknown")
+            
+            logger.debug(f"收到连接器心跳: {connector_id}")
+            
+            return IPCResponse.success_response(
+                data={
+                    "status": "alive",
+                    "timestamp": datetime.now().isoformat(),
+                    "connector_id": connector_id,
+                    "message": "Heartbeat received"
+                },
+                request_id=request.request_id,
+            )
+        except Exception as e:
+            logger.error(f"处理心跳请求时发生错误: {e}")
+            return IPCResponse.error_response(
+                error_code="INTERNAL_ERROR",
+                message=f"Heartbeat processing failed: {str(e)}",
+                request_id=request.request_id,
+            )
+
     return router

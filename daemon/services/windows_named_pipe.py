@@ -118,8 +118,8 @@ class WindowsNamedPipeServer:
                 sa.SECURITY_DESCRIPTOR = sd
                 sa.bInheritHandle = 0
                 return sa
-            except:
-                logger.warning("无法创建任何安全描述符，使用系统默认")
+            except (OSError, AttributeError) as e:
+                logger.warning(f"无法创建任何安全描述符，使用系统默认: {e}")
                 return None
 
     def _verify_client_security(self, pipe_handle) -> bool:
@@ -248,8 +248,7 @@ class WindowsNamedPipeServer:
     def _process_message_sync(self, message_str: str) -> str:
         """同步处理消息（Named Pipe在线程中运行）- 真正的IPC桥接版本"""
         try:
-            from .ipc_protocol import IPCRequest, IPCResponse
-            from .ipc_server import IPCMessage
+            from .ipc_protocol import IPCRequest, IPCResponse, IPCMessage
 
             # 解析IPC消息
             message_data = json.loads(message_str)

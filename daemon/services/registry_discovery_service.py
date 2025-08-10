@@ -113,16 +113,7 @@ class RegistryDiscoveryService:
                 )
             )
 
-        # 5. 内置默认 (兜底)
-        sources.append(
-            RegistrySource(
-                type=RegistrySourceType.BUILTIN_FALLBACK,
-                url="builtin://default",
-                priority=9,
-                timeout=1,
-                description="内置默认配置",
-            )
-        )
+        # 移除内置默认 - daemon应该保持架构纯净，不硬编码连接器信息
 
         # 按优先级排序
         sources.sort(key=lambda x: x.priority)
@@ -235,7 +226,7 @@ class RegistryDiscoveryService:
                     logger.debug("已删除现有缓存元数据")
 
             # 重新获取注册表数据
-            registry_data, source = await self._fetch_registry_data()
+            registry_data, source = await self.discover_registry(force_refresh=True)
 
             if registry_data and source:
                 await self._save_to_cache(registry_data, source)
@@ -258,12 +249,102 @@ class RegistryDiscoveryService:
             return await self._load_from_cache()
 
         elif source.type == RegistrySourceType.BUILTIN_FALLBACK:
-            return self._get_builtin_fallback()
+            # 架构纯净原则：daemon不应包含硬编码连接器信息
+            raise Exception("Builtin fallback已移除，保持daemon架构纯净")
 
         else:
-            # IPC架构模式：跳过HTTP请求，使用本地源
-            logger.warning(f"IPC模式：跳过HTTP源 {source.url}，使用本地备用")
-            raise Exception("IPC模式下不支持HTTP源")
+            # IPC架构模式：直接返回本地连接器发现结果
+            logger.info(f"IPC架构模式：使用本地连接器发现，跳过HTTP源 {source.url}")
+            return self._get_local_connectors_registry()
+    
+    def _get_local_connectors_registry(self) -> Optional[Dict[str, Any]]:
+        """获取本地连接器注册表 (IPC架构模式的备用方案)
+        
+        扫描本地连接器目录，构建临时注册表
+        遵循架构铁律：保持daemon架构纯净，动态发现而非硬编码
+        """
+        try:
+            # 查找连接器目录 - 可能在当前目录或上级目录
+            possible_connector_dirs = [
+                Path("connectors"),
+                Path("../connectors"),
+                Path(__file__).parent.parent.parent / "connectors"  # 从daemon目录向上找
+            ]
+            
+            connectors_base_dir = None
+            for dir_path in possible_connector_dirs:
+                if dir_path.exists():
+                    connectors_base_dir = dir_path
+                    logger.debug(f"找到连接器目录: {connectors_base_dir.resolve()}")
+                    break
+            
+            if not connectors_base_dir:
+                logger.warning("连接器目录不存在，返回空注册表")
+                logger.debug(f"搜索路径: {[str(p.resolve()) for p in possible_connector_dirs]}")
+                return {"schema_version": "1.0.0", "connectors": {}, "source": "local_discovery"}
+            
+            discovered_connectors = {}
+            
+            # 搜索official目录和根目录下的连接器
+            search_paths = [
+                connectors_base_dir / "official",
+                connectors_base_dir
+            ]
+            
+            for search_path in search_paths:
+                if not search_path.exists():
+                    continue
+                    
+                for item in search_path.iterdir():
+                    if not item.is_dir():
+                        continue
+                        
+                    connector_json = item / "connector.json"
+                    if connector_json.exists():
+                        try:
+                            with open(connector_json, 'r', encoding='utf-8') as f:
+                                connector_config = json.load(f)
+                            
+                            connector_id = connector_config.get("id", item.name)
+                            
+                            # 构建注册表格式的连接器信息
+                            discovered_connectors[connector_id] = {
+                                "id": connector_id,
+                                "name": connector_config.get("name", connector_id),
+                                "version": connector_config.get("version", "unknown"),
+                                "description": connector_config.get("description", ""),
+                                "category": connector_config.get("category", "system"),
+                                "author": connector_config.get("author", ""),
+                                "platforms": connector_config.get("platforms", {}),
+                                "local_path": str(item),
+                                "config_path": str(connector_json)
+                            }
+                            
+                            logger.debug(f"发现本地连接器: {connector_id} at {item}")
+                            
+                        except Exception as e:
+                            logger.warning(f"解析连接器配置失败 {connector_json}: {e}")
+            
+            registry_data = {
+                "schema_version": "1.0.0",
+                "connectors": discovered_connectors,
+                "source": "local_discovery",
+                "last_updated": datetime.now().isoformat(),
+                "total": len(discovered_connectors)
+            }
+            
+            logger.info(f"本地连接器发现完成，找到 {len(discovered_connectors)} 个连接器")
+            return registry_data
+            
+        except Exception as e:
+            logger.error(f"本地连接器发现失败: {e}")
+            # 返回空但有效的注册表结构，避免None值
+            return {
+                "schema_version": "1.0.0", 
+                "connectors": {}, 
+                "source": "local_discovery_error",
+                "error": str(e)
+            }
 
     async def _load_from_cache(self) -> Optional[Dict[str, Any]]:
         """从本地缓存加载"""
@@ -353,47 +434,6 @@ class RegistryDiscoveryService:
             logger.warning(f"注册表数据验证异常: {e}")
             return False
 
-    def _get_builtin_fallback(self) -> Dict[str, Any]:
-        """获取内置默认注册表"""
-        return {
-            "schema_version": "1.0",
-            "last_updated": datetime.now().isoformat(),
-            "connectors": {
-                "filesystem": {
-                    "id": "filesystem",
-                    "name": "文件系统连接器",
-                    "version": "0.1.0",
-                    "description": "监控文件系统变化，自动索引文档和代码文件",
-                    "author": "Linch Mind Team",
-                    "category": "local_files",
-                    "type": "official",
-                    "download_url": "builtin://filesystem",
-                    "capabilities": {
-                        "hot_reload": True,
-                        "supports_multiple_instances": True,
-                    },
-                },
-                "clipboard": {
-                    "id": "clipboard",
-                    "name": "剪贴板连接器",
-                    "version": "0.1.0",
-                    "description": "监控剪贴板内容，收集复制的文本和链接",
-                    "author": "Linch Mind Team",
-                    "category": "system",
-                    "type": "official",
-                    "download_url": "builtin://clipboard",
-                    "capabilities": {
-                        "hot_reload": True,
-                        "supports_multiple_instances": False,
-                    },
-                },
-            },
-            "metadata": {
-                "total_count": 2,
-                "repository": "laofahai/linch-mind",
-                "source": "builtin_fallback",
-            },
-        }
 
     def get_discovery_status(self) -> Dict[str, Any]:
         """获取发现服务状态"""

@@ -6,6 +6,7 @@ import '../services/connector_lifecycle_api_client.dart';
 import '../services/daemon_lifecycle_service.dart';
 import '../utils/app_logger.dart';
 import '../utils/error_monitor.dart';
+import 'base_state_notifier.dart';
 
 // 主题管理提供者
 final themeModeProvider =
@@ -74,13 +75,13 @@ final backgroundDaemonInitProvider = FutureProvider<bool>((ref) async {
           module: 'Daemon', context: {'error': result.error});
       ref
           .read(appStateProvider.notifier)
-          .setError(result.error ?? 'Daemon启动失败');
+          .handleError(result.error ?? 'Daemon启动失败');
       return false;
     }
   } catch (e) {
     AppLogger.daemonError('后台初始化异常', exception: e);
     AppErrorReporter.critical('后台初始化异常', module: 'Daemon', exception: e);
-    ref.read(appStateProvider.notifier).setError('后台初始化失败: $e');
+    ref.read(appStateProvider.notifier).handleError('后台初始化失败: $e');
     return false;
   }
 });
@@ -111,60 +112,80 @@ final appStateProvider =
 });
 
 // 应用状态数据类
-class AppState {
+class AppState implements BaseState {
   final bool isConnected;
+  @override
   final String? errorMessage;
+  @override
   final DateTime lastUpdate;
+  @override
+  final bool isLoading;
 
   AppState({
     required this.isConnected,
     this.errorMessage,
     required this.lastUpdate,
+    this.isLoading = false,
   });
 
+  @override
   bool get hasError => errorMessage != null;
 
   AppState copyWith({
     bool? isConnected,
     String? errorMessage,
     DateTime? lastUpdate,
+    bool? isLoading,
     bool clearError = false,
   }) {
     return AppState(
       isConnected: isConnected ?? this.isConnected,
       errorMessage: clearError ? null : (errorMessage ?? this.errorMessage),
       lastUpdate: lastUpdate ?? this.lastUpdate,
+      isLoading: isLoading ?? this.isLoading,
     );
   }
 }
 
 // 应用状态通知器
-class AppStateNotifier extends StateNotifier<AppState> {
+class AppStateNotifier extends BaseStateNotifier<AppState> 
+    with ConnectionStateMixin<AppState> {
   AppStateNotifier()
       : super(AppState(
           isConnected: false,
           lastUpdate: DateTime.now(),
         ));
 
-  void setConnected(bool connected) {
-    state = state.copyWith(
-      isConnected: connected,
-      errorMessage: connected ? null : 'Connection lost',
-      lastUpdate: DateTime.now(),
-    );
-  }
-
-  void setError(String error) {
-    state = state.copyWith(
+  @override
+  AppState updateStateWithError(String error) {
+    return state.copyWith(
       isConnected: false,
       errorMessage: error,
       lastUpdate: DateTime.now(),
     );
   }
 
-  void clearError() {
-    state = state.copyWith(
+  @override
+  AppState updateStateWithClearError() {
+    return state.copyWith(
       clearError: true,
+      lastUpdate: DateTime.now(),
+    );
+  }
+
+  @override
+  AppState updateStateWithLoading(bool loading) {
+    return state.copyWith(
+      isLoading: loading,
+      lastUpdate: DateTime.now(),
+    );
+  }
+
+  @override
+  AppState updateStateWithConnection(bool connected) {
+    return state.copyWith(
+      isConnected: connected,
+      errorMessage: connected ? null : 'Connection lost',
       lastUpdate: DateTime.now(),
     );
   }
@@ -215,7 +236,7 @@ class ConnectorInstanceStateNotifier
   ConnectorInstanceStateNotifier(this.apiClient, this.instanceId)
       : super(ConnectorInstanceState(
           instanceId: instanceId,
-          state: ConnectorState.configured,
+          state: ConnectorState.stopped,
         ));
 
   Future<void> startInstance() async {
@@ -236,7 +257,7 @@ class ConnectorInstanceStateNotifier
     state = state.copyWith(isLoading: true, clearError: true);
     try {
       await apiClient.stopConnector(instanceId);
-      state = state.copyWith(state: ConnectorState.enabled, isLoading: false);
+      state = state.copyWith(state: ConnectorState.stopped, isLoading: false);
     } catch (e) {
       state = state.copyWith(
         state: ConnectorState.error,

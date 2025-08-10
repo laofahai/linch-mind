@@ -146,7 +146,7 @@ class ConnectorRegistryService:
             # 获取已安装的连接器ID列表
             installed_connector_ids = set()
             try:
-                from services.connectors.connector_manager import get_connector_manager
+                from core.service_facade import get_connector_manager
 
                 manager = get_connector_manager()
                 installed_connectors = manager.list_connectors()

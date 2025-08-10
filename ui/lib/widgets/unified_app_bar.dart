@@ -2,7 +2,6 @@ import 'dart:developer' as developer;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:window_manager/window_manager.dart';
 import '../providers/app_providers.dart';
@@ -60,27 +59,7 @@ class _UnifiedAppBarState extends ConsumerState<UnifiedAppBar> {
 
   Widget _buildDesktopTitleBar(BuildContext context, Widget statusWidget,
       ThemeMode currentThemeMode, ThemeData theme, bool isDark) {
-    return Shortcuts(
-      shortcuts: <LogicalKeySet, Intent>{
-        LogicalKeySet(
-          defaultTargetPlatform == TargetPlatform.macOS
-              ? LogicalKeyboardKey.meta
-              : LogicalKeyboardKey.control,
-          LogicalKeyboardKey.keyW,
-        ): const _CloseWindowIntent(),
-        LogicalKeySet(
-          defaultTargetPlatform == TargetPlatform.macOS
-              ? LogicalKeyboardKey.meta
-              : LogicalKeyboardKey.control,
-          LogicalKeyboardKey.keyM,
-        ): const _MinimizeWindowIntent(),
-      },
-      child: Actions(
-        actions: <Type, Action<Intent>>{
-          _CloseWindowIntent: _CloseWindowAction(),
-          _MinimizeWindowIntent: _MinimizeWindowAction(),
-        },
-        child: Container(
+    return Container(
           height: widget.preferredSize.height,
           decoration: BoxDecoration(
             color: isDark
@@ -161,9 +140,7 @@ class _UnifiedAppBarState extends ConsumerState<UnifiedAppBar> {
               ),
             ],
           ),
-        ),
-      ),
-    );
+        );
   }
 
   Widget _buildMobileAppBar(BuildContext context, Widget statusWidget,
@@ -184,36 +161,6 @@ class _UnifiedAppBarState extends ConsumerState<UnifiedAppBar> {
         const SizedBox(width: 16),
       ],
     );
-  }
-}
-
-// 键盘快捷键Intent定义
-class _CloseWindowIntent extends Intent {
-  const _CloseWindowIntent();
-}
-
-class _MinimizeWindowIntent extends Intent {
-  const _MinimizeWindowIntent();
-}
-
-// 键盘快捷键Action定义
-class _CloseWindowAction extends Action<_CloseWindowIntent> {
-  @override
-  Object? invoke(_CloseWindowIntent intent) {
-    windowManager.close().catchError((e) {
-      developer.log('Failed to close window via shortcut: $e');
-    });
-    return null;
-  }
-}
-
-class _MinimizeWindowAction extends Action<_MinimizeWindowIntent> {
-  @override
-  Object? invoke(_MinimizeWindowIntent intent) {
-    windowManager.minimize().catchError((e) {
-      developer.log('Failed to minimize window via shortcut: $e');
-    });
-    return null;
   }
 }
 

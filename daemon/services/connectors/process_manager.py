@@ -3,10 +3,13 @@ Process manager for connector processes with lock mechanism.
 Prevents duplicate process spawning and manages process lifecycle.
 """
 
+import asyncio
 import logging
 import os
+import subprocess
+from datetime import datetime
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Dict, Any, List
 
 import psutil
 
@@ -19,6 +22,7 @@ class ProcessManager:
     def __init__(self):
         self.lock_dir = Path.home() / ".linch-mind" / "locks"
         self.lock_dir.mkdir(parents=True, exist_ok=True)
+        self.running_processes = {}  # 存储运行中的进程信息
         logger.info(f"ProcessManager initialized with lock directory: {self.lock_dir}")
 
     def acquire_lock(
@@ -130,8 +134,15 @@ class ProcessManager:
         """Check if a process with given PID is running."""
         try:
             process = psutil.Process(pid)
-            # Check if it's actually a Python process (our connector)
-            return process.is_running() and "python" in process.name().lower()
+            # Check if process is running (support both Python and C++ connectors)
+            if not process.is_running():
+                return False
+            
+            process_name = process.name().lower()
+            # Support both Python and C++ connectors
+            return ("python" in process_name or 
+                   "linch-mind" in process_name or
+                   process_name.endswith(('.exe', '.out')))
         except (psutil.NoSuchProcess, psutil.AccessDenied):
             return False
 
@@ -202,6 +213,286 @@ class ProcessManager:
                 logger.error(f"Error checking lock {lock_file.name}: {e}")
 
         return running
+
+    async def start_process(
+        self, 
+        connector_id: str, 
+        command: List[str], 
+        working_dir: Optional[str] = None,
+        env_vars: Optional[Dict[str, str]] = None,
+        capture_output: bool = True
+    ) -> Optional[subprocess.Popen]:
+        """
+        启动连接器进程 - 统一状态管理
+        
+        Args:
+            connector_id: 连接器ID
+            command: 启动命令
+            working_dir: 工作目录
+            env_vars: 环境变量
+            capture_output: 是否捕获输出
+            
+        Returns:
+            启动的进程对象，失败返回None
+        """
+        try:
+            # 1. 检查进程是否已在运行（优先检查锁文件）
+            existing_pid = self.get_running_pid(connector_id)
+            if existing_pid and self._is_process_running(existing_pid):
+                logger.warning(f"连接器 {connector_id} 已经在运行 (PID: {existing_pid})")
+                # 如果内存中没有记录，同步状态
+                if connector_id not in self.running_processes:
+                    try:
+                        process = psutil.Process(existing_pid).as_dict()
+                        self.running_processes[connector_id] = {
+                            "pid": existing_pid,
+                            "process": None,  # 无法恢复subprocess对象
+                            "command": command,
+                            "working_dir": working_dir,
+                            "start_time": datetime.now().isoformat()
+                        }
+                        logger.info(f"同步已存在进程到内存: {connector_id} (PID: {existing_pid})")
+                    except Exception:
+                        pass
+                return None  # 已在运行
+            
+            # 2. 清理可能存在的陈旧状态
+            self._cleanup_stale_state(connector_id)
+            
+            # 3. 设置环境变量
+            env = os.environ.copy()
+            if env_vars:
+                env.update(env_vars)
+            
+            # 4. 启动进程
+            process = subprocess.Popen(
+                command,
+                cwd=working_dir,
+                env=env,
+                stdout=subprocess.PIPE if capture_output else None,
+                stderr=subprocess.PIPE if capture_output else None,
+                start_new_session=True  # 创建新的进程组
+            )
+            
+            # 5. 统一状态管理：同时更新内存和锁文件
+            self.running_processes[connector_id] = {
+                "pid": process.pid,
+                "process": process,
+                "command": command,
+                "working_dir": working_dir,
+                "start_time": datetime.now().isoformat()
+            }
+            
+            # 创建锁文件
+            lock_file = self.lock_dir / f"{connector_id}.lock"
+            lock_file.write_text(str(process.pid))
+            
+            logger.info(f"连接器进程启动成功: {connector_id} (PID: {process.pid})")
+            return process
+            
+        except Exception as e:
+            logger.error(f"启动连接器进程失败 {connector_id}: {e}")
+            # 出错时清理状态
+            self._cleanup_stale_state(connector_id)
+            return None
+    
+    async def stop_process(
+        self, 
+        connector_id: str, 
+        timeout: int = 10
+    ) -> bool:
+        """
+        停止连接器进程
+        
+        Args:
+            connector_id: 连接器ID
+            timeout: 等待进程退出的超时时间（秒）
+            
+        Returns:
+            是否成功停止
+        """
+        try:
+            if connector_id not in self.running_processes:
+                # 尝试从锁文件中获取PID信息
+                pid = self.get_running_pid(connector_id)
+                if pid:
+                    logger.info(f"从锁文件发现连接器 {connector_id} 进程 (PID: {pid}), 尝试停止")
+                    return self.kill_process(connector_id)
+                logger.info(f"连接器 {connector_id} 没有运行中的进程，跳过停止操作")
+                return True  # 进程不存在视为停止成功
+            
+            process_info = self.running_processes[connector_id]
+            pid = process_info.get("pid")
+            process = process_info.get("process")
+            
+            if not pid:
+                logger.warning(f"连接器 {connector_id} 没有有效的PID")
+                return False
+            
+            try:
+                psutil_process = psutil.Process(pid)
+                
+                # 优雅退出
+                psutil_process.terminate()
+                logger.info(f"发送终止信号给连接器 {connector_id} (PID: {pid})")
+                
+                # 等待进程退出
+                try:
+                    psutil_process.wait(timeout=timeout)
+                    logger.info(f"连接器进程优雅退出: {connector_id}")
+                except psutil.TimeoutExpired:
+                    # 强制杀死
+                    psutil_process.kill()
+                    logger.warning(f"强制杀死连接器进程: {connector_id} (PID: {pid})")
+                
+                # 统一清理状态：内存和锁文件
+                self._cleanup_stale_state(connector_id)
+                return True
+                
+            except psutil.NoSuchProcess:
+                logger.info(f"连接器进程已不存在: {connector_id} (PID: {pid})")
+                self._cleanup_stale_state(connector_id)
+                return True
+                
+        except Exception as e:
+            logger.error(f"停止连接器进程失败 {connector_id}: {e}")
+            # 即使出现异常，也尝试清理进程记录
+            self.cleanup_process(connector_id)
+            return False
+    
+    def get_process_status(self, connector_id: str) -> Dict[str, Any]:
+        """
+        获取连接器进程状态
+        
+        Args:
+            connector_id: 连接器ID
+            
+        Returns:
+            进程状态信息
+        """
+        try:
+            # 先检查运行中的进程记录
+            if connector_id not in self.running_processes:
+                # 检查是否有锁文件存在
+                pid = self.get_running_pid(connector_id)
+                if pid:
+                    # 发现进程但未在记录中，同步状态
+                    logger.warning(f"发现进程状态不同步，连接器 {connector_id} PID {pid} 存在但未在记录中")
+                    try:
+                        psutil_process = psutil.Process(pid)
+                        if psutil_process.is_running():
+                            return {
+                                "connector_id": connector_id,
+                                "status": "running",
+                                "pid": pid,
+                                "cpu_percent": psutil_process.cpu_percent(),
+                                "memory_percent": psutil_process.memory_percent(),
+                                "memory_info": psutil_process.memory_info()._asdict(),
+                                "create_time": psutil_process.create_time(),
+                                "note": "process_found_via_lock"
+                            }
+                    except psutil.NoSuchProcess:
+                        # 锁文件存在但进程不存在，清理锁文件
+                        self.release_lock(connector_id)
+                        logger.info(f"清理无效锁文件: {connector_id}")
+                
+                return {
+                    "connector_id": connector_id,
+                    "status": "not_running",
+                    "pid": None
+                }
+            
+            process_info = self.running_processes[connector_id]
+            pid = process_info.get("pid")
+            
+            if not pid:
+                return {
+                    "connector_id": connector_id,
+                    "status": "invalid",
+                    "pid": None
+                }
+            
+            try:
+                psutil_process = psutil.Process(pid)
+                
+                return {
+                    "connector_id": connector_id,
+                    "status": "running" if psutil_process.is_running() else "stopped",
+                    "pid": pid,
+                    "cpu_percent": psutil_process.cpu_percent(),
+                    "memory_percent": psutil_process.memory_percent(),
+                    "memory_info": psutil_process.memory_info()._asdict(),
+                    "create_time": psutil_process.create_time(),
+                    "start_time": process_info.get("start_time"),
+                    "command": process_info.get("command")
+                }
+                
+            except psutil.NoSuchProcess:
+                # 进程已不存在，统一清理状态
+                self._cleanup_stale_state(connector_id)
+                return {
+                    "connector_id": connector_id,
+                    "status": "dead",
+                    "pid": pid
+                }
+                
+        except Exception as e:
+            logger.error(f"获取连接器进程状态失败 {connector_id}: {e}")
+            return {
+                "connector_id": connector_id,
+                "status": "error",
+                "error": str(e)
+            }
+    
+    def cleanup_process(self, connector_id: str) -> bool:
+        """
+        清理连接器进程记录
+        
+        Args:
+            connector_id: 连接器ID
+            
+        Returns:
+            是否成功清理
+        """
+        return self._cleanup_stale_state(connector_id)
+    
+    def _cleanup_stale_state(self, connector_id: str) -> bool:
+        """
+        统一清理进程状态 - 内存记录和锁文件
+        
+        Args:
+            connector_id: 连接器ID
+            
+        Returns:
+            是否成功清理
+        """
+        try:
+            cleaned = False
+            
+            # 清理内存记录
+            if connector_id in self.running_processes:
+                del self.running_processes[connector_id]
+                logger.debug(f"清理内存中的进程记录: {connector_id}")
+                cleaned = True
+            
+            # 清理锁文件
+            lock_file = self.lock_dir / f"{connector_id}.lock"
+            if lock_file.exists():
+                try:
+                    lock_file.unlink()
+                    logger.debug(f"清理锁文件: {connector_id}")
+                    cleaned = True
+                except OSError as e:
+                    logger.error(f"删除锁文件失败 {connector_id}: {e}")
+            
+            if cleaned:
+                logger.info(f"清理连接器状态完成: {connector_id}")
+            
+            return True
+            
+        except Exception as e:
+            logger.error(f"清理连接器状态失败 {connector_id}: {e}")
+            return False
 
 
 # Global instance

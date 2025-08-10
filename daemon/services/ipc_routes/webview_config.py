@@ -33,9 +33,7 @@ def create_webview_config_router() -> IPCRouter:
             )
 
         try:
-            from daemon.services.connectors.connector_config_service import (
-                get_connector_config_service,
-            )
+            from core.service_facade import get_connector_config_service
 
             service = get_connector_config_service()
             schema_data = await service.get_config_schema(connector_id)
@@ -46,7 +44,7 @@ def create_webview_config_router() -> IPCRouter:
             ):
                 # 检查连接器是否在manifest中声明了webview_config: true
                 from daemon.models.database_models import Connector
-                from daemon.services.database_service import get_database_service
+                from core.service_facade import get_database_service
 
                 db_service = get_database_service()
                 with db_service.get_session() as session:
@@ -84,10 +82,8 @@ def create_webview_config_router() -> IPCRouter:
 
         try:
             from daemon.config.core_config import get_core_config_manager
-            from daemon.services.connectors.connector_config_service import (
-                get_connector_config_service,
-            )
-            from daemon.services.webview_config_service import WebViewConfigService
+            from core.service_facade import get_connector_config_service
+            from core.service_facade import get_webview_config_service
 
             # 获取配置和schema数据
             config_service = get_connector_config_service()
@@ -111,7 +107,7 @@ def create_webview_config_router() -> IPCRouter:
 
             # 创建WebView配置服务
             config_manager = get_core_config_manager()
-            webview_service = WebViewConfigService(config_manager)
+            webview_service = get_webview_config_service()
 
             # 生成HTML内容
             html_content = await webview_service.generate_webview_html(
@@ -147,10 +143,8 @@ def create_webview_config_router() -> IPCRouter:
         try:
             # 使用相同的逻辑生成预览HTML，但可能使用测试数据
             from daemon.config.core_config import get_core_config_manager
-            from daemon.services.connectors.connector_config_service import (
-                get_connector_config_service,
-            )
-            from daemon.services.webview_config_service import WebViewConfigService
+            from core.service_facade import get_connector_config_service
+            from core.service_facade import get_webview_config_service
 
             config_service = get_connector_config_service()
             schema_data = await config_service.get_config_schema(connector_id)
@@ -167,7 +161,7 @@ def create_webview_config_router() -> IPCRouter:
             current_config = schema_data.get("default_values", {})
 
             config_manager = get_core_config_manager()
-            webview_service = WebViewConfigService(config_manager)
+            webview_service = get_webview_config_service()
 
             html_content = await webview_service.generate_webview_html(
                 connector_id=connector_id,
@@ -193,10 +187,10 @@ def create_webview_config_router() -> IPCRouter:
         """获取可用模板列表"""
         try:
             from daemon.config.core_config import get_core_config_manager
-            from daemon.services.webview_config_service import WebViewConfigService
+            from core.service_facade import get_webview_config_service
 
             config_manager = get_core_config_manager()
-            webview_service = WebViewConfigService(config_manager)
+            webview_service = get_webview_config_service()
 
             templates = await webview_service.get_available_templates()
 
@@ -231,10 +225,10 @@ def create_webview_config_router() -> IPCRouter:
 
         try:
             from daemon.config.core_config import get_core_config_manager
-            from daemon.services.webview_config_service import WebViewConfigService
+            from core.service_facade import get_webview_config_service
 
             config_manager = get_core_config_manager()
-            webview_service = WebViewConfigService(config_manager)
+            webview_service = get_webview_config_service()
 
             # 验证模板
             validation_result = webview_service.validate_template(template_content)
@@ -288,10 +282,10 @@ def create_webview_config_router() -> IPCRouter:
 
         try:
             from daemon.config.core_config import get_core_config_manager
-            from daemon.services.webview_config_service import WebViewConfigService
+            from core.service_facade import get_webview_config_service
 
             config_manager = get_core_config_manager()
-            webview_service = WebViewConfigService(config_manager)
+            webview_service = get_webview_config_service()
 
             validation_result = webview_service.validate_template(template_content)
 

@@ -5,22 +5,52 @@ import 'package:freezed_annotation/freezed_annotation.dart';
 part 'connector_lifecycle_models.freezed.dart';
 part 'connector_lifecycle_models.g.dart';
 
-/// 连接器状态枚举 - 对应后端ConnectorState
+/// 辅助函数：安全地将各种类型转换为int（用于process_id）
+int? _processIdFromJson(dynamic value) {
+  if (value == null) return null;
+  if (value is int) return value;
+  if (value is num) return value.toInt();
+  if (value is String) {
+    try {
+      return int.parse(value);
+    } catch (_) {
+      return null;
+    }
+  }
+  return null;
+}
+
+/// 辅助函数：安全地将各种类型转换为int（用于data_count）
+int _dataCountFromJson(dynamic value) {
+  if (value == null) return 0;
+  if (value is int) return value;
+  if (value is num) return value.toInt();
+  if (value is String) {
+    try {
+      return int.parse(value);
+    } catch (_) {
+      return 0;
+    }
+  }
+  return 0;
+}
+
+/// 连接器状态枚举 - 对应daemon原始状态
 enum ConnectorState {
   @JsonValue('available')
   available,
   @JsonValue('installed')
   installed,
-  @JsonValue('configured')
-  configured,
-  @JsonValue('enabled')
-  enabled,
   @JsonValue('running')
   running,
-  @JsonValue('error')
-  error,
+  @JsonValue('stopped')
+  stopped,
+  @JsonValue('starting')
+  starting,
   @JsonValue('stopping')
   stopping,
+  @JsonValue('error')
+  error,
   @JsonValue('updating')
   updating,
   @JsonValue('uninstalling')
@@ -88,9 +118,9 @@ class ConnectorInfo with _$ConnectorInfo {
     required ConnectorState state,
     @Default(true) bool enabled,
     // 移除 auto_start 字段，因为数据库模型已经简化了逻辑
-    @JsonKey(name: 'process_id') int? processId,
+    @JsonKey(name: 'process_id', fromJson: _processIdFromJson) int? processId,
     @JsonKey(name: 'last_heartbeat') DateTime? lastHeartbeat,
-    @JsonKey(name: 'data_count') @Default(0) int dataCount,
+    @JsonKey(name: 'data_count', fromJson: _dataCountFromJson) @Default(0) int dataCount,
     @JsonKey(name: 'error_message') String? errorMessage,
     @JsonKey(name: 'created_at') DateTime? createdAt,
     @JsonKey(name: 'updated_at') DateTime? updatedAt,

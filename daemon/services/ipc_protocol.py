@@ -219,6 +219,30 @@ class IPCResponse:
     def from_json(cls, json_str: str) -> "IPCResponse":
         """从JSON字符串创建响应"""
         return cls.from_dict(json.loads(json_str))
+    
+    @classmethod
+    def from_processed_error(cls, processed_error, request_id: Optional[str] = None) -> "IPCResponse":
+        """从ProcessedError创建安全的IPC响应"""
+        # 导入必须放在方法内避免循环导入
+        from core.error_handling import ProcessedError
+        
+        if not isinstance(processed_error, ProcessedError):
+            raise TypeError("Expected ProcessedError instance")
+        
+        return cls(
+            success=False,
+            error=IPCError(
+                code=processed_error.code,
+                message=processed_error.user_message,  # 只返回用户友好消息
+                details={
+                    "error_id": processed_error.error_id,
+                    "is_recoverable": processed_error.is_recoverable,
+                    "can_retry": processed_error.can_retry,
+                    "retry_after": processed_error.retry_after
+                }
+            ),
+            metadata=IPCMetadata.create(request_id or processed_error.context.get("request_id") if processed_error.context else None)
+        )
 
 
 @dataclass
@@ -244,6 +268,11 @@ class IPCRequest:
     def headers(self) -> Dict[str, str]:
         """获取请求头部"""
         return getattr(self, "_headers", {})
+    
+    @headers.setter
+    def headers(self, value: Dict[str, str]):
+        """设置请求头部"""
+        self._headers = value or {}
 
     def get_query(self, name: str, default: Any = None) -> Any:
         """获取查询参数"""

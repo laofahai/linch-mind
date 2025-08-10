@@ -104,44 +104,7 @@ bool registerConfigSchema(UnifiedClient& client, const std::string& daemonUrl) {
     return true;
 }
 
-// 处理剪贴板变化
-void processClipboardChange(const std::string& content, UnifiedClient& client, 
-                          ConfigManager& config) {
-    // 检查内容长度
-    int minLength = config.getMinContentLength();
-    if (content.length() < static_cast<size_t>(minLength)) {
-        std::cout << "📋 Skipping short clipboard content" << std::endl;
-        return;
-    }
-    
-    int maxLength = config.getMaxContentLength();
-    std::string processedContent = content;
-    if (content.length() > static_cast<size_t>(maxLength)) {
-        processedContent = content.substr(0, maxLength) + "\n... (内容已截断)";
-        std::cout << "📋 Clipboard content truncated" << std::endl;
-    }
-    
-    // 使用新的storage API创建实体
-    std::string itemId = "clipboard_" + utils::generateUUID();
-    json entity_data = {
-        {"entity_id", itemId},
-        {"name", "Clipboard Content"},
-        {"entity_type", "clipboard"},
-        {"description", "Content from clipboard connector"},
-        {"attributes", {{"source", "system_clipboard"}}},
-        {"content", processedContent},
-        {"auto_embed", true}
-    };
-    
-    auto response = client.post(config.getDaemonUrl() + "/storage/entities", entity_data.dump());
-    
-    if (response.isSuccess()) {
-        std::cout << "✅ Processed clipboard change: " << content.length() << " chars" << std::endl;
-    } else {
-        std::cerr << "❌ Failed to push clipboard data: " << response.error_message 
-                  << " (code: " << response.error_code << ")" << std::endl;
-    }
-}
+// 处理剪贴板变化的函数已被内联到callback中，使用通用事件API
 
 int main(int argc, char* argv[]) {
     std::cout << "🚀 Starting Linch Mind Clipboard Connector (Pure IPC)" << std::endl;
@@ -173,6 +136,7 @@ int main(int argc, char* argv[]) {
     statusManager.setState(ConnectorRunningState::STARTING);
     statusManager.notifyStarting(unifiedClient);
     
+    // 修正：ConfigManager构造函数参数顺序是(connectorId, daemonUrl)
     ConfigManager configManager("clipboard", "");
     if (!configManager.loadFromDaemon()) {
         std::cerr << "⚠️  Failed to load configuration from daemon, using defaults" << std::endl;
@@ -184,24 +148,34 @@ int main(int argc, char* argv[]) {
     
     std::cout << "📋 Starting clipboard monitoring..." << std::endl;
     
-    // Create callback to handle clipboard changes
+    // Create callback to handle clipboard changes using generic events API
     auto clipboardCallback = [&unifiedClient, &configManager](const std::string& content) {
         if (content.length() < static_cast<size_t>(configManager.getMinContentLength()) ||
             content.length() > static_cast<size_t>(configManager.getMaxContentLength())) {
             return; // Skip content outside length bounds
         }
         
-        // Send clipboard data to daemon via IPC
-        nlohmann::json data;
-        data["type"] = "clipboard";
-        data["content"] = content;
-        data["timestamp"] = std::chrono::duration_cast<std::chrono::milliseconds>(
-            std::chrono::system_clock::now().time_since_epoch()
-        ).count();
+        // Create clipboard event data for generic API
+        nlohmann::json clipboard_event_data = {
+            {"content", content},
+            {"content_length", content.length()},
+            {"content_type", "text/plain"},
+            {"source", "system_clipboard"}
+        };
         
-        auto response = unifiedClient.post("/api/storage/data", data.dump());
-        if (!response.success) {
-            std::cerr << "⚠️  Failed to send clipboard data: " << response.error_message << std::endl;
+        nlohmann::json event_data = {
+            {"connector_id", "clipboard"},
+            {"event_type", "content_changed"},
+            {"event_data", clipboard_event_data},
+            {"timestamp", utils::getCurrentTimestamp()},
+            {"metadata", {}}
+        };
+        
+        auto response = unifiedClient.post("/events/submit", event_data.dump());
+        if (response.success) {
+            std::cout << "✅ Sent clipboard event: " << content.length() << " chars" << std::endl;
+        } else {
+            std::cerr << "❌ Failed to send clipboard event: " << response.error_message << std::endl;
         }
     };
     

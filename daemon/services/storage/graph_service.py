@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 import networkx as nx
+from services.security.selective_encrypted_storage import get_selective_encrypted_storage
 
 logger = logging.getLogger(__name__)
 
@@ -65,6 +66,9 @@ class GraphService:
         self.graph = nx.MultiDiGraph()  # 支持多重有向图
         self.graph_file = self.data_dir / "knowledge_graph.pkl"
 
+        # 选择性加密存储
+        self.selective_storage = get_selective_encrypted_storage()
+
         # 性能优化
         self.max_workers = max_workers
         self.enable_cache = enable_cache
@@ -89,11 +93,12 @@ class GraphService:
     async def initialize(self) -> bool:
         """初始化图服务"""
         try:
-            # 尝试加载现有图数据
-            if self.graph_file.exists():
-                await self._load_graph()
+            # 尝试加载现有图数据 - 使用选择性加密存储
+            loaded_graph = await self._load_graph_with_encryption()
+            if loaded_graph is not None:
+                self.graph = loaded_graph
                 logger.info(
-                    f"加载图数据: {self._metrics.node_count} 节点, {self._metrics.edge_count} 边"
+                    f"加载图数据成功: {self.graph.number_of_nodes()} 节点, {self.graph.number_of_edges()} 边"
                 )
             else:
                 logger.info("初始化空图数据库")
@@ -582,39 +587,99 @@ class GraphService:
     # === 数据持久化 ===
 
     async def save_graph(self) -> bool:
-        """保存图数据到文件"""
+        """保存图数据到文件 - 使用选择性加密存储"""
         try:
             loop = asyncio.get_event_loop()
-            await loop.run_in_executor(self._executor, self._save_graph_sync)
-            logger.info(f"图数据已保存: {self.graph_file}")
-            return True
+            success = await loop.run_in_executor(
+                self._executor, 
+                self.selective_storage.save_graph_data,
+                self.graph,
+                self.graph_file
+            )
+            
+            if success:
+                # 获取存储信息用于日志
+                storage_info = self.selective_storage.get_storage_info(self.graph_file)
+                encryption_status = "加密" if storage_info.get('encryption_enabled') else "明文"
+                logger.info(f"图数据已保存: {self.graph_file} ({encryption_status})")
+            
+            return success
 
         except Exception as e:
             logger.error(f"保存图数据失败: {e}")
             return False
 
-    def _save_graph_sync(self):
-        """同步保存图数据"""
-        with open(self.graph_file, "wb") as f:
-            pickle.dump(self.graph, f, protocol=pickle.HIGHEST_PROTOCOL)
-
-    async def _load_graph(self) -> bool:
-        """加载图数据"""
+    async def _load_graph_with_encryption(self) -> Optional[nx.MultiDiGraph]:
+        """加载图数据 - 使用选择性加密存储"""
         try:
             loop = asyncio.get_event_loop()
-            self.graph = await loop.run_in_executor(
-                self._executor, self._load_graph_sync
+            graph_data = await loop.run_in_executor(
+                self._executor,
+                self.selective_storage.load_graph_data,
+                self.graph_file
             )
-            return True
+            
+            if graph_data is not None:
+                # 获取存储信息用于日志
+                storage_info = self.selective_storage.get_storage_info(self.graph_file)
+                encryption_status = "加密" if storage_info.get('encryption_enabled') else "明文"
+                logger.info(f"图数据加载成功: {self.graph_file} ({encryption_status})")
+            
+            return graph_data
 
         except Exception as e:
             logger.error(f"加载图数据失败: {e}")
-            return False
+            return None
+
+    # 保留原有方法用于向后兼容和迁移
+    def _save_graph_sync(self):
+        """同步保存图数据 - 原有方法，保留用于兼容"""
+        with open(self.graph_file, "wb") as f:
+            pickle.dump(self.graph, f, protocol=pickle.HIGHEST_PROTOCOL)
 
     def _load_graph_sync(self) -> nx.MultiDiGraph:
-        """同步加载图数据"""
+        """同步加载图数据 - 原有方法，保留用于兼容"""
         with open(self.graph_file, "rb") as f:
             return pickle.load(f)
+
+    async def migrate_to_selective_encryption(self) -> bool:
+        """迁移现有图数据到选择性加密存储格式"""
+        try:
+            # 检查是否需要迁移
+            if not self.graph_file.exists():
+                logger.info("没有需要迁移的图数据")
+                return True
+                
+            # 检查是否已经是新格式
+            storage_info = self.selective_storage.get_storage_info(self.graph_file)
+            if 'encryption_enabled' in storage_info:
+                logger.info("图数据已经是选择性加密存储格式，无需迁移")
+                return True
+            
+            logger.info("开始迁移图数据到选择性加密存储格式")
+            
+            # 备份原文件路径
+            backup_file = self.graph_file.with_suffix('.backup.pkl')
+            
+            # 执行迁移
+            loop = asyncio.get_event_loop()
+            success = await loop.run_in_executor(
+                self._executor,
+                self.selective_storage.migrate_existing_data,
+                self.graph_file,
+                self.graph_file
+            )
+            
+            if success:
+                logger.info("图数据迁移成功")
+            else:
+                logger.error("图数据迁移失败")
+                
+            return success
+            
+        except Exception as e:
+            logger.error(f"图数据迁移失败: {e}")
+            return False
 
     # === 性能监控 ===
 

@@ -42,6 +42,8 @@ class Connector(Base):
     connector_id = Column(String(255), unique=True, nullable=False, index=True)
     name = Column(String(255), nullable=False)  # display_name
     description = Column(Text, nullable=True)
+    version = Column(String(50), nullable=True)  # 连接器版本
+    path = Column(String(500), nullable=True)  # 可执行文件路径
 
     # 状态管理 - 新设计
     enabled = Column(Boolean, default=True, nullable=False)  # 是否启用（基本状态）
@@ -114,6 +116,8 @@ class Connector(Base):
             "connector_id": self.connector_id,
             "display_name": self.name,
             "description": self.description,
+            "version": self.version,
+            "path": self.path,
             "enabled": self.enabled,
             "running_state": self.status,
             "is_installed": self.is_installed,
@@ -170,7 +174,7 @@ class ConnectorLog(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     connector_id = Column(
-        String(255), ForeignKey("connectors.connector_id"), nullable=False
+        String(255), ForeignKey("connectors.connector_id", ondelete="CASCADE"), nullable=False
     )
     level = Column(String(20), nullable=False)  # INFO, WARNING, ERROR
     message = Column(Text, nullable=False)
@@ -200,7 +204,7 @@ class ConnectorStats(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     connector_id = Column(
-        String(255), ForeignKey("connectors.connector_id"), nullable=False
+        String(255), ForeignKey("connectors.connector_id", ondelete="CASCADE"), nullable=False
     )
     date = Column(DateTime(timezone=True), nullable=False)
 
@@ -271,7 +275,7 @@ class ConnectorConfigHistory(Base):
 
     # 外键和关系
     connector_id = Column(
-        String(255), ForeignKey("connectors.connector_id"), nullable=False, index=True
+        String(255), ForeignKey("connectors.connector_id", ondelete="CASCADE"), nullable=False, index=True
     )
 
     # 关系
@@ -481,6 +485,8 @@ def create_new_connector(
     connector_id: str,
     name: str,
     description: Optional[str] = None,
+    version: Optional[str] = None,
+    path: Optional[str] = None,
     config_data: Optional[Dict[str, Any]] = None,
 ) -> Connector:
     """创建新连接器实例"""
@@ -488,6 +494,8 @@ def create_new_connector(
         connector_id=connector_id,
         name=name,
         description=description,
+        version=version,
+        path=path,
         enabled=True,  # 新连接器默认启用
         status="stopped",  # 初始状态为停止
         config_data=config_data or {},
@@ -496,13 +504,19 @@ def create_new_connector(
 
 
 def create_disabled_connector(
-    connector_id: str, name: str, description: Optional[str] = None
+    connector_id: str, 
+    name: str, 
+    description: Optional[str] = None,
+    version: Optional[str] = None,
+    path: Optional[str] = None
 ) -> Connector:
     """创建禁用连接器实例"""
     return Connector(
         connector_id=connector_id,
         name=name,
         description=description,
+        version=version,
+        path=path,
         enabled=False,  # 禁用状态
         status="stopped",
         config_data={},

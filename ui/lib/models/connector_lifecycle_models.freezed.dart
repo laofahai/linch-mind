@@ -954,11 +954,11 @@ mixin _$ConnectorInfo {
   ConnectorState get state => throw _privateConstructorUsedError;
   bool get enabled =>
       throw _privateConstructorUsedError; // 移除 auto_start 字段，因为数据库模型已经简化了逻辑
-  @JsonKey(name: 'process_id')
+  @JsonKey(name: 'process_id', fromJson: _processIdFromJson)
   int? get processId => throw _privateConstructorUsedError;
   @JsonKey(name: 'last_heartbeat')
   DateTime? get lastHeartbeat => throw _privateConstructorUsedError;
-  @JsonKey(name: 'data_count')
+  @JsonKey(name: 'data_count', fromJson: _dataCountFromJson)
   int get dataCount => throw _privateConstructorUsedError;
   @JsonKey(name: 'error_message')
   String? get errorMessage => throw _privateConstructorUsedError;
@@ -989,9 +989,9 @@ abstract class $ConnectorInfoCopyWith<$Res> {
       @JsonKey(name: 'display_name') String displayName,
       ConnectorState state,
       bool enabled,
-      @JsonKey(name: 'process_id') int? processId,
+      @JsonKey(name: 'process_id', fromJson: _processIdFromJson) int? processId,
       @JsonKey(name: 'last_heartbeat') DateTime? lastHeartbeat,
-      @JsonKey(name: 'data_count') int dataCount,
+      @JsonKey(name: 'data_count', fromJson: _dataCountFromJson) int dataCount,
       @JsonKey(name: 'error_message') String? errorMessage,
       @JsonKey(name: 'created_at') DateTime? createdAt,
       @JsonKey(name: 'updated_at') DateTime? updatedAt,
@@ -1087,9 +1087,9 @@ abstract class _$$ConnectorInfoImplCopyWith<$Res>
       @JsonKey(name: 'display_name') String displayName,
       ConnectorState state,
       bool enabled,
-      @JsonKey(name: 'process_id') int? processId,
+      @JsonKey(name: 'process_id', fromJson: _processIdFromJson) int? processId,
       @JsonKey(name: 'last_heartbeat') DateTime? lastHeartbeat,
-      @JsonKey(name: 'data_count') int dataCount,
+      @JsonKey(name: 'data_count', fromJson: _dataCountFromJson) int dataCount,
       @JsonKey(name: 'error_message') String? errorMessage,
       @JsonKey(name: 'created_at') DateTime? createdAt,
       @JsonKey(name: 'updated_at') DateTime? updatedAt,
@@ -1178,9 +1178,10 @@ class _$ConnectorInfoImpl implements _ConnectorInfo {
       @JsonKey(name: 'display_name') required this.displayName,
       required this.state,
       this.enabled = true,
-      @JsonKey(name: 'process_id') this.processId,
+      @JsonKey(name: 'process_id', fromJson: _processIdFromJson) this.processId,
       @JsonKey(name: 'last_heartbeat') this.lastHeartbeat,
-      @JsonKey(name: 'data_count') this.dataCount = 0,
+      @JsonKey(name: 'data_count', fromJson: _dataCountFromJson)
+      this.dataCount = 0,
       @JsonKey(name: 'error_message') this.errorMessage,
       @JsonKey(name: 'created_at') this.createdAt,
       @JsonKey(name: 'updated_at') this.updatedAt,
@@ -1203,13 +1204,13 @@ class _$ConnectorInfoImpl implements _ConnectorInfo {
   final bool enabled;
 // 移除 auto_start 字段，因为数据库模型已经简化了逻辑
   @override
-  @JsonKey(name: 'process_id')
+  @JsonKey(name: 'process_id', fromJson: _processIdFromJson)
   final int? processId;
   @override
   @JsonKey(name: 'last_heartbeat')
   final DateTime? lastHeartbeat;
   @override
-  @JsonKey(name: 'data_count')
+  @JsonKey(name: 'data_count', fromJson: _dataCountFromJson)
   final int dataCount;
   @override
   @JsonKey(name: 'error_message')
@@ -1298,9 +1299,11 @@ abstract class _ConnectorInfo implements ConnectorInfo {
       @JsonKey(name: 'display_name') required final String displayName,
       required final ConnectorState state,
       final bool enabled,
-      @JsonKey(name: 'process_id') final int? processId,
+      @JsonKey(name: 'process_id', fromJson: _processIdFromJson)
+      final int? processId,
       @JsonKey(name: 'last_heartbeat') final DateTime? lastHeartbeat,
-      @JsonKey(name: 'data_count') final int dataCount,
+      @JsonKey(name: 'data_count', fromJson: _dataCountFromJson)
+      final int dataCount,
       @JsonKey(name: 'error_message') final String? errorMessage,
       @JsonKey(name: 'created_at') final DateTime? createdAt,
       @JsonKey(name: 'updated_at') final DateTime? updatedAt,
@@ -1320,13 +1323,13 @@ abstract class _ConnectorInfo implements ConnectorInfo {
   @override
   bool get enabled; // 移除 auto_start 字段，因为数据库模型已经简化了逻辑
   @override
-  @JsonKey(name: 'process_id')
+  @JsonKey(name: 'process_id', fromJson: _processIdFromJson)
   int? get processId;
   @override
   @JsonKey(name: 'last_heartbeat')
   DateTime? get lastHeartbeat;
   @override
-  @JsonKey(name: 'data_count')
+  @JsonKey(name: 'data_count', fromJson: _dataCountFromJson)
   int get dataCount;
   @override
   @JsonKey(name: 'error_message')

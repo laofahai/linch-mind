@@ -108,8 +108,8 @@ class WindowsIPCServer:
             try:
                 admin_sid = win32security.LookupAccountName(None, "Administrators")[0]
                 self.allowed_sids.add(admin_sid)
-            except Exception:
-                logger.debug("无法获取管理员组SID")
+            except (OSError, AttributeError) as e:
+                logger.debug(f"无法获取管理员组SID: {e}")
 
             # 创建高级DACL（访问控制列表）
             dacl = win32security.ACL()
@@ -139,8 +139,8 @@ class WindowsIPCServer:
                     ntsecuritycon.GENERIC_ALL,
                     everyone_sid,
                 )
-            except Exception:
-                pass
+            except (OSError, AttributeError) as e:
+                logger.debug(f"无法设置Everyone组的访问拒绝权限: {e}")
 
             # 设置安全描述符
             security_descriptor.SetSecurityDescriptorDacl(1, dacl, 0)
@@ -747,8 +747,8 @@ class WindowsIPCServer:
         for future in self.pending_futures.values():
             try:
                 future.cancel()
-            except Exception:
-                pass
+            except (RuntimeError, asyncio.CancelledError) as e:
+                logger.debug(f"取消Future失败: {e}")
         self.pending_futures.clear()
 
         # 停止异步事件循环
@@ -769,8 +769,8 @@ class WindowsIPCServer:
             # 强制关闭
             try:
                 self.thread_pool.shutdown(wait=False)
-            except Exception:
-                pass
+            except (RuntimeError, OSError) as e:
+                logger.debug(f"关闭线程池失败: {e}")
 
         # 清理配置文件
         try:

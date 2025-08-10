@@ -17,7 +17,8 @@ from models.database_models import (
     UserBehavior,
 )
 
-from ..database_service import DatabaseService, get_database_service
+from ..database_service import DatabaseService
+from core.service_facade import get_database_service
 from .embedding_service import EmbeddingService, get_embedding_service
 from .graph_service import EntityNode, GraphService, RelationshipEdge, get_graph_service
 from .vector_service import (

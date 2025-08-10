@@ -8,6 +8,12 @@ import logging
 
 from core.service_facade import get_service
 from services.connectors.connector_config_service import ConnectorConfigService
+from core.error_handling import (
+    ErrorContext,
+    ErrorSeverity,
+    ErrorCategory,
+    get_enhanced_error_handler
+)
 from ..ipc_protocol import (
     IPCRequest,
     IPCResponse,
@@ -48,11 +54,20 @@ def create_connector_config_router() -> IPCRouter:
             )
 
         except Exception as e:
-            logger.error(f"获取配置schema失败 {connector_id}: {e}")
-            return internal_error_response(
-                f"Failed to get config schema: {str(e)}",
-                {"connector_id": connector_id, "operation": "get_config_schema"},
+            # 使用增强错误处理器
+            enhanced_handler = get_enhanced_error_handler()
+            context = ErrorContext(
+                function_name="get_config_schema",
+                module_name=__name__,
+                severity=ErrorSeverity.HIGH,
+                category=ErrorCategory.CONNECTOR_MANAGEMENT,
+                user_message="获取连接器配置模板失败",
+                recovery_suggestions="检查连接器是否正确安装",
+                technical_details=f"connector_id: {connector_id}"
             )
+            
+            processed_error = enhanced_handler.process_error(e, context, request.request_id)
+            return IPCResponse.from_processed_error(processed_error, request.request_id)
 
     @router.get("/current/{connector_id}")
     async def get_current_config(request: IPCRequest) -> IPCResponse:
@@ -200,6 +215,60 @@ def create_connector_config_router() -> IPCRouter:
             return internal_error_response(
                 f"Failed to get config history: {str(e)}",
                 {"connector_id": connector_id, "operation": "get_config_history"},
+            )
+
+    @router.get("/defaults/{connector_id}")
+    async def get_default_config(request: IPCRequest) -> IPCResponse:
+        """获取连接器的默认配置"""
+        connector_id = request.path_params.get("connector_id")
+        if not connector_id:
+            return invalid_request_response(
+                "Missing connector_id in path", {"required_param": "connector_id"}
+            )
+
+        try:
+            # 使用现代化ServiceFacade模式获取配置服务
+            config_service = get_service(ConnectorConfigService)
+            result = await config_service.get_default_config(connector_id)
+
+            return IPCResponse.success_response(
+                data=result, request_id=request.request_id
+            )
+
+        except Exception as e:
+            logger.error(f"获取默认配置失败 {connector_id}: {e}")
+            return internal_error_response(
+                f"Failed to get default config: {str(e)}",
+                {"connector_id": connector_id, "operation": "get_default_config"},
+            )
+
+    @router.post("/apply-defaults")
+    async def apply_defaults_to_config(request: IPCRequest) -> IPCResponse:
+        """将默认值应用到现有配置中"""
+        data = request.data
+        if not data or "connector_id" not in data:
+            return invalid_request_response(
+                "Missing connector_id in request data",
+                {"required_field": "connector_id"},
+            )
+
+        connector_id = data["connector_id"]
+        current_config = data.get("current_config")  # 可选，如果未提供则从数据库获取
+
+        try:
+            # 使用现代化ServiceFacade模式获取配置服务
+            config_service = get_service(ConnectorConfigService)
+            result = await config_service.apply_defaults_to_config(connector_id, current_config)
+
+            return IPCResponse.success_response(
+                data=result, request_id=request.request_id
+            )
+
+        except Exception as e:
+            logger.error(f"应用默认配置失败 {connector_id}: {e}")
+            return internal_error_response(
+                f"Failed to apply defaults: {str(e)}",
+                {"connector_id": connector_id, "operation": "apply_defaults_to_config"},
             )
 
     @router.get("/all-schemas")

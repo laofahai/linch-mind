@@ -22,7 +22,7 @@ from models.database_models import (
     UserBehavior,
 )
 
-from ..database_service import get_database_service
+from core.service_facade import get_database_service
 from .storage_orchestrator import get_storage_orchestrator
 
 logger = logging.getLogger(__name__)

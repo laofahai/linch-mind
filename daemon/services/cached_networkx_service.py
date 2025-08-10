@@ -406,7 +406,8 @@ class CachedNetworkXService:
             try:
                 clustering = nx.clustering(self.knowledge_graph, entity_id)
                 centrality_metrics["clustering"] = clustering
-            except Exception:
+            except (nx.NetworkXError, KeyError, ValueError) as e:
+                logger.debug(f"计算聚类系数失败 for {entity_id}: {e}")
                 centrality_metrics["clustering"] = 0.0
 
             # 缓存结果

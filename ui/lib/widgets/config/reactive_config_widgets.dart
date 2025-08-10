@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:reactive_forms/reactive_forms.dart';
+import 'package:file_picker/file_picker.dart';
 import '../../services/form_builder_service.dart';
+import 'reactive_directory_picker.dart';
+
 
 /// 基于reactive_forms的配置组件库
 class ReactiveConfigWidgets {
@@ -12,6 +15,9 @@ class ReactiveConfigWidgets {
     required BuildContext context,
   }) {
     final widgetType = FormBuilderService.inferWidgetType(fieldConfig);
+    final fieldType = fieldConfig['type'] as String?;
+    
+    debugPrint('[DEBUG] Building field widget: $fieldName, type: $fieldType, widget: $widgetType');
 
     switch (widgetType) {
       case 'text_input':
@@ -27,7 +33,11 @@ class ReactiveConfigWidgets {
       case 'select':
         return _buildSelect(fieldName, fieldConfig);
       case 'tag_input':
+        debugPrint('[DEBUG] Building tag_input for field: $fieldName');
         return _buildTagInput(fieldName, fieldConfig);
+      case 'directory_picker':
+        debugPrint('[DEBUG] Building directory_picker for field: $fieldName');
+        return _buildDirectoryPicker(fieldName, fieldConfig);
       case 'email_input':
         return _buildEmailInput(fieldName, fieldConfig);
       case 'url_input':
@@ -91,22 +101,10 @@ class ReactiveConfigWidgets {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        ReactiveTextField<num>(
+        _ReactiveNumberField(
           formControlName: fieldName,
-          keyboardType: isInteger
-              ? TextInputType.number
-              : const TextInputType.numberWithOptions(decimal: true),
-          inputFormatters: isInteger
-              ? [FilteringTextInputFormatter.digitsOnly]
-              : [FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*'))],
-          decoration: InputDecoration(
-            labelText: config['title'],
-            hintText: config['placeholder'],
-            helperText: config['description'] ?? config['help_text'],
-            suffixText: config['ui:unit'],
-            border: const OutlineInputBorder(),
-          ),
-          validationMessages: _getValidationMessages(),
+          isInteger: isInteger,
+          config: config,
         ),
       ],
     );
@@ -125,9 +123,9 @@ class ReactiveConfigWidgets {
 
   /// 滑块组件
   static Widget _buildSlider(String fieldName, Map<String, dynamic> config) {
-    final minimum = (config['minimum'] ?? 0).toDouble();
-    final maximum = (config['maximum'] ?? 100).toDouble();
-    final step = (config['ui:step'] ?? 1.0).toDouble();
+    final minimum = _toDouble(config['minimum'] ?? 0);
+    final maximum = _toDouble(config['maximum'] ?? 100);
+    final step = _toDouble(config['ui:step'] ?? 1.0);
     final unit = config['ui:unit'] as String?;
 
     return Column(
@@ -145,33 +143,82 @@ class ReactiveConfigWidgets {
           ),
         ],
         const SizedBox(height: 8),
-        ReactiveSlider(
-          formControlName: fieldName,
-          min: minimum,
-          max: maximum,
-          divisions: ((maximum - minimum) / step).round(),
-          labelBuilder: (value) =>
-              '${value.toStringAsFixed(step < 1 ? 1 : 0)}${unit ?? ''}',
+        ReactiveFormConsumer(
+          builder: (context, formGroup, child) {
+            // 获取FormControl并确保类型兼容性
+            final control = formGroup.control(fieldName);
+            
+            // 确保滑块值在有效范围内
+            final currentValue = _safeToDouble(control.value, minimum, min: minimum, max: maximum);
+            
+            // 优化：避免循环更新，只在初始化时进行值修正
+            // 使用标记来避免重复更新
+            final needsUpdate = control.value != null && 
+                               control.value != currentValue &&
+                               !control.dirty; // 只在控件未被用户修改时更新
+            
+            if (needsUpdate) {
+              // 延迟更新，避免在构建过程中修改状态
+              Future.microtask(() {
+                if (control.value != currentValue && !control.dirty) {
+                  control.updateValue(currentValue);
+                }
+              });
+            }
+            
+            return Slider(
+              value: currentValue,
+              min: minimum,
+              max: maximum,
+              divisions: ((maximum - minimum) / step).round(),
+              label: '${currentValue.toStringAsFixed(_getDecimalPlaces(step))}${unit ?? ''}',
+              onChanged: (value) {
+                // 根据step对值进行舍入
+                final roundedValue = (value / step).round() * step;
+                control.updateValue(roundedValue);
+              },
+              onChangeEnd: (value) => control.markAsTouched(),
+            );
+          },
         ),
-        // 数字输入框用于精确输入
-        Row(
-          children: [
-            Expanded(child: Container()), // 占位
-            SizedBox(
-              width: 100,
-              child: ReactiveTextField<num>(
-                formControlName: fieldName,
-                keyboardType:
-                    const TextInputType.numberWithOptions(decimal: true),
-                decoration: InputDecoration(
-                  isDense: true,
-                  suffixText: unit,
-                  border: const OutlineInputBorder(),
-                ),
-                validationMessages: _getValidationMessages(),
+        // 显示当前值
+        ReactiveFormConsumer(
+          builder: (context, formGroup, child) {
+            final control = formGroup.control(fieldName);
+            final currentValue = _safeToDouble(control.value, minimum, min: minimum, max: maximum);
+            
+            return Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    '${minimum.toStringAsFixed(_getDecimalPlaces(step))}${unit ?? ''}',
+                    style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.primaryContainer,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      '${currentValue.toStringAsFixed(_getDecimalPlaces(step))}${unit ?? ''}',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                        color: Theme.of(context).colorScheme.onPrimaryContainer,
+                      ),
+                    ),
+                  ),
+                  Text(
+                    '${maximum.toStringAsFixed(_getDecimalPlaces(step))}${unit ?? ''}',
+                    style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                  ),
+                ],
               ),
-            ),
-          ],
+            );
+          },
         ),
       ],
     );
@@ -208,9 +255,19 @@ class ReactiveConfigWidgets {
     );
   }
 
-  /// 标签输入组件
+  /// 标签输入组件 - 专门处理List<String>类型的FormControl
   static Widget _buildTagInput(String fieldName, Map<String, dynamic> config) {
+    debugPrint('[DEBUG] Creating _ReactiveTagInput for field: $fieldName');
     return _ReactiveTagInput(
+      formControlName: fieldName,
+      fieldConfig: config,
+    );
+  }
+
+  /// 目录选择器组件 - 专门处理List<String>类型的目录路径
+  static Widget _buildDirectoryPicker(String fieldName, Map<String, dynamic> config) {
+    debugPrint('[DEBUG] Creating ReactiveDirectoryPicker for field: $fieldName');
+    return ReactiveDirectoryPicker(
       formControlName: fieldName,
       fieldConfig: config,
     );
@@ -289,9 +346,61 @@ class ReactiveConfigWidgets {
       'uri': (error) => '请输入有效的URL地址',
     };
   }
+
+  /// 安全地将值转换为double
+  static double _toDouble(dynamic value) {
+    if (value is double) return value;
+    if (value is int) return value.toDouble();
+    if (value is String) return double.tryParse(value) ?? 0.0;
+    return 0.0;
+  }
+
+  /// 安全地将FormControl值转换为double，带有默认值和范围限制
+  static double _safeToDouble(dynamic value, double defaultValue, {double? min, double? max}) {
+    double result;
+    if (value == null) {
+      result = defaultValue;
+    } else if (value is double) {
+      result = value;
+    } else if (value is int) {
+      result = value.toDouble();
+    } else if (value is num) {
+      result = value.toDouble();
+    } else {
+      final parsed = double.tryParse(value.toString());
+      result = parsed ?? defaultValue;
+    }
+    
+    // 确保值在指定范围内
+    if (min != null && result < min) result = min;
+    if (max != null && result > max) result = max;
+    
+    return result;
+  }
+
+  /// 根据step值获取适当的小数位数
+  static int _getDecimalPlaces(double step) {
+    if (step >= 1) return 0;
+    
+    // 将step转换为字符串并计算小数位数
+    final stepStr = step.toString();
+    final dotIndex = stepStr.indexOf('.');
+    if (dotIndex == -1) return 0;
+    
+    // 忽略尾部的0
+    int decimalPlaces = 0;
+    for (int i = dotIndex + 1; i < stepStr.length; i++) {
+      if (stepStr[i] != '0' || decimalPlaces > 0) {
+        decimalPlaces++;
+      }
+    }
+    
+    // 最多返回2位小数
+    return decimalPlaces.clamp(0, 2);
+  }
 }
 
-/// 标签输入组件
+/// 标签输入组件 - 专门处理List<String>类型的FormControl
 class _ReactiveTagInput extends ReactiveFormField<List<String>, List<String>> {
   final Map<String, dynamic> fieldConfig;
 
@@ -301,9 +410,36 @@ class _ReactiveTagInput extends ReactiveFormField<List<String>, List<String>> {
   }) : super(
           formControlName: formControlName,
           builder: (field) {
+            debugPrint('[DEBUG] ReactiveTagInput builder called for $formControlName');
+            debugPrint('[DEBUG] Field control type: ${field.control.runtimeType}');
+            debugPrint('[DEBUG] Field value type: ${field.value.runtimeType}');
+            debugPrint('[DEBUG] Field value: ${field.value}');
+            
+            // 安全的值获取和类型转换
+            List<String> safeValue;
+            try {
+              if (field.value == null) {
+                safeValue = <String>[];
+              } else if (field.value is List<String>) {
+                safeValue = field.value!;
+              } else if (field.value is List) {
+                // 尝试转换为字符串列表
+                safeValue = field.value!.map((item) => item?.toString() ?? '').where((str) => str.isNotEmpty).toList();
+              } else {
+                debugPrint('[WARNING] Unexpected field value type: ${field.value.runtimeType}, resetting to empty list');
+                safeValue = <String>[];
+              }
+            } catch (e) {
+              debugPrint('[ERROR] Failed to convert field value: $e');
+              safeValue = <String>[];
+            }
+            
             return _TagInputWidget(
-              value: field.value ?? [],
-              onChanged: field.didChange,
+              value: safeValue,
+              onChanged: (List<String> newValue) {
+                debugPrint('[DEBUG] Tag input value changed: $newValue');
+                field.didChange(newValue);
+              },
               fieldConfig: fieldConfig,
               hasError: field.control.invalid,
               errorText: field.errorText,
@@ -468,6 +604,93 @@ class _TagInputWidgetState extends State<_TagInputWidget> {
     _controller.dispose();
     super.dispose();
   }
+}
+
+/// 数字输入组件
+class _ReactiveNumberField extends ReactiveFormField<num, num> {
+  final bool isInteger;
+  final Map<String, dynamic> config;
+
+  _ReactiveNumberField({
+    required String formControlName,
+    required this.isInteger,
+    required this.config,
+  }) : super(
+          formControlName: formControlName,
+          builder: (field) {
+            final controller = TextEditingController(
+              text: field.value?.toString() ?? '',
+            );
+            
+            // 获取范围限制
+            final minimum = config['minimum'] as num?;
+            final maximum = config['maximum'] as num?;
+            
+            // 监听控制器变化
+            controller.addListener(() {
+              final text = controller.text;
+              if (text.isEmpty) {
+                field.didChange(null);
+              } else {
+                final numValue = isInteger 
+                    ? int.tryParse(text) 
+                    : double.tryParse(text);
+                if (numValue != null) {
+                  // 应用范围限制
+                  num validatedValue = numValue;
+                  if (minimum != null && validatedValue < minimum) {
+                    validatedValue = minimum;
+                  }
+                  if (maximum != null && validatedValue > maximum) {
+                    validatedValue = maximum;
+                  }
+                  
+                  // 如果值被限制了，更新输入框显示
+                  if (validatedValue != numValue) {
+                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                      controller.text = validatedValue.toString();
+                      controller.selection = TextSelection.fromPosition(
+                        TextPosition(offset: controller.text.length),
+                      );
+                    });
+                  }
+                  
+                  field.didChange(validatedValue);
+                }
+              }
+            });
+            
+            // 监听表单值变化
+            field.control.valueChanges.listen((value) {
+              final text = value?.toString() ?? '';
+              if (controller.text != text) {
+                controller.text = text;
+                controller.selection = TextSelection.fromPosition(
+                  TextPosition(offset: text.length),
+                );
+              }
+            });
+
+            return TextField(
+              controller: controller,
+              keyboardType: isInteger
+                  ? TextInputType.number
+                  : const TextInputType.numberWithOptions(decimal: true),
+              inputFormatters: isInteger
+                  ? [FilteringTextInputFormatter.digitsOnly]
+                  : [FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*'))],
+              decoration: InputDecoration(
+                labelText: config['title'],
+                hintText: config['placeholder'],
+                helperText: config['description'] ?? config['help_text'],
+                suffixText: config['ui:unit'],
+                isDense: config['isDense'] as bool? ?? false,
+                border: const OutlineInputBorder(),
+                errorText: field.errorText,
+              ),
+            );
+          },
+        );
 }
 
 /// 密码输入组件

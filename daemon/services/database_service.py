@@ -186,20 +186,20 @@ class DatabaseService:
 
 
 # 全局数据库服务实例
-_database_service: Optional[DatabaseService] = None
-
-
-def get_database_service() -> DatabaseService:
-    """获取数据库服务实例（单例模式）"""
-    global _database_service
-    if _database_service is None:
-        _database_service = DatabaseService()
-    return _database_service
-
+# 🔧 移除全局单例模式 - 现在由DI容器管理
+# DatabaseService实例通过core.container获取，消除重复的get_database_service调用
 
 def cleanup_database_service():
-    """清理数据库服务"""
-    global _database_service
-    if _database_service:
-        _database_service.cleanup()
-        _database_service = None
+    """清理数据库服务 - 现在通过DI容器管理"""
+    from core.service_facade import get_service_facade
+    from core.container import get_container
+    
+    try:
+        container = get_container()
+        if container.is_registered(DatabaseService):
+            service = container.get_service(DatabaseService)
+            service.cleanup()
+    except Exception as e:
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f"清理数据库服务失败: {e}")

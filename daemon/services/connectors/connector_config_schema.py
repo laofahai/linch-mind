@@ -260,38 +260,9 @@ class ConnectorConfigSchema(BaseModel):
 
 
 # 预定义的常用字段Schema模板
+# 注意：enabled, auto_start, log_level 不再作为连接器配置项
+# 这些应该在UI层面处理（连接器列表的启用/禁用控制）
 COMMON_FIELD_TEMPLATES = {
-    "enabled": ConfigFieldSchema(
-        type=ConfigFieldType.BOOLEAN,
-        title="启用连接器",
-        description="是否启用此连接器",
-        default=True,
-        widget=ConfigUIWidget.SWITCH,
-        order=0,
-    ),
-    "auto_start": ConfigFieldSchema(
-        type=ConfigFieldType.BOOLEAN,
-        title="自动启动",
-        description="系统启动时自动启动此连接器",
-        default=True,
-        widget=ConfigUIWidget.SWITCH,
-        order=1,
-    ),
-    "log_level": ConfigFieldSchema(
-        type=ConfigFieldType.SELECT,
-        title="日志级别",
-        description="设置连接器的日志详细程度",
-        default="INFO",
-        widget=ConfigUIWidget.SELECT,
-        options=[
-            {"label": "TRACE", "value": "TRACE"},
-            {"label": "DEBUG", "value": "DEBUG"},
-            {"label": "INFO", "value": "INFO"},
-            {"label": "WARN", "value": "WARN"},
-            {"label": "ERROR", "value": "ERROR"},
-        ],
-        order=10,
-    ),
     "polling_interval": ConfigFieldSchema(
         type=ConfigFieldType.INTEGER,
         title="轮询间隔(秒)",
@@ -321,7 +292,11 @@ COMMON_FIELD_TEMPLATES = {
 def create_basic_config_schema(
     connector_id: str, connector_name: str
 ) -> ConnectorConfigSchema:
-    """创建基础配置Schema模板"""
+    """创建基础配置Schema模板
+    
+    注意：不再包含enabled, auto_start, log_level等通用字段
+    这些应该在UI层面处理，不属于连接器特定的配置
+    """
     return ConnectorConfigSchema(
         connector_id=connector_id,
         connector_name=connector_name,
@@ -333,9 +308,7 @@ def create_basic_config_schema(
                 icon="settings",
                 order=0,
                 fields={
-                    "enabled": COMMON_FIELD_TEMPLATES["enabled"],
-                    "auto_start": COMMON_FIELD_TEMPLATES["auto_start"],
-                    "log_level": COMMON_FIELD_TEMPLATES["log_level"],
+                    # 基础模板现在为空，由具体连接器定义自己的配置项
                 },
             )
         },

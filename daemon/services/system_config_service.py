@@ -10,7 +10,7 @@ from typing import Any, Dict
 
 from config.core_config import get_connector_config
 from models.database_models import Connector
-from services.database_service import get_database_service
+from core.service_facade import get_database_service
 from services.registry_discovery_service import RegistryDiscoveryService
 
 logger = logging.getLogger(__name__)
@@ -28,16 +28,54 @@ class SystemConfigService:
         """获取注册表中的连接器列表"""
         try:
             # 获取注册表数据
-            registry_data = await self.registry_service.get_registry()
-
-            if not registry_data or "connectors" not in registry_data:
+            registry_data, source = await self.registry_service.discover_registry()
+            
+            # 添加类型检查和调试日志
+            logger.info(f"注册表数据类型: {type(registry_data)}")
+            if registry_data:
+                logger.debug(f"注册表数据预览: {str(registry_data)[:200]}...")
+            
+            # 修复None值处理 - 如果registry_data是None，提供默认值
+            if registry_data is None:
+                logger.warning("注册表服务返回None，使用空注册表作为备用")
+                registry_data = {
+                    "schema_version": "1.0.0",
+                    "connectors": {},
+                    "source": "fallback_empty",
+                    "message": "Registry service returned None"
+                }
+            
+            # 确保 registry_data 是字典类型
+            if not isinstance(registry_data, dict):
+                logger.error(f"注册表数据类型错误，期望dict，实际{type(registry_data)}")
                 return {
                     "success": False,
-                    "error": "Failed to fetch registry data",
-                    "data": {"connectors": []},
+                    "error": f"Registry data format error - expected dict, got {type(registry_data)}",
+                    "data": {"connectors": []}
                 }
 
-            connectors = registry_data["connectors"]
+            if not registry_data or "connectors" not in registry_data:
+                # 架构纯净原则：daemon无法获取注册表时返回空结果，不报错
+                logger.info("无可用注册表数据，返回空连接器列表")
+                return {
+                    "success": True,
+                    "data": {"connectors": []},
+                    "message": "No registry data available"
+                }
+
+            connectors = registry_data.get("connectors", [])
+            
+            # 处理不同的connectors数据格式
+            if isinstance(connectors, dict):
+                # 字典格式：转换为列表
+                connectors = list(connectors.values())
+                logger.info(f"注册表数据类型: <class 'dict'>")
+            elif isinstance(connectors, list):
+                # 列表格式：直接使用
+                pass
+            else:
+                logger.error(f"注册表connectors字段类型不支持: {type(connectors)}")
+                connectors = []
 
             # 增强连接器信息（添加本地安装状态）
             enhanced_connectors = []
@@ -80,7 +118,7 @@ class SystemConfigService:
     async def get_connector_download_info(self, connector_id: str) -> Dict[str, Any]:
         """获取连接器下载信息"""
         try:
-            registry_data = await self.registry_service.get_registry()
+            registry_data, source = await self.registry_service.discover_registry()
 
             if not registry_data or "connectors" not in registry_data:
                 return {"success": False, "error": "Registry data not available"}
@@ -124,7 +162,7 @@ class SystemConfigService:
             success = await self.registry_service.refresh_cache(force=force)
 
             if success:
-                registry_data = await self.registry_service.get_registry()
+                registry_data, source = await self.registry_service.discover_registry()
                 connector_count = len(registry_data.get("connectors", []))
 
                 return {

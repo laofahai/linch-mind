@@ -6,6 +6,8 @@ from typing import Dict, Optional
 import psutil
 
 from models.api_models import ConnectorStatus
+from core.service_facade import get_service
+from core.error_handling import handle_errors, ErrorSeverity, ErrorCategory
 
 logger = logging.getLogger(__name__)
 
@@ -13,8 +15,10 @@ logger = logging.getLogger(__name__)
 class ConnectorHealthChecker:
     """连接器健康检查器 - 单一职责：监控和重启管理"""
 
-    def __init__(self, runtime_manager):
-        self.runtime_manager = runtime_manager
+    def __init__(self, connector_manager=None):
+        # 使用ServiceFacade获取ConnectorManager依赖
+        from services.connectors.connector_manager import ConnectorManager
+        self.connector_manager = connector_manager or get_service(ConnectorManager)
 
         # 重启管理
         self.restart_counts: Dict[str, int] = {}
@@ -68,39 +72,62 @@ class ConnectorHealthChecker:
                     self.health_check_interval * 2
                 )  # 出错时等待双倍时间
 
+    @handle_errors(
+        severity=ErrorSeverity.MEDIUM,
+        category=ErrorCategory.CONNECTOR_MANAGEMENT,
+        user_message="健康检查执行失败"
+    )
     async def _perform_health_check(self):
         """执行健康检查"""
-        running_connectors = self.runtime_manager.get_running_connectors()
+        running_connectors = self.connector_manager.get_running_connectors()
 
         for connector_id in running_connectors:
             await self._check_connector_health(connector_id)
 
+    @handle_errors(
+        severity=ErrorSeverity.MEDIUM,
+        category=ErrorCategory.CONNECTOR_MANAGEMENT,
+        user_message="连接器健康状态检查失败"
+    )
     async def _check_connector_health(self, connector_id: str):
-        """检查单个连接器健康状态"""
-        try:
-            process_info = self.runtime_manager.get_process_info(connector_id)
-            if not process_info:
-                logger.debug(f"连接器 {connector_id} 无进程信息")
-                return
+        """检查单个连接器健康状态 - 使用统一状态管理"""
+        process_info = self.connector_manager.get_process_info(connector_id)
+        if not process_info:
+            logger.debug(f"连接器 {connector_id} 无进程信息")
+            return
 
-            pid = process_info["pid"]
-
-            # 使用psutil检查进程状态
-            try:
-                psutil_process = psutil.Process(pid)
-                if not psutil_process.is_running():
-                    logger.warning(
-                        f"🔍 健康检查发现连接器 {connector_id} PID {pid} 已退出"
-                    )
+        # 获取进程状态信息
+        process_status = process_info.get("process_status", {})
+        actual_status = process_status.get("status", "unknown")
+        pid = process_info.get("pid")
+        
+        # 根据实际进程状态判断健康状况
+        if actual_status in ["not_running", "dead"]:
+            if pid:
+                logger.warning(f"🔍 健康检查发现连接器 {connector_id} 进程已停止 (last PID: {pid})")
+            else:
+                logger.warning(f"🔍 健康检查发现连接器 {connector_id} 没有运行进程")
+            await self._handle_connector_failure(connector_id)
+        elif actual_status == "running":
+            logger.debug(f"🔍 连接器 {connector_id} (PID: {pid}) 健康运行")
+        elif actual_status == "error":
+            logger.warning(f"🔍 健康检查发现连接器 {connector_id} 状态异常")
+            await self._handle_connector_failure(connector_id)
+        else:
+            # 对于unknown状态，进行额外验证
+            if pid:
+                try:
+                    psutil_process = psutil.Process(pid)
+                    if not psutil_process.is_running():
+                        logger.warning(f"🔍 健康检查发现连接器 {connector_id} PID {pid} 不存在")
+                        await self._handle_connector_failure(connector_id)
+                    else:
+                        logger.debug(f"🔍 连接器 {connector_id} (PID: {pid}) 健康运行")
+                except psutil.NoSuchProcess:
+                    logger.warning(f"🔍 健康检查发现连接器 {connector_id} PID {pid} 不存在")
                     await self._handle_connector_failure(connector_id)
-                else:
-                    logger.debug(f"🔍 连接器 {connector_id} (PID: {pid}) 健康运行")
-            except psutil.NoSuchProcess:
-                logger.warning(f"🔍 健康检查发现连接器 {connector_id} PID {pid} 不存在")
-                await self._handle_connector_failure(connector_id)
-
-        except Exception as e:
-            logger.error(f"检查连接器 {connector_id} 健康状态时出错: {e}")
+            else:
+                logger.debug(f"连接器 {connector_id} 状态未知且无PID，跳过检查")
 
     async def _handle_connector_failure(self, connector_id: str):
         """处理连接器失败"""
@@ -144,21 +171,33 @@ class ConnectorHealthChecker:
         # 等待重启间隔
         await asyncio.sleep(self.restart_interval)
 
-        # 这里需要通过回调或者事件通知主系统进行重启
-        # 因为HealthChecker不应该直接依赖具体的连接器配置
-        logger.info(f"触发连接器 {connector_id} 重启信号")
-        # TODO: 实现重启信号机制
+        # 通过ConnectorManager执行重启
+        try:
+            logger.info(f"开始重启连接器 {connector_id}")
+            restart_success = await self.connector_manager.restart_connector(connector_id)
+            
+            if restart_success:
+                logger.info(f"✅ 连接器 {connector_id} 重启成功")
+                # 重启成功后，重置重启计数（可选，根据策略决定）
+                # self.restart_counts[connector_id] = 0
+            else:
+                logger.error(f"❌ 连接器 {connector_id} 重启失败")
+                
+        except Exception as e:
+            logger.error(f"重启连接器 {connector_id} 时发生异常: {e}")
 
     def get_connector_status(self, connector_id: str) -> ConnectorStatus:
         """获取连接器状态"""
-        if not self.runtime_manager.is_connector_running(connector_id):
+        if not self.connector_manager.is_connector_running(connector_id):
             return ConnectorStatus.INSTALLED
 
-        process_info = self.runtime_manager.get_process_info(connector_id)
+        process_info = self.connector_manager.get_process_info(connector_id)
         if not process_info:
             return ConnectorStatus.INSTALLED
 
         pid = process_info["pid"]
+        if not pid:
+            return ConnectorStatus.INSTALLED
 
         try:
             psutil_process = psutil.Process(pid)
@@ -195,7 +234,7 @@ class ConnectorHealthChecker:
 
     def get_health_stats(self) -> dict:
         """获取整体健康统计"""
-        running_count = len(self.runtime_manager.get_running_connectors())
+        running_count = len(self.connector_manager.get_running_connectors())
         total_restarts = sum(self.restart_counts.values())
 
         return {

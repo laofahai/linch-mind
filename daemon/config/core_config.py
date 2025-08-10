@@ -4,6 +4,7 @@
 简化环境变量处理，移除复杂的正则表达式，专注稳定性
 """
 
+import sys
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
@@ -34,6 +35,7 @@ class ServerConfig:
     )  # 使用标准动态端口范围
     reload: bool = True
     log_level: str = "info"
+    debug: bool = True   # 🔧 开发环境保持debug日志
 
 
 @dataclass
@@ -316,19 +318,41 @@ class CoreConfigManager:
 
     def _setup_dynamic_paths(self):
         """设置动态路径配置 - 简化版本"""
-        # 设置数据库路径
-        self.config.database.sqlite_url = f"sqlite:///{self.db_dir}/linch_mind.db"
-        self.config.database.chroma_persist_directory = str(self.db_dir / "chromadb")
+        # 环境隔离：检测测试环境
+        import os
+        is_test_env = (
+            os.getenv('PYTEST_CURRENT_TEST') is not None or
+            os.getenv('TESTING') == '1' or 
+            'test' in sys.argv[0].lower() or
+            any('test' in arg for arg in sys.argv)
+        )
+        
+        if is_test_env:
+            # 测试环境：使用内存数据库
+            self.config.database.sqlite_url = "sqlite:///:memory:"
+            self.config.database.chroma_persist_directory = ":memory:"
+            logger.info("测试环境检测：使用内存数据库")
+        else:
+            # 生产环境：使用持久化数据库
+            self.config.database.sqlite_url = f"sqlite:///{self.db_dir}/linch_mind.db"
+            self.config.database.chroma_persist_directory = str(self.db_dir / "chromadb")
 
         # 设置存储目录路径
         if not self.config.storage.data_directory:
             self.config.storage.data_directory = str(self.data_dir)
 
-        # 设置连接器目录路径 - 使用用户目录
+        # 设置连接器目录路径 - 使用项目目录
         if self.config.connectors.config_dir == "connectors":
-            user_connectors_dir = self.app_data_dir / "connectors"
-            user_connectors_dir.mkdir(exist_ok=True)
-            self.config.connectors.config_dir = str(user_connectors_dir)
+            # 获取项目根目录（daemon目录的父目录）
+            project_root = Path(__file__).parent.parent.parent
+            project_connectors_dir = project_root / "connectors"
+            if project_connectors_dir.exists():
+                self.config.connectors.config_dir = str(project_connectors_dir)
+            else:
+                # 如果项目connectors目录不存在，使用用户目录作为fallback
+                user_connectors_dir = self.app_data_dir / "connectors"
+                user_connectors_dir.mkdir(exist_ok=True)
+                self.config.connectors.config_dir = str(user_connectors_dir)
 
     def _apply_env_overrides(self):
         """应用环境变量覆盖 - 移除，环境变量处理过度复杂"""
@@ -515,6 +539,4 @@ def get_storage_config() -> StorageConfig:
     return get_core_config().config.storage
 
 
-def get_data_config() -> StorageConfig:
-    """获取数据配置（兼容性别名）"""
-    return get_storage_config()
+# get_data_config() 已移除 - 使用 get_storage_config() 代替

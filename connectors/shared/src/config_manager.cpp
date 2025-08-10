@@ -74,10 +74,46 @@ bool ConfigManager::loadFromDaemon() {
             std::cout << "[ConfigManager] 配置加载响应: " << response.body.substr(0, 200) << "..." << std::endl;
             
             json configJson = json::parse(response.body);
+            json configData;
+            
+            // 检查响应格式，提取config字段
+            if (configJson.contains("config")) {
+                configData = configJson["config"];
+            } else {
+                configData = configJson;
+            }
+            
+            // 如果配置为空，尝试获取并应用默认配置
+            if (configData.empty() || configData.is_null()) {
+                std::cout << "[ConfigManager] 当前配置为空，尝试获取默认配置..." << std::endl;
+                
+                // 请求默认配置
+                std::string defaultPath = "/connector-config/defaults/" + m_connectorId;
+                auto defaultResponse = pImpl->client->get(defaultPath);
+                
+                if (defaultResponse.isSuccess()) {
+                    json defaultJson = json::parse(defaultResponse.body);
+                    if (defaultJson.contains("default_config")) {
+                        configData = defaultJson["default_config"];
+                        std::cout << "[ConfigManager] ✅ 成功获取默认配置" << std::endl;
+                        
+                        // 可选：将默认配置保存到daemon数据库
+                        json applyData = {
+                            {"connector_id", m_connectorId}
+                        };
+                        auto applyResponse = pImpl->client->post("/connector-config/apply-defaults", applyData.dump());
+                        if (applyResponse.isSuccess()) {
+                            std::cout << "[ConfigManager] ✅ 默认配置已应用到数据库" << std::endl;
+                        }
+                    }
+                } else {
+                    std::cerr << "[ConfigManager] ⚠️  无法获取默认配置，使用空配置" << std::endl;
+                }
+            }
             
             // 清空并更新配置
             m_config.clear();
-            for (auto& [key, value] : configJson.items()) {
+            for (auto& [key, value] : configData.items()) {
                 if (value.is_string()) {
                     m_config[key] = value.get<std::string>();
                 } else if (value.is_number()) {
@@ -146,29 +182,29 @@ void ConfigManager::configMonitorLoop(int check_interval_seconds) {
 }
 
 double ConfigManager::getCheckInterval() const {
-    std::string value = getConfigValue("check_interval", "5");
+    std::string value = getConfigValue("check_interval", "1.0");
     try {
         return std::stod(value);
     } catch (...) {
-        return 5.0;
+        return 1.0;
     }
 }
 
 int ConfigManager::getMinContentLength() const {
-    std::string value = getConfigValue("content_filters.min_length", "10");
+    std::string value = getConfigValue("min_content_length", "5");
     try {
         return std::stoi(value);
     } catch (...) {
-        return 10;
+        return 5;
     }
 }
 
 int ConfigManager::getMaxContentLength() const {
-    std::string value = getConfigValue("content_filters.max_length", "10000");
+    std::string value = getConfigValue("max_content_length", "50000");
     try {
         return std::stoi(value);
     } catch (...) {
-        return 10000;
+        return 50000;
     }
 }
 

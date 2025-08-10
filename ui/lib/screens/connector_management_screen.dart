@@ -318,9 +318,7 @@ class _ConnectorManagementScreenState
         .where((c) => c.state == ConnectorState.error)
         .length;
     final stoppedCount = _installedConnectors
-        .where((c) =>
-            c.state == ConnectorState.configured ||
-            c.state == ConnectorState.enabled)
+        .where((c) => c.state == ConnectorState.stopped)
         .length;
 
     return Container(

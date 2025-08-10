@@ -1,22 +1,29 @@
 import 'ipc_client.dart';
 import '../models/ipc_protocol.dart';
+import '../utils/enhanced_error_handler.dart';
+import 'response_parser.dart';
 
 /// IPC API适配器，提供HTTP风格的接口
 /// 将原有的HTTP API调用转换为IPC调用
 class IPCApiAdapter {
-  /// 适配IPC响应数据为Map格式
-  Map<String, dynamic> _adaptResponseData(dynamic data) {
-    if (data is Map<String, dynamic>) {
-      return data;
-    } else if (data is List) {
-      // 如果是List，包装成Map返回
-      return {'data': data};
+  /// 创建标准化响应格式
+  Map<String, dynamic> _createStandardResponse(IPCResponse response) {
+    if (response.success) {
+      return ResponseParser.createSuccessResponse(
+        data: ResponseParser.adaptResponseData(response.data),
+      );
     } else {
-      return data != null ? {'data': data} : {};
+      return ResponseParser.createErrorResponse(
+        error: response.error?.message ?? 'Unknown error',
+        data: {
+          'code': response.error?.code.toString() ?? 'unknown',
+        },
+      );
     }
   }
 
   final IPCClient _ipcClient = IPCService.instance;
+  final _errorHandler = EnhancedErrorHandler();
   bool _isInitialized = false;
 
   /// 确保IPC连接已建立
@@ -43,88 +50,125 @@ class IPCApiAdapter {
   /// GET请求
   Future<Map<String, dynamic>> get(String path,
       {Map<String, dynamic>? queryParameters}) async {
-    await _ensureInitialized();
-
-    final response = await _ipcClient.get(path, queryParams: queryParameters);
-
-    // 返回标准化的响应格式，包含success字段
-    return {
-      'success': response.success,
-      'data': response.success ? _adaptResponseData(response.data) : null,
-      'error': response.success
-          ? null
-          : {
-              'message': response.error?.message ?? 'Unknown error',
-              'code': response.error?.code.toString() ?? 'unknown',
-            },
-    };
+    return await _errorHandler.safeAsync(
+      () async {
+        await _ensureInitialized();
+        final response = await _ipcClient.get(path, queryParams: queryParameters);
+        
+        // 处理IPC错误
+        if (!response.success && response.error != null) {
+          _errorHandler.handleIPCError(
+            response.error!.toJson(),
+            operation: 'GET $path',
+          );
+        }
+        
+        return _createStandardResponse(response);
+      },
+      context: 'IPC GET $path',
+      fallback: ResponseParser.createErrorResponse(
+        error: 'Connection failed',
+        data: {'path': path, 'operation': 'GET'},
+      ),
+    ) ?? ResponseParser.createErrorResponse(
+      error: 'Request failed',
+      data: {'path': path, 'operation': 'GET'},
+    );
   }
 
   /// POST请求
   Future<Map<String, dynamic>> post(String path,
       {Map<String, dynamic>? data,
       Map<String, dynamic>? queryParameters}) async {
-    await _ensureInitialized();
-
-    final response = await _ipcClient.post(path, data: data);
-
-    // 返回标准化的响应格式，包含success字段
-    return {
-      'success': response.success,
-      'data': response.success ? _adaptResponseData(response.data) : null,
-      'error': response.success
-          ? null
-          : {
-              'message': response.error?.message ?? 'Unknown error',
-              'code': response.error?.code.toString() ?? 'unknown',
-            },
-    };
+    return await _errorHandler.safeAsync(
+      () async {
+        await _ensureInitialized();
+        final response = await _ipcClient.post(path, data: data);
+        
+        // 处理IPC错误
+        if (!response.success && response.error != null) {
+          _errorHandler.handleIPCError(
+            response.error!.toJson(),
+            operation: 'POST $path',
+          );
+        }
+        
+        return _createStandardResponse(response);
+      },
+      context: 'IPC POST $path',
+      fallback: ResponseParser.createErrorResponse(
+        error: 'Connection failed',
+        data: {'path': path, 'operation': 'POST'},
+      ),
+    ) ?? ResponseParser.createErrorResponse(
+      error: 'Request failed', 
+      data: {'path': path, 'operation': 'POST'},
+    );
   }
 
   /// PUT请求
   Future<Map<String, dynamic>> put(String path,
       {Map<String, dynamic>? data}) async {
-    await _ensureInitialized();
-
-    final response = await _ipcClient.put(path, data: data);
-
-    // 返回标准化的响应格式，包含success字段
-    return {
-      'success': response.success,
-      'data': response.success ? _adaptResponseData(response.data) : null,
-      'error': response.success
-          ? null
-          : {
-              'message': response.error?.message ?? 'Unknown error',
-              'code': response.error?.code.toString() ?? 'unknown',
-            },
-    };
+    return await _errorHandler.safeAsync(
+      () async {
+        await _ensureInitialized();
+        final response = await _ipcClient.put(path, data: data);
+        
+        // 处理IPC错误
+        if (!response.success && response.error != null) {
+          _errorHandler.handleIPCError(
+            response.error!.toJson(),
+            operation: 'PUT $path',
+          );
+        }
+        
+        return _createStandardResponse(response);
+      },
+      context: 'IPC PUT $path',
+      fallback: ResponseParser.createErrorResponse(
+        error: 'Connection failed',
+        data: {'path': path, 'operation': 'PUT'},
+      ),
+    ) ?? ResponseParser.createErrorResponse(
+      error: 'Request failed',
+      data: {'path': path, 'operation': 'PUT'},
+    );
   }
 
   /// DELETE请求
   Future<Map<String, dynamic>> delete(String path,
       {Map<String, dynamic>? queryParameters}) async {
-    await _ensureInitialized();
+    return await _errorHandler.safeAsync(
+      () async {
+        await _ensureInitialized();
 
-    final request = IPCRequest(
-      method: 'DELETE',
-      path: path,
-      queryParams: queryParameters ?? {},
+        final request = IPCRequest(
+          method: 'DELETE',
+          path: path,
+          queryParams: queryParameters ?? {},
+        );
+
+        final response = await _ipcClient.sendRequest(request);
+        
+        // 处理IPC错误
+        if (!response.success && response.error != null) {
+          _errorHandler.handleIPCError(
+            response.error!.toJson(),
+            operation: 'DELETE $path',
+          );
+        }
+        
+        return _createStandardResponse(response);
+      },
+      context: 'IPC DELETE $path',
+      fallback: ResponseParser.createErrorResponse(
+        error: 'Connection failed',
+        data: {'path': path, 'operation': 'DELETE'},
+      ),
+    ) ?? ResponseParser.createErrorResponse(
+      error: 'Request failed',
+      data: {'path': path, 'operation': 'DELETE'},
     );
-
-    final response = await _ipcClient.sendRequest(request);
-
-    // 返回标准化的响应格式，包含success字段
-    return {
-      'success': response.success,
-      'data': response.success ? _adaptResponseData(response.data) : null,
-      'error': response.success
-          ? null
-          : {
-              'message': response.error?.message ?? 'Unknown error',
-              'code': response.error?.code.toString() ?? 'unknown',
-            },
-    };
   }
 }
 

@@ -1,14 +1,18 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../services/daemon_lifecycle_service.dart';
 import '../services/daemon_port_service.dart';
+import 'base_state_notifier.dart';
 
 /// Daemon状态数据类
-class DaemonState {
+class DaemonState implements BaseState {
   final bool isRunning;
   final RunMode mode;
   final DaemonInfo? daemonInfo;
   final String? error;
+  @override
   final bool isLoading;
+  @override
+  final DateTime lastUpdate;
 
   const DaemonState({
     required this.isRunning,
@@ -16,7 +20,14 @@ class DaemonState {
     this.daemonInfo,
     this.error,
     this.isLoading = false,
+    required this.lastUpdate,
   });
+
+  @override
+  String? get errorMessage => error;
+
+  @override
+  bool get hasError => error != null;
 
   DaemonState copyWith({
     bool? isRunning,
@@ -24,23 +35,27 @@ class DaemonState {
     DaemonInfo? daemonInfo,
     String? error,
     bool? isLoading,
+    DateTime? lastUpdate,
+    bool clearError = false,
   }) {
     return DaemonState(
       isRunning: isRunning ?? this.isRunning,
       mode: mode ?? this.mode,
       daemonInfo: daemonInfo ?? this.daemonInfo,
-      error: error ?? this.error,
+      error: clearError ? null : (error ?? this.error),
       isLoading: isLoading ?? this.isLoading,
+      lastUpdate: lastUpdate ?? this.lastUpdate,
     );
   }
 }
 
 /// Daemon状态管理器
-class DaemonStateNotifier extends StateNotifier<DaemonState> {
+class DaemonStateNotifier extends BaseStateNotifier<DaemonState> {
   DaemonStateNotifier()
       : super(DaemonState(
           isRunning: false,
           mode: DaemonLifecycleService.instance.runMode,
+          lastUpdate: DateTime.now(),
         )) {
     _initialize();
   }
@@ -56,7 +71,8 @@ class DaemonStateNotifier extends StateNotifier<DaemonState> {
 
   /// 刷新daemon状态
   Future<void> refreshStatus() async {
-    state = state.copyWith(isLoading: true, error: null);
+    setLoading(true);
+    clearError();
 
     try {
       final daemonInfo = await _portService.discoverDaemon();
@@ -66,24 +82,27 @@ class DaemonStateNotifier extends StateNotifier<DaemonState> {
         isRunning: isRunning,
         daemonInfo: daemonInfo,
         isLoading: false,
+        lastUpdate: DateTime.now(),
       );
     } catch (e) {
       state = state.copyWith(
         isRunning: false,
-        error: e.toString(),
         isLoading: false,
+        lastUpdate: DateTime.now(),
       );
+      handleError(e.toString());
     }
   }
 
   /// 启动daemon
   Future<bool> startDaemon() async {
     if (state.mode == RunMode.production) {
-      state = state.copyWith(error: '生产模式下不支持手动启动daemon');
+      handleError('生产模式下不支持手动启动daemon');
       return false;
     }
 
-    state = state.copyWith(isLoading: true, error: null);
+    setLoading(true);
+    clearError();
 
     try {
       final result = await _lifecycleService.ensureDaemonRunning();
@@ -93,22 +112,25 @@ class DaemonStateNotifier extends StateNotifier<DaemonState> {
           isRunning: true,
           daemonInfo: result.daemonInfo,
           isLoading: false,
+          lastUpdate: DateTime.now(),
         );
         return true;
       } else {
         state = state.copyWith(
           isRunning: false,
-          error: result.error,
           isLoading: false,
+          lastUpdate: DateTime.now(),
         );
+        handleError(result.error ?? 'Daemon启动失败');
         return false;
       }
     } catch (e) {
       state = state.copyWith(
         isRunning: false,
-        error: e.toString(),
         isLoading: false,
+        lastUpdate: DateTime.now(),
       );
+      handleError(e.toString());
       return false;
     }
   }
@@ -116,11 +138,12 @@ class DaemonStateNotifier extends StateNotifier<DaemonState> {
   /// 停止daemon
   Future<bool> stopDaemon() async {
     if (state.mode == RunMode.production) {
-      state = state.copyWith(error: '生产模式下不支持手动停止daemon');
+      handleError('生产模式下不支持手动停止daemon');
       return false;
     }
 
-    state = state.copyWith(isLoading: true, error: null);
+    setLoading(true);
+    clearError();
 
     try {
       final success = await _lifecycleService.stopDaemon();
@@ -130,20 +153,23 @@ class DaemonStateNotifier extends StateNotifier<DaemonState> {
           isRunning: false,
           daemonInfo: null,
           isLoading: false,
+          lastUpdate: DateTime.now(),
         );
         return true;
       } else {
         state = state.copyWith(
-          error: '停止daemon失败',
           isLoading: false,
+          lastUpdate: DateTime.now(),
         );
+        handleError('停止daemon失败');
         return false;
       }
     } catch (e) {
       state = state.copyWith(
-        error: e.toString(),
         isLoading: false,
+        lastUpdate: DateTime.now(),
       );
+      handleError(e.toString());
       return false;
     }
   }
@@ -151,11 +177,12 @@ class DaemonStateNotifier extends StateNotifier<DaemonState> {
   /// 重启daemon
   Future<bool> restartDaemon() async {
     if (state.mode == RunMode.production) {
-      state = state.copyWith(error: '生产模式下不支持重启daemon');
+      handleError('生产模式下不支持重启daemon');
       return false;
     }
 
-    state = state.copyWith(isLoading: true, error: null);
+    setLoading(true);
+    clearError();
 
     try {
       final result = await _lifecycleService.restartDaemon();
@@ -165,29 +192,52 @@ class DaemonStateNotifier extends StateNotifier<DaemonState> {
           isRunning: true,
           daemonInfo: result.daemonInfo,
           isLoading: false,
+          lastUpdate: DateTime.now(),
         );
         return true;
       } else {
         state = state.copyWith(
           isRunning: false,
-          error: result.error,
           isLoading: false,
+          lastUpdate: DateTime.now(),
         );
+        handleError(result.error ?? '重启daemon失败');
         return false;
       }
     } catch (e) {
       state = state.copyWith(
         isRunning: false,
-        error: e.toString(),
         isLoading: false,
+        lastUpdate: DateTime.now(),
       );
+      handleError(e.toString());
       return false;
     }
   }
 
-  /// 清除错误
-  void clearError() {
-    state = state.copyWith(error: null);
+  @override
+  DaemonState updateStateWithError(String error) {
+    return state.copyWith(
+      error: error,
+      isLoading: false,
+      lastUpdate: DateTime.now(),
+    );
+  }
+
+  @override
+  DaemonState updateStateWithClearError() {
+    return state.copyWith(
+      clearError: true,
+      lastUpdate: DateTime.now(),
+    );
+  }
+
+  @override
+  DaemonState updateStateWithLoading(bool loading) {
+    return state.copyWith(
+      isLoading: loading,
+      lastUpdate: DateTime.now(),
+    );
   }
 }
 

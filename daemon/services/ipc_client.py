@@ -51,29 +51,17 @@ class IPCClient:
 
             config_manager = get_config_manager()
 
-            # 检查daemon.socket文件
+            # 纯IPC架构：只从daemon.socket文件读取socket路径
             socket_file = config_manager.get_paths()["app_data"] / "daemon.socket"
             if socket_file.exists():
                 with open(socket_file, "r") as f:
                     socket_info = json.load(f)
                     if socket_info.get("type") == "unix_socket":
                         return socket_info["path"]
+                    else:
+                        raise IPCConnectionError(f"Invalid socket type: {socket_info.get('type')}")
 
-            # 检查daemon.port文件（兼容性）
-            port_file = config_manager.get_paths()["app_data"] / "daemon.port"
-            if port_file.exists():
-                with open(port_file, "r") as f:
-                    content = f.read().strip()
-                    if content.startswith("0:"):  # port=0表示IPC模式
-                        pid = content.split(":")[1]
-                        # 构造socket路径
-                        import tempfile
-
-                        return os.path.join(
-                            tempfile.gettempdir(), f"linch-mind-{pid}.sock"
-                        )
-
-            raise IPCConnectionError("Could not discover IPC socket path")
+            raise IPCConnectionError("Daemon socket配置文件不存在，请确保daemon正常启动")
 
         except Exception as e:
             raise IPCConnectionError(f"Failed to discover socket path: {e}")

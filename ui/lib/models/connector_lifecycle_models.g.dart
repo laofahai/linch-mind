@@ -91,11 +91,13 @@ _$ConnectorInfoImpl _$$ConnectorInfoImplFromJson(Map<String, dynamic> json) =>
       displayName: json['display_name'] as String,
       state: $enumDecode(_$ConnectorStateEnumMap, json['state']),
       enabled: json['enabled'] as bool? ?? true,
-      processId: (json['process_id'] as num?)?.toInt(),
+      processId: _processIdFromJson(json['process_id']),
       lastHeartbeat: json['last_heartbeat'] == null
           ? null
           : DateTime.parse(json['last_heartbeat'] as String),
-      dataCount: (json['data_count'] as num?)?.toInt() ?? 0,
+      dataCount: json['data_count'] == null
+          ? 0
+          : _dataCountFromJson(json['data_count']),
       errorMessage: json['error_message'] as String?,
       createdAt: json['created_at'] == null
           ? null
@@ -124,11 +126,11 @@ Map<String, dynamic> _$$ConnectorInfoImplToJson(_$ConnectorInfoImpl instance) =>
 const _$ConnectorStateEnumMap = {
   ConnectorState.available: 'available',
   ConnectorState.installed: 'installed',
-  ConnectorState.configured: 'configured',
-  ConnectorState.enabled: 'enabled',
   ConnectorState.running: 'running',
-  ConnectorState.error: 'error',
+  ConnectorState.stopped: 'stopped',
+  ConnectorState.starting: 'starting',
   ConnectorState.stopping: 'stopping',
+  ConnectorState.error: 'error',
   ConnectorState.updating: 'updating',
   ConnectorState.uninstalling: 'uninstalling',
 };
