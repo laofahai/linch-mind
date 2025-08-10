@@ -15,9 +15,10 @@ class InstalledConnectorsTab extends ConsumerStatefulWidget {
       _InstalledConnectorsTabState();
 }
 
-class _InstalledConnectorsTabState extends ConsumerState<InstalledConnectorsTab> {
+class _InstalledConnectorsTabState
+    extends ConsumerState<InstalledConnectorsTab> {
   final _apiClient = ConnectorLifecycleApiService.instance;
-  
+
   List<ConnectorInfo> _installedConnectors = [];
   bool _installedLoading = true;
   String? _installedErrorMessage;
@@ -57,8 +58,12 @@ class _InstalledConnectorsTabState extends ConsumerState<InstalledConnectorsTab>
     if (_installedSearchQuery.isEmpty) return _installedConnectors;
     return _installedConnectors
         .where((connector) =>
-            connector.displayName.toLowerCase().contains(_installedSearchQuery.toLowerCase()) ||
-            connector.connectorId.toLowerCase().contains(_installedSearchQuery.toLowerCase()))
+            connector.displayName
+                .toLowerCase()
+                .contains(_installedSearchQuery.toLowerCase()) ||
+            connector.connectorId
+                .toLowerCase()
+                .contains(_installedSearchQuery.toLowerCase()))
         .toList();
   }
 
@@ -132,17 +137,15 @@ class _InstalledConnectorsTabState extends ConsumerState<InstalledConnectorsTab>
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(
-              _installedSearchQuery.isNotEmpty 
-                  ? Icons.search_off 
+              _installedSearchQuery.isNotEmpty
+                  ? Icons.search_off
                   : Icons.extension,
               size: 64,
               color: Colors.grey[400],
             ),
             const SizedBox(height: 16),
             Text(
-              _installedSearchQuery.isNotEmpty
-                  ? '没有找到匹配的连接器'
-                  : '还没有安装连接器',
+              _installedSearchQuery.isNotEmpty ? '没有找到匹配的连接器' : '还没有安装连接器',
               style: TextStyle(
                 fontSize: 18,
                 color: Colors.grey[600],

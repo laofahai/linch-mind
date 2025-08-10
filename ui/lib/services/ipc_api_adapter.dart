@@ -51,29 +51,31 @@ class IPCApiAdapter {
   Future<Map<String, dynamic>> get(String path,
       {Map<String, dynamic>? queryParameters}) async {
     return await _errorHandler.safeAsync(
-      () async {
-        await _ensureInitialized();
-        final response = await _ipcClient.get(path, queryParams: queryParameters);
-        
-        // 处理IPC错误
-        if (!response.success && response.error != null) {
-          _errorHandler.handleIPCError(
-            response.error!.toJson(),
-            operation: 'GET $path',
-          );
-        }
-        
-        return _createStandardResponse(response);
-      },
-      context: 'IPC GET $path',
-      fallback: ResponseParser.createErrorResponse(
-        error: 'Connection failed',
-        data: {'path': path, 'operation': 'GET'},
-      ),
-    ) ?? ResponseParser.createErrorResponse(
-      error: 'Request failed',
-      data: {'path': path, 'operation': 'GET'},
-    );
+          () async {
+            await _ensureInitialized();
+            final response =
+                await _ipcClient.get(path, queryParams: queryParameters);
+
+            // 处理IPC错误
+            if (!response.success && response.error != null) {
+              _errorHandler.handleIPCError(
+                response.error!.toJson(),
+                operation: 'GET $path',
+              );
+            }
+
+            return _createStandardResponse(response);
+          },
+          context: 'IPC GET $path',
+          fallback: ResponseParser.createErrorResponse(
+            error: 'Connection failed',
+            data: {'path': path, 'operation': 'GET'},
+          ),
+        ) ??
+        ResponseParser.createErrorResponse(
+          error: 'Request failed',
+          data: {'path': path, 'operation': 'GET'},
+        );
   }
 
   /// POST请求
@@ -81,94 +83,97 @@ class IPCApiAdapter {
       {Map<String, dynamic>? data,
       Map<String, dynamic>? queryParameters}) async {
     return await _errorHandler.safeAsync(
-      () async {
-        await _ensureInitialized();
-        final response = await _ipcClient.post(path, data: data);
-        
-        // 处理IPC错误
-        if (!response.success && response.error != null) {
-          _errorHandler.handleIPCError(
-            response.error!.toJson(),
-            operation: 'POST $path',
-          );
-        }
-        
-        return _createStandardResponse(response);
-      },
-      context: 'IPC POST $path',
-      fallback: ResponseParser.createErrorResponse(
-        error: 'Connection failed',
-        data: {'path': path, 'operation': 'POST'},
-      ),
-    ) ?? ResponseParser.createErrorResponse(
-      error: 'Request failed', 
-      data: {'path': path, 'operation': 'POST'},
-    );
+          () async {
+            await _ensureInitialized();
+            final response = await _ipcClient.post(path, data: data);
+
+            // 处理IPC错误
+            if (!response.success && response.error != null) {
+              _errorHandler.handleIPCError(
+                response.error!.toJson(),
+                operation: 'POST $path',
+              );
+            }
+
+            return _createStandardResponse(response);
+          },
+          context: 'IPC POST $path',
+          fallback: ResponseParser.createErrorResponse(
+            error: 'Connection failed',
+            data: {'path': path, 'operation': 'POST'},
+          ),
+        ) ??
+        ResponseParser.createErrorResponse(
+          error: 'Request failed',
+          data: {'path': path, 'operation': 'POST'},
+        );
   }
 
   /// PUT请求
   Future<Map<String, dynamic>> put(String path,
       {Map<String, dynamic>? data}) async {
     return await _errorHandler.safeAsync(
-      () async {
-        await _ensureInitialized();
-        final response = await _ipcClient.put(path, data: data);
-        
-        // 处理IPC错误
-        if (!response.success && response.error != null) {
-          _errorHandler.handleIPCError(
-            response.error!.toJson(),
-            operation: 'PUT $path',
-          );
-        }
-        
-        return _createStandardResponse(response);
-      },
-      context: 'IPC PUT $path',
-      fallback: ResponseParser.createErrorResponse(
-        error: 'Connection failed',
-        data: {'path': path, 'operation': 'PUT'},
-      ),
-    ) ?? ResponseParser.createErrorResponse(
-      error: 'Request failed',
-      data: {'path': path, 'operation': 'PUT'},
-    );
+          () async {
+            await _ensureInitialized();
+            final response = await _ipcClient.put(path, data: data);
+
+            // 处理IPC错误
+            if (!response.success && response.error != null) {
+              _errorHandler.handleIPCError(
+                response.error!.toJson(),
+                operation: 'PUT $path',
+              );
+            }
+
+            return _createStandardResponse(response);
+          },
+          context: 'IPC PUT $path',
+          fallback: ResponseParser.createErrorResponse(
+            error: 'Connection failed',
+            data: {'path': path, 'operation': 'PUT'},
+          ),
+        ) ??
+        ResponseParser.createErrorResponse(
+          error: 'Request failed',
+          data: {'path': path, 'operation': 'PUT'},
+        );
   }
 
   /// DELETE请求
   Future<Map<String, dynamic>> delete(String path,
       {Map<String, dynamic>? queryParameters}) async {
     return await _errorHandler.safeAsync(
-      () async {
-        await _ensureInitialized();
+          () async {
+            await _ensureInitialized();
 
-        final request = IPCRequest(
-          method: 'DELETE',
-          path: path,
-          queryParams: queryParameters ?? {},
+            final request = IPCRequest(
+              method: 'DELETE',
+              path: path,
+              queryParams: queryParameters ?? {},
+            );
+
+            final response = await _ipcClient.sendRequest(request);
+
+            // 处理IPC错误
+            if (!response.success && response.error != null) {
+              _errorHandler.handleIPCError(
+                response.error!.toJson(),
+                operation: 'DELETE $path',
+              );
+            }
+
+            return _createStandardResponse(response);
+          },
+          context: 'IPC DELETE $path',
+          fallback: ResponseParser.createErrorResponse(
+            error: 'Connection failed',
+            data: {'path': path, 'operation': 'DELETE'},
+          ),
+        ) ??
+        ResponseParser.createErrorResponse(
+          error: 'Request failed',
+          data: {'path': path, 'operation': 'DELETE'},
         );
-
-        final response = await _ipcClient.sendRequest(request);
-        
-        // 处理IPC错误
-        if (!response.success && response.error != null) {
-          _errorHandler.handleIPCError(
-            response.error!.toJson(),
-            operation: 'DELETE $path',
-          );
-        }
-        
-        return _createStandardResponse(response);
-      },
-      context: 'IPC DELETE $path',
-      fallback: ResponseParser.createErrorResponse(
-        error: 'Connection failed',
-        data: {'path': path, 'operation': 'DELETE'},
-      ),
-    ) ?? ResponseParser.createErrorResponse(
-      error: 'Request failed',
-      data: {'path': path, 'operation': 'DELETE'},
-    );
   }
 }
 

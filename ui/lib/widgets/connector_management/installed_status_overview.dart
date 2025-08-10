@@ -12,12 +12,18 @@ class InstalledStatusOverview extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final runningCount = connectors.where((c) => c.state == ConnectorState.running).length;
-    final startingCount = connectors.where((c) => c.state == ConnectorState.starting).length;
-    final stoppedCount = connectors.where((c) => c.state == ConnectorState.stopped).length;
-    final errorCount = connectors.where((c) => c.state == ConnectorState.error).length;
-    final installedCount = connectors.where((c) => c.state == ConnectorState.installed).length;
-    final stoppingCount = connectors.where((c) => c.state == ConnectorState.stopping).length;
+    final runningCount =
+        connectors.where((c) => c.state == ConnectorState.running).length;
+    final startingCount =
+        connectors.where((c) => c.state == ConnectorState.starting).length;
+    final stoppedCount =
+        connectors.where((c) => c.state == ConnectorState.stopped).length;
+    final errorCount =
+        connectors.where((c) => c.state == ConnectorState.error).length;
+    final installedCount =
+        connectors.where((c) => c.state == ConnectorState.installed).length;
+    final stoppingCount =
+        connectors.where((c) => c.state == ConnectorState.stopping).length;
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),

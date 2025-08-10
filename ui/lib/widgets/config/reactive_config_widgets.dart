@@ -5,7 +5,6 @@ import 'package:file_picker/file_picker.dart';
 import '../../services/form_builder_service.dart';
 import 'reactive_directory_picker.dart';
 
-
 /// 基于reactive_forms的配置组件库
 class ReactiveConfigWidgets {
   /// 构建字段组件
@@ -16,8 +15,9 @@ class ReactiveConfigWidgets {
   }) {
     final widgetType = FormBuilderService.inferWidgetType(fieldConfig);
     final fieldType = fieldConfig['type'] as String?;
-    
-    debugPrint('[DEBUG] Building field widget: $fieldName, type: $fieldType, widget: $widgetType');
+
+    debugPrint(
+        '[DEBUG] Building field widget: $fieldName, type: $fieldType, widget: $widgetType');
 
     switch (widgetType) {
       case 'text_input':
@@ -147,16 +147,17 @@ class ReactiveConfigWidgets {
           builder: (context, formGroup, child) {
             // 获取FormControl并确保类型兼容性
             final control = formGroup.control(fieldName);
-            
+
             // 确保滑块值在有效范围内
-            final currentValue = _safeToDouble(control.value, minimum, min: minimum, max: maximum);
-            
+            final currentValue = _safeToDouble(control.value, minimum,
+                min: minimum, max: maximum);
+
             // 优化：避免循环更新，只在初始化时进行值修正
             // 使用标记来避免重复更新
-            final needsUpdate = control.value != null && 
-                               control.value != currentValue &&
-                               !control.dirty; // 只在控件未被用户修改时更新
-            
+            final needsUpdate = control.value != null &&
+                control.value != currentValue &&
+                !control.dirty; // 只在控件未被用户修改时更新
+
             if (needsUpdate) {
               // 延迟更新，避免在构建过程中修改状态
               Future.microtask(() {
@@ -165,13 +166,14 @@ class ReactiveConfigWidgets {
                 }
               });
             }
-            
+
             return Slider(
               value: currentValue,
               min: minimum,
               max: maximum,
               divisions: ((maximum - minimum) / step).round(),
-              label: '${currentValue.toStringAsFixed(_getDecimalPlaces(step))}${unit ?? ''}',
+              label:
+                  '${currentValue.toStringAsFixed(_getDecimalPlaces(step))}${unit ?? ''}',
               onChanged: (value) {
                 // 根据step对值进行舍入
                 final roundedValue = (value / step).round() * step;
@@ -185,8 +187,9 @@ class ReactiveConfigWidgets {
         ReactiveFormConsumer(
           builder: (context, formGroup, child) {
             final control = formGroup.control(fieldName);
-            final currentValue = _safeToDouble(control.value, minimum, min: minimum, max: maximum);
-            
+            final currentValue = _safeToDouble(control.value, minimum,
+                min: minimum, max: maximum);
+
             return Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16.0),
               child: Row(
@@ -197,7 +200,8 @@ class ReactiveConfigWidgets {
                     style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
                   ),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
                       color: Theme.of(context).colorScheme.primaryContainer,
                       borderRadius: BorderRadius.circular(12),
@@ -265,8 +269,10 @@ class ReactiveConfigWidgets {
   }
 
   /// 目录选择器组件 - 专门处理List<String>类型的目录路径
-  static Widget _buildDirectoryPicker(String fieldName, Map<String, dynamic> config) {
-    debugPrint('[DEBUG] Creating ReactiveDirectoryPicker for field: $fieldName');
+  static Widget _buildDirectoryPicker(
+      String fieldName, Map<String, dynamic> config) {
+    debugPrint(
+        '[DEBUG] Creating ReactiveDirectoryPicker for field: $fieldName');
     return ReactiveDirectoryPicker(
       formControlName: fieldName,
       fieldConfig: config,
@@ -356,7 +362,8 @@ class ReactiveConfigWidgets {
   }
 
   /// 安全地将FormControl值转换为double，带有默认值和范围限制
-  static double _safeToDouble(dynamic value, double defaultValue, {double? min, double? max}) {
+  static double _safeToDouble(dynamic value, double defaultValue,
+      {double? min, double? max}) {
     double result;
     if (value == null) {
       result = defaultValue;
@@ -370,23 +377,23 @@ class ReactiveConfigWidgets {
       final parsed = double.tryParse(value.toString());
       result = parsed ?? defaultValue;
     }
-    
+
     // 确保值在指定范围内
     if (min != null && result < min) result = min;
     if (max != null && result > max) result = max;
-    
+
     return result;
   }
 
   /// 根据step值获取适当的小数位数
   static int _getDecimalPlaces(double step) {
     if (step >= 1) return 0;
-    
+
     // 将step转换为字符串并计算小数位数
     final stepStr = step.toString();
     final dotIndex = stepStr.indexOf('.');
     if (dotIndex == -1) return 0;
-    
+
     // 忽略尾部的0
     int decimalPlaces = 0;
     for (int i = dotIndex + 1; i < stepStr.length; i++) {
@@ -394,7 +401,7 @@ class ReactiveConfigWidgets {
         decimalPlaces++;
       }
     }
-    
+
     // 最多返回2位小数
     return decimalPlaces.clamp(0, 2);
   }
@@ -410,11 +417,13 @@ class _ReactiveTagInput extends ReactiveFormField<List<String>, List<String>> {
   }) : super(
           formControlName: formControlName,
           builder: (field) {
-            debugPrint('[DEBUG] ReactiveTagInput builder called for $formControlName');
-            debugPrint('[DEBUG] Field control type: ${field.control.runtimeType}');
+            debugPrint(
+                '[DEBUG] ReactiveTagInput builder called for $formControlName');
+            debugPrint(
+                '[DEBUG] Field control type: ${field.control.runtimeType}');
             debugPrint('[DEBUG] Field value type: ${field.value.runtimeType}');
             debugPrint('[DEBUG] Field value: ${field.value}');
-            
+
             // 安全的值获取和类型转换
             List<String> safeValue;
             try {
@@ -424,16 +433,20 @@ class _ReactiveTagInput extends ReactiveFormField<List<String>, List<String>> {
                 safeValue = field.value!;
               } else if (field.value is List) {
                 // 尝试转换为字符串列表
-                safeValue = field.value!.map((item) => item?.toString() ?? '').where((str) => str.isNotEmpty).toList();
+                safeValue = field.value!
+                    .map((item) => item?.toString() ?? '')
+                    .where((str) => str.isNotEmpty)
+                    .toList();
               } else {
-                debugPrint('[WARNING] Unexpected field value type: ${field.value.runtimeType}, resetting to empty list');
+                debugPrint(
+                    '[WARNING] Unexpected field value type: ${field.value.runtimeType}, resetting to empty list');
                 safeValue = <String>[];
               }
             } catch (e) {
               debugPrint('[ERROR] Failed to convert field value: $e');
               safeValue = <String>[];
             }
-            
+
             return _TagInputWidget(
               value: safeValue,
               onChanged: (List<String> newValue) {
@@ -621,20 +634,19 @@ class _ReactiveNumberField extends ReactiveFormField<num, num> {
             final controller = TextEditingController(
               text: field.value?.toString() ?? '',
             );
-            
+
             // 获取范围限制
             final minimum = config['minimum'] as num?;
             final maximum = config['maximum'] as num?;
-            
+
             // 监听控制器变化
             controller.addListener(() {
               final text = controller.text;
               if (text.isEmpty) {
                 field.didChange(null);
               } else {
-                final numValue = isInteger 
-                    ? int.tryParse(text) 
-                    : double.tryParse(text);
+                final numValue =
+                    isInteger ? int.tryParse(text) : double.tryParse(text);
                 if (numValue != null) {
                   // 应用范围限制
                   num validatedValue = numValue;
@@ -644,7 +656,7 @@ class _ReactiveNumberField extends ReactiveFormField<num, num> {
                   if (maximum != null && validatedValue > maximum) {
                     validatedValue = maximum;
                   }
-                  
+
                   // 如果值被限制了，更新输入框显示
                   if (validatedValue != numValue) {
                     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -654,12 +666,12 @@ class _ReactiveNumberField extends ReactiveFormField<num, num> {
                       );
                     });
                   }
-                  
+
                   field.didChange(validatedValue);
                 }
               }
             });
-            
+
             // 监听表单值变化
             field.control.valueChanges.listen((value) {
               final text = value?.toString() ?? '';

@@ -7,7 +7,7 @@ class FormBuilderService {
   static Map<String, dynamic>? _safeMapCast(dynamic value) {
     if (value == null) return null;
     if (value is Map<String, dynamic>) return value;
-    
+
     // 尝试转换Map<dynamic, dynamic>或其他Map类型
     if (value is Map) {
       try {
@@ -17,7 +17,7 @@ class FormBuilderService {
         return null;
       }
     }
-    
+
     debugPrint('[WARNING] Expected Map but got ${value.runtimeType}');
     return null;
   }
@@ -26,7 +26,7 @@ class FormBuilderService {
   static List<T>? _safeListCast<T>(dynamic value) {
     if (value == null) return null;
     if (value is List<T>) return value;
-    
+
     if (value is List) {
       try {
         return List<T>.from(value);
@@ -35,18 +35,20 @@ class FormBuilderService {
         return null;
       }
     }
-    
+
     debugPrint('[WARNING] Expected List but got ${value.runtimeType}');
     return null;
   }
+
   /// 从 JSON Schema 构建 FormGroup - 原生嵌套结构，无字符替换
   static FormGroup buildFormFromSchema({
     required Map<String, dynamic> schema,
     Map<String, dynamic>? initialData,
     Map<String, dynamic>? uiSchema,
   }) {
-    final properties = _safeMapCast(schema['properties']) ?? <String, dynamic>{};
-    
+    final properties =
+        _safeMapCast(schema['properties']) ?? <String, dynamic>{};
+
     final required = _safeListCast<String>(schema['required']) ?? <String>[];
     final controls = <String, AbstractControl<dynamic>>{};
 
@@ -66,7 +68,6 @@ class FormBuilderService {
 
     return FormGroup(controls);
   }
-
 
   /// 为单个字段创建控件
   static AbstractControl<dynamic> _createControlForField({
@@ -172,7 +173,7 @@ class FormBuilderService {
     // 智能类型推断 - 根据组件类型决定最合适的数据类型
     final inferredWidget = inferWidgetType(fieldSchema);
     final isInteger = fieldSchema['type'] == 'integer';
-    
+
     // Slider组件优先使用double类型，确保兼容性
     if (inferredWidget == 'slider') {
       final doubleValue = _safeConvertToDouble(initialValue);
@@ -181,7 +182,7 @@ class FormBuilderService {
         validators: validators,
       );
     }
-    
+
     // 其他数值组件使用num类型，保持灵活性
     final numValue = _safeConvertToNum(initialValue, isInteger);
     return FormControl<num>(
@@ -233,7 +234,10 @@ class FormBuilderService {
       if (initialValue is List) {
         // 安全转换，确保所有项都是字符串类型
         try {
-          initialList = initialValue.map((item) => item?.toString() ?? '').where((str) => str.isNotEmpty).toList();
+          initialList = initialValue
+              .map((item) => item?.toString() ?? '')
+              .where((str) => str.isNotEmpty)
+              .toList();
         } catch (e) {
           debugPrint('[WARNING] Failed to convert array items to strings: $e');
           initialList = <String>[];
@@ -244,40 +248,51 @@ class FormBuilderService {
 
       // 创建适用于List<String>的验证器 - 使用动态类型以兼容reactive_forms 17.0
       final listValidators = <Validator<dynamic>>[];
-      
+
       // 对于required验证，使用Validators.delegate
       if (validators.any((v) => v == Validators.required)) {
         listValidators.add(Validators.delegate((AbstractControl control) {
           final value = control.value as List<String>?;
-          return (value == null || value.isEmpty) 
-            ? <String, dynamic>{'required': true}
-            : null;
+          return (value == null || value.isEmpty)
+              ? <String, dynamic>{'required': true}
+              : null;
         }));
       }
-      
+
       // 对于minItems验证（如果schema中定义了）
       final minItems = fieldSchema['minItems'] as int?;
       if (minItems != null && minItems > 0) {
         listValidators.add(Validators.delegate((AbstractControl control) {
           final value = control.value as List<String>?;
           return (value == null || value.length < minItems)
-            ? <String, dynamic>{'minItems': {'requiredLength': minItems, 'actualLength': value?.length ?? 0}}
-            : null;
+              ? <String, dynamic>{
+                  'minItems': {
+                    'requiredLength': minItems,
+                    'actualLength': value?.length ?? 0
+                  }
+                }
+              : null;
         }));
       }
-      
+
       // 对于maxItems验证
       final maxItems = fieldSchema['maxItems'] as int?;
       if (maxItems != null && maxItems > 0) {
         listValidators.add(Validators.delegate((AbstractControl control) {
           final value = control.value as List<String>?;
           return (value != null && value.length > maxItems)
-            ? <String, dynamic>{'maxItems': {'requiredLength': maxItems, 'actualLength': value.length}}
-            : null;
+              ? <String, dynamic>{
+                  'maxItems': {
+                    'requiredLength': maxItems,
+                    'actualLength': value.length
+                  }
+                }
+              : null;
         }));
       }
-      
-      debugPrint('[DEBUG] Creating FormControl<List<String>> for array field with ${initialList.length} items');
+
+      debugPrint(
+          '[DEBUG] Creating FormControl<List<String>> for array field with ${initialList.length} items');
       return FormControl<List<String>>(
         value: initialList,
         validators: listValidators,
@@ -351,9 +366,10 @@ class FormBuilderService {
         final sectionConfig = _safeMapCast(section);
         if (sectionConfig == null) continue;
         final fields = _safeMapCast(sectionConfig['ui:fields']);
-        
+
         // 直接查找点号路径字段配置
-        final fieldConfig = fields != null ? _safeMapCast(fields[fieldPath]) : null;
+        final fieldConfig =
+            fields != null ? _safeMapCast(fields[fieldPath]) : null;
         if (fieldConfig != null) {
           config.addAll(fieldConfig);
         }
@@ -362,7 +378,7 @@ class FormBuilderService {
 
     return config;
   }
-  
+
   /// 根据点号路径获取嵌套字段的Schema配置
   static Map<String, dynamic> getNestedFieldSchema(
     String fieldPath,
@@ -370,13 +386,13 @@ class FormBuilderService {
   ) {
     final parts = fieldPath.split('.');
     Map<String, dynamic> currentSchema = rootSchema;
-    
+
     for (final part in parts) {
       final properties = _safeMapCast(currentSchema['properties']) ?? {};
       currentSchema = _safeMapCast(properties[part]) ?? {};
       if (currentSchema.isEmpty) break;
     }
-    
+
     return currentSchema;
   }
 
@@ -409,7 +425,8 @@ class FormBuilderService {
       case 'array':
         final items = _safeMapCast(fieldSchema['items']);
         if (items != null && items['type'] == 'string') {
-          debugPrint('[DEBUG] Array of strings detected, using tag_input widget');
+          debugPrint(
+              '[DEBUG] Array of strings detected, using tag_input widget');
           return 'tag_input';
         }
         debugPrint('[DEBUG] Complex array detected, using array_input widget');
@@ -439,13 +456,15 @@ class FormBuilderService {
         return 'object_editor';
 
       default:
-        debugPrint('[WARNING] Unknown field type: $type, falling back to text_input');
+        debugPrint(
+            '[WARNING] Unknown field type: $type, falling back to text_input');
         return 'text_input';
     }
   }
 
   /// 从FormGroup提取数据 - 原生嵌套结构，类型安全转换
-  static Map<String, dynamic> extractFormData(FormGroup form, [Map<String, dynamic>? schema]) {
+  static Map<String, dynamic> extractFormData(FormGroup form,
+      [Map<String, dynamic>? schema]) {
     final data = <String, dynamic>{};
 
     for (final entry in form.controls.entries) {
@@ -483,17 +502,18 @@ class FormBuilderService {
   }
 
   /// 根据 Schema 将值转换为正确类型
-  static dynamic _convertValueToSchemaType(dynamic value, String fieldName, Map<String, dynamic>? schema) {
+  static dynamic _convertValueToSchemaType(
+      dynamic value, String fieldName, Map<String, dynamic>? schema) {
     if (schema == null) return value;
-    
+
     final properties = _safeMapCast(schema['properties']);
     if (properties == null) return value;
-    
+
     final fieldSchema = _safeMapCast(properties[fieldName]);
     if (fieldSchema == null) return value;
-    
+
     final expectedType = fieldSchema['type'] as String?;
-    
+
     switch (expectedType) {
       case 'integer':
         if (value is int) return value;
@@ -501,16 +521,16 @@ class FormBuilderService {
         if (value is String) return int.tryParse(value) ?? value;
         if (value is num) return value.toInt();
         break;
-        
+
       case 'number':
         if (value is num) return value;
         if (value is String) return double.tryParse(value) ?? value;
         break;
-        
+
       case 'string':
         if (value is String) return value;
         return value.toString();
-        
+
       case 'boolean':
         if (value is bool) return value;
         if (value is String) {
@@ -518,7 +538,7 @@ class FormBuilderService {
         }
         break;
     }
-    
+
     return value;
   }
 }

@@ -30,8 +30,8 @@ class ConnectorLifecycleApiClient {
       final data = ResponseParser.extractData(responseData);
       final flatResponse = {
         'success': true,
-        'message': ResponseParser.getMessage(responseData) ?? 
-                  'Connectors discovered successfully',
+        'message': ResponseParser.getMessage(responseData) ??
+            'Connectors discovered successfully',
         'connectors': data['connectors'] ?? [],
       };
 
@@ -284,7 +284,7 @@ class ConnectorLifecycleApiClient {
       final success = responseData['success'] ?? false;
       final data = responseData['data'] as Map<String, dynamic>? ?? {};
       final error = responseData['error'];
-      
+
       if (!success || error != null) {
         String errorMessage;
         if (error is Map<String, dynamic>) {
@@ -294,7 +294,7 @@ class ConnectorLifecycleApiClient {
         } else {
           errorMessage = 'Unknown error';
         }
-        
+
         throw ConnectorApiException(
             'Failed to delete connector: $errorMessage');
       }
@@ -357,8 +357,7 @@ class ConnectorLifecycleApiClient {
 
       // IPC可能返回扁平格式或嵌套格式的数据，自动检测并适配
       Map<String, dynamic> data;
-      if (responseData.containsKey('data') &&
-          responseData['data'] is Map) {
+      if (responseData.containsKey('data') && responseData['data'] is Map) {
         // 嵌套格式：数据在data字段中（这是实际情况）
         data = (responseData['data'] as Map<String, dynamic>?) ?? {};
       } else if (responseData.containsKey('connectors')) {

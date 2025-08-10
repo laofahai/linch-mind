@@ -201,13 +201,11 @@ class _SmartErrorDisplayState extends State<SmartErrorDisplay>
       mainAxisSize: MainAxisSize.min,
       children: [
         // 重试按钮
-        if (error.canRetry)
-          _buildRetryButton(error, errorTheme),
-        
+        if (error.canRetry) _buildRetryButton(error, errorTheme),
+
         // 复制错误ID按钮（调试模式）
-        if (kDebugMode)
-          _buildCopyButton(error, errorTheme),
-        
+        if (kDebugMode) _buildCopyButton(error, errorTheme),
+
         // 关闭按钮
         _buildCloseButton(error, errorTheme),
       ],
@@ -244,7 +242,8 @@ class _SmartErrorDisplayState extends State<SmartErrorDisplay>
     return IconButton(
       onPressed: () {
         Clipboard.setData(ClipboardData(
-          text: 'Error ID: ${error.errorId}\nCode: ${error.code}\nMessage: ${error.message}',
+          text:
+              'Error ID: ${error.errorId}\nCode: ${error.code}\nMessage: ${error.message}',
         ));
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -304,7 +303,8 @@ class _SmartErrorDisplayState extends State<SmartErrorDisplay>
     );
   }
 
-  Widget _buildDebugItem(String label, String value, _ErrorTheme errorTheme, {int maxLines = 1}) {
+  Widget _buildDebugItem(String label, String value, _ErrorTheme errorTheme,
+      {int maxLines = 1}) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 4),
       child: Row(
@@ -341,53 +341,67 @@ class _SmartErrorDisplayState extends State<SmartErrorDisplay>
   _ErrorTheme _getErrorTheme(UIError error, bool isDark) {
     if (error.isCritical) {
       return _ErrorTheme(
-        backgroundColor: isDark ? Colors.red.shade900.withOpacity(0.8) : Colors.red.shade50,
+        backgroundColor:
+            isDark ? Colors.red.shade900.withOpacity(0.8) : Colors.red.shade50,
         iconColor: Colors.red,
         icon: Icons.error,
         textColor: isDark ? Colors.red.shade100 : Colors.red.shade800,
         subtitleColor: isDark ? Colors.red.shade300 : Colors.red.shade600,
         actionColor: isDark ? Colors.red.shade200 : Colors.red.shade700,
-        suggestionBackgroundColor: isDark ? Colors.red.shade800 : Colors.red.shade100,
+        suggestionBackgroundColor:
+            isDark ? Colors.red.shade800 : Colors.red.shade100,
       );
     } else if (error.isNetworkError) {
       return _ErrorTheme(
-        backgroundColor: isDark ? Colors.orange.shade900.withOpacity(0.8) : Colors.orange.shade50,
+        backgroundColor: isDark
+            ? Colors.orange.shade900.withOpacity(0.8)
+            : Colors.orange.shade50,
         iconColor: Colors.orange,
         icon: Icons.wifi_off,
         textColor: isDark ? Colors.orange.shade100 : Colors.orange.shade800,
         subtitleColor: isDark ? Colors.orange.shade300 : Colors.orange.shade600,
         actionColor: isDark ? Colors.orange.shade200 : Colors.orange.shade700,
-        suggestionBackgroundColor: isDark ? Colors.orange.shade800 : Colors.orange.shade100,
+        suggestionBackgroundColor:
+            isDark ? Colors.orange.shade800 : Colors.orange.shade100,
       );
     } else if (error.isAuthError) {
       return _ErrorTheme(
-        backgroundColor: isDark ? Colors.amber.shade900.withOpacity(0.8) : Colors.amber.shade50,
+        backgroundColor: isDark
+            ? Colors.amber.shade900.withOpacity(0.8)
+            : Colors.amber.shade50,
         iconColor: Colors.amber.shade700,
         icon: Icons.lock_outline,
         textColor: isDark ? Colors.amber.shade100 : Colors.amber.shade800,
         subtitleColor: isDark ? Colors.amber.shade300 : Colors.amber.shade600,
         actionColor: isDark ? Colors.amber.shade200 : Colors.amber.shade700,
-        suggestionBackgroundColor: isDark ? Colors.amber.shade800 : Colors.amber.shade100,
+        suggestionBackgroundColor:
+            isDark ? Colors.amber.shade800 : Colors.amber.shade100,
       );
     } else if (error.isInputError) {
       return _ErrorTheme(
-        backgroundColor: isDark ? Colors.blue.shade900.withOpacity(0.8) : Colors.blue.shade50,
+        backgroundColor: isDark
+            ? Colors.blue.shade900.withOpacity(0.8)
+            : Colors.blue.shade50,
         iconColor: Colors.blue,
         icon: Icons.info_outline,
         textColor: isDark ? Colors.blue.shade100 : Colors.blue.shade800,
         subtitleColor: isDark ? Colors.blue.shade300 : Colors.blue.shade600,
         actionColor: isDark ? Colors.blue.shade200 : Colors.blue.shade700,
-        suggestionBackgroundColor: isDark ? Colors.blue.shade800 : Colors.blue.shade100,
+        suggestionBackgroundColor:
+            isDark ? Colors.blue.shade800 : Colors.blue.shade100,
       );
     } else {
       return _ErrorTheme(
-        backgroundColor: isDark ? Colors.grey.shade800.withOpacity(0.9) : Colors.grey.shade100,
+        backgroundColor: isDark
+            ? Colors.grey.shade800.withOpacity(0.9)
+            : Colors.grey.shade100,
         iconColor: Colors.grey.shade600,
         icon: Icons.warning_outlined,
         textColor: isDark ? Colors.grey.shade100 : Colors.grey.shade800,
         subtitleColor: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
         actionColor: isDark ? Colors.grey.shade300 : Colors.grey.shade700,
-        suggestionBackgroundColor: isDark ? Colors.grey.shade700 : Colors.grey.shade200,
+        suggestionBackgroundColor:
+            isDark ? Colors.grey.shade700 : Colors.grey.shade200,
       );
     }
   }

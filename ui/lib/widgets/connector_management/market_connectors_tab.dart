@@ -56,8 +56,12 @@ class _MarketConnectorsTabState extends ConsumerState<MarketConnectorsTab> {
     if (_marketSearchQuery.isEmpty) return _marketConnectors;
     return _marketConnectors
         .where((connector) =>
-            connector.name.toLowerCase().contains(_marketSearchQuery.toLowerCase()) ||
-            connector.description.toLowerCase().contains(_marketSearchQuery.toLowerCase()))
+            connector.name
+                .toLowerCase()
+                .contains(_marketSearchQuery.toLowerCase()) ||
+            connector.description
+                .toLowerCase()
+                .contains(_marketSearchQuery.toLowerCase()))
         .toList();
   }
 
@@ -158,17 +162,13 @@ class _MarketConnectorsTabState extends ConsumerState<MarketConnectorsTab> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(
-              _marketSearchQuery.isNotEmpty 
-                  ? Icons.search_off 
-                  : Icons.store,
+              _marketSearchQuery.isNotEmpty ? Icons.search_off : Icons.store,
               size: 64,
               color: Colors.grey[400],
             ),
             const SizedBox(height: 16),
             Text(
-              _marketSearchQuery.isNotEmpty
-                  ? '没有找到匹配的连接器'
-                  : '市场连接器暂时不可用',
+              _marketSearchQuery.isNotEmpty ? '没有找到匹配的连接器' : '市场连接器暂时不可用',
               style: TextStyle(
                 fontSize: 18,
                 color: Colors.grey[600],

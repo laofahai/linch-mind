@@ -18,7 +18,8 @@ class ReactiveDirectoryPicker extends StatelessWidget {
     return ReactiveFormField<List<String>, List<String>>(
       formControlName: formControlName,
       builder: (ReactiveFormFieldState<List<String>, List<String>> field) {
-        debugPrint('[DEBUG] ReactiveDirectoryPicker builder called for $formControlName');
+        debugPrint(
+            '[DEBUG] ReactiveDirectoryPicker builder called for $formControlName');
         debugPrint('[DEBUG] Field control type: ${field.control.runtimeType}');
         debugPrint('[DEBUG] Field value type: ${field.value.runtimeType}');
         debugPrint('[DEBUG] Field value: ${field.value}');
@@ -116,7 +117,8 @@ class _DirectoryPickerWidgetState extends State<_DirectoryPickerWidget> {
               icon: const Icon(Icons.folder_open, size: 18),
               label: const Text('选择目录'),
               style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               ),
             ),
           ],
@@ -169,7 +171,7 @@ class _DirectoryPickerWidgetState extends State<_DirectoryPickerWidget> {
                 return Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    border: index > 0 
+                    border: index > 0
                         ? Border(top: BorderSide(color: Colors.grey.shade200))
                         : null,
                   ),
@@ -195,7 +197,8 @@ class _DirectoryPickerWidgetState extends State<_DirectoryPickerWidget> {
                       ),
                       const SizedBox(width: 8),
                       IconButton(
-                        icon: const Icon(Icons.delete, color: Colors.red, size: 20),
+                        icon: const Icon(Icons.delete,
+                            color: Colors.red, size: 20),
                         onPressed: () => _removeDirectory(index),
                         padding: EdgeInsets.zero,
                         constraints: const BoxConstraints(

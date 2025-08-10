@@ -63,7 +63,7 @@ class EnhancedErrorHandler {
         operation: 'Flutter Framework',
         stackTrace: details.stack,
       ));
-      
+
       // 同时使用Flutter默认处理器确保IDE能看到
       FlutterError.presentError(details);
     } else {
@@ -203,8 +203,8 @@ class EnhancedErrorHandler {
         'can_retry': error.canRetry,
       },
       exception: error.message,
-      stackTrace: error.stackTrace != null 
-          ? StackTrace.fromString(error.stackTrace!) 
+      stackTrace: error.stackTrace != null
+          ? StackTrace.fromString(error.stackTrace!)
           : null,
     );
   }
@@ -215,7 +215,8 @@ class EnhancedErrorHandler {
 
   void _printDebugError(UIError error) {
     final buffer = StringBuffer();
-    buffer.writeln('╔════════════════════════════════════════════════════════════');
+    buffer.writeln(
+        '╔════════════════════════════════════════════════════════════');
     buffer.writeln('║ 🔴 ERROR: ${error.operation}');
     buffer.writeln('║ ID: ${error.errorId}');
     buffer.writeln('║ Code: ${error.code}');
@@ -224,7 +225,8 @@ class EnhancedErrorHandler {
     buffer.writeln('║ Type: ${error.typeDescription}');
 
     if (error.canRetry) {
-      buffer.writeln('║ Retry: Available${error.retryAfter != null ? ' (after ${error.retryAfter}s)' : ''}');
+      buffer.writeln(
+          '║ Retry: Available${error.retryAfter != null ? ' (after ${error.retryAfter}s)' : ''}');
     }
 
     if (error.isRecoverable) {
@@ -242,8 +244,9 @@ class EnhancedErrorHandler {
       }
     }
 
-    buffer.writeln('╚════════════════════════════════════════════════════════════');
-    
+    buffer.writeln(
+        '╚════════════════════════════════════════════════════════════');
+
     // 使用print确保在所有平台都能看到
     debugPrint(buffer.toString());
   }
@@ -283,7 +286,8 @@ class RecoveryManager {
     });
 
     if (kDebugMode) {
-      debugPrint('⚡ Auto-recovery scheduled for ${error.code} in ${delay.inSeconds}s (attempt $attempts)');
+      debugPrint(
+          '⚡ Auto-recovery scheduled for ${error.code} in ${delay.inSeconds}s (attempt $attempts)');
     }
   }
 

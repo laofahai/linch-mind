@@ -24,7 +24,7 @@ void main() async {
 
   // 🔧 设置全局错误处理器
   final errorHandler = EnhancedErrorHandler();
-  
+
   // 处理Flutter框架错误
   FlutterError.onError = (FlutterErrorDetails details) {
     errorHandler.handleFlutterError(details);

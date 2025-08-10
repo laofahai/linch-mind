@@ -148,7 +148,7 @@ class AppState implements BaseState {
 }
 
 // 应用状态通知器
-class AppStateNotifier extends BaseStateNotifier<AppState> 
+class AppStateNotifier extends BaseStateNotifier<AppState>
     with ConnectionStateMixin<AppState> {
   AppStateNotifier()
       : super(AppState(

@@ -35,14 +35,15 @@ class UIError {
   }) {
     // 处理嵌套的details结构
     final details = errorData['details'] as Map<String, dynamic>? ?? {};
-    
+
     return UIError(
       errorId: details['error_id'] ?? errorData['error_id'] ?? 'unknown',
       code: errorData['code'] ?? 'UNKNOWN_ERROR',
       message: errorData['message'] ?? 'Unknown error',
       operation: operation,
       timestamp: DateTime.now(),
-      isRecoverable: details['is_recoverable'] ?? errorData['is_recoverable'] ?? false,
+      isRecoverable:
+          details['is_recoverable'] ?? errorData['is_recoverable'] ?? false,
       canRetry: details['can_retry'] ?? errorData['can_retry'] ?? false,
       retryAfter: details['retry_after'] ?? errorData['retry_after'],
       stackTrace: kDebugMode ? stackTrace?.toString() : null,
@@ -81,9 +82,7 @@ class UIError {
       code.contains('IPC');
 
   /// 是否为认证错误
-  bool get isAuthError => 
-      code.contains('AUTH') || 
-      code.contains('PERMISSION');
+  bool get isAuthError => code.contains('AUTH') || code.contains('PERMISSION');
 
   /// 是否为严重错误
   bool get isCritical =>
@@ -97,10 +96,9 @@ class UIError {
       code.contains('INVALID_PARAMETER') ||
       code.contains('MISSING_PARAMETER');
 
-  /// 是否为系统配置错误  
+  /// 是否为系统配置错误
   bool get isConfigError =>
-      code.contains('CONFIGURATION') ||
-      code.contains('CONFIG');
+      code.contains('CONFIGURATION') || code.contains('CONFIG');
 
   /// 获取错误类型的用户友好描述
   String get typeDescription {

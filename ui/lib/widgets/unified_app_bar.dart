@@ -60,87 +60,87 @@ class _UnifiedAppBarState extends ConsumerState<UnifiedAppBar> {
   Widget _buildDesktopTitleBar(BuildContext context, Widget statusWidget,
       ThemeMode currentThemeMode, ThemeData theme, bool isDark) {
     return Container(
-          height: widget.preferredSize.height,
-          decoration: BoxDecoration(
-            color: isDark
-                ? theme.colorScheme.surface.withValues(alpha: 0.95)
-                : theme.colorScheme.surface.withValues(alpha: 0.98),
-            border: Border(
-              bottom: BorderSide(
-                color: theme.colorScheme.outline.withValues(alpha: 0.2),
-                width: 1,
-              ),
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: theme.shadowColor.withValues(alpha: 0.05),
-                blurRadius: 8,
-                offset: const Offset(0, 2),
-              ),
-            ],
+      height: widget.preferredSize.height,
+      decoration: BoxDecoration(
+        color: isDark
+            ? theme.colorScheme.surface.withValues(alpha: 0.95)
+            : theme.colorScheme.surface.withValues(alpha: 0.98),
+        border: Border(
+          bottom: BorderSide(
+            color: theme.colorScheme.outline.withValues(alpha: 0.2),
+            width: 1,
           ),
-          child: Row(
-            children: [
-              // 可拖动的标题区域
-              Expanded(
-                child: _DraggableTitleBar(
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: Row(
-                      children: [
-                        // 应用图标
-                        Container(
-                          width: 24,
-                          height: 24,
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              colors: [
-                                theme.colorScheme.primary,
-                                theme.colorScheme.secondary,
-                              ],
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                            ),
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: Icon(
-                            Icons.psychology_outlined,
-                            size: 16,
-                            color: theme.colorScheme.onPrimary,
-                          ),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: theme.shadowColor.withValues(alpha: 0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          // 可拖动的标题区域
+          Expanded(
+            child: _DraggableTitleBar(
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Row(
+                  children: [
+                    // 应用图标
+                    Container(
+                      width: 24,
+                      height: 24,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            theme.colorScheme.primary,
+                            theme.colorScheme.secondary,
+                          ],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
                         ),
-                        const SizedBox(width: 12),
-                        // 应用标题
-                        Text(
-                          'Linch Mind',
-                          style: theme.textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.w600,
-                            color: theme.colorScheme.onSurface,
-                          ),
-                        ),
-                      ],
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Icon(
+                        Icons.psychology_outlined,
+                        size: 16,
+                        color: theme.colorScheme.onPrimary,
+                      ),
                     ),
-                  ),
+                    const SizedBox(width: 12),
+                    // 应用标题
+                    Text(
+                      'Linch Mind',
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                        color: theme.colorScheme.onSurface,
+                      ),
+                    ),
+                  ],
                 ),
               ),
-
-              // 状态指示器
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 8),
-                child: statusWidget,
-              ),
-
-              // 主题切换按钮
-              _ThemeToggleButton(currentThemeMode: currentThemeMode),
-
-              // 窗口控制按钮
-              Padding(
-                padding: const EdgeInsets.only(right: 8),
-                child: _WindowControls(),
-              ),
-            ],
+            ),
           ),
-        );
+
+          // 状态指示器
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            child: statusWidget,
+          ),
+
+          // 主题切换按钮
+          _ThemeToggleButton(currentThemeMode: currentThemeMode),
+
+          // 窗口控制按钮
+          Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: _WindowControls(),
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _buildMobileAppBar(BuildContext context, Widget statusWidget,

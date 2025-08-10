@@ -38,7 +38,7 @@ class _ConnectorConfigScreenState extends ConsumerState<ConnectorConfigScreen> {
   // WebView相关状态
   bool _supportsWebView = false;
   bool _useWebView = false;
-  
+
   // 缓存上一次的表单数据，避免重复深度比较
   Map<String, dynamic>? _lastFormData;
   bool? _lastHasChanges;
@@ -49,7 +49,8 @@ class _ConnectorConfigScreenState extends ConsumerState<ConnectorConfigScreen> {
   @override
   void initState() {
     super.initState();
-    debugPrint('[DEBUG] ConnectorConfigScreen initState called for ${widget.connectorId}');
+    debugPrint(
+        '[DEBUG] ConnectorConfigScreen initState called for ${widget.connectorId}');
     _loadConfigData();
   }
 
@@ -63,7 +64,7 @@ class _ConnectorConfigScreenState extends ConsumerState<ConnectorConfigScreen> {
   Map<String, dynamic>? _safeMapCast(dynamic value) {
     if (value == null) return null;
     if (value is Map<String, dynamic>) return value;
-    
+
     // 尝试转换Map<dynamic, dynamic>或其他Map类型
     if (value is Map) {
       try {
@@ -73,23 +74,23 @@ class _ConnectorConfigScreenState extends ConsumerState<ConnectorConfigScreen> {
         return null;
       }
     }
-    
+
     debugPrint('[WARNING] Expected Map but got ${value.runtimeType}');
     return null;
   }
-  
 
   Future<void> _loadConfigData() async {
     debugPrint('[DEBUG] _loadConfigData called for ${widget.connectorId}');
-    
+
     // 防止重复加载
     if (_isCurrentlyLoading) {
-      debugPrint('[DEBUG] Already loading, skipping duplicate call for ${widget.connectorId}');
+      debugPrint(
+          '[DEBUG] Already loading, skipping duplicate call for ${widget.connectorId}');
       return;
     }
-    
+
     debugPrint('[DEBUG] Starting config load for ${widget.connectorId}');
-    
+
     _isCurrentlyLoading = true;
     setState(() {
       _isLoading = true;
@@ -110,14 +111,16 @@ class _ConnectorConfigScreenState extends ConsumerState<ConnectorConfigScreen> {
       final schemaResponse = results[0] as dynamic;
       final configResponse = results[1] as dynamic;
       final webViewSupported = results[2] as bool;
-      
+
       // 添加调试信息
       if (schemaResponse.success) {
-        debugPrint('[DEBUG] Schema Response Data Type: ${schemaResponse.data.runtimeType}');
+        debugPrint(
+            '[DEBUG] Schema Response Data Type: ${schemaResponse.data.runtimeType}');
         debugPrint('[DEBUG] Schema Response Data: ${schemaResponse.data}');
       }
       if (configResponse.success) {
-        debugPrint('[DEBUG] Config Response Data Type: ${configResponse.data.runtimeType}');
+        debugPrint(
+            '[DEBUG] Config Response Data Type: ${configResponse.data.runtimeType}');
         debugPrint('[DEBUG] Config Response Data: ${configResponse.data}');
       }
 
@@ -133,7 +136,7 @@ class _ConnectorConfigScreenState extends ConsumerState<ConnectorConfigScreen> {
         // 正确提取后端返回的schema结构 - 使用安全的类型转换
         _configSchema = _safeMapCast(schemaData['json_schema']) ?? {};
         _uiSchema = _safeMapCast(schemaData['ui_schema']) ?? {};
-        
+
         // 从json_schema中提取默认值
         final properties = _safeMapCast(_configSchema['properties']) ?? {};
         _defaultConfig = <String, dynamic>{};
@@ -143,7 +146,7 @@ class _ConnectorConfigScreenState extends ConsumerState<ConnectorConfigScreen> {
             _defaultConfig[entry.key] = fieldSchema['default'];
           }
         }
-        
+
         _currentConfig = _safeMapCast(configData['config']) ?? {};
         debugPrint('[DEBUG] Initial _currentConfig loaded: $_currentConfig');
 
@@ -153,12 +156,14 @@ class _ConnectorConfigScreenState extends ConsumerState<ConnectorConfigScreen> {
           initialData: _currentConfig,
           uiSchema: _uiSchema,
         );
-        
+
         // 优化：移除频繁setState的监听器，改为使用ReactiveFormConsumer
         // 这样可以避免每次表单值变化都触发整个页面重建
-        
-        debugPrint('[DEBUG] Form built, immediate form data extraction: ${FormBuilderService.extractFormData(_form!, _configSchema)}');
-        debugPrint('[DEBUG] Config load completed successfully for ${widget.connectorId}');
+
+        debugPrint(
+            '[DEBUG] Form built, immediate form data extraction: ${FormBuilderService.extractFormData(_form!, _configSchema)}');
+        debugPrint(
+            '[DEBUG] Config load completed successfully for ${widget.connectorId}');
 
         setState(() {
           _isLoading = false;
@@ -198,7 +203,8 @@ class _ConnectorConfigScreenState extends ConsumerState<ConnectorConfigScreen> {
 
     try {
       final configService = ref.read(connectorConfigApiClientProvider);
-      final formData = FormBuilderService.extractFormData(_form!, _configSchema);
+      final formData =
+          FormBuilderService.extractFormData(_form!, _configSchema);
 
       // 先验证配置
       final validationResponse = await configService.validateConfig(
@@ -270,14 +276,14 @@ class _ConnectorConfigScreenState extends ConsumerState<ConnectorConfigScreen> {
   /// 解析后端返回的验证错误信息
   List<String> _parseValidationErrors(dynamic errorsData) {
     final List<String> errors = [];
-    
+
     if (errorsData is List) {
       for (final errorItem in errorsData) {
         final errorMap = _safeMapCast(errorItem);
         if (errorMap != null) {
           final field = errorMap['field'] as String? ?? '';
           final message = errorMap['message'] as String? ?? '';
-          
+
           if (field.isNotEmpty && message.isNotEmpty) {
             // 格式化字段名（如果是嵌套字段，显示更友好的名称）
             final friendlyFieldName = _getFriendlyFieldName(field);
@@ -290,16 +296,17 @@ class _ConnectorConfigScreenState extends ConsumerState<ConnectorConfigScreen> {
         }
       }
     }
-    
+
     return errors;
   }
-  
+
   /// 获取字段的友好显示名称
   String _getFriendlyFieldName(String fieldPath) {
     // 尝试从schema中获取字段的title
     if (fieldPath.contains('.')) {
       // 嵌套字段
-      final fieldSchema = FormBuilderService.getNestedFieldSchema(fieldPath, _configSchema);
+      final fieldSchema =
+          FormBuilderService.getNestedFieldSchema(fieldPath, _configSchema);
       final title = fieldSchema['title'] as String?;
       if (title != null && title.isNotEmpty) {
         return title;
@@ -313,7 +320,7 @@ class _ConnectorConfigScreenState extends ConsumerState<ConnectorConfigScreen> {
         return title;
       }
     }
-    
+
     // 如果没有title，返回格式化的字段名
     return fieldPath.replaceAll('_', ' ').replaceAll('.', ' -> ');
   }
@@ -405,7 +412,7 @@ class _ConnectorConfigScreenState extends ConsumerState<ConnectorConfigScreen> {
         initialData: _defaultConfig,
         uiSchema: _uiSchema,
       );
-      
+
       // 优化：移除频繁的监听器，使用ReactiveFormConsumer
       setState(() {});
     }
@@ -503,7 +510,9 @@ class _ConnectorConfigScreenState extends ConsumerState<ConnectorConfigScreen> {
                               Icons.save,
                               color: hasChanges
                                   ? Theme.of(context).colorScheme.primary
-                                  : Theme.of(context).colorScheme.onSurfaceVariant,
+                                  : Theme.of(context)
+                                      .colorScheme
+                                      .onSurfaceVariant,
                             ),
                       tooltip: _isSaving
                           ? '保存中...'
@@ -520,22 +529,25 @@ class _ConnectorConfigScreenState extends ConsumerState<ConnectorConfigScreen> {
                     final hasChanges = _hasConfigChanges();
                     return hasChanges
                         ? IconButton(
-                            onPressed: _isSaving ? null : () async {
-                              final confirmed = await _showConfirmDialog(
-                                '取消修改',
-                                '确定要取消当前的修改吗？所有未保存的更改将丢失。',
-                              );
-                              if (confirmed) {
-                                // 重新加载原始配置
-                                _form!.dispose();
-                                _form = FormBuilderService.buildFormFromSchema(
-                                  schema: _configSchema,
-                                  initialData: _currentConfig,
-                                  uiSchema: _uiSchema,
-                                );
-                                setState(() {});
-                              }
-                            },
+                            onPressed: _isSaving
+                                ? null
+                                : () async {
+                                    final confirmed = await _showConfirmDialog(
+                                      '取消修改',
+                                      '确定要取消当前的修改吗？所有未保存的更改将丢失。',
+                                    );
+                                    if (confirmed) {
+                                      // 重新加载原始配置
+                                      _form!.dispose();
+                                      _form = FormBuilderService
+                                          .buildFormFromSchema(
+                                        schema: _configSchema,
+                                        initialData: _currentConfig,
+                                        uiSchema: _uiSchema,
+                                      );
+                                      setState(() {});
+                                    }
+                                  },
                             icon: const Icon(Icons.cancel_outlined),
                             tooltip: '取消修改',
                           )
@@ -599,7 +611,7 @@ class _ConnectorConfigScreenState extends ConsumerState<ConnectorConfigScreen> {
         ),
       );
     }
-    
+
     // For loading, error, or no form state, use regular Scaffold
     return Scaffold(
       appBar: AppBar(
@@ -762,7 +774,8 @@ class _ConnectorConfigScreenState extends ConsumerState<ConnectorConfigScreen> {
     Widget content = Column(
       children: fields.entries.map((fieldEntry) {
         final fieldName = fieldEntry.key;
-        final fieldSchema = _safeMapCast(_configSchema['properties']?[fieldName]) ?? {};
+        final fieldSchema =
+            _safeMapCast(_configSchema['properties']?[fieldName]) ?? {};
 
         // 获取字段Schema和UI配置 - 支持嵌套字段
         Map<String, dynamic> actualFieldSchema;
@@ -782,7 +795,7 @@ class _ConnectorConfigScreenState extends ConsumerState<ConnectorConfigScreen> {
           actualFieldSchema,
           _uiSchema,
         );
-        
+
         return Padding(
           padding: const EdgeInsets.only(bottom: 16),
           child: ReactiveConfigWidgets.buildFieldWidget(
@@ -893,7 +906,6 @@ class _ConnectorConfigScreenState extends ConsumerState<ConnectorConfigScreen> {
     );
   }
 
-
   /// 构建底部操作栏
   Widget _buildBottomActionBar() {
     if (_isLoading || _form == null) {
@@ -903,7 +915,7 @@ class _ConnectorConfigScreenState extends ConsumerState<ConnectorConfigScreen> {
     return ReactiveFormConsumer(
       builder: (context, form, child) {
         final hasChanges = _hasConfigChanges();
-        
+
         return Container(
           padding: const EdgeInsets.all(16.0),
           decoration: BoxDecoration(
@@ -920,7 +932,8 @@ class _ConnectorConfigScreenState extends ConsumerState<ConnectorConfigScreen> {
               // 状态指示器
               if (hasChanges)
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
                     color: Theme.of(context).colorScheme.primaryContainer,
                     borderRadius: BorderRadius.circular(12),
@@ -938,7 +951,8 @@ class _ConnectorConfigScreenState extends ConsumerState<ConnectorConfigScreen> {
                         '有未保存的更改',
                         style: TextStyle(
                           fontSize: 12,
-                          color: Theme.of(context).colorScheme.onPrimaryContainer,
+                          color:
+                              Theme.of(context).colorScheme.onPrimaryContainer,
                         ),
                       ),
                     ],
@@ -948,29 +962,32 @@ class _ConnectorConfigScreenState extends ConsumerState<ConnectorConfigScreen> {
               // 取消按钮
               if (hasChanges)
                 OutlinedButton.icon(
-                  onPressed: _isSaving ? null : () async {
-                    final confirmed = await _showConfirmDialog(
-                      '取消修改',
-                      '确定要取消当前的修改吗？所有未保存的更改将丢失。',
-                    );
-                    if (confirmed) {
-                      // 重新加载原始配置
-                      _form!.dispose();
-                      _form = FormBuilderService.buildFormFromSchema(
-                        schema: _configSchema,
-                        initialData: _currentConfig,
-                        uiSchema: _uiSchema,
-                      );
-                      setState(() {});
-                    }
-                  },
+                  onPressed: _isSaving
+                      ? null
+                      : () async {
+                          final confirmed = await _showConfirmDialog(
+                            '取消修改',
+                            '确定要取消当前的修改吗？所有未保存的更改将丢失。',
+                          );
+                          if (confirmed) {
+                            // 重新加载原始配置
+                            _form!.dispose();
+                            _form = FormBuilderService.buildFormFromSchema(
+                              schema: _configSchema,
+                              initialData: _currentConfig,
+                              uiSchema: _uiSchema,
+                            );
+                            setState(() {});
+                          }
+                        },
                   icon: const Icon(Icons.cancel_outlined),
                   label: const Text('取消'),
                 ),
               if (hasChanges) const SizedBox(width: 12),
               // 保存按钮
               ElevatedButton.icon(
-                onPressed: (!hasChanges || _isSaving) ? null : _validateAndSaveConfig,
+                onPressed:
+                    (!hasChanges || _isSaving) ? null : _validateAndSaveConfig,
                 icon: _isSaving
                     ? const SizedBox(
                         width: 16,
@@ -1002,20 +1019,21 @@ class _ConnectorConfigScreenState extends ConsumerState<ConnectorConfigScreen> {
     if (_form == null) return false;
 
     try {
-      final currentData = FormBuilderService.extractFormData(_form!, _configSchema);
-      
+      final currentData =
+          FormBuilderService.extractFormData(_form!, _configSchema);
+
       // 使用缓存优化：如果表单数据没变，直接返回缓存的结果
       if (_lastFormData != null && _deepEquals(currentData, _lastFormData!)) {
         return _lastHasChanges ?? false;
       }
-      
+
       // 缓存当前表单数据
       _lastFormData = Map<String, dynamic>.from(currentData);
-      
+
       // 使用深度比较检查是否有变化
       final hasChanges = !_deepEquals(currentData, _currentConfig);
       _lastHasChanges = hasChanges;
-      
+
       // 只在有变更或首次检查时输出调试信息
       if (hasChanges || (_lastHasChanges == null)) {
         debugPrint('[DEBUG] Config changes detected: $hasChanges');
@@ -1024,7 +1042,7 @@ class _ConnectorConfigScreenState extends ConsumerState<ConnectorConfigScreen> {
           debugPrint('[DEBUG] Original: $_currentConfig');
         }
       }
-      
+
       return hasChanges;
     } catch (e) {
       debugPrint('[ERROR] Failed to check config changes: $e');
@@ -1032,27 +1050,27 @@ class _ConnectorConfigScreenState extends ConsumerState<ConnectorConfigScreen> {
       return true;
     }
   }
-  
+
   /// 深度比较两个Map是否相等
   bool _deepEquals(Map<String, dynamic> map1, Map<String, dynamic> map2) {
     if (map1.length != map2.length) {
       return false;
     }
-    
+
     for (final key in map1.keys) {
       if (!map2.containsKey(key)) {
         return false;
       }
-      
+
       final value1 = map1[key];
       final value2 = map2[key];
-      
+
       // 递归比较嵌套的Map
       if (value1 is Map<String, dynamic> && value2 is Map<String, dynamic>) {
         if (!_deepEquals(value1, value2)) {
           return false;
         }
-      } 
+      }
       // 比较列表类型
       else if (value1 is List && value2 is List) {
         if (!_deepEqualsList(value1, value2)) {
@@ -1064,18 +1082,18 @@ class _ConnectorConfigScreenState extends ConsumerState<ConnectorConfigScreen> {
         return false;
       }
     }
-    
+
     return true;
   }
-  
+
   /// 深度比较两个List是否相等
   bool _deepEqualsList(List list1, List list2) {
     if (list1.length != list2.length) return false;
-    
+
     for (int i = 0; i < list1.length; i++) {
       final item1 = list1[i];
       final item2 = list2[i];
-      
+
       if (item1 is Map<String, dynamic> && item2 is Map<String, dynamic>) {
         if (!_deepEquals(item1, item2)) return false;
       } else if (item1 is List && item2 is List) {
@@ -1084,23 +1102,20 @@ class _ConnectorConfigScreenState extends ConsumerState<ConnectorConfigScreen> {
         return false;
       }
     }
-    
+
     return true;
   }
-  
+
   /// 类型安全的值比较
   bool _valuesEqual(dynamic value1, dynamic value2) {
     // 处理null值
     if (value1 == null && value2 == null) return true;
     if (value1 == null || value2 == null) return false;
-    
+
     // 类型必须相同
     if (value1.runtimeType != value2.runtimeType) return false;
-    
+
     // 使用标准相等比较
     return value1 == value2;
   }
-
-
-
 }

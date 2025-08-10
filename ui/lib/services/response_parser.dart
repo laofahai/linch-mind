@@ -1,15 +1,16 @@
 /// 通用的响应解析器，统一处理IPC和API响应格式
 class ResponseParser {
   /// 解析IPC响应数据，标准化响应格式
-  static Map<String, dynamic> parseIPCResponse(Map<String, dynamic> responseData) {
+  static Map<String, dynamic> parseIPCResponse(
+      Map<String, dynamic> responseData) {
     // 安全地获取data结构
     final data = responseData['data'] as Map<String, dynamic>? ?? responseData;
-    
+
     // 检查响应是否成功
-    final success = data['success'] ?? 
-                   responseData['success'] ?? 
-                   (responseData['status_code'] == 200);
-    
+    final success = data['success'] ??
+        responseData['success'] ??
+        (responseData['status_code'] == 200);
+
     return {
       'success': success,
       'data': data,

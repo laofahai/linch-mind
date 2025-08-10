@@ -15,7 +15,8 @@ class DebugHelper {
   }
 
   /// 简化的错误打印，保持原始堆栈跟踪
-  static void simpleError(String message, dynamic error, StackTrace? stackTrace) {
+  static void simpleError(
+      String message, dynamic error, StackTrace? stackTrace) {
     if (kDebugMode) {
       print('🔴 ERROR: $message');
       print('Exception: $error');
@@ -27,7 +28,8 @@ class DebugHelper {
   }
 
   /// IPC通信调试专用
-  static void ipcDebug(String operation, {dynamic request, dynamic response, dynamic error}) {
+  static void ipcDebug(String operation,
+      {dynamic request, dynamic response, dynamic error}) {
     if (kDebugMode) {
       print('📡 IPC [$operation]');
       if (request != null) print('  Request: $request');
@@ -48,7 +50,8 @@ class DebugHelper {
   }
 
   /// Provider状态变更调试
-  static void providerState(String providerName, String event, {dynamic oldState, dynamic newState}) {
+  static void providerState(String providerName, String event,
+      {dynamic oldState, dynamic newState}) {
     if (kDebugMode) {
       print('🔄 PROVIDER [$providerName] $event');
       if (oldState != null) print('  Old: $oldState');
@@ -58,6 +61,11 @@ class DebugHelper {
 }
 
 /// 快捷调试宏
-void debugBreak(String message, {dynamic data}) => DebugHelper.debugBreakpoint(message, data: data);
-void debugError(String message, dynamic error, [StackTrace? stackTrace]) => DebugHelper.simpleError(message, error, stackTrace);
-void debugIPC(String operation, {dynamic request, dynamic response, dynamic error}) => DebugHelper.ipcDebug(operation, request: request, response: response, error: error);
+void debugBreak(String message, {dynamic data}) =>
+    DebugHelper.debugBreakpoint(message, data: data);
+void debugError(String message, dynamic error, [StackTrace? stackTrace]) =>
+    DebugHelper.simpleError(message, error, stackTrace);
+void debugIPC(String operation,
+        {dynamic request, dynamic response, dynamic error}) =>
+    DebugHelper.ipcDebug(operation,
+        request: request, response: response, error: error);

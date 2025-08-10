@@ -4,13 +4,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 abstract class BaseState {
   /// 状态最后更新时间
   DateTime get lastUpdate;
-  
+
   /// 是否有错误
   bool get hasError;
-  
+
   /// 错误消息
   String? get errorMessage;
-  
+
   /// 是否正在加载
   bool get isLoading;
 }

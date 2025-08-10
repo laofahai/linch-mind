@@ -98,11 +98,12 @@ class InstalledConnectorCard extends StatelessWidget {
 
     // 为启动中和停止中状态添加旋转动画提示
     Widget icon = Icon(iconData, color: color, size: 32);
-    if (connector.state == ConnectorState.starting || connector.state == ConnectorState.stopping) {
+    if (connector.state == ConnectorState.starting ||
+        connector.state == ConnectorState.stopping) {
       // TODO: 添加旋转动画 - 需要在父组件中实现AnimationController
       return icon;
     }
-    
+
     return icon;
   }
 

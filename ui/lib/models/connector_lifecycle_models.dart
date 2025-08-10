@@ -120,7 +120,9 @@ class ConnectorInfo with _$ConnectorInfo {
     // 移除 auto_start 字段，因为数据库模型已经简化了逻辑
     @JsonKey(name: 'process_id', fromJson: _processIdFromJson) int? processId,
     @JsonKey(name: 'last_heartbeat') DateTime? lastHeartbeat,
-    @JsonKey(name: 'data_count', fromJson: _dataCountFromJson) @Default(0) int dataCount,
+    @JsonKey(name: 'data_count', fromJson: _dataCountFromJson)
+    @Default(0)
+    int dataCount,
     @JsonKey(name: 'error_message') String? errorMessage,
     @JsonKey(name: 'created_at') DateTime? createdAt,
     @JsonKey(name: 'updated_at') DateTime? updatedAt,
