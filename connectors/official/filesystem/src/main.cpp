@@ -33,82 +33,10 @@ void signalHandler(int signum) {
     g_shouldStop = 1;
 }
 
-// 注册配置schema到daemon
+// Schema注册函数（保留但不实际使用，schema从connector.json静态加载）
 bool registerConfigSchema(UnifiedClient& client, const std::string& daemonUrl) {
-    json schema = {
-        {"type", "object"},
-        {"title", "文件系统连接器配置"},
-        {"description", "配置文件系统监控参数和监控目录"},
-        {"properties", {
-            {"poll_interval", {
-                {"type", "number"},
-                {"title", "轮询间隔 (秒)"},
-                {"description", "文件系统检查的间隔时间"},
-                {"default", 2.0},
-                {"minimum", 0.5},
-                {"maximum", 60.0},
-                {"ui_component", "number_input"}
-            }},
-            {"default_supported_extensions", {
-                {"type", "array"},
-                {"title", "默认支持的文件类型"},
-                {"description", "监控的文件扩展名列表"},
-                {"items", {"type", "string"}},
-                {"default", {".txt", ".md", ".py", ".js", ".json", ".yaml", ".yml", ".html", ".css", ".cpp", ".hpp", ".c", ".h"}},
-                {"ui_component", "tags_input"}
-            }},
-            {"default_max_file_size", {
-                {"type", "integer"},
-                {"title", "默认最大文件大小 (MB)"},
-                {"description", "超过此大小的文件将被忽略"},
-                {"default", 10},
-                {"minimum", 1},
-                {"maximum", 100},
-                {"ui_component", "number_input"}
-            }},
-            {"default_ignore_patterns", {
-                {"type", "array"},
-                {"title", "默认忽略模式"},
-                {"description", "忽略的文件模式，支持通配符"},
-                {"items", {"type", "string"}},
-                {"default", {"*.tmp", ".*", "node_modules/*", "__pycache__/*", "*.log", ".git/*", "build/*", "dist/*"}},
-                {"ui_component", "tags_input"}
-            }},
-            {"max_content_length", {
-                {"type", "integer"},
-                {"title", "最大内容长度"},
-                {"description", "文件内容截断长度（字符数）"},
-                {"default", 50000},
-                {"minimum", 1000},
-                {"maximum", 200000},
-                {"ui_component", "number_input"}
-            }},
-            {"monitoring_enabled", {
-                {"type", "boolean"},
-                {"title", "启用文件监控"},
-                {"description", "总开关，控制是否启用文件系统监控"},
-                {"default", true},
-                {"ui_component", "switch"}
-            }}
-        }},
-        {"required", {"poll_interval", "monitoring_enabled"}}
-    };
-
-    json payload = {
-        {"connector_id", "filesystem"},
-        {"config_schema", schema},
-        {"ui_schema", json::object()},
-        {"connector_name", "FileSystemConnector"},
-        {"connector_description", "文件系统连接器 - 监控文件系统变化并推送到Daemon"},
-        {"schema_source", "embedded"}
-    };
-
-    // 注意：新API不再支持注册schema，跳过此步骤
-    // auto response = client.post(daemonUrl + "/connector-config/register-schema/filesystem", 
-    //                            payload.dump());
-    
-    // 临时跳过schema注册，直接返回成功
-    std::cout << "⚠️  Schema registration skipped (new API doesn't support it)" << std::endl;
+    // Schema现在从connector.json静态加载，不需要动态注册
+    std::cout << "ℹ️  Using static schema from connector.json" << std::endl;
     return true;
 }
 
@@ -116,16 +44,55 @@ bool registerConfigSchema(UnifiedClient& client, const std::string& daemonUrl) {
 std::vector<FileSystemMonitor::WatchConfig> loadWatchConfigs(ConfigManager& config) {
     std::vector<FileSystemMonitor::WatchConfig> watchConfigs;
     
-    // 简化的配置解析（实际项目中可以扩展为完整的JSON数组解析）
-    std::string watchPaths = config.getConfigValue("watch_paths", "~/Downloads,~/Documents");
-    std::string supportedExts = config.getConfigValue("supported_extensions", ".txt,.md,.py,.js,.json,.yaml,.yml,.html,.css,.cpp,.hpp,.c,.h");
-    std::string ignorePatterns = config.getConfigValue("ignore_patterns", "*.tmp,.*,node_modules/*,__pycache__/*,*.log,.git/*,build/*,dist/*");
-    int maxFileSize = std::stoi(config.getConfigValue("max_file_size_mb", "10"));
+    // 使用getConfigValue获取配置值（使用扁平化的键）
+    // 监控目录列表（逗号分隔）
+    std::string watchDirsStr = config.getConfigValue("watch_directories", "~/Documents,~/Desktop");
+    std::vector<std::string> watchDirs;
+    std::stringstream ss(watchDirsStr);
+    std::string dir;
+    while (std::getline(ss, dir, ',')) {
+        dir.erase(0, dir.find_first_not_of(" \t"));
+        dir.erase(dir.find_last_not_of(" \t") + 1);
+        if (!dir.empty()) {
+            watchDirs.push_back(dir);
+        }
+    }
     
-    // 解析监控路径（逗号分隔）
-    std::stringstream ss(watchPaths);
-    std::string path;
-    while (std::getline(ss, path, ',')) {
+    // 文件扩展名列表（使用扁平化的键）
+    std::string includeExtsStr = config.getConfigValue("include_extensions", 
+        ".txt,.md,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx");
+    std::vector<std::string> includeExts;
+    std::stringstream extSs(includeExtsStr);
+    std::string ext;
+    while (std::getline(extSs, ext, ',')) {
+        ext.erase(0, ext.find_first_not_of(" \t"));
+        ext.erase(ext.find_last_not_of(" \t") + 1);
+        if (!ext.empty()) {
+            includeExts.push_back(ext);
+        }
+    }
+    
+    // 排除模式列表（使用扁平化的键）
+    std::string excludePatternsStr = config.getConfigValue("exclude_patterns",
+        "^\\..*,.*\\.tmp$,.*\\.log$,__pycache__,node_modules");
+    std::vector<std::string> excludePatterns;
+    std::stringstream patternSs(excludePatternsStr);
+    std::string pattern;
+    while (std::getline(patternSs, pattern, ',')) {
+        pattern.erase(0, pattern.find_first_not_of(" \t"));
+        pattern.erase(pattern.find_last_not_of(" \t") + 1);
+        if (!pattern.empty()) {
+            excludePatterns.push_back(pattern);
+        }
+    }
+    
+    // 获取其他配置值（使用扁平化的键）
+    int maxFileSize = std::stoi(config.getConfigValue("max_file_size", "50"));
+    int recursiveDepth = std::stoi(config.getConfigValue("recursive_depth", "5"));
+    bool enableContentIndexing = config.getConfigValue("enable_content_indexing", "true") == "true";
+    
+    // 处理每个监控目录
+    for (std::string path : watchDirs) {
         // 去除空白字符
         path.erase(0, path.find_first_not_of(" \t"));
         path.erase(path.find_last_not_of(" \t") + 1);
@@ -142,30 +109,18 @@ std::vector<FileSystemMonitor::WatchConfig> loadWatchConfigs(ConfigManager& conf
         if (!path.empty() && fs::exists(path) && fs::is_directory(path)) {
             FileSystemMonitor::WatchConfig watchConfig(path);
             watchConfig.name = fs::path(path).filename().string();
-            watchConfig.enabled = true;
-            watchConfig.recursive = true;
+            watchConfig.enabled = enableContentIndexing;
+            watchConfig.recursive = (recursiveDepth > 1);
             watchConfig.maxFileSize = maxFileSize * 1024 * 1024; // 转换为字节
             
-            // 解析支持的扩展名
-            std::stringstream extSs(supportedExts);
-            std::string ext;
-            while (std::getline(extSs, ext, ',')) {
-                ext.erase(0, ext.find_first_not_of(" \t"));
-                ext.erase(ext.find_last_not_of(" \t") + 1);
-                if (!ext.empty()) {
-                    watchConfig.supportedExtensions.insert(ext);
-                }
+            // 添加支持的扩展名
+            for (const auto& ext : includeExts) {
+                watchConfig.supportedExtensions.insert(ext);
             }
             
-            // 解析忽略模式
-            std::stringstream ignoreSs(ignorePatterns);
-            std::string pattern;
-            while (std::getline(ignoreSs, pattern, ',')) {
-                pattern.erase(0, pattern.find_first_not_of(" \t"));
-                pattern.erase(pattern.find_last_not_of(" \t") + 1);
-                if (!pattern.empty()) {
-                    watchConfig.ignorePatterns.push_back(pattern);
-                }
+            // 添加忽略模式
+            for (const auto& pattern : excludePatterns) {
+                watchConfig.ignorePatterns.push_back(pattern);
             }
             
             watchConfigs.push_back(watchConfig);
@@ -175,70 +130,51 @@ std::vector<FileSystemMonitor::WatchConfig> loadWatchConfigs(ConfigManager& conf
     return watchConfigs;
 }
 
-// 处理文件系统事件
-void processFilesystemEvent(const FileSystemMonitor::FileEvent& event, 
-                           UnifiedClient& client, ConfigManager& config) {
-    std::cout << "📁 Processing file event: " << event.eventType << " - " << event.path << std::endl;
+// 发送文件系统事件到daemon（轻量级事件模式）
+void sendFilesystemEvent(const FileSystemMonitor::FileEvent& event, 
+                        UnifiedClient& client, ConfigManager& config) {
+    std::cout << "📁 Sending file event: " << event.eventType << " - " << event.path << std::endl;
     
-    // 对于创建和修改事件，读取文件内容
-    if (event.eventType == "created" || event.eventType == "modified") {
-        try {
-            std::ifstream file(event.path);
-            if (!file.is_open()) {
-                std::cerr << "❌ Cannot open file: " << event.path << std::endl;
-                return;
+    fs::path filePath(event.path);
+    
+    try {
+        // 创建文件事件数据
+        json file_event_data = {
+            {"file_path", event.path},
+            {"file_name", filePath.filename().string()},
+            {"extension", filePath.extension().string()},
+            {"directory", filePath.parent_path().string()}
+        };
+        
+        // 如果文件存在，添加大小信息
+        if (fs::exists(filePath) && (event.eventType == "created" || event.eventType == "modified")) {
+            try {
+                file_event_data["size"] = fs::file_size(filePath);
+            } catch (const std::exception& e) {
+                // 文件大小获取失败时跳过
             }
-            
-            std::string content((std::istreambuf_iterator<char>(file)),
-                               std::istreambuf_iterator<char>());
-            
-            // 限制内容长度
-            int maxContent = std::stoi(config.getConfigValue("max_content_length", "50000"));
-            if (content.length() > static_cast<size_t>(maxContent)) {
-                content = content.substr(0, maxContent) + "\n... (内容已截断)";
-            }
-            
-            // 创建数据项
-            std::string itemId = "filesystem_" + utils::generateUUID();
-            fs::path filePath(event.path);
-            
-            // 创建元数据
-            json metadata = {
-                {"file_path", event.path},
-                {"file_name", filePath.filename().string()},
-                {"file_extension", filePath.extension().string()},
-                {"directory", filePath.parent_path().string()},
-                {"event_type", event.eventType}
-            };
-            
-            // 使用新的storage API创建实体
-            json entity_data = {
-                {"entity_id", itemId},
-                {"name", filePath.filename().string()},
-                {"entity_type", "file"},
-                {"description", "File from filesystem connector"},
-                {"attributes", metadata},
-                {"source_path", event.path},
-                {"content", content},
-                {"auto_embed", true}
-            };
-            
-            auto response = client.post("/storage/entities", entity_data.dump());
-            
-            if (response.success) {
-                std::cout << "✅ Processed file event: " << filePath.filename().string() 
-                         << " (" << content.length() << " chars)" << std::endl;
-            } else {
-                std::cerr << "❌ Failed to push file data: " << response.error_message 
-                          << " (code: " << response.error_code << ")" << std::endl;
-            }
-            
-        } catch (const std::exception& e) {
-            std::cerr << "❌ Error processing file: " << e.what() << std::endl;
         }
-    } else {
-        // 对于删除事件，仅记录日志
-        std::cout << "🗑️  File deleted: " << fs::path(event.path).filename().string() << std::endl;
+        
+        json event_data = {
+            {"connector_id", "filesystem"},
+            {"event_type", event.eventType},
+            {"event_data", file_event_data},
+            {"timestamp", utils::getCurrentTimestamp()},
+            {"metadata", {}} // 空元数据，所有信息都在event_data中
+        };
+        
+        // 发送到通用事件API
+        auto response = client.post("/events/submit", event_data.dump());
+        
+        if (response.success) {
+            std::cout << "✅ Sent file event: " << filePath.filename().string() << std::endl;
+        } else {
+            std::cerr << "❌ Failed to send file event: " << response.error_message 
+                      << " (code: " << response.error_code << ")" << std::endl;
+        }
+        
+    } catch (const std::exception& e) {
+        std::cerr << "❌ Error sending file event: " << e.what() << std::endl;
     }
 }
 
@@ -277,13 +213,13 @@ int main(int argc, char* argv[]) {
         std::cerr << "⚠️ Failed to load configuration from daemon, using defaults." << std::endl;
     }
 
-    // Schema registration is handled by the daemon.
+    // Schema is loaded from connector.json by the daemon
 
     FileSystemMonitor monitor;
 
-    // Create callback to handle filesystem changes
+    // Create callback to handle filesystem changes  
     auto filesystemCallback = [&unifiedClient, &configManager](const FileSystemMonitor::FileEvent& event) {
-        processFilesystemEvent(event, unifiedClient, configManager);
+        sendFilesystemEvent(event, unifiedClient, configManager);
     };
 
     std::cout << "📂 Setting up filesystem watches..." << std::endl;
