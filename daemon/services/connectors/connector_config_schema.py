@@ -293,7 +293,7 @@ def create_basic_config_schema(
     connector_id: str, connector_name: str
 ) -> ConnectorConfigSchema:
     """创建基础配置Schema模板
-    
+
     注意：不再包含enabled, auto_start, log_level等通用字段
     这些应该在UI层面处理，不属于连接器特定的配置
     """

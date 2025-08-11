@@ -40,10 +40,15 @@ class ProcessAuthenticator:
         self.daemon_uid = os.getuid() if hasattr(os, "getuid") else None
         self.daemon_gid = os.getgid() if hasattr(os, "getgid") else None
 
-    def authenticate_process(self, client_pid: int, pid_confidence: Optional[str] = None, pid_source: Optional[str] = None) -> SecurityContext:
+    def authenticate_process(
+        self,
+        client_pid: int,
+        pid_confidence: Optional[str] = None,
+        pid_source: Optional[str] = None,
+    ) -> SecurityContext:
         """
         验证客户端进程 - 增强版，支持PID可信度评估
-        
+
         Args:
             client_pid: 客户端进程ID
             pid_confidence: PID可信度 ("high", "medium", "low")
@@ -58,7 +63,8 @@ class ProcessAuthenticator:
 
             # 根据PID来源和可信度调整验证严格程度
             strict_validation = pid_confidence in ["high", "medium"] and pid_source in [
-                "SO_PEERCRED", "LOCAL_PEERPID"
+                "SO_PEERCRED",
+                "LOCAL_PEERPID",
             ]
 
             if not platform.system() == "Windows":
@@ -70,7 +76,7 @@ class ProcessAuthenticator:
                     # 只允许相同用户的进程连接
                     if context.client_uid == self.daemon_uid:
                         context.authenticated = True
-                        
+
                         # 根据PID可信度记录不同级别的日志
                         if strict_validation:
                             logger.info(
@@ -99,14 +105,18 @@ class ProcessAuthenticator:
                 try:
                     _ = process.name()
                     context.authenticated = True
-                    
+
                     if strict_validation:
-                        logger.info(f"IPC进程高可信度验证通过 (Windows): PID={client_pid}, 来源={pid_source}")
+                        logger.info(
+                            f"IPC进程高可信度验证通过 (Windows): PID={client_pid}, 来源={pid_source}"
+                        )
                     else:
                         logger.info(f"IPC进程基本验证通过 (Windows): PID={client_pid}")
                 except psutil.AccessDenied:
                     if strict_validation:
-                        logger.warning(f"IPC进程高可信度验证失败 (Windows): PID={client_pid}")
+                        logger.warning(
+                            f"IPC进程高可信度验证失败 (Windows): PID={client_pid}"
+                        )
                     else:
                         logger.debug(f"IPC进程基本验证失败 (Windows): PID={client_pid}")
 
@@ -147,7 +157,7 @@ class RateLimiter:
     def is_allowed(self, client_pid: int, path: Optional[str] = None) -> bool:
         """检查请求是否被允许，支持路径级别的豁免"""
         now = time.time()
-        
+
         # 检查是否是豁免路径
         is_exempt = False
         if path:
@@ -155,10 +165,14 @@ class RateLimiter:
                 if path.startswith(exempt_path):
                     is_exempt = True
                     break
-        
+
         # 豁免路径使用更宽松的限制
         burst_limit = self.max_burst * 3 if is_exempt else self.max_burst
-        minute_limit = self.max_requests_per_minute * 3 if is_exempt else self.max_requests_per_minute
+        minute_limit = (
+            self.max_requests_per_minute * 3
+            if is_exempt
+            else self.max_requests_per_minute
+        )
 
         # 检查突发限制 - 使用更短的重置时间窗口
         reset_interval = 5 if is_exempt else 10  # 豁免路径使用更短的重置时间
@@ -169,7 +183,9 @@ class RateLimiter:
         if self.client_burst_count[client_pid] >= burst_limit:
             # 只在非豁免路径时记录警告
             if not is_exempt:
-                logger.debug(f"IPC客户端 {client_pid} 触发突发限制 (已发送 {self.client_burst_count[client_pid]} 请求, 路径: {path})")
+                logger.debug(
+                    f"IPC客户端 {client_pid} 触发突发限制 (已发送 {self.client_burst_count[client_pid]} 请求, 路径: {path})"
+                )
             return False
 
         # 检查分钟限制
@@ -247,15 +263,15 @@ class IPCSecurityManager:
         self.security_log = deque(maxlen=1000)  # 保留最近1000条安全日志
 
     def authenticate_connection(
-        self, 
-        connection_id: str, 
-        client_pid: int, 
+        self,
+        connection_id: str,
+        client_pid: int,
         pid_confidence: Optional[str] = None,
-        pid_source: Optional[str] = None
+        pid_source: Optional[str] = None,
     ) -> bool:
         """
         认证IPC连接 - 增强版，支持PID可信度评估
-        
+
         Args:
             connection_id: 连接ID
             client_pid: 客户端进程ID

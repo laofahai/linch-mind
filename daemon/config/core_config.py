@@ -17,7 +17,6 @@ from .error_handling import (
     ConfigValidationError,
     get_logger,
     safe_operation,
-    validate_port_range,
     validate_required_field,
 )
 
@@ -28,14 +27,14 @@ logger = get_logger(__name__)
 class ServerConfig:
     """服务器配置"""
 
-    host: str = "0.0.0.0"
+    host: str = "0.0.0.0"  # nosec B104
     port: int = 0  # 0表示使用随机端口
     port_range: List[int] = field(
         default_factory=lambda: [49152, 65535]
     )  # 使用标准动态端口范围
     reload: bool = True
     log_level: str = "info"
-    debug: bool = True   # 🔧 开发环境保持debug日志
+    debug: bool = True  # 🔧 开发环境保持debug日志
 
 
 @dataclass
@@ -63,6 +62,8 @@ class StorageConfig:
     # 向量数据库配置
     vector_dimension: int = 384
     vector_index_type: str = "IVF"  # Flat, IVF, HNSW
+    vector_index_path: str = "vector_index.bin"
+    distance_metric: str = "cosine"  # cosine, euclidean, inner_product
     vector_max_workers: int = 4
 
     # 嵌入服务配置
@@ -149,20 +150,26 @@ class CoreConfigManager:
     def __init__(self, config_root: Optional[Path] = None):
         self.config_root = config_root or Path(__file__).parent.parent.parent
 
-        # 应用数据目录 - 统一使用用户目录
-        self.app_data_dir = Path.home() / ".linch-mind"
-        self.app_data_dir.mkdir(exist_ok=True)
+        # 🆕 Environment Manager Integration - V62环境隔离架构
+        from core.environment_manager import get_environment_manager
 
-        # 子目录
-        self.config_dir = self.app_data_dir / "config"
-        self.data_dir = self.app_data_dir / "data"
-        self.logs_dir = self.app_data_dir / "logs"
-        self.db_dir = self.app_data_dir / "db"
+        self.env_manager = get_environment_manager()
 
+        # 使用环境管理器提供的路径，而非硬编码路径
+        env_config = self.env_manager.current_config
+
+        # 环境隔离的目录结构
+        self.app_data_dir = env_config.base_path
+        self.config_dir = env_config.config_dir
+        self.data_dir = env_config.data_dir
+        self.logs_dir = env_config.logs_dir
+        self.db_dir = env_config.database_dir
+
+        # 确保目录存在 (EnvironmentManager已创建，这里是双重保险)
         for dir_path in [self.config_dir, self.data_dir, self.logs_dir, self.db_dir]:
-            dir_path.mkdir(exist_ok=True)
+            dir_path.mkdir(parents=True, exist_ok=True)
 
-        # 配置文件路径 - 优先级明确
+        # 环境特定的配置文件路径
         self.primary_config_path = self.config_dir / "app.yaml"
         self.fallback_config_path = self.config_root / "linch-mind.config.yaml"
 
@@ -171,7 +178,9 @@ class CoreConfigManager:
         self._setup_dynamic_paths()
         self._apply_env_overrides()
 
-        logger.info(f"Core config loaded from: {self._get_active_config_path()}")
+        logger.info(
+            f"Core config loaded - Environment: {self.env_manager.current_environment.value}, Path: {self._get_active_config_path()}"
+        )
 
     def _get_active_config_path(self) -> Path:
         """获取当前活跃的配置文件路径"""
@@ -317,42 +326,70 @@ class CoreConfigManager:
             raise
 
     def _setup_dynamic_paths(self):
-        """设置动态路径配置 - 简化版本"""
-        # 环境隔离：检测测试环境
+        """设置动态路径配置 - 环境管理器集成版本"""
+        # 🆕 使用环境管理器提供的路径配置
         import os
+
+        # 检测是否为测试环境 (通过环境管理器已处理，这里保持兼容性)
         is_test_env = (
-            os.getenv('PYTEST_CURRENT_TEST') is not None or
-            os.getenv('TESTING') == '1' or 
-            'test' in sys.argv[0].lower() or
-            any('test' in arg for arg in sys.argv)
+            os.getenv("PYTEST_CURRENT_TEST") is not None
+            or os.getenv("TESTING") == "1"
+            or "test" in sys.argv[0].lower()
+            or any("test" in arg for arg in sys.argv)
         )
-        
+
+        # 环境特定的数据库配置
         if is_test_env:
-            # 测试环境：使用内存数据库
+            # 测试环境：强制使用内存数据库
             self.config.database.sqlite_url = "sqlite:///:memory:"
             self.config.database.chroma_persist_directory = ":memory:"
             logger.info("测试环境检测：使用内存数据库")
         else:
-            # 生产环境：使用持久化数据库
-            self.config.database.sqlite_url = f"sqlite:///{self.db_dir}/linch_mind.db"
-            self.config.database.chroma_persist_directory = str(self.db_dir / "chromadb")
+            # 使用环境管理器的数据库配置
+            self.config.database.sqlite_url = self.env_manager.get_database_url()
+            self.config.database.chroma_persist_directory = (
+                self.env_manager.get_chroma_persist_directory()
+            )
 
-        # 设置存储目录路径
+            logger.info(
+                f"环境数据库配置 ({self.env_manager.current_environment.value})"
+            )
+            logger.info(f"  Database: {self.config.database.sqlite_url}")
+            logger.info(f"  ChromaDB: {self.config.database.chroma_persist_directory}")
+
+        # 设置存储目录路径 - 使用环境特定的数据目录
         if not self.config.storage.data_directory:
             self.config.storage.data_directory = str(self.data_dir)
 
-        # 设置连接器目录路径 - 使用项目目录
+        # 设置向量索引路径 - 环境隔离
+        vector_index_path = self.env_manager.get_vector_index_path()
+        if hasattr(self.config.storage, "vector_index_path"):
+            self.config.storage.vector_index_path = str(vector_index_path)
+
+        # 设置连接器目录路径 - 使用项目目录 (连接器配置可以跨环境共享)
         if self.config.connectors.config_dir == "connectors":
             # 获取项目根目录（daemon目录的父目录）
             project_root = Path(__file__).parent.parent.parent
             project_connectors_dir = project_root / "connectors"
             if project_connectors_dir.exists():
                 self.config.connectors.config_dir = str(project_connectors_dir)
+                logger.debug(f"使用项目连接器目录: {project_connectors_dir}")
             else:
-                # 如果项目connectors目录不存在，使用用户目录作为fallback
-                user_connectors_dir = self.app_data_dir / "connectors"
-                user_connectors_dir.mkdir(exist_ok=True)
-                self.config.connectors.config_dir = str(user_connectors_dir)
+                # 如果项目connectors目录不存在，使用环境特定的connectors目录
+                env_connectors_dir = (
+                    self.env_manager.current_config.base_path / "connectors"
+                )
+                env_connectors_dir.mkdir(exist_ok=True)
+                self.config.connectors.config_dir = str(env_connectors_dir)
+                logger.debug(f"使用环境connectors目录: {env_connectors_dir}")
+
+        # 环境特定的调试配置
+        if self.env_manager.is_debug_enabled():
+            self.config.debug = True
+            self.config.server.debug = True
+            logger.debug(
+                f"环境 {self.env_manager.current_environment.value} 启用调试模式"
+            )
 
     def _apply_env_overrides(self):
         """应用环境变量覆盖 - 移除，环境变量处理过度复杂"""
@@ -473,8 +510,8 @@ class CoreConfigManager:
             return False
 
     def get_system_config(self) -> Dict[str, Any]:
-        """获取系统配置"""
-        return {
+        """获取系统配置 - 包含环境信息"""
+        system_config = {
             "app_name": self.config.app_name,
             "version": self.config.version,
             "debug": self.config.debug,
@@ -483,6 +520,11 @@ class CoreConfigManager:
             "connectors": asdict(self.config.connectors),
             "ai": asdict(self.config.ai),
         }
+
+        # 🆕 添加环境信息
+        system_config["environment"] = self.env_manager.get_environment_summary()
+
+        return system_config
 
     def update_system_config(self, config_updates: Dict[str, Any]) -> bool:
         """更新系统配置"""
@@ -499,6 +541,33 @@ class CoreConfigManager:
         except Exception as e:
             logger.error(f"更新系统配置失败: {e}")
             return False
+
+    # 🆕 环境管理相关方法
+    def get_environment_info(self) -> Dict[str, Any]:
+        """获取当前环境信息"""
+        return self.env_manager.get_environment_summary()
+
+    def list_all_environments(self) -> List[Dict[str, Any]]:
+        """列出所有可用环境"""
+        return self.env_manager.list_environments()
+
+    def switch_environment(self, env_name: str) -> bool:
+        """切换到指定环境 (需要重启服务)"""
+        try:
+            from core.environment_manager import Environment
+
+            target_env = Environment.from_string(env_name)
+            return self.env_manager.permanently_switch_environment(target_env)
+        except Exception as e:
+            logger.error(f"切换环境失败 {env_name}: {e}")
+            return False
+
+    def get_environment_paths(self) -> Dict[str, str]:
+        """获取当前环境的路径信息"""
+        from core.environment_manager import get_environment_paths
+
+        paths = get_environment_paths()
+        return {key: str(path) for key, path in paths.items()}
 
 
 # 全局单例

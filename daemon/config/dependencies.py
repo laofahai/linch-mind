@@ -6,6 +6,7 @@
 
 import logging
 import sys
+
 # 🔧 移除lru_cache - 使用DI容器替代
 from pathlib import Path
 
@@ -22,6 +23,7 @@ logger = logging.getLogger(__name__)
 def get_config_manager() -> CoreConfigManager:
     """获取配置管理器 - 现在通过DI容器管理"""
     from core.service_facade import get_config_manager as get_manager_from_container
+
     return get_manager_from_container()
 
 

@@ -67,15 +67,15 @@ def create_health_router() -> IPCRouter:
         try:
             data = request.data or {}
             connector_id = data.get("connector_id", "unknown")
-            
+
             logger.debug(f"收到连接器心跳: {connector_id}")
-            
+
             return IPCResponse.success_response(
                 data={
                     "status": "alive",
                     "timestamp": datetime.now().isoformat(),
                     "connector_id": connector_id,
-                    "message": "Heartbeat received"
+                    "message": "Heartbeat received",
                 },
                 request_id=request.request_id,
             )

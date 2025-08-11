@@ -7,17 +7,17 @@
 import logging
 from datetime import datetime, timezone
 
-from models.connector_status import ConnectorRunningState, ConnectorStatus
-from core.service_facade import get_connector_manager, get_service
-from services.connectors.connector_config_service import ConnectorConfigService
 from core.error_handling import (
-    handle_connector_errors, 
-    handle_errors, 
-    ErrorSeverity, 
     ErrorCategory,
     ErrorContext,
-    get_enhanced_error_handler
+    ErrorSeverity,
+    get_enhanced_error_handler,
+    handle_connector_errors,
+    handle_errors,
 )
+from core.service_facade import get_connector_manager, get_service
+from models.connector_status import ConnectorRunningState, ConnectorStatus
+from services.connectors.connector_config_service import ConnectorConfigService
 
 from ..ipc_protocol import (
     IPCErrorCode,
@@ -35,18 +35,18 @@ logger = logging.getLogger(__name__)
 def _map_daemon_state_to_ui(status: str, enabled: bool) -> str:
     """
     简化的状态映射逻辑：直接传递daemon原始状态给UI
-    
+
     状态说明：
     - running: 正在运行
     - starting: 启动中
     - stopping: 停止中
     - stopped: 已停止
     - error: 错误状态
-    
+
     Args:
         status: 数据库中的运行状态
         enabled: 是否启用 (UI通过enabled字段判断用户意图)
-        
+
     Returns:
         UI端对应的状态字符串 (直接使用daemon状态)
     """
@@ -67,7 +67,7 @@ def create_connector_lifecycle_router() -> IPCRouter:
         try:
             manager = get_connector_manager()
             connectors = manager.list_connectors()
-            
+
             # 获取配置服务
             config_service = get_service(ConnectorConfigService)
 
@@ -78,18 +78,22 @@ def create_connector_lifecycle_router() -> IPCRouter:
                 # 状态映射：数据库的status字段 + enabled字段 -> UI的state字段
                 status = conn["status"]
                 enabled = conn["enabled"]
-                
+
                 # 修正后的状态映射逻辑：考虑运行状态和启用状态
                 ui_state = _map_daemon_state_to_ui(status, enabled)
-                
+
                 # 获取连接器的实际配置
                 connector_config = {}
                 try:
-                    current_config = config_service.get_connector_config(conn["connector_id"])
+                    current_config = config_service.get_connector_config(
+                        conn["connector_id"]
+                    )
                     if current_config:
                         connector_config = current_config
                 except Exception as e:
-                    logger.warning(f"Failed to get config for {conn['connector_id']}: {e}")
+                    logger.warning(
+                        f"Failed to get config for {conn['connector_id']}: {e}"
+                    )
 
                 connector_info = {
                     "connector_id": conn["connector_id"],
@@ -119,10 +123,12 @@ def create_connector_lifecycle_router() -> IPCRouter:
                 severity=ErrorSeverity.HIGH,
                 category=ErrorCategory.CONNECTOR_MANAGEMENT,
                 user_message="获取连接器列表失败",
-                recovery_suggestions="检查连接器服务状态"
+                recovery_suggestions="检查连接器服务状态",
             )
-            
-            processed_error = enhanced_handler.process_error(e, context, request.request_id)
+
+            processed_error = enhanced_handler.process_error(
+                e, context, request.request_id
+            )
             return IPCResponse.from_processed_error(processed_error, request.request_id)
 
     @router.post("/connectors")
@@ -155,9 +161,9 @@ def create_connector_lifecycle_router() -> IPCRouter:
             # 注册连接器（不需要路径，会从connector.json读取）
             custom_description = config.get("description", "") if config else None
             success = await manager.register_connector(
-                connector_id=connector_id, 
-                name=display_name, 
-                description=custom_description
+                connector_id=connector_id,
+                name=display_name,
+                description=custom_description,
             )
 
             if success:
@@ -538,6 +544,7 @@ def create_connector_lifecycle_router() -> IPCRouter:
             from pathlib import Path
 
             from daemon.config.core_config import get_connector_config
+
             manager = get_connector_manager()
             connector_config = get_connector_config()
             connectors_dir = Path(connector_config.config_dir)
@@ -575,7 +582,7 @@ def create_connector_lifecycle_router() -> IPCRouter:
                 )
 
             from pathlib import Path
-            
+
             # 添加IPC路由层调试信息
             logger.info(f"[IPC路由] 收到扫描请求，原始路径: '{directory_path}'")
             logger.info(f"[IPC路由] 路径类型: {type(directory_path)}")
@@ -601,7 +608,7 @@ def create_connector_lifecycle_router() -> IPCRouter:
 
             manager = get_connector_manager()
             raw_connectors = manager.scan_directory_for_connectors(str(path))
-            
+
             # 转换为UI端期待的ConnectorDefinition格式
             transformed_connectors = []
             for conn in raw_connectors:
@@ -615,19 +622,25 @@ def create_connector_lifecycle_router() -> IPCRouter:
                     "version": conn["version"],
                     "author": conn.get("config", {}).get("author", "Unknown"),
                     "license": conn.get("config", {}).get("license", ""),
-                    "auto_discovery": conn.get("config", {}).get("auto_discovery", False),
-                    "hot_config_reload": conn.get("config", {}).get("hot_config_reload", True),
+                    "auto_discovery": conn.get("config", {}).get(
+                        "auto_discovery", False
+                    ),
+                    "hot_config_reload": conn.get("config", {}).get(
+                        "hot_config_reload", True
+                    ),
                     "health_check": conn.get("config", {}).get("health_check", True),
                     "entry_point": conn.get("config", {}).get("entry_point", "main.py"),
                     "dependencies": conn.get("config", {}).get("dependencies", []),
                     "permissions": conn.get("config", {}).get("permissions", []),
                     "config_schema": conn.get("config", {}).get("config_schema", {}),
-                    "config_default_values": conn.get("config", {}).get("default_config", {}),
+                    "config_default_values": conn.get("config", {}).get(
+                        "default_config", {}
+                    ),
                     "path": conn["path"],
                     "is_registered": conn["is_registered"],
                     "platforms": {},
                     "capabilities": {},
-                    "last_updated": None
+                    "last_updated": None,
                 }
                 transformed_connectors.append(transformed)
 

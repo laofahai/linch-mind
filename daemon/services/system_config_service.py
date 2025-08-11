@@ -9,8 +9,8 @@ import logging
 from typing import Any, Dict
 
 from config.core_config import get_connector_config
-from models.database_models import Connector
 from core.service_facade import get_database_service
+from models.database_models import Connector
 from services.registry_discovery_service import RegistryDiscoveryService
 
 logger = logging.getLogger(__name__)
@@ -29,12 +29,12 @@ class SystemConfigService:
         try:
             # 获取注册表数据
             registry_data, source = await self.registry_service.discover_registry()
-            
+
             # 添加类型检查和调试日志
             logger.info(f"注册表数据类型: {type(registry_data)}")
             if registry_data:
                 logger.debug(f"注册表数据预览: {str(registry_data)[:200]}...")
-            
+
             # 修复None值处理 - 如果registry_data是None，提供默认值
             if registry_data is None:
                 logger.warning("注册表服务返回None，使用空注册表作为备用")
@@ -42,16 +42,16 @@ class SystemConfigService:
                     "schema_version": "1.0.0",
                     "connectors": {},
                     "source": "fallback_empty",
-                    "message": "Registry service returned None"
+                    "message": "Registry service returned None",
                 }
-            
+
             # 确保 registry_data 是字典类型
             if not isinstance(registry_data, dict):
                 logger.error(f"注册表数据类型错误，期望dict，实际{type(registry_data)}")
                 return {
                     "success": False,
                     "error": f"Registry data format error - expected dict, got {type(registry_data)}",
-                    "data": {"connectors": []}
+                    "data": {"connectors": []},
                 }
 
             if not registry_data or "connectors" not in registry_data:
@@ -60,11 +60,11 @@ class SystemConfigService:
                 return {
                     "success": True,
                     "data": {"connectors": []},
-                    "message": "No registry data available"
+                    "message": "No registry data available",
                 }
 
             connectors = registry_data.get("connectors", [])
-            
+
             # 处理不同的connectors数据格式
             if isinstance(connectors, dict):
                 # 字典格式：转换为列表

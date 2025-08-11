@@ -2,22 +2,23 @@
 
 **高性能IPC后台服务** - Linch Mind个人AI生活助手的核心引擎
 
-**版本**: 0.3.0  
-**架构**: 纯IPC (Unix Socket/Named Pipe) + 现代化服务架构  
-**技术栈**: Python 3.12 + SQLAlchemy + FAISS + NetworkX + ServiceFacade  
-**状态**: 生产就绪 + P0重构完成
+**版本**: 0.4.0
+**架构**: 纯IPC (Unix Socket/Named Pipe) + 现代化服务架构 + 环境隔离
+**技术栈**: Python 3.12 + SQLAlchemy + FAISS + NetworkX + ServiceFacade + EnvironmentManager
+**状态**: 生产就绪 + P0重构完成 + 环境隔离完成
 
 ---
 
 ## 🚀 核心特性
 
-### 🔥 纯IPC架构 (v2.0) + 现代化服务架构 (v3.0)
+### 🔥 纯IPC架构 (v2.0) + 现代化服务架构 (v3.0) + 环境隔离 (v4.0)
 - **超高性能**: IPC延迟<1ms，相比HTTP提升90%+
 - **零网络暴露**: Unix Socket/Named Pipe本地通信
 - **自动重连**: 客户端断线自动恢复机制
 - **跨平台支持**: macOS/Linux(Unix Socket) + Windows(Named Pipe)
 - **ServiceFacade**: 统一服务获取，消除>90%代码重复
 - **标准化错误处理**: 统一异常管理，提升系统稳定性
+- **环境隔离**: 完整的development/staging/production环境支持
 
 ### 🧠 智能推荐引擎
 - **知识图谱**: NetworkX图数据库，自动发现内容关联
@@ -83,26 +84,42 @@
 # 1. 安装依赖
 poetry install
 
-# 2. 启动IPC服务器
+# 2. 初始化环境（首次运行）
+./linch-mind init              # 使用默认development环境
+./linch-mind init production   # 初始化生产环境
+
+# 3. 启动IPC服务器
 poetry run linch-daemon
 
 # 或者直接运行
 poetry run python ipc_main.py
 
-# 3. 验证服务状态
+# 4. 验证服务状态
 ./linch-mind status
+./linch-mind doctor            # 系统健康检查
 ```
 
-### 配置文件
+### 环境配置
 ```bash
-# 配置文件位置
-~/.linch-mind/config.yaml
+# 环境变量设置
+export LINCH_ENV=development      # 开发环境
+export LINCH_ENV=staging          # 预发环境
+export LINCH_ENV=production       # 生产环境
 
-# 核心配置
-ipc_socket_path: /tmp/linch-mind.sock  # Unix Socket路径
-database_url: sqlite:///~/.linch-mind/linch.db
-log_level: INFO
-max_connections: 1000
+# 环境目录结构
+~/.linch-mind/
+├── development/          # 开发环境
+│   ├── config/           # 配置文件
+│   ├── database/         # SQLite数据库
+│   ├── logs/             # 日志文件
+│   └── cache/            # 缓存数据
+├── staging/              # 预发环境
+└── production/           # 生产环境
+
+# 环境特定配置
+# Development: 无加密，调试模式
+# Staging: SQLCipher加密，性能监控
+# Production: 完整加密，自动备份
 ```
 
 ---
@@ -112,12 +129,15 @@ max_connections: 1000
 ```
 daemon/
 ├── ipc_main.py              # 主入口 - IPC服务器启动
-├── core/                    # 🆕 现代化核心架构 (2025-08-08)
+├── core/                    # 🆕 现代化核心架构 (2025-08-08) + 环境隔离 (2025-08-11)
 │   ├── service_facade.py    # ServiceFacade - 统一服务获取
 │   ├── error_handling.py    # 标准化错误处理框架
 │   ├── container.py         # 增强DI容器
 │   ├── exception_handler.py # 异常管理器
+│   ├── environment_manager.py # 环境管理器 - 完整环境隔离
 │   └── database_manager.py  # 数据库生命周期管理
+├── scripts/                 # 工具脚本
+│   └── initialize_environment.py # 环境初始化脚本
 ├── config/                  # 配置管理
 │   ├── core_config.py       # 核心配置加载
 │   ├── error_handling.py    # 错误处理配置
@@ -146,7 +166,7 @@ daemon/
 
 ## 🔧 开发指南
 
-### 🆕 现代化开发模式 (2025-08-08)
+### 🆕 现代化开发模式 (2025-08-08) + 环境管理 (2025-08-11)
 
 #### ServiceFacade服务获取
 ```python
@@ -190,6 +210,26 @@ if container.is_registered(DatabaseService):
     db_service = container.get_service(DatabaseService)
 ```
 
+#### 环境管理
+```python
+# ✅ 环境信息获取
+from core.service_facade import get_environment_manager
+
+env_manager = get_environment_manager()
+print(f"当前环境: {env_manager.current_environment.value}")
+print(f"数据库路径: {env_manager.get_database_url()}")
+
+# ✅ 临时环境切换
+from core.environment_manager import Environment
+
+with env_manager.switch_environment(Environment.PRODUCTION):
+    # 在生产环境中执行操作
+    pass
+
+# ✅ 环境初始化
+# 命令行: python daemon/scripts/initialize_environment.py --env production
+```
+
 ### IPC通信测试
 ```bash
 # Python客户端测试
@@ -230,7 +270,7 @@ from services.connector_manager import register_connector
 # 注册连接器配置
 config = {
     "id": "my_connector",
-    "name": "My Custom Connector", 
+    "name": "My Custom Connector",
     "type": "data_source",
     "executable_path": "/path/to/connector",
     "config_schema": {...}
@@ -241,7 +281,7 @@ register_connector(config)
 
 ### 连接器API
 - **启动**: `POST /connectors/{id}/start`
-- **停止**: `POST /connectors/{id}/stop` 
+- **停止**: `POST /connectors/{id}/stop`
 - **状态**: `GET /connectors/{id}/status`
 - **配置**: `PUT /connectors/{id}/config`
 
@@ -271,6 +311,11 @@ from services.ipc_middleware import PerformanceMiddleware
 - 消息处理延迟: <1ms
 - 并发连接数: 1000+
 - 内存使用: <500MB
+
+# 环境特定性能配置
+- Development: 调试模式 + 性能监控
+- Staging: 加密 + 备份 + 性能监控
+- Production: 完整加密 + 优化配置
 ```
 
 ---
@@ -284,9 +329,11 @@ from services.ipc_middleware import PerformanceMiddleware
 - **速率限制**: 防止DOS攻击
 
 ### 数据安全
-- **数据库加密**: SQLCipher可选加密
+- **环境隔离**: 完全独立的环境数据目录
+- **数据库加密**: 生产环境强制SQLCipher加密
 - **敏感数据清理**: 自动PII数据检测和清理
 - **访问审计**: 完整的数据访问日志
+- **环境安全**: 严格的环境数据隔离和备份策略
 
 ---
 
@@ -294,7 +341,7 @@ from services.ipc_middleware import PerformanceMiddleware
 
 ### 关键优化
 - **连接池**: IPC连接复用，减少建立开销
-- **批量处理**: 消息批量发送，提升吞吐量  
+- **批量处理**: 消息批量发送，提升吞吐量
 - **内存缓存**: 热数据内存缓存，减少IO
 - **异步处理**: 全异步架构，高并发支持
 
@@ -315,8 +362,9 @@ from services.ipc_middleware import PerformanceMiddleware
 
 ---
 
-**Daemon服务状态**: ✅ 生产就绪 + P0重构完成  
-**版本**: 0.3.0  
-**代码重构**: 重复率从>60%降至<5%，架构现代化  
-**最后更新**: 2025-08-08  
+**Daemon服务状态**: ✅ 生产就绪 + P0重构完成 + 环境隔离完成
+**版本**: 0.4.0
+**环境支持**: 完整development/staging/production环境隔离和管理
+**代码重构**: 重复率从>60%降至<5%，架构现代化
+**最后更新**: 2025-08-11
 **维护团队**: Linch Mind Core Team

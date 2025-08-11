@@ -5,9 +5,9 @@ from typing import Dict, Optional
 
 import psutil
 
-from models.api_models import ConnectorStatus
+from core.error_handling import ErrorCategory, ErrorSeverity, handle_errors
 from core.service_facade import get_service
-from core.error_handling import handle_errors, ErrorSeverity, ErrorCategory
+from models.api_models import ConnectorStatus
 
 logger = logging.getLogger(__name__)
 
@@ -18,6 +18,7 @@ class ConnectorHealthChecker:
     def __init__(self, connector_manager=None):
         # 使用ServiceFacade获取ConnectorManager依赖
         from services.connectors.connector_manager import ConnectorManager
+
         self.connector_manager = connector_manager or get_service(ConnectorManager)
 
         # 重启管理
@@ -75,7 +76,7 @@ class ConnectorHealthChecker:
     @handle_errors(
         severity=ErrorSeverity.MEDIUM,
         category=ErrorCategory.CONNECTOR_MANAGEMENT,
-        user_message="健康检查执行失败"
+        user_message="健康检查执行失败",
     )
     async def _perform_health_check(self):
         """执行健康检查"""
@@ -87,7 +88,7 @@ class ConnectorHealthChecker:
     @handle_errors(
         severity=ErrorSeverity.MEDIUM,
         category=ErrorCategory.CONNECTOR_MANAGEMENT,
-        user_message="连接器健康状态检查失败"
+        user_message="连接器健康状态检查失败",
     )
     async def _check_connector_health(self, connector_id: str):
         """检查单个连接器健康状态 - 使用统一状态管理"""
@@ -100,11 +101,13 @@ class ConnectorHealthChecker:
         process_status = process_info.get("process_status", {})
         actual_status = process_status.get("status", "unknown")
         pid = process_info.get("pid")
-        
+
         # 根据实际进程状态判断健康状况
         if actual_status in ["not_running", "dead"]:
             if pid:
-                logger.warning(f"🔍 健康检查发现连接器 {connector_id} 进程已停止 (last PID: {pid})")
+                logger.warning(
+                    f"🔍 健康检查发现连接器 {connector_id} 进程已停止 (last PID: {pid})"
+                )
             else:
                 logger.warning(f"🔍 健康检查发现连接器 {connector_id} 没有运行进程")
             await self._handle_connector_failure(connector_id)
@@ -119,12 +122,16 @@ class ConnectorHealthChecker:
                 try:
                     psutil_process = psutil.Process(pid)
                     if not psutil_process.is_running():
-                        logger.warning(f"🔍 健康检查发现连接器 {connector_id} PID {pid} 不存在")
+                        logger.warning(
+                            f"🔍 健康检查发现连接器 {connector_id} PID {pid} 不存在"
+                        )
                         await self._handle_connector_failure(connector_id)
                     else:
                         logger.debug(f"🔍 连接器 {connector_id} (PID: {pid}) 健康运行")
                 except psutil.NoSuchProcess:
-                    logger.warning(f"🔍 健康检查发现连接器 {connector_id} PID {pid} 不存在")
+                    logger.warning(
+                        f"🔍 健康检查发现连接器 {connector_id} PID {pid} 不存在"
+                    )
                     await self._handle_connector_failure(connector_id)
             else:
                 logger.debug(f"连接器 {connector_id} 状态未知且无PID，跳过检查")
@@ -174,15 +181,17 @@ class ConnectorHealthChecker:
         # 通过ConnectorManager执行重启
         try:
             logger.info(f"开始重启连接器 {connector_id}")
-            restart_success = await self.connector_manager.restart_connector(connector_id)
-            
+            restart_success = await self.connector_manager.restart_connector(
+                connector_id
+            )
+
             if restart_success:
                 logger.info(f"✅ 连接器 {connector_id} 重启成功")
                 # 重启成功后，重置重启计数（可选，根据策略决定）
                 # self.restart_counts[connector_id] = 0
             else:
                 logger.error(f"❌ 连接器 {connector_id} 重启失败")
-                
+
         except Exception as e:
             logger.error(f"重启连接器 {connector_id} 时发生异常: {e}")
 

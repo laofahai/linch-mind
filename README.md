@@ -1,8 +1,8 @@
 # Linch Mind - 个人AI生活助手 🤖
 
 ![Status](https://img.shields.io/badge/status-beta-blue)
-![Python](https://img.shields.io/badge/python-3.12+-purple)  
-![Flutter](https://img.shields.io/badge/flutter-3.24+-green)
+![Python](https://img.shields.io/badge/python-3.13+-purple)  
+![Flutter](https://img.shields.io/badge/flutter-3.32+-green)
 ![架构](https://img.shields.io/badge/架构-IPC+Flutter+C++-orange)
 ![License](https://img.shields.io/badge/license-MIT-lightgrey)
 
@@ -43,6 +43,9 @@
 git clone https://github.com/your-repo/linch-mind.git
 cd linch-mind
 
+# 初始化环境（首次运行）
+./linch-mind init
+
 # 一键启动所有服务
 ./linch-mind start
 ```
@@ -65,7 +68,7 @@ cd linch-mind
 - **剪贴板智能**: 复制内容时，智能识别并推荐相关资料  
 - **知识图谱**: 实时可视化您的数据关系网络
 - **智能推荐**: 基于使用模式主动推送有价值信息
-- **IPC通信**: < 1ms延迟，30,000+ RPS性能
+- **IPC通信**: < 5ms延迟，10,000+ RPS性能，完整错误处理
 
 ## 🏗️ 系统架构
 

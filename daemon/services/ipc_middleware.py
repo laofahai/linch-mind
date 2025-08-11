@@ -190,43 +190,41 @@ class ValidationMiddleware:
 
     def __init__(self, max_payload_size: int = 1024 * 1024):  # 1MB
         self.max_payload_size = max_payload_size
-        
+
         # 🚨 安全模式：危险字符和模式检测
         self.dangerous_patterns = [
             # SQL注入模式
             r"(?i)(union\s+select|drop\s+table|delete\s+from|insert\s+into)",
             r"(?i)(alter\s+table|truncate\s+table|create\s+table)",
             r"(?i)[\'\";].*(or\s+1=1|and\s+1=1|or\s+true|and\s+true)",
-            
             # 命令注入模式
             r"(?i)[;&|`\$].*(rm\s+|cat\s+|ls\s+|chmod\s+|sudo\s+)",
             r"(?i)(sh\s+-c|bash\s+-c|cmd\.exe|powershell)",
-            
             # 路径遍历攻击
             r"\.\./|\.\.\\\\|%2e%2e%2f|%2e%2e\\\\",
-            
             # XSS和代码注入
             r"(?i)<script.*?>|javascript:|vbscript:|onload=|onerror=",
             r"(?i)eval\s*\(|exec\s*\(|system\s*\(",
-            
             # 其他危险模式
             r"(?i)(password|secret|token|key).*[=:].*['\"]",  # 敏感信息泄露
         ]
-        
+
         # 危险字符集
-        self.dangerous_chars = set(['<', '>', '&', '"', "'", ';', '|', '`', '$'])
-        
+        self.dangerous_chars = set(["<", ">", "&", '"', "'", ";", "|", "`", "$"])
+
         # 最大嵌套深度
         self.max_nesting_depth = 10
 
     async def __call__(self, request: IPCRequest, call_next: Callable) -> IPCResponse:
         """执行增强的请求验证"""
-        
+
         # 1. 基础验证：数据大小
         if request.data:
             payload_size = len(json.dumps(request.data).encode("utf-8"))
             if payload_size > self.max_payload_size:
-                logger.warning(f"拒绝超大payload: {payload_size} > {self.max_payload_size}")
+                logger.warning(
+                    f"拒绝超大payload: {payload_size} > {self.max_payload_size}"
+                )
                 return IPCResponse.error_response(
                     IPCErrorCode.INVALID_REQUEST,
                     "Payload too large",
@@ -246,9 +244,9 @@ class ValidationMiddleware:
         if path_validation:
             logger.warning(f"拒绝危险路径: {request.path} - {path_validation}")
             return IPCResponse.error_response(
-                IPCErrorCode.INVALID_REQUEST, 
+                IPCErrorCode.INVALID_REQUEST,
                 f"Invalid path: {path_validation}",
-                {"path": request.path, "security_issue": path_validation}
+                {"path": request.path, "security_issue": path_validation},
             )
 
         # 4. 🔒 深度内容安全验证
@@ -258,7 +256,7 @@ class ValidationMiddleware:
             return IPCResponse.error_response(
                 IPCErrorCode.INVALID_REQUEST,
                 f"Content security violation: {content_validation}",
-                {"security_issue": content_validation}
+                {"security_issue": content_validation},
             )
 
         # 5. 头部验证
@@ -268,42 +266,42 @@ class ValidationMiddleware:
             return IPCResponse.error_response(
                 IPCErrorCode.INVALID_REQUEST,
                 f"Header security violation: {header_validation}",
-                {"security_issue": header_validation}
+                {"security_issue": header_validation},
             )
 
         return await call_next()
-    
+
     def _validate_path(self, path: str) -> Optional[str]:
         """验证路径安全性"""
         if not path.startswith("/"):
             return "Path must start with /"
-            
+
         # 检查路径遍历攻击
         if ".." in path:
             return "Path traversal attack detected"
-            
+
         # 检查过长路径
         if len(path) > 500:
             return "Path too long"
-            
+
         # 检查危险字符
         dangerous_chars_found = [c for c in self.dangerous_chars if c in path]
         if dangerous_chars_found:
             return f"Dangerous characters in path: {dangerous_chars_found}"
-            
+
         return None
-    
+
     def _validate_content_security(self, data: Any, depth: int = 0) -> Optional[str]:
         """深度验证内容安全性"""
         if depth > self.max_nesting_depth:
             return f"Data nesting too deep (>{self.max_nesting_depth})"
-            
+
         if data is None:
             return None
-            
+
         if isinstance(data, str):
             return self._validate_string_security(data)
-            
+
         elif isinstance(data, dict):
             # 检查键名
             for key in data.keys():
@@ -312,72 +310,72 @@ class ValidationMiddleware:
                 key_validation = self._validate_string_security(key)
                 if key_validation:
                     return f"Dangerous key: {key_validation}"
-            
+
             # 递归检查值
             for key, value in data.items():
                 value_validation = self._validate_content_security(value, depth + 1)
                 if value_validation:
                     return f"Dangerous value in key '{key}': {value_validation}"
-                    
+
         elif isinstance(data, list):
             # 检查列表大小
             if len(data) > 1000:
                 return f"List too large: {len(data)} > 1000"
-                
+
             # 递归检查列表项
             for i, item in enumerate(data):
                 item_validation = self._validate_content_security(item, depth + 1)
                 if item_validation:
                     return f"Dangerous list item [{i}]: {item_validation}"
-                    
+
         elif isinstance(data, (int, float, bool)):
             # 数字和布尔值通常是安全的
             pass
         else:
             return f"Unsupported data type: {type(data)}"
-            
+
         return None
-    
+
     def _validate_string_security(self, text: str) -> Optional[str]:
         """验证字符串安全性"""
         if len(text) > 10000:  # 防止超大字符串
             return f"String too long: {len(text)} > 10000"
-            
+
         # 检查危险模式
         for pattern in self.dangerous_patterns:
             if re.search(pattern, text):
                 return f"Dangerous pattern detected: matched {pattern[:30]}..."
-                
+
         # 检查大量危险字符
         dangerous_char_count = sum(1 for c in text if c in self.dangerous_chars)
         if dangerous_char_count > 5:
             return f"Too many dangerous characters: {dangerous_char_count} > 5"
-            
+
         return None
-    
+
     def _validate_headers(self, headers: Dict[str, str]) -> Optional[str]:
         """验证请求头部安全性"""
         if not headers:
             return None
-            
+
         # 检查头部数量
         if len(headers) > 50:
             return f"Too many headers: {len(headers)} > 50"
-            
+
         # 检查每个头部
         for name, value in headers.items():
             if not isinstance(name, str) or not isinstance(value, str):
                 return f"Invalid header type: {type(name)}, {type(value)}"
-                
+
             # 验证头部名称和值
             name_validation = self._validate_string_security(name)
             if name_validation:
                 return f"Dangerous header name '{name}': {name_validation}"
-                
+
             value_validation = self._validate_string_security(value)
             if value_validation:
                 return f"Dangerous header value '{name}': {value_validation}"
-                
+
         return None
 
 

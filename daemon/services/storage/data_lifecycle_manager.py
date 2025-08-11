@@ -15,6 +15,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Dict, Optional
 
+from core.service_facade import get_database_service
 from models.database_models import (
     AIConversation,
     EntityMetadata,
@@ -22,7 +23,6 @@ from models.database_models import (
     UserBehavior,
 )
 
-from core.service_facade import get_database_service
 from .storage_orchestrator import get_storage_orchestrator
 
 logger = logging.getLogger(__name__)

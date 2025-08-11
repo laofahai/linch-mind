@@ -248,7 +248,7 @@ class WindowsNamedPipeServer:
     def _process_message_sync(self, message_str: str) -> str:
         """同步处理消息（Named Pipe在线程中运行）- 真正的IPC桥接版本"""
         try:
-            from .ipc_protocol import IPCRequest, IPCResponse, IPCMessage
+            from .ipc_protocol import IPCMessage, IPCRequest, IPCResponse
 
             # 解析IPC消息
             message_data = json.loads(message_str)

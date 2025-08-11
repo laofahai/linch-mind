@@ -26,7 +26,6 @@ from .ipc_security import (
 logger = logging.getLogger(__name__)
 
 
-
 class IPCServer:
     """纯IPC服务器 - 完全独立于FastAPI"""
 
@@ -52,8 +51,9 @@ class IPCServer:
 
         # 使用依赖注入获取安全管理器
         from core.container import get_container
+
         container = get_container()
-        
+
         try:
             self.security_manager = container.get_service(IPCSecurityManager)
             logger.info("✅ 通过依赖注入获取IPC安全管理器成功")
@@ -61,6 +61,7 @@ class IPCServer:
             logger.error(f"❌ 获取IPC安全管理器失败: {e}")
             # 临时回退到直接创建实例
             from .ipc_security import create_security_manager
+
             self.security_manager = create_security_manager()
             logger.warning("⚠️ 使用临时安全管理器实例")
 
@@ -184,40 +185,65 @@ class IPCServer:
                         # 🔐 认证请求：注入真实客户端PID，防止PID欺骗
                         if not ipc_request.headers:
                             ipc_request.headers = {}
-                        
+
                         # 使用改进的跨平台PID获取机制
                         try:
-                            from .ipc.peer_credentials import get_socket_peer_credentials
-                            
-                            sock = writer.get_extra_info('socket')
+                            from .ipc.peer_credentials import (
+                                get_socket_peer_credentials,
+                            )
+
+                            sock = writer.get_extra_info("socket")
                             if sock:
                                 credentials = get_socket_peer_credentials(sock)
-                                
-                                if credentials.pid and credentials.confidence in ["high", "medium"]:
+
+                                if credentials.pid and credentials.confidence in [
+                                    "high",
+                                    "medium",
+                                ]:
                                     # 注入验证过的真实PID到请求头
-                                    ipc_request.headers["x-real-client-pid"] = str(credentials.pid)
-                                    ipc_request.headers["x-pid-source"] = credentials.source
-                                    ipc_request.headers["x-pid-confidence"] = credentials.confidence
-                                    
-                                    logger.debug(f"安全PID注入成功: PID={credentials.pid}, 来源={credentials.source}, 可信度={credentials.confidence}")
-                                    
-                                elif credentials.pid and credentials.confidence == "low":
+                                    ipc_request.headers["x-real-client-pid"] = str(
+                                        credentials.pid
+                                    )
+                                    ipc_request.headers["x-pid-source"] = (
+                                        credentials.source
+                                    )
+                                    ipc_request.headers["x-pid-confidence"] = (
+                                        credentials.confidence
+                                    )
+
+                                    logger.debug(
+                                        f"安全PID注入成功: PID={credentials.pid}, 来源={credentials.source}, 可信度={credentials.confidence}"
+                                    )
+
+                                elif (
+                                    credentials.pid and credentials.confidence == "low"
+                                ):
                                     # 低可信度时也注入，但标记
-                                    ipc_request.headers["x-real-client-pid"] = str(credentials.pid)
-                                    ipc_request.headers["x-pid-source"] = credentials.source
-                                    ipc_request.headers["x-pid-confidence"] = credentials.confidence
-                                    
-                                    logger.debug(f"低可信度PID注入: PID={credentials.pid}, 来源={credentials.source}")
-                                    
+                                    ipc_request.headers["x-real-client-pid"] = str(
+                                        credentials.pid
+                                    )
+                                    ipc_request.headers["x-pid-source"] = (
+                                        credentials.source
+                                    )
+                                    ipc_request.headers["x-pid-confidence"] = (
+                                        credentials.confidence
+                                    )
+
+                                    logger.debug(
+                                        f"低可信度PID注入: PID={credentials.pid}, 来源={credentials.source}"
+                                    )
+
                                 else:
                                     # PID获取完全失败，但不输出警告（客户端声明的PID仍可用于基本验证）
-                                    logger.debug(f"无法获取可靠的客户端PID: 来源={credentials.source}")
+                                    logger.debug(
+                                        f"无法获取可靠的客户端PID: 来源={credentials.source}"
+                                    )
                             else:
                                 logger.debug("无法获取socket对象，跳过PID注入")
-                                
+
                         except Exception as e:
                             logger.debug(f"PID获取过程出错: {e}")  # 降级为debug级别
-                        
+
                         # 处理认证请求
                         response = await self._process_message(ipc_request)
                         # 使用IPC格式检查认证结果
@@ -311,7 +337,7 @@ class IPCServer:
             if connection_id in self.client_connections:
                 self.security_manager.close_connection(connection_id)
                 del self.client_connections[connection_id]
-            
+
             # 安全关闭连接
             try:
                 if not writer.is_closing():
@@ -362,6 +388,7 @@ class IPCServer:
         """
         try:
             from .ipc.peer_credentials import discover_client_pid
+
             return discover_client_pid(writer)
         except Exception as e:
             logger.debug(f"客户端PID发现失败: {e}")
@@ -382,7 +409,7 @@ class IPCServer:
             # 发送消息内容
             writer.write(response_bytes)
             await writer.drain()
-            
+
         except (BrokenPipeError, ConnectionResetError, ConnectionAbortedError) as e:
             logger.debug(f"客户端连接已断开，无法发送响应: {e}")
             # 连接已断开，不需要进一步处理

@@ -9,9 +9,9 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Any, Dict, Optional
 
+from core.service_facade import get_database_service
 from models.database_models import EntityMetadata, EntityRelationship
 
-from core.service_facade import get_database_service
 from .embedding_service import get_embedding_service
 from .storage_orchestrator import StorageOrchestrator, get_storage_orchestrator
 

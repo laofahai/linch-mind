@@ -59,9 +59,13 @@ class IPCClient:
                     if socket_info.get("type") == "unix_socket":
                         return socket_info["path"]
                     else:
-                        raise IPCConnectionError(f"Invalid socket type: {socket_info.get('type')}")
+                        raise IPCConnectionError(
+                            f"Invalid socket type: {socket_info.get('type')}"
+                        )
 
-            raise IPCConnectionError("Daemon socket配置文件不存在，请确保daemon正常启动")
+            raise IPCConnectionError(
+                "Daemon socket配置文件不存在，请确保daemon正常启动"
+            )
 
         except Exception as e:
             raise IPCConnectionError(f"Failed to discover socket path: {e}")

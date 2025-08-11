@@ -174,7 +174,9 @@ class ConnectorLog(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     connector_id = Column(
-        String(255), ForeignKey("connectors.connector_id", ondelete="CASCADE"), nullable=False
+        String(255),
+        ForeignKey("connectors.connector_id", ondelete="CASCADE"),
+        nullable=False,
     )
     level = Column(String(20), nullable=False)  # INFO, WARNING, ERROR
     message = Column(Text, nullable=False)
@@ -204,7 +206,9 @@ class ConnectorStats(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     connector_id = Column(
-        String(255), ForeignKey("connectors.connector_id", ondelete="CASCADE"), nullable=False
+        String(255),
+        ForeignKey("connectors.connector_id", ondelete="CASCADE"),
+        nullable=False,
     )
     date = Column(DateTime(timezone=True), nullable=False)
 
@@ -275,7 +279,10 @@ class ConnectorConfigHistory(Base):
 
     # 外键和关系
     connector_id = Column(
-        String(255), ForeignKey("connectors.connector_id", ondelete="CASCADE"), nullable=False, index=True
+        String(255),
+        ForeignKey("connectors.connector_id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
     )
 
     # 关系
@@ -504,11 +511,11 @@ def create_new_connector(
 
 
 def create_disabled_connector(
-    connector_id: str, 
-    name: str, 
+    connector_id: str,
+    name: str,
     description: Optional[str] = None,
     version: Optional[str] = None,
-    path: Optional[str] = None
+    path: Optional[str] = None,
 ) -> Connector:
     """创建禁用连接器实例"""
     return Connector(

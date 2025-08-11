@@ -10,6 +10,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
 
+from core.service_facade import get_database_service
 from models.database_models import (
     AIConversation,
     EntityMetadata,
@@ -18,7 +19,6 @@ from models.database_models import (
 )
 
 from ..database_service import DatabaseService
-from core.service_facade import get_database_service
 from .embedding_service import EmbeddingService, get_embedding_service
 from .graph_service import EntityNode, GraphService, RelationshipEdge, get_graph_service
 from .vector_service import (

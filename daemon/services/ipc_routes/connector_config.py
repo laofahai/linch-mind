@@ -6,14 +6,15 @@
 
 import logging
 
-from core.service_facade import get_service
-from services.connectors.connector_config_service import ConnectorConfigService
 from core.error_handling import (
+    ErrorCategory,
     ErrorContext,
     ErrorSeverity,
-    ErrorCategory,
-    get_enhanced_error_handler
+    get_enhanced_error_handler,
 )
+from core.service_facade import get_service
+from services.connectors.connector_config_service import ConnectorConfigService
+
 from ..ipc_protocol import (
     IPCRequest,
     IPCResponse,
@@ -63,10 +64,12 @@ def create_connector_config_router() -> IPCRouter:
                 category=ErrorCategory.CONNECTOR_MANAGEMENT,
                 user_message="获取连接器配置模板失败",
                 recovery_suggestions="检查连接器是否正确安装",
-                technical_details=f"connector_id: {connector_id}"
+                technical_details=f"connector_id: {connector_id}",
             )
-            
-            processed_error = enhanced_handler.process_error(e, context, request.request_id)
+
+            processed_error = enhanced_handler.process_error(
+                e, context, request.request_id
+            )
             return IPCResponse.from_processed_error(processed_error, request.request_id)
 
     @router.get("/current/{connector_id}")
@@ -114,7 +117,9 @@ def create_connector_config_router() -> IPCRouter:
         try:
             # 使用现代化ServiceFacade模式获取配置服务
             config_service = get_service(ConnectorConfigService)
-            validation_result = await config_service.validate_config(connector_id, config)
+            validation_result = await config_service.validate_config(
+                connector_id, config
+            )
 
             return IPCResponse.success_response(
                 data=validation_result, request_id=request.request_id
@@ -204,7 +209,9 @@ def create_connector_config_router() -> IPCRouter:
         try:
             # 使用现代化ServiceFacade模式获取配置服务
             config_service = get_service(ConnectorConfigService)
-            history = await config_service.get_config_history(connector_id, limit, offset)
+            history = await config_service.get_config_history(
+                connector_id, limit, offset
+            )
 
             return IPCResponse.success_response(
                 data=history, request_id=request.request_id
@@ -258,7 +265,9 @@ def create_connector_config_router() -> IPCRouter:
         try:
             # 使用现代化ServiceFacade模式获取配置服务
             config_service = get_service(ConnectorConfigService)
-            result = await config_service.apply_defaults_to_config(connector_id, current_config)
+            result = await config_service.apply_defaults_to_config(
+                connector_id, current_config
+            )
 
             return IPCResponse.success_response(
                 data=result, request_id=request.request_id

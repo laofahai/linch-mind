@@ -1,0 +1,47 @@
+{
+  "environment": "production",
+  "server": {
+    "debug": false,
+    "log_level": "INFO",
+    "ipc": {
+      "socket_path": "~/.linch-mind/production/daemon.socket",
+      "timeout": 15,
+      "buffer_size": 16384
+    }
+  },
+  "database": {
+    "use_encryption": true,
+    "backup_enabled": true,
+    "backup_interval_hours": 4,
+    "connection_pool_size": 20,
+    "query_timeout": 10,
+    "auto_vacuum": true
+  },
+  "ai": {
+    "default_embedding_model": "all-MiniLM-L6-v2",
+    "cache_embeddings": true,
+    "providers": {
+      "openai": {
+        "enabled": true,
+        "api_key_env": "OPENAI_API_KEY",
+        "model": "gpt-4",
+        "max_tokens": 4000
+      }
+    }
+  },
+  "storage": {
+    "vector_dimension": 384,
+    "vector_index_type": "faiss",
+    "vector_max_workers": 8,
+    "enable_backup": true,
+    "backup_interval_hours": 6,
+    "compression": "gzip"
+  },
+  "connector": {
+    "health_check_interval": 60,
+    "auto_restart_failed": true,
+    "max_restart_attempts": 10,
+    "startup_delay": 5,
+    "memory_limit_mb": 512
+  }
+}

@@ -30,7 +30,12 @@ class DatabaseService:
         self.db_config = get_database_config()
         self.connection_pool: Optional[HighPerformanceConnectionPool] = None
 
-        # 兼容传统接口的备用引擎
+        # 🆕 环境感知的数据库配置
+        from core.environment_manager import get_environment_manager
+
+        self.env_manager = get_environment_manager()
+
+        # 数据库URL优先级：参数 > 环境管理器 > 配置
         if db_path:
             database_url = (
                 f"sqlite:///{db_path}"
@@ -38,14 +43,28 @@ class DatabaseService:
                 else "sqlite:///:memory:"
             )
         else:
-            database_url = self.db_config.sqlite_url
+            # 使用环境管理器提供的数据库URL
+            database_url = self.env_manager.get_database_url()
 
-        self.engine = create_engine(
-            database_url,
-            echo=False,  # 生产环境关闭SQL日志
-            pool_pre_ping=True,
-            pool_recycle=3600,
-        )
+        # 环境特定的引擎配置
+        engine_config = {
+            "echo": self.env_manager.is_debug_enabled(),  # 开发环境启用SQL日志
+            "pool_pre_ping": True,
+            "pool_recycle": 3600,
+        }
+
+        # 生产环境的额外优化
+        if not self.env_manager.is_debug_enabled():
+            engine_config.update(
+                {
+                    "pool_size": 20,  # 生产环境更大的连接池
+                    "max_overflow": 30,
+                    "pool_timeout": 30,
+                }
+            )
+
+        self.database_url = database_url
+        self.engine = create_engine(database_url, **engine_config)
         self.SessionLocal = sessionmaker(
             autocommit=False, autoflush=False, bind=self.engine
         )
@@ -166,11 +185,54 @@ class DatabaseService:
                 return {
                     "connectors_count": connectors_count,
                     "running_connectors_count": running_connectors_count,
-                    "database_path": self.db_config.sqlite_url,
+                    "database_path": self.database_url,  # 使用实际数据库URL
+                    "environment": self.env_manager.current_environment.value,
+                    "encrypted": self.env_manager.should_use_encryption(),
                 }
         except SQLAlchemyError as e:
             logger.error(f"获取数据库统计失败: {e}")
             return {}
+
+    def get_environment_database_info(self) -> Dict[str, Any]:
+        """获取环境特定的数据库信息"""
+        try:
+            import os
+
+            # 基础信息
+            info = {
+                "environment": self.env_manager.current_environment.value,
+                "database_url": self.database_url,
+                "use_encryption": self.env_manager.should_use_encryption(),
+                "debug_enabled": self.env_manager.is_debug_enabled(),
+                "environment_paths": self.env_manager.get_environment_summary()[
+                    "directories"
+                ],
+            }
+
+            # 数据库文件信息
+            if not self.database_url.endswith(":memory:"):
+                db_file_path = self.database_url.replace("sqlite:///", "")
+                if os.path.exists(db_file_path):
+                    stat = os.stat(db_file_path)
+                    info.update(
+                        {
+                            "database_size_bytes": stat.st_size,
+                            "database_size_mb": round(stat.st_size / (1024 * 1024), 2),
+                            "last_modified": datetime.fromtimestamp(
+                                stat.st_mtime
+                            ).isoformat(),
+                        }
+                    )
+                else:
+                    info["database_exists"] = False
+            else:
+                info["database_type"] = "in_memory"
+
+            return info
+
+        except Exception as e:
+            logger.error(f"获取环境数据库信息失败: {e}")
+            return {"error": str(e)}
 
     def get_session(self) -> Session:
         """获取数据库会话"""
@@ -189,11 +251,11 @@ class DatabaseService:
 # 🔧 移除全局单例模式 - 现在由DI容器管理
 # DatabaseService实例通过core.container获取，消除重复的get_database_service调用
 
+
 def cleanup_database_service():
     """清理数据库服务 - 现在通过DI容器管理"""
-    from core.service_facade import get_service_facade
     from core.container import get_container
-    
+
     try:
         container = get_container()
         if container.is_registered(DatabaseService):
@@ -201,5 +263,6 @@ def cleanup_database_service():
             service.cleanup()
     except Exception as e:
         import logging
+
         logger = logging.getLogger(__name__)
         logger.error(f"清理数据库服务失败: {e}")

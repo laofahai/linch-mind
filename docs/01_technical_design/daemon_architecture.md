@@ -1,20 +1,28 @@
 # Linch Mind Python Daemon 架构设计
 
-**版本**: 4.0  
-**状态**: 已实现 + P0重构完成  
-**创建时间**: 2025-08-03  
-**最新更新**: 2025-08-08  
-**技术栈**: 纯IPC架构 + SQLAlchemy + SQLite + 现代化服务架构
+**版本**: 5.0
+**状态**: 已实现 + P0重构完成 + 环境隔离完成
+**创建时间**: 2025-08-03
+**最新更新**: 2025-08-11
+**技术栈**: 纯IPC架构 + SQLAlchemy + SQLite + 现代化服务架构 + 环境隔离管理
 
 ## 🚀 重大架构升级
+
+### v5.0 - 环境隔离系统 (2025-08-11)
+**完整环境管理**: 实施完整的环境隔离和管理系统，支持development/staging/production环境
+- **环境隔离**: 完全独立的环境数据目录 ~/.linch-mind/{env}/
+- **数据库隔离**: 环境专用数据库，生产环境SQLCipher加密
+- **配置继承**: 智能配置合并 (默认 + 环境 + 数据库)
+- **自动初始化**: 一键环境设置和健康检查 ./linch-mind init
+- **零破坏性**: 向后兼容，无任何Breaking Changes
 
 ### v4.0 - P0代码重复消除重构 (2025-08-08)
 **现代化服务架构**: 完成代码重复消除和架构现代化重构，代码重复率从>60%降至<5%
 - **ServiceFacade系统**: 统一服务获取，替代91个重复get_*_service()调用
-- **标准化错误处理**: 建立统一框架，消除424个相似错误处理模式  
+- **标准化错误处理**: 建立统一框架，消除424个相似错误处理模式
 - **DI容器增强**: 移除@lru_cache双套系统，统一使用依赖注入
 
-### v3.0 - IPC架构迁移 (2025-08-06) 
+### v3.0 - IPC架构迁移 (2025-08-06)
 **从HTTP到IPC的完全迁移**: 项目已完成从FastAPI+HTTP到纯IPC(进程间通信)架构的重大升级，显著提升性能、安全性和部署便利性。
 
 ## 1. 概述
@@ -31,10 +39,11 @@ Linch Mind Daemon 是基于纯IPC架构构建的后台服务，负责数据处�
 
 ## 2. 核心职责
 - **IPC服务**: 提供高性能IPC通信服务多客户端
+- **环境管理**: 完整的环境隔离和生命周期管理
 - **数据处理**: 知识图谱构建、向量索引、智能推荐
 - **连接器管理**: 管理和调度各类数据连接器
 - **AI服务**: 集成多种AI提供者(OpenAI、Claude、本地模型)
-- **安全管理**: 进程身份验证、访问控制、频率限制
+- **安全管理**: 进程身份验证、访问控制、频率限制、数据加密
 
 ## 3. 架构详解
 
@@ -63,15 +72,18 @@ Linch Mind Daemon 是基于纯IPC架构构建的后台服务，负责数据处�
 ### 3.2. 核心组件架构 (v4.0)
 
 ```python
-# 现代化IPC架构组件 (2025-08-08)
+# 现代化IPC架构组件 (2025-08-11)
 daemon/
 ├── ipc_main.py             # IPC应用入口
-├── core/                   # 🆕 现代化核心架构
+├── core/                   # 🆕 现代化核心架构 + 环境管理
 │   ├── service_facade.py   # ServiceFacade - 统一服务获取
 │   ├── error_handling.py   # 标准化错误处理框架
 │   ├── container.py        # 增强DI容器
 │   ├── exception_handler.py # 异常管理器
+│   ├── environment_manager.py # 环境管理器 - 完整环境隔离
 │   └── database_manager.py # 数据库生命周期管理
+├── scripts/                # 工具脚本
+│   └── initialize_environment.py # 环境初始化脚本
 ├── services/
 │   ├── ipc_server.py       # IPC服务器
 │   ├── ipc_router.py       # 路由系统
@@ -91,7 +103,42 @@ daemon/
     └── performance_benchmark.py # 性能基准
 ```
 
-### 3.3. 现代化服务架构 (v4.0新增)
+### 3.3. 环境隔离架构 (v5.0新增)
+
+#### 环境管理系统
+```python
+# ✅ 环境管理器使用模式
+from core.service_facade import get_environment_manager
+from core.environment_manager import Environment
+
+# 环境信息获取
+env_manager = get_environment_manager()
+print(f"当前环境: {env_manager.current_environment.value}")
+print(f"数据库路径: {env_manager.get_database_url()}")
+
+# 临时环境切换
+with env_manager.switch_environment(Environment.PRODUCTION):
+    # 在生产环境中执行操作
+    database_service = get_service(DatabaseService)
+    # 所有操作使用生产环境数据库
+    pass
+```
+
+#### 环境目录结构
+```bash
+~/.linch-mind/
+├── development/    # 开发环境 - 无加密，调试模式
+│   ├── database/   # SQLite数据库文件
+│   ├── config/     # 环境特定配置
+│   ├── logs/       # 日志文件
+│   ├── cache/      # 缓存数据
+│   └── vectors/    # FAISS向量索引
+├── staging/        # 预发环境 - SQLCipher加密
+├── production/     # 生产环境 - 完整加密和优化
+└── shared/         # 共享资源(AI模型等)
+```
+
+### 3.4. 现代化服务架构 (v4.0新增)
 
 #### ServiceFacade统一服务获取
 ```python
@@ -210,7 +257,7 @@ IPC_SECURITY_CONFIG = {
 │      测试场景       │       RPS       │   平均延迟(ms)   │   成功率(%)     │
 ├─────────────────────┼─────────────────┼─────────────────┼─────────────────┤
 │   单客户端基准      │     14,630      │      0.06       │      100        │
-│   中等并发(10客户端) │     30,236      │      0.32       │      100        │  
+│   中等并发(10客户端) │     30,236      │      0.32       │      100        │
 │   高并发(20客户端)   │     31,917      │      0.61       │      100        │
 │   极限压力(50客户端) │     28,845      │      1.73       │      100        │
 └─────────────────────┴─────────────────┴─────────────────┴─────────────────┘
@@ -294,7 +341,7 @@ python daemon/ipc_main.py
 
 ## 6. 架构最佳实践与迁移指南
 
-**更新时间**: 2025-08-06  
+**更新时间**: 2025-08-06
 **基于**: IPC架构完全迁移和性能优化
 
 ### 6.1. IPC架构优势总结
@@ -380,14 +427,14 @@ async def handle_new_endpoint(request: IPCRequest) -> IPCResponse:
 async def custom_middleware(request: IPCRequest, call_next: Callable) -> IPCResponse:
     # 前置处理
     start_time = time.time()
-    
+
     # 调用下一层
     response = await call_next()
-    
+
     # 后置处理
     duration = time.time() - start_time
     logger.info(f"Request processed in {duration:.3f}s")
-    
+
     return response
 ```
 
@@ -395,7 +442,7 @@ async def custom_middleware(request: IPCRequest, call_next: Callable) -> IPCResp
 
 - [纯IPC架构设计指南](../../Pure_IPC_Architecture_Guide.md) - 详细技术实现
 - [IPC安全架构设计](security_architecture_design.md) - 安全配置和最佳实践
-- [连接器开发标准](connector_internal_management_standards.md) - 连接器开发指南  
+- [连接器开发标准](connector_internal_management_standards.md) - 连接器开发指南
 - [API契约设计](api_contract_design.md) - IPC消息协议规范
 - [Python + Flutter最终架构决策](../02_decisions/python_flutter_architecture_final_decision.md) - 技术架构选择决策
 
@@ -414,8 +461,8 @@ async def custom_middleware(request: IPCRequest, call_next: Callable) -> IPCResp
 
 ---
 
-**文档版本**: 4.0  
-**创建时间**: 2025-08-03  
-**最新更新**: 2025-08-08  
-**重大更新**: P0代码重复消除重构完成，现代化服务架构  
+**文档版本**: 4.0
+**创建时间**: 2025-08-03
+**最新更新**: 2025-08-08
+**重大更新**: P0代码重复消除重构完成，现代化服务架构
 **维护团队**: 架构组 + IPC专项组 + 代码质量团队

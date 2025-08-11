@@ -1,12 +1,15 @@
 #!/bin/bash
 
 # Linch Mind 统一管理脚本
-# 用法: 
+# 用法:
 #   ./linch start       - 启动daemon和UI
 #   ./linch daemon      - daemon管理 (start/stop/restart/status/logs)
 #   ./linch ui          - 启动UI (可指定平台)
 #   ./linch stop        - 停止所有服务
 #   ./linch status      - 查看状态
+#   ./linch init        - 初始化环境
+#   ./linch doctor      - 系统诊断
+#   ./linch reset       - 重置环境
 
 set -e
 
@@ -49,6 +52,9 @@ show_usage() {
     echo "  start           - 启动daemon和UI"
     echo "  stop            - 停止所有服务"
     echo "  status          - 查看系统状态"
+    echo "  init            - 初始化环境（首次使用或切换环境）"
+    echo "  doctor          - 系统健康诊断"
+    echo "  reset           - 重置环境数据（危险操作）"
     echo ""
     echo "Daemon管理:"
     echo "  daemon start    - 启动daemon"
@@ -110,7 +116,7 @@ get_daemon_pid() {
 # 启动daemon
 start_daemon() {
     echo -e "${BLUE}🚀 启动 Daemon...${NC}"
-    
+
     EXISTING_PID=$(get_daemon_pid)
     if [ ! -z "$EXISTING_PID" ]; then
         echo -e "${YELLOW}⚠️  Daemon已运行 (PID: $EXISTING_PID)${NC}"
@@ -125,15 +131,15 @@ start_daemon() {
     echo -e "${GREEN}✅ 启动daemon服务...${NC}"
     # 使用运行时目录的日志文件
     nohup poetry run linch-daemon > "$RUNTIME_DIR/daemon.log" 2>&1 &
-    
+
     DAEMON_PID=$!
     # 不再由脚本创建PID文件，让daemon自己管理
     # echo -e "${BLUE}   保存PID: $DAEMON_PID 到 $PID_FILE${NC}"
     # echo $DAEMON_PID > "$PID_FILE"
-    
+
     # 等待daemon自己创建PID文件
     sleep 3
-    
+
     # 检查daemon是否成功启动（通过检查PID文件）
     if [ -f "$PID_FILE" ]; then
         ACTUAL_PID=$(cat "$PID_FILE")
@@ -161,7 +167,7 @@ start_daemon() {
 # 停止daemon
 stop_daemon() {
     echo -e "${BLUE}🛑 停止 Daemon...${NC}"
-    
+
     DAEMON_PID=$(get_daemon_pid)
     if [ -z "$DAEMON_PID" ]; then
         echo -e "${YELLOW}⚠️  Daemon未运行${NC}"
@@ -189,7 +195,7 @@ daemon_status() {
     if [ ! -z "$DAEMON_PID" ]; then
         echo -e "${GREEN}✅ Daemon运行中${NC}"
         echo -e "${BLUE}   PID: $DAEMON_PID${NC}"
-        
+
         # 从socket文件检查IPC状态
         if [ -f "$HOME/.linch-mind/daemon.socket" ]; then
             echo -e "${BLUE}   IPC: Unix Domain Socket 可用${NC}"
@@ -216,9 +222,9 @@ daemon_logs() {
 # 启动UI
 start_ui() {
     local platform=${1:-macos}
-    
+
     echo -e "${BLUE}🚀 启动 UI ($platform)...${NC}"
-    
+
     # 检查daemon IPC连接
     if [ -f "$HOME/.linch-mind/daemon.socket" ]; then
         echo -e "${GREEN}   ✅ Daemon IPC连接可用${NC}"
@@ -250,7 +256,7 @@ start_full() {
     show_logo
     echo -e "${BLUE}🚀 启动完整应用...${NC}"
     echo ""
-    
+
     start_daemon
     echo ""
     echo -e "${BLUE}等待daemon完全启动...${NC}"
@@ -268,6 +274,202 @@ stop_all() {
 show_full_status() {
     show_logo
     daemon_status
+}
+
+# 初始化环境
+init_environment() {
+    local env_name=${1:-""}
+    local force_flag=""
+
+    show_logo
+    echo -e "${BLUE}🔧 环境初始化...${NC}"
+    echo ""
+
+    # 检查环境参数
+    if [[ $# -gt 1 && "$2" == "--force" ]]; then
+        force_flag="--force"
+        echo -e "${YELLOW}⚠️  强制重新初始化模式${NC}"
+    fi
+
+    if [ ! -z "$env_name" ]; then
+        echo -e "${BLUE}目标环境: $env_name${NC}"
+        export LINCH_ENV="$env_name"
+    else
+        echo -e "${BLUE}使用当前环境（通过LINCH_ENV环境变量控制）${NC}"
+    fi
+
+    cd "$DAEMON_DIR"
+    echo -e "${GREEN}🚀 执行环境初始化...${NC}"
+
+    if poetry run python scripts/initialize_environment.py --env "$env_name" $force_flag; then
+        echo ""
+        echo -e "${GREEN}✅ 环境初始化完成${NC}"
+        echo -e "${BLUE}💡 提示：${NC}"
+        echo -e "${BLUE}   - 使用 '$0 start' 启动应用${NC}"
+        echo -e "${BLUE}   - 使用 '$0 doctor' 验证系统健康${NC}"
+    else
+        echo -e "${RED}❌ 环境初始化失败${NC}"
+        echo -e "${YELLOW}💡 尝试：${NC}"
+        echo -e "${YELLOW}   - 检查日志: $0 daemon logs${NC}"
+        echo -e "${YELLOW}   - 强制重新初始化: $0 init --force${NC}"
+        exit 1
+    fi
+}
+
+# 系统诊断
+run_doctor() {
+    show_logo
+    echo -e "${BLUE}🩺 系统健康诊断...${NC}"
+    echo ""
+
+    # 计数器
+    local checks_passed=0
+    local total_checks=0
+
+    # 检查1: Poetry环境
+    total_checks=$((total_checks + 1))
+    if command -v poetry &> /dev/null; then
+        echo -e "${GREEN}✅ Poetry: 已安装${NC}"
+        checks_passed=$((checks_passed + 1))
+    else
+        echo -e "${RED}❌ Poetry: 未找到${NC}"
+    fi
+
+    # 检查2: Flutter环境（可选）
+    total_checks=$((total_checks + 1))
+    if command -v flutter &> /dev/null; then
+        echo -e "${GREEN}✅ Flutter: 已安装${NC}"
+        checks_passed=$((checks_passed + 1))
+    else
+        echo -e "${YELLOW}⚠️  Flutter: 未安装（UI功能将不可用）${NC}"
+    fi
+
+    # 检查3: 目录结构
+    total_checks=$((total_checks + 1))
+    if [ -d "$HOME/.linch-mind" ]; then
+        echo -e "${GREEN}✅ 运行时目录: 已创建${NC}"
+        checks_passed=$((checks_passed + 1))
+
+        # 检查环境目录
+        local env_dir="$HOME/.linch-mind/${LINCH_ENV:-development}"
+        if [ -d "$env_dir" ]; then
+            echo -e "${GREEN}   当前环境目录: 已创建 ($env_dir)${NC}"
+        else
+            echo -e "${YELLOW}   当前环境目录: 未找到 - 需要运行 '$0 init'${NC}"
+        fi
+    else
+        echo -e "${RED}❌ 运行时目录: 未创建${NC}"
+    fi
+
+    # 检查4: Daemon状态
+    total_checks=$((total_checks + 1))
+    local daemon_pid=$(get_daemon_pid)
+    if [ ! -z "$daemon_pid" ]; then
+        echo -e "${GREEN}✅ Daemon服务: 运行中 (PID: $daemon_pid)${NC}"
+        checks_passed=$((checks_passed + 1))
+
+        # 检查IPC连接
+        if [ -f "$HOME/.linch-mind/daemon.socket" ]; then
+            echo -e "${GREEN}   IPC连接: 可用${NC}"
+        else
+            echo -e "${YELLOW}   IPC连接: 未找到socket文件${NC}"
+        fi
+    else
+        echo -e "${YELLOW}⚠️  Daemon服务: 未运行${NC}"
+    fi
+
+    # 检查5: 数据库文件
+    total_checks=$((total_checks + 1))
+    local db_env_dir="$HOME/.linch-mind/${LINCH_ENV:-development}/database"
+    if [ -d "$db_env_dir" ] && [ -f "$db_env_dir/linch_mind"*".db" ]; then
+        echo -e "${GREEN}✅ 数据库: 已创建${NC}"
+        checks_passed=$((checks_passed + 1))
+    else
+        echo -e "${YELLOW}⚠️  数据库: 未找到 - 需要运行 '$0 init'${NC}"
+    fi
+
+    # 运行Python诊断脚本（如果daemon可用）
+    if [ ! -z "$daemon_pid" ]; then
+        echo ""
+        echo -e "${BLUE}🔍 运行深度诊断...${NC}"
+        cd "$DAEMON_DIR"
+        if poetry run python scripts/initialize_environment.py --list-envs 2>/dev/null; then
+            echo -e "${GREEN}   Python环境诊断: 通过${NC}"
+            checks_passed=$((checks_passed + 1))
+        else
+            echo -e "${YELLOW}   Python环境诊断: 跳过（daemon未响应）${NC}"
+        fi
+        total_checks=$((total_checks + 1))
+    fi
+
+    # 诊断结果
+    echo ""
+    echo -e "${BLUE}📊 诊断结果: ${checks_passed}/${total_checks} 项检查通过${NC}"
+
+    if [ $checks_passed -eq $total_checks ]; then
+        echo -e "${GREEN}🎉 系统健康状态良好！${NC}"
+        return 0
+    elif [ $checks_passed -gt $((total_checks / 2)) ]; then
+        echo -e "${YELLOW}⚠️  系统基本健康，但有一些问题需要修复${NC}"
+        echo -e "${BLUE}💡 建议：运行 '$0 init' 修复配置问题${NC}"
+        return 1
+    else
+        echo -e "${RED}❌ 系统存在严重问题${NC}"
+        echo -e "${BLUE}💡 建议：${NC}"
+        echo -e "${BLUE}   1. 运行 '$0 init --force' 重新初始化${NC}"
+        echo -e "${BLUE}   2. 检查依赖安装：Poetry, Flutter${NC}"
+        echo -e "${BLUE}   3. 检查日志：$0 daemon logs${NC}"
+        return 2
+    fi
+}
+
+# 重置环境
+reset_environment() {
+    local env_name=${1:-$(echo ${LINCH_ENV:-development})}
+    local confirm=${2:-""}
+
+    show_logo
+    echo -e "${RED}⚠️  环境重置 - 危险操作${NC}"
+    echo ""
+    echo -e "${YELLOW}这将删除环境 '$env_name' 的所有数据：${NC}"
+    echo -e "${YELLOW}  - 数据库${NC}"
+    echo -e "${YELLOW}  - 缓存文件${NC}"
+    echo -e "${YELLOW}  - 日志文件${NC}"
+    echo -e "${YELLOW}  - 向量索引${NC}"
+    echo ""
+
+    # 如果没有确认参数，要求用户确认
+    if [[ "$confirm" != "--yes" && "$confirm" != "-y" ]]; then
+        echo -e "${RED}请输入 'RESET' 确认重置操作：${NC}"
+        read -r user_input
+
+        if [ "$user_input" != "RESET" ]; then
+            echo -e "${BLUE}操作已取消${NC}"
+            return 0
+        fi
+    fi
+
+    # 停止daemon（如果在运行）
+    local daemon_pid=$(get_daemon_pid)
+    if [ ! -z "$daemon_pid" ]; then
+        echo -e "${YELLOW}🛑 停止运行中的Daemon...${NC}"
+        stop_daemon
+    fi
+
+    # 删除环境数据
+    local env_dir="$HOME/.linch-mind/$env_name"
+    if [ -d "$env_dir" ]; then
+        echo -e "${RED}🗑️  删除环境数据: $env_dir${NC}"
+        rm -rf "$env_dir"
+        echo -e "${GREEN}✅ 环境数据已清理${NC}"
+    else
+        echo -e "${YELLOW}⚠️  环境目录不存在: $env_dir${NC}"
+    fi
+
+    echo ""
+    echo -e "${GREEN}✅ 环境重置完成${NC}"
+    echo -e "${BLUE}💡 下一步：${NC}"
+    echo -e "${BLUE}   运行 '$0 init' 重新初始化环境${NC}"
 }
 
 # 主程序
@@ -306,6 +508,16 @@ main() {
             check_environment ui
             show_logo
             start_ui ${2:-macos}
+            ;;
+        init)
+            check_environment
+            init_environment "$2" "$3"
+            ;;
+        doctor)
+            run_doctor
+            ;;
+        reset)
+            reset_environment "$2" "$3"
             ;;
         help|--help|-h)
             show_usage

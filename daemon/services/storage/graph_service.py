@@ -14,7 +14,10 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 import networkx as nx
-from services.security.selective_encrypted_storage import get_selective_encrypted_storage
+
+from services.security.selective_encrypted_storage import (
+    get_selective_encrypted_storage,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -591,18 +594,20 @@ class GraphService:
         try:
             loop = asyncio.get_event_loop()
             success = await loop.run_in_executor(
-                self._executor, 
+                self._executor,
                 self.selective_storage.save_graph_data,
                 self.graph,
-                self.graph_file
+                self.graph_file,
             )
-            
+
             if success:
                 # 获取存储信息用于日志
                 storage_info = self.selective_storage.get_storage_info(self.graph_file)
-                encryption_status = "加密" if storage_info.get('encryption_enabled') else "明文"
+                encryption_status = (
+                    "加密" if storage_info.get("encryption_enabled") else "明文"
+                )
                 logger.info(f"图数据已保存: {self.graph_file} ({encryption_status})")
-            
+
             return success
 
         except Exception as e:
@@ -614,17 +619,17 @@ class GraphService:
         try:
             loop = asyncio.get_event_loop()
             graph_data = await loop.run_in_executor(
-                self._executor,
-                self.selective_storage.load_graph_data,
-                self.graph_file
+                self._executor, self.selective_storage.load_graph_data, self.graph_file
             )
-            
+
             if graph_data is not None:
                 # 获取存储信息用于日志
                 storage_info = self.selective_storage.get_storage_info(self.graph_file)
-                encryption_status = "加密" if storage_info.get('encryption_enabled') else "明文"
+                encryption_status = (
+                    "加密" if storage_info.get("encryption_enabled") else "明文"
+                )
                 logger.info(f"图数据加载成功: {self.graph_file} ({encryption_status})")
-            
+
             return graph_data
 
         except Exception as e:
@@ -649,34 +654,34 @@ class GraphService:
             if not self.graph_file.exists():
                 logger.info("没有需要迁移的图数据")
                 return True
-                
+
             # 检查是否已经是新格式
             storage_info = self.selective_storage.get_storage_info(self.graph_file)
-            if 'encryption_enabled' in storage_info:
+            if "encryption_enabled" in storage_info:
                 logger.info("图数据已经是选择性加密存储格式，无需迁移")
                 return True
-            
+
             logger.info("开始迁移图数据到选择性加密存储格式")
-            
+
             # 备份原文件路径
-            backup_file = self.graph_file.with_suffix('.backup.pkl')
-            
+            backup_file = self.graph_file.with_suffix(".backup.pkl")
+
             # 执行迁移
             loop = asyncio.get_event_loop()
             success = await loop.run_in_executor(
                 self._executor,
                 self.selective_storage.migrate_existing_data,
                 self.graph_file,
-                self.graph_file
+                self.graph_file,
             )
-            
+
             if success:
                 logger.info("图数据迁移成功")
             else:
                 logger.error("图数据迁移失败")
-                
+
             return success
-            
+
         except Exception as e:
             logger.error(f"图数据迁移失败: {e}")
             return False

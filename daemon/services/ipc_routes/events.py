@@ -23,7 +23,7 @@ def create_events_router() -> IPCRouter:
     async def handle_generic_event(request: IPCRequest) -> IPCResponse:
         """
         处理通用连接器事件 - 与连接器类型无关
-        
+
         请求格式：
         {
             "connector_id": "any_connector_id",
@@ -39,34 +39,44 @@ def create_events_router() -> IPCRouter:
         """
         try:
             data = request.data or {}
-            
+
             # 验证必需字段（通用字段）
             required_fields = ["connector_id", "event_type", "event_data", "timestamp"]
             for field in required_fields:
                 if field not in data:
-                    return IPCResponse.error_response("INVALID_REQUEST", f"Missing required field: {field}")
-            
+                    return IPCResponse.error_response(
+                        "INVALID_REQUEST", f"Missing required field: {field}"
+                    )
+
             connector_id = data["connector_id"]
             event_type = data["event_type"]
             event_data = data["event_data"]
             timestamp = data["timestamp"]
             metadata = data.get("metadata", {})
-            
-            logger.info(f"📡 Processing generic event from {connector_id}: {event_type}")
-            
+
+            logger.info(
+                f"📡 Processing generic event from {connector_id}: {event_type}"
+            )
+
             # 使用通用存储处理（连接器无关）
             storage = get_generic_event_storage()
             asyncio.create_task(
-                storage.store_generic_event(connector_id, event_type, event_data, timestamp, metadata)
+                storage.store_generic_event(
+                    connector_id, event_type, event_data, timestamp, metadata
+                )
             )
-            
-            return IPCResponse.success_response({
-                "message": "Event queued for processing",
-                "event_id": f"{connector_id}_{datetime.now().isoformat()}_{hash(str(event_data)) % 10000}"
-            })
-            
+
+            return IPCResponse.success_response(
+                {
+                    "message": "Event queued for processing",
+                    "event_id": f"{connector_id}_{datetime.now().isoformat()}_{hash(str(event_data)) % 10000}",
+                }
+            )
+
         except Exception as e:
             logger.error(f"Error handling generic event: {str(e)}")
-            return IPCResponse.error_response("INTERNAL_ERROR", f"Failed to process event: {str(e)}")
+            return IPCResponse.error_response(
+                "INTERNAL_ERROR", f"Failed to process event: {str(e)}"
+            )
 
     return router
