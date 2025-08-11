@@ -4,6 +4,8 @@ import 'package:file_picker/file_picker.dart';
 import '../models/connector_lifecycle_models.dart';
 import '../services/connector_lifecycle_api_client.dart';
 import '../services/registry_api_client.dart';
+import '../providers/app_error_provider.dart';
+import '../widgets/connector_status_widget.dart';
 import '../utils/app_logger.dart';
 import 'connector_config_screen.dart';
 
@@ -73,6 +75,15 @@ class _ConnectorManagementScreenState
           data: {'installed_connectors_length': _installedConnectors.length});
     } catch (e, stackTrace) {
       AppLogger.uiError('加载已安装连接器失败', exception: e, stackTrace: stackTrace);
+
+      // 添加到错误管理器
+      ref.read(appErrorProvider.notifier).handleException(
+            e,
+            operation: '加载已安装连接器',
+            stackTrace: stackTrace,
+            retryCallback: () => _loadInstalledConnectors(),
+          );
+
       setState(() {
         _installedErrorMessage = '加载连接器失败: $e';
         _installedLoading = false;
@@ -97,6 +108,13 @@ class _ConnectorManagementScreenState
         _marketLoading = false;
       });
     } catch (e) {
+      // 添加到错误管理器
+      ref.read(appErrorProvider.notifier).handleException(
+            e,
+            operation: '加载市场连接器',
+            retryCallback: () => _loadMarketConnectors(),
+          );
+
       setState(() {
         _marketErrorMessage = '加载市场连接器失败: $e';
         _marketLoading = false;
@@ -311,43 +329,10 @@ class _ConnectorManagementScreenState
       return const SizedBox.shrink();
     }
 
-    final runningCount = _installedConnectors
-        .where((c) => c.state == ConnectorState.running)
-        .length;
-    final errorCount = _installedConnectors
-        .where((c) => c.state == ConnectorState.error)
-        .length;
-    final stoppedCount = _installedConnectors
-        .where((c) => c.state == ConnectorState.stopped)
-        .length;
-
-    return Container(
-      padding: const EdgeInsets.all(16),
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.primaryContainer,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: [
-          _buildStatusIndicator(
-            icon: Icons.play_circle_filled,
-            label: '$runningCount个运行中',
-            color: Colors.green,
-          ),
-          if (errorCount > 0)
-            _buildStatusIndicator(
-              icon: Icons.error,
-              label: '$errorCount个异常',
-              color: Colors.red,
-            ),
-          _buildStatusIndicator(
-            icon: Icons.pause_circle,
-            label: '$stoppedCount个已停止',
-            color: Colors.orange,
-          ),
-        ],
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: ConnectorStatusOverview(
+        connectors: _installedConnectors,
       ),
     );
   }
@@ -574,6 +559,81 @@ class _ConnectorManagementScreenState
   }
 
   Widget _buildInstalledConnectorCard(ConnectorInfo connector) {
+    return ConnectorStatusWidget(
+      connector: connector,
+      onRefresh: () => _refreshConnectorStatus(connector),
+      onRestart: () => _restartConnector(connector),
+      onConfigure: () => _configureConnector(connector),
+    );
+  }
+
+  /// 刷新连接器状态
+  Future<void> _refreshConnectorStatus(ConnectorInfo connector) async {
+    try {
+      AppLogger.uiDebug('刷新连接器状态: ${connector.connectorId}');
+      // 刷新整个连接器列表
+      await _refreshInstalledConnectors();
+    } catch (e) {
+      ref.read(appErrorProvider.notifier).handleException(
+            e,
+            operation: '刷新连接器状态: ${connector.connectorId}',
+            retryCallback: () => _refreshConnectorStatus(connector),
+          );
+    }
+  }
+
+  /// 重启连接器
+  Future<void> _restartConnector(ConnectorInfo connector) async {
+    try {
+      AppLogger.uiInfo('重启连接器: ${connector.connectorId}');
+
+      // 停止连接器
+      if (connector.state == ConnectorState.running) {
+        await _apiClient.stopConnector(connector.connectorId);
+        await Future.delayed(const Duration(milliseconds: 500));
+      }
+
+      // 启动连接器
+      await _apiClient.startConnector(connector.connectorId);
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('已重启连接器: ${connector.displayName}'),
+          backgroundColor: Colors.green,
+        ),
+      );
+
+      // 刷新状态
+      await _refreshConnectorStatus(connector);
+    } catch (e) {
+      ref.read(appErrorProvider.notifier).handleException(
+            e,
+            operation: '重启连接器: ${connector.connectorId}',
+            retryCallback: () => _restartConnector(connector),
+          );
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('重启连接器失败: ${connector.displayName}'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  /// 配置连接器
+  Future<void> _configureConnector(ConnectorInfo connector) async {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => ConnectorConfigScreen(
+          connectorId: connector.connectorId,
+          connectorName: connector.displayName,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildOldInstalledConnectorCard(ConnectorInfo connector) {
     final isRunning = connector.state == ConnectorState.running;
     final hasError = connector.state == ConnectorState.error;
     final isAvailable = connector.state == ConnectorState.available;

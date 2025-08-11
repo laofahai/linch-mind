@@ -40,6 +40,7 @@ class ErrorCategory(Enum):
     CONFIGURATION = "configuration"
     SECURITY = "security"
     NETWORK = "network"
+    SYSTEM_OPERATION = "system_operation"
     UNKNOWN = "unknown"
 
 
@@ -215,7 +216,7 @@ class EnhancedErrorHandler:
     def _generate_signature(self, exception: Exception, context: ErrorContext) -> str:
         """生成错误签名用于去重"""
         content = f"{context.category.value}:{type(exception).__name__}:{context.function_name}"
-        return hashlib.md5(content.encode()).hexdigest()
+        return hashlib.md5(content.encode(), usedforsecurity=False).hexdigest()
 
     def _get_error_code(self, exception: Exception, context: ErrorContext) -> str:
         """获取错误代码"""

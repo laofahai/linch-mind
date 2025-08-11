@@ -10,8 +10,9 @@ from typing import Any, Dict
 
 from sqlalchemy import and_, func, or_, select, text
 
+from core.service_facade import get_service
 from models.database_models import EntityMetadata
-from services.optimized_sqlite_service import get_optimized_sqlite_service
+from services.database_service import DatabaseService
 
 from .models import DataTier, TierStatistics
 
@@ -22,7 +23,7 @@ class DataTierManager:
     """数据分层管理器"""
 
     def __init__(self):
-        self.db_service = get_optimized_sqlite_service()
+        self.db_service = get_service(DatabaseService)
 
         # 数据分层阈值（基于现实使用模式）
         self.tier_thresholds = {

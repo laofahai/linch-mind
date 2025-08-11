@@ -2,15 +2,22 @@
 # 所有工作流都从此文件读取版本信息，确保一致性
 
 versions:
-  # 核心运行时版本
-  flutter: "3.24.3"
-  python: "3.11"
-  java: "17"
-  node: "20"
+  # 核心运行时版本 (基于项目实际配置)
+  flutter: "3.32.0"  # 基于ui/pubspec.yaml实际版本
+  python: "3.13"     # 基于daemon/pyproject.toml
+  dart: "3.0"        # Flutter 3.32对应的Dart版本
   
   # 构建工具版本
-  poetry: "1.7.1"
-  xcode: "15.0"
+  poetry: "1.8"      # 匹配项目poetry.lock版本
+  cmake: "3.16"      # 基于connectors/CMakeLists.txt最低要求
+  
+  # 第三方AI工具版本
+  ollama: "0.1.32"
+  
+  # 依赖库关键版本
+  sqlalchemy: "2.0"  # 基于daemon实际依赖
+  riverpod: "2.4"    # 基于ui实际依赖
+  faiss: "1.8"       # AI向量搜索库
   
   # CI/CD工具版本
   actions:
@@ -27,27 +34,32 @@ environments:
   development:
     registry_url: "http://localhost:8001"
     daemon_url: "http://localhost:8000"
+    database_encryption: false
   
   staging:
     registry_url: "https://staging-registry.linch-mind.com"
     daemon_url: "https://staging-api.linch-mind.com"
+    database_encryption: true
   
   production:
     registry_url: "https://registry.linch-mind.com"
     daemon_url: "https://api.linch-mind.com"
+    database_encryption: true
 
 # 构建配置
 build:
   # 默认构建平台
   platforms:
-    flutter: ["linux", "macos", "windows"]
+    flutter: ["linux", "macos", "windows", "android", "ios", "web"]
     connectors: ["ubuntu-latest", "windows-latest", "macos-latest"]
+    installers: ["linux", "macos", "windows"]
   
   # 质量门禁配置
   quality_gates:
     test_coverage_threshold: 80
     security_scan_severity: "high"
     code_style_enforcement: true
+    performance_regression_threshold: 0.1  # 10% performance regression limit
   
   # 构建优化
   cache_strategy:
@@ -55,6 +67,14 @@ build:
     python: true
     node: true
     gradle: true
+    poetry: true
+  
+  # 打包配置
+  packaging:
+    include_ollama: true
+    include_ai_models: false  # 模型按需下载，不打包
+    compress_level: 9
+    sign_packages: true
 
 # 发布配置
 release:
@@ -68,9 +88,43 @@ release:
     strategy: "semantic"
     auto_increment: true
     tag_prefix: "v"
+  
+  # 发布渠道
+  channels:
+    github_releases: true
+    pypi: false  # 暂不发布到PyPI
+    app_stores: false  # 暂不发布到应用商店
+    custom_registry: true
+
+# 测试配置
+testing:
+  # 测试矩阵
+  matrix:
+    python_versions: ["3.11", "3.12", "3.13"]
+    platforms: ["ubuntu-latest", "macos-latest", "windows-latest"]
+    flutter_channels: ["stable"]
+  
+  # 测试超时
+  timeouts:
+    unit_tests: 10  # 分钟
+    integration_tests: 30  # 分钟
+    e2e_tests: 45  # 分钟
+  
+  # 性能基准
+  performance_benchmarks:
+    ipc_latency_max: 0.010  # 10ms
+    startup_time_max: 3.0   # 3 seconds
+    memory_usage_max: 500   # MB
 
 # 通知配置
 notifications:
   slack_webhook: ""  # 留空，从secrets读取
   discord_webhook: ""  # 留空，从secrets读取
   email_recipients: []
+  
+  # 通知触发条件
+  triggers:
+    build_failure: true
+    release_success: true
+    security_alerts: true
+    performance_regression: true

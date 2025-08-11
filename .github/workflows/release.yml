@@ -1,0 +1,427 @@
+name: 🚀 Release Pipeline
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version (e.g., 1.0.0)'
+        required: true
+        type: string
+      prerelease:
+        description: 'Is this a pre-release?'
+        required: false
+        default: false
+        type: boolean
+      draft:
+        description: 'Create as draft release?'
+        required: false
+        default: false
+        type: boolean
+
+env:
+  PYTHON_VERSION: "3.13"
+  FLUTTER_VERSION: "3.24.3"
+  POETRY_VERSION: "1.7.1"
+
+jobs:
+  # 版本验证和准备
+  prepare-release:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      tag: ${{ steps.version.outputs.tag }}
+      is_prerelease: ${{ steps.version.outputs.is_prerelease }}
+      changelog: ${{ steps.changelog.outputs.changelog }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Determine version
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            VERSION="${{ github.event.inputs.version }}"
+            TAG="v$VERSION"
+            IS_PRERELEASE="${{ github.event.inputs.prerelease }}"
+          else
+            TAG="${GITHUB_REF#refs/tags/}"
+            VERSION="${TAG#v}"
+            IS_PRERELEASE=$(echo "$VERSION" | grep -E "(alpha|beta|rc)" && echo "true" || echo "false")
+          fi
+          
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+          echo "is_prerelease=$IS_PRERELEASE" >> $GITHUB_OUTPUT
+          
+          echo "🏷️ Release version: $VERSION"
+          echo "🏷️ Release tag: $TAG"
+          echo "🏷️ Is prerelease: $IS_PRERELEASE"
+      
+      - name: Validate version format
+        run: |
+          if ! echo "${{ steps.version.outputs.version }}" | grep -E "^[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9-]+(\.[0-9]+)?)?$"; then
+            echo "❌ Invalid version format: ${{ steps.version.outputs.version }}"
+            echo "Expected format: MAJOR.MINOR.PATCH or MAJOR.MINOR.PATCH-PRERELEASE"
+            exit 1
+          fi
+      
+      - name: Generate changelog
+        id: changelog
+        run: |
+          # 生成从上次发布以来的更改日志
+          LAST_TAG=$(git describe --tags --abbrev=0 HEAD~1 2>/dev/null || echo "")
+          
+          if [ -z "$LAST_TAG" ]; then
+            echo "📝 First release - generating full changelog"
+            CHANGELOG="Initial release of Linch Mind v${{ steps.version.outputs.version }}"
+          else
+            echo "📝 Generating changelog since $LAST_TAG"
+            CHANGELOG=$(git log --pretty=format:"- %s" $LAST_TAG..HEAD | head -20)
+          fi
+          
+          # 保存到文件以处理多行内容
+          echo "$CHANGELOG" > changelog.txt
+          echo "changelog<<EOF" >> $GITHUB_OUTPUT
+          echo "$CHANGELOG" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+      
+      - name: Upload changelog
+        uses: actions/upload-artifact@v4
+        with:
+          name: changelog
+          path: changelog.txt
+
+  # 构建所有组件
+  build-all-components:
+    needs: prepare-release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger component builds
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const workflows = [
+              { name: 'flutter-build.yml', inputs: { platforms: 'linux,macos,windows,android,ios,web' }},
+              { name: 'daemon-build.yml', inputs: { build_mode: 'production' }},
+              { name: 'connector-build.yml', inputs: {}}
+            ];
+            
+            for (const workflow of workflows) {
+              console.log(`Triggering ${workflow.name}`);
+              await github.rest.actions.createWorkflowDispatch({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                workflow_id: workflow.name,
+                ref: context.ref,
+                inputs: workflow.inputs
+              });
+            }
+            
+            console.log('All build workflows triggered');
+
+  # 等待构建完成
+  wait-for-builds:
+    needs: [prepare-release, build-all-components]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Wait for builds to complete
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const maxWaitTime = 30 * 60 * 1000; // 30分钟
+            const checkInterval = 30 * 1000; // 30秒
+            const startTime = Date.now();
+            
+            const workflows = ['flutter-build.yml', 'daemon-build.yml', 'connector-build.yml'];
+            
+            while (Date.now() - startTime < maxWaitTime) {
+              let allCompleted = true;
+              
+              for (const workflowFile of workflows) {
+                const runs = await github.rest.actions.listWorkflowRuns({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  workflow_id: workflowFile,
+                  head_sha: context.sha,
+                  per_page: 1
+                });
+                
+                if (runs.data.workflow_runs.length === 0) {
+                  console.log(`No runs found for ${workflowFile}`);
+                  allCompleted = false;
+                  continue;
+                }
+                
+                const run = runs.data.workflow_runs[0];
+                console.log(`${workflowFile}: ${run.status} (${run.conclusion || 'running'})`);
+                
+                if (run.status !== 'completed') {
+                  allCompleted = false;
+                } else if (run.conclusion !== 'success') {
+                  throw new Error(`Build failed: ${workflowFile} - ${run.conclusion}`);
+                }
+              }
+              
+              if (allCompleted) {
+                console.log('All builds completed successfully');
+                return;
+              }
+              
+              await new Promise(resolve => setTimeout(resolve, checkInterval));
+            }
+            
+            throw new Error('Builds did not complete within timeout');
+
+  # 收集构建制品
+  collect-artifacts:
+    needs: [prepare-release, wait-for-builds]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Download all workflow artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts/
+      
+      - name: Organize release artifacts
+        run: |
+          mkdir -p release/
+          
+          # 组织Flutter构建制品
+          if [ -d "artifacts/flutter-linux-x64" ]; then
+            cp -r artifacts/flutter-linux-x64/ release/linch-mind-${{ needs.prepare-release.outputs.version }}-linux-x64/
+          fi
+          
+          if [ -d "artifacts/flutter-macos-x64" ]; then
+            cp -r artifacts/flutter-macos-x64/ release/linch-mind-${{ needs.prepare-release.outputs.version }}-macos-x64/
+          fi
+          
+          if [ -d "artifacts/flutter-windows-x64" ]; then
+            cp -r artifacts/flutter-windows-x64/ release/linch-mind-${{ needs.prepare-release.outputs.version }}-windows-x64/
+          fi
+          
+          # 组织移动端制品
+          if [ -d "artifacts/flutter-android-apk" ]; then
+            mkdir -p release/mobile/
+            cp artifacts/flutter-android-apk/*.apk release/mobile/linch-mind-${{ needs.prepare-release.outputs.version }}.apk
+          fi
+          
+          # 组织Daemon制品
+          if [ -d "artifacts/daemon-package" ]; then
+            cp -r artifacts/daemon-package/ release/daemon/
+          fi
+          
+          # 组织连接器制品
+          if [ -d "artifacts/connectors-linux-x64" ]; then
+            cp -r artifacts/connectors-*/ release/connectors/
+          fi
+      
+      - name: Create platform-specific archives
+        run: |
+          cd release/
+          
+          # 创建桌面平台压缩包
+          for platform_dir in linch-mind-*-*-*/; do
+            if [ -d "$platform_dir" ]; then
+              platform_name=$(basename "$platform_dir")
+              tar -czf "${platform_name}.tar.gz" "$platform_dir"
+              zip -r "${platform_name}.zip" "$platform_dir"
+            fi
+          done
+          
+          # 创建完整发布包
+          tar -czf "linch-mind-${{ needs.prepare-release.outputs.version }}-complete.tar.gz" .
+          zip -r "linch-mind-${{ needs.prepare-release.outputs.version }}-complete.zip" .
+      
+      - name: Generate checksums
+        run: |
+          cd release/
+          sha256sum *.tar.gz *.zip > checksums.txt
+          cat checksums.txt
+      
+      - name: Upload organized artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-artifacts
+          path: release/
+          retention-days: 90
+
+  # 安全扫描
+  security-scan:
+    needs: prepare-release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Run security scan
+        run: |
+          # 扫描Python代码
+          cd daemon
+          pip install bandit safety
+          bandit -r . -f json -o ../security-report.json || true
+          safety check --json --output ../safety-report.json || true
+      
+      - name: Upload security reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: security-reports
+          path: |
+            security-report.json
+            safety-report.json
+
+  # 创建GitHub Release
+  create-github-release:
+    needs: [prepare-release, collect-artifacts, security-scan]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Download release artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: release-artifacts
+          path: release/
+      
+      - name: Download changelog
+        uses: actions/download-artifact@v4
+        with:
+          name: changelog
+          path: ./
+      
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ needs.prepare-release.outputs.tag }}
+          name: "Linch Mind ${{ needs.prepare-release.outputs.version }}"
+          body_path: changelog.txt
+          draft: ${{ github.event.inputs.draft || false }}
+          prerelease: ${{ needs.prepare-release.outputs.is_prerelease }}
+          files: |
+            release/*.tar.gz
+            release/*.zip
+            release/checksums.txt
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # 发布到包管理器
+  publish-packages:
+    needs: [prepare-release, create-github-release]
+    if: needs.prepare-release.outputs.is_prerelease == 'false'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      
+      - name: Install Poetry
+        uses: snok/install-poetry@v1
+        with:
+          version: ${{ env.POETRY_VERSION }}
+      
+      - name: Configure PyPI
+        run: |
+          cd daemon
+          poetry config pypi-token.pypi ${{ secrets.PYPI_TOKEN }}
+      
+      - name: Publish to PyPI
+        if: secrets.PYPI_TOKEN != ''
+        run: |
+          cd daemon
+          poetry publish --build
+        continue-on-error: true
+
+  # 部署到staging环境
+  deploy-staging:
+    needs: [prepare-release, create-github-release]
+    if: needs.prepare-release.outputs.is_prerelease == 'true'
+    runs-on: ubuntu-latest
+    environment: staging
+    steps:
+      - name: Deploy to staging
+        run: |
+          echo "🚀 Deploying ${{ needs.prepare-release.outputs.version }} to staging"
+          # 这里添加实际的部署逻辑
+          echo "Staging deployment completed"
+
+  # 部署到生产环境
+  deploy-production:
+    needs: [prepare-release, create-github-release, publish-packages]
+    if: needs.prepare-release.outputs.is_prerelease == 'false'
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Deploy to production
+        run: |
+          echo "🚀 Deploying ${{ needs.prepare-release.outputs.version }} to production"
+          # 这里添加实际的部署逻辑
+          echo "Production deployment completed"
+
+  # 发布通知
+  notify-release:
+    needs: [prepare-release, create-github-release, deploy-staging, deploy-production]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Notify release completion
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const version = '${{ needs.prepare-release.outputs.version }}';
+            const isPrerelease = '${{ needs.prepare-release.outputs.is_prerelease }}' === 'true';
+            const releaseUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/releases/tag/v${version}`;
+            
+            const deploymentStatus = isPrerelease ? 
+              '${{ needs.deploy-staging.result }}' : 
+              '${{ needs.deploy-production.result }}';
+            
+            const environment = isPrerelease ? 'staging' : 'production';
+            
+            console.log(`🎉 Linch Mind ${version} released!`);
+            console.log(`📦 Release URL: ${releaseUrl}`);
+            console.log(`🚀 ${environment} deployment: ${deploymentStatus}`);
+            
+            // 如果配置了Slack webhook，发送通知
+            if (process.env.SLACK_WEBHOOK) {
+              // 发送Slack通知的逻辑
+            }
+        env:
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_URL }}
+
+  # 发布总结
+  release-summary:
+    needs: [prepare-release, create-github-release, deploy-staging, deploy-production, notify-release]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Release Summary
+        run: |
+          echo "🚀 Release Pipeline Summary"
+          echo "=========================="
+          echo "Version: ${{ needs.prepare-release.outputs.version }}"
+          echo "Tag: ${{ needs.prepare-release.outputs.tag }}"
+          echo "Prerelease: ${{ needs.prepare-release.outputs.is_prerelease }}"
+          echo ""
+          echo "Results:"
+          echo "- GitHub Release: ${{ needs.create-github-release.result }}"
+          echo "- Staging Deploy: ${{ needs.deploy-staging.result }}"
+          echo "- Production Deploy: ${{ needs.deploy-production.result }}"
+          echo ""
+          
+          if [[ "${{ needs.create-github-release.result }}" == "success" ]]; then
+            echo "✅ Release completed successfully!"
+            echo "📦 Download: https://github.com/${{ github.repository }}/releases/tag/${{ needs.prepare-release.outputs.tag }}"
+          else
+            echo "❌ Release failed"
+            exit 1
+          fi

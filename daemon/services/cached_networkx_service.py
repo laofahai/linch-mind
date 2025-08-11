@@ -11,8 +11,9 @@ from typing import Any, Dict, List, Optional
 
 import networkx as nx
 
+from core.service_facade import get_service
 from models.database_models import EntityMetadata, EntityRelationship
-from services.optimized_sqlite_service import get_optimized_sqlite_service
+from services.database_service import DatabaseService
 
 logger = logging.getLogger(__name__)
 
@@ -63,7 +64,7 @@ class CachedNetworkXService:
     """
 
     def __init__(self):
-        self.database_service = get_optimized_sqlite_service()
+        self.database_service = get_service(DatabaseService)
         self.knowledge_graph = nx.Graph()
 
         # 缓存系统

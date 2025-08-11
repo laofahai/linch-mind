@@ -10,8 +10,9 @@ from typing import Any, Dict, List
 
 from sqlalchemy import and_, func, or_, select
 
+from core.service_facade import get_service
 from models.database_models import EntityMetadata, EntityRelationship
-from services.optimized_sqlite_service import get_optimized_sqlite_service
+from services.database_service import DatabaseService
 
 from .models import DataQualityReport
 
@@ -22,7 +23,7 @@ class DataQualityAnalyzer:
     """数据质量分析器"""
 
     def __init__(self):
-        self.db_service = get_optimized_sqlite_service()
+        self.db_service = get_service(DatabaseService)
         logger.info("DataQualityAnalyzer 初始化完成")
 
     def analyze_data_quality(self) -> DataQualityReport:

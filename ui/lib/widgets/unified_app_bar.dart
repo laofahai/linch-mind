@@ -5,7 +5,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:window_manager/window_manager.dart';
 import '../providers/app_providers.dart';
+import '../providers/app_error_provider.dart';
 import 'status_indicator.dart';
+import 'system_health_indicator.dart';
 
 class UnifiedAppBar extends ConsumerStatefulWidget
     implements PreferredSizeWidget {
@@ -124,6 +126,19 @@ class _UnifiedAppBarState extends ConsumerState<UnifiedAppBar> {
             ),
           ),
 
+          // 系统健康度指示器
+          Consumer(
+            builder: (context, ref, child) {
+              return Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                child: SystemHealthIndicator(
+                  showDetails: false,
+                  onTap: () => _showSystemHealthDetails(context, ref),
+                ),
+              );
+            },
+          ),
+
           // 状态指示器
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -151,6 +166,16 @@ class _UnifiedAppBarState extends ConsumerState<UnifiedAppBar> {
       backgroundColor: theme.colorScheme.surface,
       surfaceTintColor: theme.colorScheme.surfaceTint,
       actions: [
+        // 系统健康度指示器
+        Consumer(
+          builder: (context, ref, child) {
+            return SystemHealthIndicator(
+              showDetails: false,
+              onTap: () => _showSystemHealthDetails(context, ref),
+            );
+          },
+        ),
+        const SizedBox(width: 8),
         statusWidget,
         const SizedBox(width: 8),
         _MobileMenuButton(
@@ -160,6 +185,95 @@ class _UnifiedAppBarState extends ConsumerState<UnifiedAppBar> {
         ),
         const SizedBox(width: 16),
       ],
+    );
+  }
+
+  /// 显示系统健康详情
+  void _showSystemHealthDetails(BuildContext context, WidgetRef ref) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        height: MediaQuery.of(context).size.height * 0.6,
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surface,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+        ),
+        child: Column(
+          children: [
+            // 顶部拖拽指示器
+            Container(
+              width: 40,
+              height: 4,
+              margin: const EdgeInsets.symmetric(vertical: 8),
+              decoration: BoxDecoration(
+                color: Theme.of(context)
+                    .colorScheme
+                    .onSurfaceVariant
+                    .withOpacity(0.3),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+
+            // 系统健康详情
+            const Expanded(
+              child: Padding(
+                padding: EdgeInsets.all(16),
+                child: SystemHealthIndicator(showDetails: true),
+              ),
+            ),
+
+            // 快捷操作按钮
+            Consumer(
+              builder: (context, ref, child) {
+                final errorState = ref.watch(appErrorProvider);
+                return Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      ElevatedButton.icon(
+                        onPressed: errorState.canRetryAny
+                            ? () {
+                                ref
+                                    .read(appErrorProvider.notifier)
+                                    .retryAllErrors();
+                                Navigator.pop(context);
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(content: Text('正在重试所有失败的操作')),
+                                );
+                              }
+                            : null,
+                        icon: const Icon(Icons.refresh),
+                        label: const Text('重试全部'),
+                      ),
+                      ElevatedButton.icon(
+                        onPressed: errorState.hasErrors
+                            ? () {
+                                ref
+                                    .read(appErrorProvider.notifier)
+                                    .clearAllErrors();
+                                Navigator.pop(context);
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(content: Text('已清除所有错误')),
+                                );
+                              }
+                            : null,
+                        icon: const Icon(Icons.clear_all),
+                        label: const Text('清除全部'),
+                        style: ElevatedButton.styleFrom(
+                          foregroundColor: Colors.orange,
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

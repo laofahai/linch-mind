@@ -1,0 +1,409 @@
+name: 🐍 Daemon Build & Test
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths:
+      - 'daemon/**'
+      - 'pyproject.toml'
+      - '.github/workflows/daemon-build.yml'
+      - '.github/config/versions.yml'
+  pull_request:
+    branches: [ main, develop ]
+    paths:
+      - 'daemon/**'
+      - 'pyproject.toml'
+  workflow_dispatch:
+    inputs:
+      python_version:
+        description: 'Python version'
+        required: false
+        default: '3.13'
+      build_mode:
+        description: 'Build mode'
+        required: false
+        default: 'production'
+        type: choice
+        options:
+        - development
+        - staging  
+        - production
+
+env:
+  POETRY_VERSION: "1.8"    # 匹配项目实际Poetry版本
+  PYTHON_VERSION: "3.13"   # 基于daemon/pyproject.toml
+
+jobs:
+  # 配置加载
+  load-config:
+    runs-on: ubuntu-latest
+    outputs:
+      python_version: ${{ steps.config.outputs.python_version }}
+      poetry_version: ${{ steps.config.outputs.poetry_version }}
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Load versions config
+        id: config
+        run: |
+          PYTHON_VERSION=$(yq '.versions.python' .github/config/versions.yml)
+          POETRY_VERSION=$(yq '.versions.poetry' .github/config/versions.yml)
+          echo "python_version=$PYTHON_VERSION" >> $GITHUB_OUTPUT
+          echo "poetry_version=$POETRY_VERSION" >> $GITHUB_OUTPUT
+
+  # 代码质量检查
+  quality-check:
+    runs-on: ubuntu-latest
+    needs: load-config
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ needs.load-config.outputs.python_version }}
+      
+      - name: Install Poetry
+        uses: snok/install-poetry@v1
+        with:
+          version: ${{ needs.load-config.outputs.poetry_version }}
+          virtualenvs-create: true
+          virtualenvs-in-project: true
+      
+      - name: Load cached venv
+        id: cached-poetry-dependencies
+        uses: actions/cache@v3
+        with:
+          path: daemon/.venv
+          key: venv-${{ runner.os }}-${{ needs.load-config.outputs.python_version }}-${{ hashFiles('daemon/poetry.lock') }}
+      
+      - name: Install dependencies
+        if: steps.cached-poetry-dependencies.outputs.cache-hit != 'true'
+        run: |
+          cd daemon
+          poetry install --no-interaction --no-root
+      
+      - name: Install project
+        run: |
+          cd daemon
+          poetry install --no-interaction
+      
+      - name: Code formatting check
+        run: |
+          cd daemon
+          poetry run black --check .
+          poetry run isort --check-only .
+      
+      - name: Linting
+        run: |
+          cd daemon
+          poetry run flake8 .
+          poetry run pylint --rcfile=setup.cfg $(find . -name "*.py" | grep -v __pycache__ | grep -v .venv)
+      
+      - name: Type checking
+        run: |
+          cd daemon
+          poetry run mypy .
+      
+      - name: Security scan
+        run: |
+          cd daemon
+          poetry run bandit -r . -f json -o bandit-report.json || true
+          poetry run safety check --json --output safety-report.json || true
+      
+      - name: Upload security reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: security-reports
+          path: |
+            daemon/bandit-report.json
+            daemon/safety-report.json
+
+  # 测试套件
+  test-suite:
+    runs-on: ${{ matrix.os }}
+    needs: load-config
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        python-version: ["3.11", "3.12", "3.13"]
+        exclude:
+          - os: macos-latest
+            python-version: "3.11"
+          - os: windows-latest
+            python-version: "3.11"
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+      
+      - name: Install Poetry
+        uses: snok/install-poetry@v1
+        with:
+          version: ${{ needs.load-config.outputs.poetry_version }}
+          virtualenvs-create: true
+          virtualenvs-in-project: true
+      
+      - name: Load cached venv
+        id: cached-poetry-dependencies
+        uses: actions/cache@v3
+        with:
+          path: daemon/.venv
+          key: venv-${{ matrix.os }}-${{ matrix.python-version }}-${{ hashFiles('daemon/poetry.lock') }}
+      
+      - name: Install dependencies
+        if: steps.cached-poetry-dependencies.outputs.cache-hit != 'true'
+        run: |
+          cd daemon
+          poetry install --no-interaction --no-root
+      
+      - name: Install project
+        run: |
+          cd daemon
+          poetry install --no-interaction
+      
+      - name: Setup test environment
+        run: |
+          cd daemon
+          # 使用项目的环境初始化系统
+          poetry run python scripts/initialize_environment.py development
+          
+          # 验证环境设置
+          ls -la ~/.linch-mind/development/ || echo "Environment directory created"
+      
+      - name: Run unit tests
+        run: |
+          cd daemon
+          poetry run pytest tests/ -v \
+            --cov=. \
+            --cov-report=xml \
+            --cov-report=html \
+            --junitxml=test-results.xml \
+            --maxfail=5 \
+            -x
+      
+      - name: Run integration tests
+        run: |
+          cd daemon
+          poetry run pytest tests/test_ipc_integration.py -v
+      
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results-${{ matrix.os }}-${{ matrix.python-version }}
+          path: |
+            daemon/test-results.xml
+            daemon/htmlcov/
+            daemon/coverage.xml
+
+  # 性能测试
+  performance-test:
+    runs-on: ubuntu-latest
+    needs: [load-config, test-suite]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ needs.load-config.outputs.python_version }}
+      
+      - name: Install Poetry
+        uses: snok/install-poetry@v1
+        with:
+          version: ${{ needs.load-config.outputs.poetry_version }}
+          virtualenvs-create: true
+          virtualenvs-in-project: true
+      
+      - name: Install dependencies
+        run: |
+          cd daemon
+          poetry install --no-interaction
+      
+      - name: Run performance tests
+        run: |
+          cd daemon
+          poetry run pytest tests/test_architecture_performance.py -v \
+            --benchmark-only \
+            --benchmark-json=benchmark-results.json
+      
+      - name: Upload performance results
+        uses: actions/upload-artifact@v4
+        with:
+          name: performance-results
+          path: daemon/benchmark-results.json
+
+  # 构建发布包
+  build-package:
+    runs-on: ubuntu-latest
+    needs: [quality-check, test-suite]
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ needs.load-config.outputs.python_version }}
+      
+      - name: Install Poetry
+        uses: snok/install-poetry@v1
+        with:
+          version: ${{ needs.load-config.outputs.poetry_version }}
+          virtualenvs-create: true
+          virtualenvs-in-project: true
+      
+      - name: Build package
+        run: |
+          cd daemon
+          poetry build
+      
+      - name: Verify package
+        run: |
+          cd daemon
+          poetry run pip install dist/*.whl
+          poetry run python -c "import main; print('Package installed successfully')"
+      
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: daemon-package
+          path: daemon/dist/
+          retention-days: 30
+
+  # Docker构建
+  build-docker:
+    runs-on: ubuntu-latest
+    needs: [quality-check, test-suite]
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}/daemon
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=sha,prefix={{branch}}-
+            type=raw,value=latest,enable={{is_default_branch}}
+      
+      - name: Create Dockerfile
+        run: |
+          cat > daemon/Dockerfile << 'EOF'
+          FROM python:3.13-slim
+
+          WORKDIR /app
+
+          # Install system dependencies
+          RUN apt-get update && apt-get install -y \
+              gcc \
+              && rm -rf /var/lib/apt/lists/*
+
+          # Install Poetry
+          RUN pip install poetry==1.7.1
+
+          # Copy poetry files
+          COPY pyproject.toml poetry.lock ./
+
+          # Configure poetry
+          RUN poetry config virtualenvs.create false \
+              && poetry install --no-dev --no-interaction --no-ansi
+
+          # Copy application code
+          COPY . .
+
+          # Create non-root user
+          RUN useradd -m -u 1000 linch && chown -R linch:linch /app
+          USER linch
+
+          # Expose port
+          EXPOSE 8000
+
+          # Health check
+          HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+              CMD python -c "import requests; requests.get('http://localhost:8000/health')" || exit 1
+
+          # Start application
+          CMD ["python", "main.py"]
+          EOF
+      
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: daemon
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # 覆盖率报告
+  coverage-report:
+    runs-on: ubuntu-latest
+    needs: test-suite
+    if: always()
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Download coverage reports
+        uses: actions/download-artifact@v4
+        with:
+          pattern: test-results-*
+          path: coverage-reports/
+      
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          directory: coverage-reports/
+          flags: daemon
+          fail_ci_if_error: true
+
+  # 构建总结
+  build-summary:
+    runs-on: ubuntu-latest
+    needs: [quality-check, test-suite, performance-test, build-package, build-docker]
+    if: always()
+    
+    steps:
+      - name: Build Summary
+        run: |
+          echo "🐍 Daemon Build & Test Summary"
+          echo "============================"
+          echo "Quality check: ${{ needs.quality-check.result }}"
+          echo "Test suite: ${{ needs.test-suite.result }}"
+          echo "Performance test: ${{ needs.performance-test.result }}"
+          echo "Package build: ${{ needs.build-package.result }}"
+          echo "Docker build: ${{ needs.build-docker.result }}"
+          
+          if [[ "${{ needs.quality-check.result }}" == "failure" || 
+                "${{ needs.test-suite.result }}" == "failure" ]]; then
+            echo "❌ Critical builds failed"
+            exit 1
+          else
+            echo "✅ All critical builds completed successfully"
+          fi

@@ -2,10 +2,10 @@
 
 **高性能IPC后台服务** - Linch Mind个人AI生活助手的核心引擎
 
-**版本**: 0.4.0
+**版本**: 0.5.0
 **架构**: 纯IPC (Unix Socket/Named Pipe) + 现代化服务架构 + 环境隔离
-**技术栈**: Python 3.12 + SQLAlchemy + FAISS + NetworkX + ServiceFacade + EnvironmentManager
-**状态**: 生产就绪 + P0重构完成 + 环境隔离完成
+**技术栈**: Python 3.13+ + SQLAlchemy + FAISS + NetworkX + ServiceFacade + EnvironmentManager
+**状态**: ✅ 生产就绪 + P0重构完成 + 环境隔离完成 + 31个核心测试全通过
 
 ---
 

@@ -7,10 +7,12 @@ import 'screens/my_mind_screen.dart';
 import 'screens/knowledge_nebula_screen.dart';
 import 'screens/settings_screen.dart';
 import 'providers/app_providers.dart';
+import 'providers/app_error_provider.dart';
 import 'widgets/unified_app_bar.dart';
 import 'widgets/responsive_navigation.dart';
 import 'widgets/error_monitor_widget.dart';
 import 'widgets/smart_error_display.dart';
+import 'widgets/system_health_indicator.dart';
 import 'utils/app_logger.dart';
 import 'utils/enhanced_error_handler.dart';
 import 'config/app_constants.dart';
@@ -230,9 +232,12 @@ class _MainAppState extends ConsumerState<MainApp> {
       appBar: const UnifiedAppBar(
         title: 'Linch Mind', // 固定标题
       ),
-      child: IndexedStack(
-        index: _currentIndex,
-        children: _pages,
+      child: Scaffold(
+        body: IndexedStack(
+          index: _currentIndex,
+          children: _pages,
+        ),
+        floatingActionButton: const SystemHealthFAB(),
       ),
     );
   }

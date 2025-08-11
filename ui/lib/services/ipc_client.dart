@@ -3,8 +3,22 @@ import 'dart:convert';
 import 'dart:async';
 import 'dart:typed_data';
 import 'dart:developer' as developer;
+import 'package:rxdart/rxdart.dart';
+
 import '../models/ipc_protocol.dart';
 import '../utils/app_logger.dart';
+import '../utils/enhanced_error_handler.dart';
+
+/// 连接状态枚举
+enum ConnectionStatus {
+  disconnected,
+  connecting,
+  connected,
+  authenticating,
+  authenticated,
+  reconnecting,
+  failed,
+}
 
 /// 纯IPC客户端 - 使用统一的IPC协议
 /// 完全摒弃HTTP概念，使用IPC特定的成功/失败响应格式
@@ -19,6 +33,23 @@ class IPCClient {
   final Map<String, Completer<IPCResponse>> _pendingRequests = {};
   int _requestCounter = 0;
 
+  // 连接状态管理
+  final _connectionStatusController =
+      BehaviorSubject<ConnectionStatus>.seeded(ConnectionStatus.disconnected);
+  Stream<ConnectionStatus> get connectionStream =>
+      _connectionStatusController.stream;
+  ConnectionStatus get currentStatus => _connectionStatusController.value;
+
+  // 自动重连管理
+  Timer? _reconnectTimer;
+  int _reconnectAttempts = 0;
+  static const int _maxReconnectAttempts = 5;
+  static const Duration _baseReconnectDelay = Duration(seconds: 2);
+  bool _shouldReconnect = true;
+
+  // 错误处理
+  final _errorHandler = EnhancedErrorHandler();
+
   IPCClient({String? socketPath, String? pipeName})
       : _socketPath = socketPath,
         _pipeName = pipeName;
@@ -29,8 +60,12 @@ class IPCClient {
   }
 
   /// 连接到daemon
-  Future<bool> connect({int maxRetries = 3}) async {
+  Future<bool> connect(
+      {int maxRetries = 3, bool enableAutoReconnect = true}) async {
     if (_isConnected && _isAuthenticated) return true;
+
+    _shouldReconnect = enableAutoReconnect;
+    _updateConnectionStatus(ConnectionStatus.connecting);
 
     for (int attempt = 1; attempt <= maxRetries; attempt++) {
       try {
@@ -46,12 +81,16 @@ class IPCClient {
 
         if (connected) {
           AppLogger.ipcDebug('Socket连接成功，开始认证...');
+          _updateConnectionStatus(ConnectionStatus.authenticating);
+
           // 连接成功后进行认证握手
           if (await _performAuthentication(maxRetries: 2)) {
             AppLogger.ipcInfo('认证成功，连接完成', data: {
               'isConnected': _isConnected,
               'isAuthenticated': _isAuthenticated
             });
+            _updateConnectionStatus(ConnectionStatus.authenticated);
+            _reconnectAttempts = 0; // 重置重连计数
             return true;
           } else {
             print('[DEBUG] 认证失败，断开连接准备重试');
@@ -68,6 +107,15 @@ class IPCClient {
       } catch (e) {
         developer.log('IPC V2连接尝试 $attempt 失败: $e',
             name: 'IPCClient', level: 1000);
+
+        // 记录错误到错误处理器
+        _errorHandler.handleException(
+          e,
+          operation: 'IPC连接',
+          retryCallback: () => connect(
+              maxRetries: maxRetries, enableAutoReconnect: enableAutoReconnect),
+        );
+
         if (attempt < maxRetries) {
           await Future.delayed(Duration(milliseconds: 500 * attempt));
         }
@@ -78,7 +126,69 @@ class IPCClient {
         name: 'IPCClient', level: 1000);
     print(
         '[DEBUG] IPC V2连接最终失败，已尝试 $maxRetries 次。_isConnected=$_isConnected, _isAuthenticated=$_isAuthenticated');
+
+    _updateConnectionStatus(ConnectionStatus.failed);
+
+    // 如果启用自动重连，开始重连流程
+    if (enableAutoReconnect) {
+      _scheduleReconnect();
+    }
+
     return false;
+  }
+
+  /// 更新连接状态
+  void _updateConnectionStatus(ConnectionStatus status) {
+    if (_connectionStatusController.isClosed) return;
+    _connectionStatusController.add(status);
+
+    // 根据状态更新内部标志
+    switch (status) {
+      case ConnectionStatus.connected:
+        _isConnected = true;
+        _isAuthenticated = false;
+        break;
+      case ConnectionStatus.authenticated:
+        _isConnected = true;
+        _isAuthenticated = true;
+        break;
+      case ConnectionStatus.disconnected:
+      case ConnectionStatus.failed:
+        _isConnected = false;
+        _isAuthenticated = false;
+        break;
+      default:
+        break;
+    }
+  }
+
+  /// 计划自动重连
+  void _scheduleReconnect() {
+    if (!_shouldReconnect || _reconnectAttempts >= _maxReconnectAttempts) {
+      _updateConnectionStatus(ConnectionStatus.failed);
+      return;
+    }
+
+    _reconnectAttempts++;
+    final delay = Duration(
+      milliseconds: _baseReconnectDelay.inMilliseconds *
+          (1 << (_reconnectAttempts - 1)), // 指数退避
+    );
+
+    AppLogger.ipcDebug('计划在 ${delay.inSeconds}s 后进行第 $_reconnectAttempts 次重连');
+
+    _reconnectTimer?.cancel();
+    _reconnectTimer = Timer(delay, () async {
+      if (!_shouldReconnect) return;
+
+      _updateConnectionStatus(ConnectionStatus.reconnecting);
+      AppLogger.ipcInfo('开始自动重连 (第 $_reconnectAttempts 次尝试)');
+
+      final success = await connect(maxRetries: 1, enableAutoReconnect: false);
+      if (!success && _shouldReconnect) {
+        _scheduleReconnect();
+      }
+    });
   }
 
   /// 连接Unix Domain Socket
@@ -98,6 +208,7 @@ class IPCClient {
       _setupSocketListener();
 
       _isConnected = true;
+      _updateConnectionStatus(ConnectionStatus.connected);
       developer.log('已连接到Unix socket: $socketPath',
           name: 'IPCClient', level: 800);
       print('[DEBUG] IPC V2已连接到Unix socket: $socketPath');
@@ -465,8 +576,13 @@ class IPCClient {
 
   /// 断开连接
   Future<void> disconnect() async {
+    _shouldReconnect = false; // 停止自动重连
+    _reconnectTimer?.cancel();
+    _reconnectTimer = null;
+
     _isConnected = false;
     _isAuthenticated = false;
+    _updateConnectionStatus(ConnectionStatus.disconnected);
 
     // 取消socket监听
     if (_socketSubscription != null) {
@@ -497,6 +613,16 @@ class IPCClient {
     }
 
     developer.log('IPC V2连接已断开', name: 'IPCClient', level: 800);
+  }
+
+  /// 销毁客户端并清理所有资源
+  void dispose() {
+    _shouldReconnect = false;
+    _reconnectTimer?.cancel();
+    _connectionStatusController.close();
+
+    // 异步断开连接
+    disconnect();
   }
 
   /// 内部断开连接（不清理状态，用于重连）

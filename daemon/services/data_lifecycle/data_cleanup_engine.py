@@ -10,8 +10,9 @@ from typing import Any, Dict, List
 
 from sqlalchemy import and_, func, or_, select, text
 
+from core.service_facade import get_service
 from models.database_models import EntityMetadata, EntityRelationship
-from services.optimized_sqlite_service import get_optimized_sqlite_service
+from services.database_service import DatabaseService
 
 from .models import DataCleanupSuggestion
 
@@ -22,7 +23,7 @@ class DataCleanupEngine:
     """数据清理引擎"""
 
     def __init__(self):
-        self.db_service = get_optimized_sqlite_service()
+        self.db_service = get_service(DatabaseService)
         logger.info("DataCleanupEngine 初始化完成")
 
     def identify_cleanup_candidates(

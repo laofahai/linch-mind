@@ -78,8 +78,9 @@ REGISTRY=ghcr.io
 IMAGE_NAME=linch-mind/daemon
 
 # 测试配置
-TEST_DATABASE_URL=postgresql://test:test123@localhost:5432/linch_mind_test
-TEST_REDIS_URL=redis://localhost:6379
+LINCH_MIND_ENV=testing
+TEST_DATABASE_PATH=/tmp/linch_mind_test.db
+SQLITE_TEST_DB_PATH=~/.linch-mind/testing/database.db
 
 # 部署配置
 PRODUCTION_URL=https://linch-mind.com
@@ -199,36 +200,26 @@ STAGING_URL=https://staging.linch-mind.com
 
 ## 🧪 测试数据库配置
 
-### PostgreSQL测试数据库
+### SQLite测试数据库
 
-CI/CD使用Docker服务运行PostgreSQL：
+项目使用SQLite作为主要数据存储，支持：
 
-```yaml
-services:
-  postgres:
-    image: postgres:15
-    env:
-      POSTGRES_PASSWORD: test
-      POSTGRES_DB: linch_mind_test
-    options: >-
-      --health-cmd pg_isready
-      --health-interval 10s
-      --health-timeout 5s
-      --health-retries 5
+- **开发环境**: `~/.linch-mind/development/database.db`
+- **测试环境**: `~/.linch-mind/testing/database.db` 
+- **生产环境**: `~/.linch-mind/production/database.db` (SQLCipher加密)
+
+测试环境自动初始化：
+```bash
+# CI/CD自动执行
+python daemon/scripts/initialize_environment.py testing
 ```
 
-### Redis缓存服务
+### 环境隔离测试
 
-```yaml
-services:
-  redis:
-    image: redis:7-alpine
-    options: >-
-      --health-cmd "redis-cli ping"
-      --health-interval 10s
-      --health-timeout 5s
-      --health-retries 3
-```
+项目实现了完整的环境隔离系统：
+- 独立的数据库文件
+- 分离的配置目录
+- 环境感知的服务发现
 
 ## 📦 应用商店配置
 
