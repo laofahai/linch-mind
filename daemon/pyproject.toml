@@ -5,13 +5,13 @@ description = "Linch Mind 连接器管理和数据存储服务"
 authors = [{name = "laofahai", email = "laofahai@gmail.com"}]
 readme = "README.md"
 dynamic = []
-requires-python = ">=3.13"
+requires-python = ">=3.11"
 
 [tool.poetry]
 packages = [{include = "*"}]
 
 [tool.poetry.dependencies]
-python = "^3.13"
+python = "^3.11"
 pydantic = "^2.11.0"
 pydantic-settings = "^2.5.0"
 sqlalchemy = "^2.0.0"
