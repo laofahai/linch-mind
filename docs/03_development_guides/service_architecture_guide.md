@@ -42,7 +42,7 @@ else:
 
 ```python
 # 🚫 禁止 - 重复函数调用
-from services.utils import get_connector_manager  
+from services.utils import get_connector_manager
 from services.database_utils import get_database_service
 
 # 🚫 禁止 - 双套依赖系统
@@ -221,12 +221,12 @@ from core.error_handling import handle_errors, ErrorSeverity, ErrorCategory
 
 class ConnectorService:
     """连接器业务服务层"""
-    
+
     def __init__(self):
         # 使用ServiceFacade获取依赖
         self.connector_manager = get_service(ConnectorManager)
         self.database = get_service(DatabaseService)
-    
+
     @handle_errors(
         severity=ErrorSeverity.HIGH,
         category=ErrorCategory.CONNECTOR_MANAGEMENT,
@@ -235,19 +235,19 @@ class ConnectorService:
     def start_connector(self, connector_id: str):
         """启动连接器的统一入口"""
         connector = self.connector_manager.get_connector(connector_id)
-        
+
         # 更新数据库状态
         self.database.update_connector_status(connector_id, "starting")
-        
+
         # 启动连接器
         result = connector.start()
-        
+
         # 记录结果
         self.database.update_connector_status(
-            connector_id, 
+            connector_id,
             "running" if result.success else "failed"
         )
-        
+
         return result
 ```
 
@@ -259,7 +259,7 @@ import asyncio
 
 class AsyncDataProcessor:
     """异步数据处理服务"""
-    
+
     @handle_errors(
         severity=ErrorSeverity.MEDIUM,
         category=ErrorCategory.DATABASE_OPERATION,
@@ -268,15 +268,15 @@ class AsyncDataProcessor:
     async def process_data_batch(self, data_items: list):
         """批量处理数据"""
         database = get_service(DatabaseService)
-        
+
         async with database.transaction() as tx:
             tasks = []
             for item in data_items:
                 task = self._process_single_item(tx, item)
                 tasks.append(task)
-            
+
             return await asyncio.gather(*tasks, return_exceptions=True)
-    
+
     async def _process_single_item(self, tx, item):
         """处理单个数据项"""
         # 具体处理逻辑
@@ -294,30 +294,30 @@ from core.container import get_container
 def mock_services():
     """测试用的模拟服务"""
     container = get_container()
-    
+
     # 注册模拟服务
     mock_db = Mock()
     mock_connector = Mock()
-    
+
     container.register_instance(DatabaseService, mock_db)
     container.register_instance(ConnectorManager, mock_connector)
-    
+
     yield {
         'database': mock_db,
         'connector_manager': mock_connector
     }
-    
+
     # 清理
     container.clear()
 
 def test_service_operation(mock_services):
     """测试服务操作"""
     from core.service_facade import get_service
-    
+
     # 使用模拟服务进行测试
     service = MyService()
     result = service.some_operation()
-    
+
     # 验证模拟服务被正确调用
     mock_services['database'].update.assert_called_once()
 ```

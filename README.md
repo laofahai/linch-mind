@@ -1,14 +1,14 @@
 # Linch Mind - 个人AI生活助手 🤖
 
 ![Status](https://img.shields.io/badge/status-beta-blue)
-![Python](https://img.shields.io/badge/python-3.13+-purple)  
+![Python](https://img.shields.io/badge/python-3.13+-purple)
 ![Flutter](https://img.shields.io/badge/flutter-3.32+-green)
 ![架构](https://img.shields.io/badge/架构-IPC+Flutter+C++-orange)
 ![License](https://img.shields.io/badge/license-MIT-lightgrey)
 
 **Linch Mind** 是一个真正属于您自己的AI生活助手。通过高性能IPC架构和非侵入式连接器，智能整合您的数字生活，提供主动推荐和深度洞察，同时确保您的数据隐私和完全控制权。
 
-> **🔒 隐私至上 · ⚡ IPC高性能 · 🧠 主动智能 · 🔌 插件化连接器**  
+> **🔒 隐私至上 · ⚡ IPC高性能 · 🧠 主动智能 · 🔌 插件化连接器**
 > 本地IPC通信，零网络暴露，您的数据永远在您的控制之下。
 
 ---
@@ -65,7 +65,7 @@ cd linch-mind
 
 ### ✨ **实时效果展示**
 - **文件监控**: 编辑文档时，系统自动分析内容并建立关联
-- **剪贴板智能**: 复制内容时，智能识别并推荐相关资料  
+- **剪贴板智能**: 复制内容时，智能识别并推荐相关资料
 - **知识图谱**: 实时可视化您的数据关系网络
 - **智能推荐**: 基于使用模式主动推送有价值信息
 - **IPC通信**: < 5ms延迟，10,000+ RPS性能，完整错误处理
@@ -124,7 +124,7 @@ cd linch-mind
 
 ### 📋 **系统要求**
 - **Python 3.12+** - 后端IPC Daemon服务
-- **Flutter 3.24+** - 跨平台UI客户端  
+- **Flutter 3.24+** - 跨平台UI客户端
 - **CMake 3.20+** - C++连接器构建
 - **Poetry** - Python依赖管理
 
@@ -168,7 +168,7 @@ cd ../ui && flutter pub get
 
 # Daemon管理
 ./linch-mind daemon start   # 启动daemon
-./linch-mind daemon stop    # 停止daemon  
+./linch-mind daemon stop    # 停止daemon
 ./linch-mind daemon logs    # 查看日志
 
 # UI启动 (指定平台)
@@ -209,7 +209,7 @@ linch-mind/
 - **[产品愿景与战略](docs/00_vision_and_strategy/product_vision_and_strategy.md)** - 产品定位和发展规划
 - **[架构决策记录](docs/02_decisions/python_flutter_architecture_final_decision.md)** - 技术选型说明
 
-### 🏗️ 技术架构  
+### 🏗️ 技术架构
 - **[Daemon架构设计](docs/01_technical_design/daemon_architecture.md)** - Python后端服务架构
 - **[Flutter架构设计](docs/01_technical_design/flutter_architecture_design.md)** - 跨平台UI架构
 - **[数据存储架构](docs/01_technical_design/data_storage_architecture.md)** - 数据库和存储设计
@@ -236,11 +236,11 @@ cd connectors/official/clipboard && ./build.sh
 # Python后端测试
 cd daemon && poetry run pytest
 
-# Flutter UI测试  
+# Flutter UI测试
 cd ui && flutter test
 
 # 连接器功能测试
-./linch-mind daemon start && 
+./linch-mind daemon start &&
 ./connectors/official/filesystem/bin/debug/linch-mind-filesystem --test
 ```
 
@@ -263,7 +263,7 @@ cd ui && flutter test
 1. Fork 项目到您的GitHub账户
 2. 创建功能分支: `git checkout -b feature/your-feature`
 3. 提交改动: `git commit -m 'Add some feature'`
-4. 推送分支: `git push origin feature/your-feature` 
+4. 推送分支: `git push origin feature/your-feature`
 5. 创建Pull Request
 
 ## 📄 许可证

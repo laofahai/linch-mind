@@ -159,25 +159,25 @@ poetry run pytest --benchmark-only tests/
 async def test_ipc_latency():
     """测试IPC响应延迟"""
     client = IPCTestClient()
-    
+
     # 预热
     for _ in range(10):
         await client.send_request("ping", {})
-    
+
     # 测量延迟
     latencies = []
     for _ in range(1000):
         start_time = time.perf_counter()
         response = await client.send_request("ping", {})
         end_time = time.perf_counter()
-        
+
         latency_ms = (end_time - start_time) * 1000
         latencies.append(latency_ms)
-    
+
     # 验证性能指标
     avg_latency = statistics.mean(latencies)
     p95_latency = sorted(latencies)[int(len(latencies) * 0.95)]
-    
+
     assert avg_latency < 5.0, f"平均延迟 {avg_latency:.2f}ms 超过 5ms 要求"
     assert p95_latency < 10.0, f"P95延迟 {p95_latency:.2f}ms 超过 10ms 要求"
 ```
@@ -189,30 +189,30 @@ async def test_ipc_latency():
 async def test_ipc_throughput():
     """测试IPC吞吐量"""
     client = IPCTestClient()
-    
+
     # 并发连接数
     concurrent_clients = 100
     requests_per_client = 100
-    
+
     async def client_worker():
         responses = []
         for _ in range(requests_per_client):
             response = await client.send_request("echo", {"data": "test"})
             responses.append(response)
         return responses
-    
+
     # 测量吞吐量
     start_time = time.perf_counter()
-    
+
     tasks = [client_worker() for _ in range(concurrent_clients)]
     results = await asyncio.gather(*tasks)
-    
+
     end_time = time.perf_counter()
-    
+
     total_requests = concurrent_clients * requests_per_client
     duration = end_time - start_time
     rps = total_requests / duration
-    
+
     assert rps > 10000, f"吞吐量 {rps:.0f} RPS 低于 10,000 RPS 要求"
 ```
 
@@ -224,24 +224,24 @@ def test_memory_usage():
     """测试内存使用限制"""
     import psutil
     import os
-    
+
     process = psutil.Process(os.getpid())
-    
+
     # 基础内存使用
     baseline_memory = process.memory_info().rss / 1024 / 1024  # MB
-    
+
     # 执行典型操作
     service_container = get_container()
     database_service = service_container.get(DatabaseService)
-    
+
     # 执行一些数据库操作
     for _ in range(1000):
         database_service.get_all_connectors()
-    
+
     # 测量内存增长
     current_memory = process.memory_info().rss / 1024 / 1024  # MB
     memory_growth = current_memory - baseline_memory
-    
+
     assert current_memory < 500, f"内存使用 {current_memory:.1f}MB 超过 500MB 限制"
     assert memory_growth < 50, f"内存增长 {memory_growth:.1f}MB 过大"
 ```
@@ -267,7 +267,7 @@ poetry run pytest --cov=core --cov-report=term-missing
 # 覆盖率配置示例
 [coverage:run]
 source = .
-omit = 
+omit =
     */tests/*
     */test_*
     */__pycache__/*
@@ -336,33 +336,33 @@ jobs:
     strategy:
       matrix:
         python-version: [3.13]
-    
+
     steps:
     - uses: actions/checkout@v3
-    
+
     - name: Set up Python
       uses: actions/setup-python@v4
       with:
         python-version: ${{ matrix.python-version }}
-    
+
     - name: Install Poetry
       uses: snok/install-poetry@v1
       with:
         version: latest
         virtualenvs-create: true
         virtualenvs-in-project: true
-    
+
     - name: Install dependencies
       working-directory: ./daemon
       run: |
         poetry install --only=dev
-    
+
     - name: Run tests
       working-directory: ./daemon
       run: |
         chmod +x ../scripts/run_tests.sh
         ../scripts/run_tests.sh
-    
+
     - name: Upload coverage reports
       uses: codecov/codecov-action@v3
       with:
@@ -410,25 +410,25 @@ def temp_database():
 async def ipc_server():
     """IPC服务器测试固件"""
     from services.ipc import UnifiedIPCServer
-    
+
     server = UnifiedIPCServer()
     await server.start()
-    
+
     yield server
-    
+
     await server.stop()
 
 @pytest.fixture
 def mock_services():
     """模拟服务固件"""
     container = ServiceContainer()
-    
+
     # 注册模拟服务
     mock_db = Mock()
     container.register_singleton(DatabaseService, lambda: mock_db)
-    
+
     yield container
-    
+
     container.clear()
 ```
 

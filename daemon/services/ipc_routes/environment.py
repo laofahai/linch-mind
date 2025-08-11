@@ -8,7 +8,7 @@ import logging
 
 from core.error_handling import ErrorCategory, ErrorSeverity, handle_errors
 from core.service_facade import get_config_manager, get_environment_manager
-from services.ipc_protocol import IPCErrorResponse, IPCRequest, IPCResponse
+from services.ipc_protocol import IPCRequest, IPCResponse
 
 logger = logging.getLogger(__name__)
 
