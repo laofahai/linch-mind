@@ -25,8 +25,8 @@ jobs:
         run: |
           echo "🐍 Validating Python version consistency..."
 
-          # 检查daemon/pyproject.toml中的Python版本
-          DAEMON_PYTHON=$(grep 'python = ' daemon/pyproject.toml | cut -d'"' -f2)
+          # 检查daemon/pyproject.toml中的Python版本 (使用^匹配行首避免匹配多行)
+          DAEMON_PYTHON=$(grep '^python = ' daemon/pyproject.toml | head -1 | cut -d'"' -f2)
           echo "Daemon requires Python: $DAEMON_PYTHON"
 
           # 检查CI/CD配置中的Python版本

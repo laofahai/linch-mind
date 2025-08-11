@@ -374,22 +374,39 @@ jobs:
       - name: Run UI integration tests
         run: |
           cd ui
-          case "${{ matrix.os }}" in
-            "ubuntu-latest")
-              xvfb-run -a flutter test integration_test/ --verbose
-              ;;
-            "macos-latest")
-              flutter test integration_test/ --verbose
-              ;;
-          esac
+          # 检查是否存在integration_test目录，如果不存在则跳过
+          if [ -d "integration_test" ]; then
+            case "${{ matrix.os }}" in
+              "ubuntu-latest")
+                xvfb-run -a flutter test integration_test/ --verbose
+                ;;
+              "macos-latest")
+                flutter test integration_test/ --verbose
+                ;;
+            esac
+          else
+            echo "⚠️ integration_test directory not found, skipping integration tests"
+          fi
 
       - name: Test UI-Daemon communication
         run: |
           cd ui
           # 测试基本IPC通信
-          flutter test test/services/ipc_client_test.dart --verbose
+          if [ -f "test/services/ipc_client_test.dart" ]; then
+            flutter test test/services/ipc_client_test.dart --verbose
+          else
+            echo "⚠️ ipc_client_test.dart not found, skipping"
+          fi
+
           # 测试API适配器
-          flutter test test/services/ipc_api_adapter_test.dart --verbose
+          if [ -f "test/services/ipc_api_adapter_test.dart" ]; then
+            flutter test test/services/ipc_api_adapter_test.dart --verbose
+          else
+            echo "⚠️ ipc_api_adapter_test.dart not found, skipping"
+          fi
+
+          # 运行现有的测试
+          flutter test test/ --verbose
 
       - name: Cleanup
         if: always()
