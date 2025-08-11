@@ -4,14 +4,13 @@ Windows Named Pipe IPC 客户端测试工具
 用于验证Windows IPC服务器的功能和性能
 """
 
-import asyncio
 import json
 import logging
 import platform
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from statistics import mean, median
-from typing import Dict, List, Optional
+from typing import Dict
 
 logger = logging.getLogger(__name__)
 

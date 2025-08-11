@@ -13,7 +13,6 @@ from core.error_handling import (
     ErrorSeverity,
     get_enhanced_error_handler,
     handle_connector_errors,
-    handle_errors,
 )
 from core.service_facade import get_connector_manager, get_service
 from models.connector_status import ConnectorRunningState, ConnectorStatus

@@ -13,7 +13,6 @@ project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
 sys.path.insert(0, str(project_root / "daemon"))
 
-from config.core_config import get_core_config
 from services.ipc_client import IPCClient
 
 

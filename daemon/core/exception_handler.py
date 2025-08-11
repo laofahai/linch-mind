@@ -9,9 +9,8 @@ import asyncio
 import functools
 import logging
 import time
-import traceback
 from contextlib import contextmanager
-from typing import Any, Callable, Dict, Optional, Type, TypeVar, Union
+from typing import Any, Callable, Dict, Optional, TypeVar
 
 # 类型变量
 T = TypeVar("T")
@@ -34,37 +33,25 @@ class LinchMindException(Exception):
 class IPCConnectionError(LinchMindException):
     """IPC连接相关异常"""
 
-    pass
-
 
 class DatabaseError(LinchMindException):
     """数据库操作异常"""
-
-    pass
 
 
 class ConnectorError(LinchMindException):
     """连接器相关异常"""
 
-    pass
-
 
 class ServiceUnavailableError(LinchMindException):
     """服务不可用异常"""
-
-    pass
 
 
 class ConfigurationError(LinchMindException):
     """配置错误异常"""
 
-    pass
-
 
 class ValidationError(LinchMindException):
     """数据验证异常"""
-
-    pass
 
 
 class ExceptionClassifier:

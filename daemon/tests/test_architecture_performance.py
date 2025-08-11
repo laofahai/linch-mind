@@ -103,7 +103,7 @@ class PerformanceBenchmark:
 def test_exception_handling_performance():
     """测试异常处理性能"""
     benchmark = PerformanceBenchmark()
-    handler = StructuredExceptionHandler()
+    StructuredExceptionHandler()
 
     # 测试异常处理装饰器开销
     @handle_exceptions("test_operation")
@@ -200,7 +200,7 @@ async def test_ipc_performance():
             await writer.drain()
 
             # 读取响应
-            response = await reader.readline()
+            await reader.readline()
 
             writer.close()
             await writer.wait_closed()

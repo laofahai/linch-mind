@@ -6,14 +6,12 @@
 
 import asyncio
 import logging
-import sqlite3
 import threading
 import time
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import datetime
 from pathlib import Path
-from queue import Queue
 from typing import Any, Dict, List, Optional
 
 from sqlalchemy import create_engine, event, text

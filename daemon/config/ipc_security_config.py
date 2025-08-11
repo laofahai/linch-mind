@@ -5,7 +5,7 @@ IPC安全配置 - 集中管理IPC通信的安全策略
 
 import os
 from dataclasses import dataclass
-from typing import Dict, List, Optional, Set
+from typing import Dict, Optional, Set
 
 
 @dataclass

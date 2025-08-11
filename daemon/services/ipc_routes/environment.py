@@ -8,7 +8,7 @@ import logging
 
 from core.error_handling import ErrorCategory, ErrorSeverity, handle_errors
 from core.service_facade import get_config_manager, get_environment_manager
-from services.ipc_protocol import IPCRequest, IPCResponse
+from services.ipc_protocol import IPCErrorCode, IPCRequest, IPCResponse
 
 logger = logging.getLogger(__name__)
 
@@ -43,9 +43,9 @@ class EnvironmentRoutes:
 
         except Exception as e:
             logger.error(f"获取环境信息失败: {e}")
-            return IPCErrorResponse(
-                error_code="ENV_GET_FAILED",
-                error_message=f"获取环境信息失败: {e}",
+            return IPCResponse.error_response(
+                error_code=IPCErrorCode.INTERNAL_ERROR,
+                message=f"获取环境信息失败: {e}",
                 details={"error_type": type(e).__name__},
             )
 
@@ -78,9 +78,9 @@ class EnvironmentRoutes:
 
         except Exception as e:
             logger.error(f"列出环境失败: {e}")
-            return IPCErrorResponse(
+            return IPCResponse.error_response(
                 error_code="ENV_LIST_FAILED",
-                error_message=f"列出环境失败: {e}",
+                message=f"列出环境失败: {e}",
                 details={"error_type": type(e).__name__},
             )
 
@@ -98,9 +98,9 @@ class EnvironmentRoutes:
             target_env = data.get("environment")
 
             if not target_env:
-                return IPCErrorResponse(
+                return IPCResponse.error_response(
                     error_code="ENV_SWITCH_INVALID_PARAMS",
-                    error_message="缺少环境参数",
+                    message="缺少环境参数",
                     details={"required_params": ["environment"]},
                 )
 
@@ -118,17 +118,17 @@ class EnvironmentRoutes:
                     message=f"环境已切换到 {target_env}，需要重启服务生效",
                 )
             else:
-                return IPCErrorResponse(
+                return IPCResponse.error_response(
                     error_code="ENV_SWITCH_FAILED",
-                    error_message=f"环境切换失败: {target_env}",
+                    message=f"环境切换失败: {target_env}",
                     details={"target_environment": target_env},
                 )
 
         except Exception as e:
             logger.error(f"环境切换失败: {e}")
-            return IPCErrorResponse(
+            return IPCResponse.error_response(
                 error_code="ENV_SWITCH_ERROR",
-                error_message=f"环境切换异常: {e}",
+                message=f"环境切换异常: {e}",
                 details={"error_type": type(e).__name__},
             )
 
@@ -155,9 +155,9 @@ class EnvironmentRoutes:
 
         except Exception as e:
             logger.error(f"获取环境路径失败: {e}")
-            return IPCErrorResponse(
+            return IPCResponse.error_response(
                 error_code="ENV_PATHS_FAILED",
-                error_message=f"获取环境路径失败: {e}",
+                message=f"获取环境路径失败: {e}",
                 details={"error_type": type(e).__name__},
             )
 
@@ -197,9 +197,9 @@ class EnvironmentRoutes:
                     message="环境初始化成功完成",
                 )
             else:
-                return IPCErrorResponse(
+                return IPCResponse.error_response(
                     error_code="ENV_INIT_FAILED",
-                    error_message="环境初始化失败",
+                    message="环境初始化失败",
                     details={
                         "environment": self.env_manager.current_environment.value,
                         "steps": initializer.initialization_steps,
@@ -208,9 +208,9 @@ class EnvironmentRoutes:
 
         except Exception as e:
             logger.error(f"环境初始化失败: {e}")
-            return IPCErrorResponse(
+            return IPCResponse.error_response(
                 error_code="ENV_INIT_ERROR",
-                error_message=f"环境初始化异常: {e}",
+                message=f"环境初始化异常: {e}",
                 details={"error_type": type(e).__name__},
             )
 
@@ -229,25 +229,25 @@ class EnvironmentRoutes:
             confirm = data.get("confirm", False)
 
             if not target_env:
-                return IPCErrorResponse(
+                return IPCResponse.error_response(
                     error_code="ENV_CLEANUP_INVALID_PARAMS",
-                    error_message="缺少环境参数",
+                    message="缺少环境参数",
                     details={"required_params": ["environment"]},
                 )
 
             if not confirm:
-                return IPCErrorResponse(
+                return IPCResponse.error_response(
                     error_code="ENV_CLEANUP_NOT_CONFIRMED",
-                    error_message="环境清理需要确认",
+                    message="环境清理需要确认",
                     details={"required_params": ["confirm=true"]},
                 )
 
             # 防止清理当前环境
             current_env = self.env_manager.current_environment.value
             if target_env == current_env:
-                return IPCErrorResponse(
+                return IPCResponse.error_response(
                     error_code="ENV_CLEANUP_CURRENT_ENV",
-                    error_message="不能清理当前活跃环境",
+                    message="不能清理当前活跃环境",
                     details={"current_environment": current_env},
                 )
 
@@ -269,17 +269,17 @@ class EnvironmentRoutes:
                     message=f"环境 {target_env} 清理完成",
                 )
             else:
-                return IPCErrorResponse(
+                return IPCResponse.error_response(
                     error_code="ENV_CLEANUP_FAILED",
-                    error_message=f"环境清理失败: {target_env}",
+                    message=f"环境清理失败: {target_env}",
                     details={"target_environment": target_env},
                 )
 
         except Exception as e:
             logger.error(f"环境清理失败: {e}")
-            return IPCErrorResponse(
+            return IPCResponse.error_response(
                 error_code="ENV_CLEANUP_ERROR",
-                error_message=f"环境清理异常: {e}",
+                message=f"环境清理异常: {e}",
                 details={"error_type": type(e).__name__},
             )
 

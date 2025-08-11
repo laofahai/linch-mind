@@ -3,7 +3,6 @@
 测试跨平台Unix Domain Socket对等进程凭证获取功能
 """
 
-import asyncio
 import os
 import platform
 import socket
@@ -13,7 +12,7 @@ import tempfile
 import threading
 import time
 import unittest
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import Mock, patch
 
 # 添加daemon目录到Python路径
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))

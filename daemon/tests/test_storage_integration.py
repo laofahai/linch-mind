@@ -4,15 +4,12 @@
 验证SQLite + NetworkX + FAISS的协同工作
 """
 
-import asyncio
 import tempfile
-from datetime import datetime
 from pathlib import Path
 
 import pytest
 
 from config.core_config import StorageConfig
-from models.database_models import Base
 from services.database_service import DatabaseService
 from services.storage.embedding_service import EmbeddingService
 from services.storage.graph_service import GraphService

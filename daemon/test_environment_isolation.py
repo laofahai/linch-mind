@@ -35,7 +35,7 @@ async def test_environment_manager():
 
         # 获取环境管理器
         env_manager = get_environment_manager()
-        print(f"✅ 环境管理器初始化成功")
+        print("✅ 环境管理器初始化成功")
 
         # 检查当前环境
         current_env = env_manager.current_environment
@@ -43,7 +43,7 @@ async def test_environment_manager():
 
         # 获取环境摘要
         summary = env_manager.get_environment_summary()
-        print(f"✅ 环境摘要获取成功")
+        print("✅ 环境摘要获取成功")
         print(f"   数据库URL: {summary['database_url']}")
         print(f"   加密状态: {summary['use_encryption']}")
         print(f"   调试模式: {summary['debug_enabled']}")
@@ -76,7 +76,7 @@ async def test_config_integration():
 
         # 获取配置管理器
         config_manager = get_core_config()
-        print(f"✅ 配置管理器初始化成功")
+        print("✅ 配置管理器初始化成功")
 
         # 获取环境信息
         env_info = config_manager.get_environment_info()
@@ -84,7 +84,7 @@ async def test_config_integration():
 
         # 获取环境路径
         paths = config_manager.get_environment_paths()
-        print(f"✅ 环境路径获取成功:")
+        print("✅ 环境路径获取成功:")
         for name, path in paths.items():
             print(f"   {name}: {path}")
 
@@ -128,11 +128,11 @@ async def test_database_service():
 
         # 获取数据库服务
         db_service = container.get_service(DatabaseService)
-        print(f"✅ 数据库服务初始化成功")
+        print("✅ 数据库服务初始化成功")
 
         # 获取环境数据库信息
         db_info = db_service.get_environment_database_info()
-        print(f"✅ 环境数据库信息:")
+        print("✅ 环境数据库信息:")
         print(f"   环境: {db_info['environment']}")
         print(f"   数据库URL: {db_info['database_url']}")
         print(f"   加密: {db_info['use_encryption']}")
@@ -140,11 +140,11 @@ async def test_database_service():
 
         # 初始化数据库
         await db_service.initialize()
-        print(f"✅ 数据库初始化成功")
+        print("✅ 数据库初始化成功")
 
         # 获取数据库统计
         stats = db_service.get_database_stats()
-        print(f"✅ 数据库统计:")
+        print("✅ 数据库统计:")
         print(f"   连接器数量: {stats.get('connectors_count', 0)}")
         print(f"   运行中连接器: {stats.get('running_connectors_count', 0)}")
 
@@ -186,7 +186,7 @@ async def test_service_facade():
 
         # 通过ServiceFacade获取环境管理器
         env_manager = facade_get_env_manager()
-        print(f"✅ 通过ServiceFacade获取环境管理器成功")
+        print("✅ 通过ServiceFacade获取环境管理器成功")
 
         # 验证是同一个实例
         from core.environment_manager import get_environment_manager
@@ -194,14 +194,14 @@ async def test_service_facade():
         direct_manager = get_environment_manager()
 
         if env_manager is direct_manager:
-            print(f"✅ ServiceFacade返回正确的单例实例")
+            print("✅ ServiceFacade返回正确的单例实例")
         else:
-            print(f"⚠️  ServiceFacade返回的不是同一个实例")
+            print("⚠️  ServiceFacade返回的不是同一个实例")
 
         # 测试服务统计
         facade = get_service_facade()
         stats = facade.get_service_stats()
-        print(f"✅ ServiceFacade统计:")
+        print("✅ ServiceFacade统计:")
         print(f"   已注册服务: {len(stats['registered_services'])}")
         print(f"   总访问次数: {stats['total_accesses']}")
 
@@ -226,7 +226,7 @@ async def test_initialization_system():
 
         # 创建初始化器
         initializer = EnvironmentInitializer()
-        print(f"✅ 环境初始化器创建成功")
+        print("✅ 环境初始化器创建成功")
 
         # 执行轻量级初始化 (跳过模型和连接器)
         success = await initializer.initialize_current_environment(
@@ -234,15 +234,15 @@ async def test_initialization_system():
         )
 
         if success:
-            print(f"✅ 环境初始化成功")
+            print("✅ 环境初始化成功")
 
             # 显示初始化步骤
-            print(f"初始化步骤:")
+            print("初始化步骤:")
             for step in initializer.initialization_steps:
                 status_icon = "✅" if step["status"] == "completed" else "❌"
                 print(f"   {status_icon} {step['step']}")
         else:
-            print(f"❌ 环境初始化失败")
+            print("❌ 环境初始化失败")
 
         return success
 
@@ -288,10 +288,10 @@ async def test_environment_switching():
         print(f"✅ 环境已恢复: {restored_env.value}")
 
         if restored_env == original_env:
-            print(f"✅ 临时环境切换测试通过")
+            print("✅ 临时环境切换测试通过")
             return True
         else:
-            print(f"❌ 环境未正确恢复")
+            print("❌ 环境未正确恢复")
             return False
 
     except Exception as e:

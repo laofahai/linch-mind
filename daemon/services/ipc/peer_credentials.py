@@ -10,9 +10,8 @@ import logging
 import platform
 import socket
 import struct
-import time
 from dataclasses import dataclass
-from typing import NamedTuple, Optional
+from typing import Optional
 
 logger = logging.getLogger(__name__)
 
@@ -127,7 +126,7 @@ class SocketPeerResolver:
             # 尝试获取完整凭证（包含UID/GID）
             try:
                 # LOCAL_PEERCRED返回更完整的凭证信息
-                cred_bytes = sock.getsockopt(self.SOL_LOCAL, self.LOCAL_PEERCRED, 96)
+                sock.getsockopt(self.SOL_LOCAL, self.LOCAL_PEERCRED, 96)
                 # macOS的凭证结构比Linux复杂，这里简化处理
                 # 实际结构: struct xucred，但我们主要需要PID
                 logger.debug("macOS LOCAL_PEERCRED数据获取成功")

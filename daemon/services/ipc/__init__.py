@@ -3,7 +3,7 @@
 IPC服务模块 - 统一的进程间通信解决方案
 
 提供跨平台的IPC服务器和客户端实现:
-- Unix Domain Socket (Linux/macOS)  
+- Unix Domain Socket (Linux/macOS)
 - Windows Named Pipe (Windows)
 
 主要组件:

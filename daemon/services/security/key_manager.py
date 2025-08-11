@@ -4,21 +4,14 @@
 使用PBKDF2和安全存储策略确保用户数据隐私保护
 """
 
-import hashlib
 import os
 import secrets
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional, Tuple
 
-from cryptography.hazmat.primitives import hashes, serialization
+from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
-from cryptography.hazmat.primitives.serialization import (
-    Encoding,
-    NoEncryption,
-    PrivateFormat,
-    PublicFormat,
-)
 
 from config.core_config import get_core_config
 

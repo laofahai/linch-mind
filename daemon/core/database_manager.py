@@ -9,7 +9,7 @@ import logging
 import threading
 from contextlib import asynccontextmanager, contextmanager
 from functools import wraps
-from typing import Any, Dict, Generator, Optional, Type, TypeVar, Union
+from typing import Any, Dict, Generator, Optional, TypeVar
 
 from sqlalchemy import create_engine, event
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine

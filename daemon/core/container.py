@@ -4,14 +4,11 @@
 替换全局单例模式，提供统一的服务管理和依赖解析
 """
 
-import asyncio
 import inspect
 import logging
 import threading
-import weakref
 from contextlib import contextmanager
-from functools import wraps
-from typing import Any, Callable, Dict, List, Optional, Type, TypeVar, Union
+from typing import Any, Callable, Dict, List, Type, TypeVar, Union
 
 logger = logging.getLogger(__name__)
 
@@ -21,19 +18,13 @@ T = TypeVar("T")
 class ServiceNotRegisteredError(Exception):
     """服务未注册异常"""
 
-    pass
-
 
 class CircularDependencyError(Exception):
     """循环依赖异常"""
 
-    pass
-
 
 class ServiceLifecycleError(Exception):
     """服务生命周期异常"""
-
-    pass
 
 
 class ServiceLifecycle:
@@ -242,7 +233,7 @@ class ServiceContainer:
             self._resolution_stack.append(service_type)
 
             factory = descriptor.factory
-            dependencies = descriptor.dependencies
+            descriptor.dependencies
 
             # 自动依赖注入
             if inspect.isclass(factory):

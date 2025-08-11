@@ -3,7 +3,6 @@ Process manager for connector processes with lock mechanism.
 Prevents duplicate process spawning and manages process lifecycle.
 """
 
-import asyncio
 import logging
 import os
 import subprocess
@@ -327,7 +326,7 @@ class ProcessManager:
 
             process_info = self.running_processes[connector_id]
             pid = process_info.get("pid")
-            process = process_info.get("process")
+            process_info.get("process")
 
             if not pid:
                 logger.warning(f"连接器 {connector_id} 没有有效的PID")

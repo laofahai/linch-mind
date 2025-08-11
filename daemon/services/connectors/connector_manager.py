@@ -350,7 +350,7 @@ class ConnectorManager:
     ) -> List[Dict[str, Any]]:
         """递归扫描目录中的所有connector.json文件"""
         try:
-            import os
+            pass
 
             discovered = []
             base_path = Path(connectors_dir)
@@ -493,7 +493,6 @@ class ConnectorManager:
                     session.query(Connector).filter_by(enabled=True).all()
                 )
 
-            start_tasks = []
             for connector in enabled_connectors:
                 if connector.status != "running":
                     logger.info(

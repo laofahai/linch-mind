@@ -8,7 +8,7 @@ import logging
 import pickle
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Set
+from typing import Any, Dict, Optional
 
 import networkx as nx
 

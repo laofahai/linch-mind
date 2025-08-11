@@ -108,7 +108,7 @@ def create_webview_config_router() -> IPCRouter:
             )
 
             # 创建WebView配置服务
-            config_manager = get_core_config_manager()
+            get_core_config_manager()
             webview_service = get_webview_config_service()
 
             # 生成HTML内容
@@ -164,7 +164,7 @@ def create_webview_config_router() -> IPCRouter:
             # 预览使用默认值作为当前配置
             current_config = schema_data.get("default_values", {})
 
-            config_manager = get_core_config_manager()
+            get_core_config_manager()
             webview_service = get_webview_config_service()
 
             html_content = await webview_service.generate_webview_html(
@@ -193,7 +193,7 @@ def create_webview_config_router() -> IPCRouter:
             from core.service_facade import get_webview_config_service
             from daemon.config.core_config import get_core_config_manager
 
-            config_manager = get_core_config_manager()
+            get_core_config_manager()
             webview_service = get_webview_config_service()
 
             templates = await webview_service.get_available_templates()
@@ -231,7 +231,7 @@ def create_webview_config_router() -> IPCRouter:
             from core.service_facade import get_webview_config_service
             from daemon.config.core_config import get_core_config_manager
 
-            config_manager = get_core_config_manager()
+            get_core_config_manager()
             webview_service = get_webview_config_service()
 
             # 验证模板
@@ -288,7 +288,7 @@ def create_webview_config_router() -> IPCRouter:
             from core.service_facade import get_webview_config_service
             from daemon.config.core_config import get_core_config_manager
 
-            config_manager = get_core_config_manager()
+            get_core_config_manager()
             webview_service = get_webview_config_service()
 
             validation_result = webview_service.validate_template(template_content)

@@ -13,7 +13,7 @@ import threading
 import time
 from concurrent.futures import Future, ThreadPoolExecutor
 from pathlib import Path
-from queue import Empty, Queue
+from queue import Queue
 from typing import Dict, Optional, Set
 
 logger = logging.getLogger(__name__)
@@ -217,6 +217,7 @@ class WindowsIPCServer:
         await asyncio.sleep(0.1)
 
         # 启动多个pipe实例支持高并发
+        max_workers = 20  # 临时定义
         pipe_instances = min(10, max_workers // 2)  # 动态计算pipe实例数
         for i in range(pipe_instances):
             pipe_instance_name = f"{self.pipe_name}-{i}"

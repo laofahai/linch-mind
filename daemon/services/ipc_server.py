@@ -14,7 +14,7 @@ from pathlib import Path
 from typing import Any, Dict, Optional
 
 from .ipc_middleware import create_default_middlewares
-from .ipc_protocol import IPCMessage, IPCRequest
+from .ipc_protocol import IPCRequest
 from .ipc_router import IPCApplication
 from .ipc_routes import register_all_routes
 from .ipc_security import (

@@ -4,16 +4,10 @@
 全面测试重构后的架构组件
 """
 
-import asyncio
 import os
-import sqlite3
 import sys
-import tempfile
 import threading
 import time
-from contextlib import contextmanager
-from pathlib import Path
-from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 
@@ -247,7 +241,6 @@ class TestDatabaseManager:
         """测试错误时的事务回滚"""
         from sqlalchemy import Column, Integer, String, create_engine
         from sqlalchemy.ext.declarative import declarative_base
-        from sqlalchemy.orm import sessionmaker
 
         from core.database_manager import DatabaseConfig
 
@@ -387,7 +380,7 @@ class TestPerformance:
 
     def test_exception_handler_performance(self):
         """测试异常处理器性能"""
-        handler = StructuredExceptionHandler()
+        StructuredExceptionHandler()
 
         @handle_exceptions("perf_test")
         def fast_operation():
@@ -396,7 +389,7 @@ class TestPerformance:
         # 测量装饰器开销
         start_time = time.perf_counter()
         for _ in range(1000):
-            result = fast_operation()
+            fast_operation()
         end_time = time.perf_counter()
 
         avg_time = (end_time - start_time) / 1000 * 1000  # 转换为毫秒
@@ -418,7 +411,7 @@ class TestPerformance:
         # 测量解析性能
         start_time = time.perf_counter()
         for _ in range(1000):
-            service = container.get_service(FastService)
+            container.get_service(FastService)
         end_time = time.perf_counter()
 
         avg_time = (end_time - start_time) / 1000 * 1000  # 转换为毫秒

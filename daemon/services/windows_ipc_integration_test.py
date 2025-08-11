@@ -17,7 +17,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from services.ipc_protocol import IPCRequest, IPCResponse, success_response
-from services.ipc_router import IPCApplication, IPCRouter, RouteHandler
+from services.ipc_router import IPCApplication, IPCRouter
 from services.windows_ipc_server import WindowsIPCServer, check_windows_ipc_support
 
 logger = logging.getLogger(__name__)
@@ -187,7 +187,7 @@ class WindowsIPCIntegrationTest:
 
         stats = self.server.get_stats()
 
-        print(f"\n📊 服务器状态:")
+        print("\n📊 服务器状态:")
         print(f"   启动时间: {stats['uptime_seconds']:.1f}s")
         print(f"   活跃连接: {stats['active_connections']}")
         print(f"   总请求数: {stats['total_requests']}")
@@ -198,7 +198,7 @@ class WindowsIPCIntegrationTest:
 
     async def show_final_stats(self):
         """显示最终统计信息"""
-        print(f"\n📈 最终统计:")
+        print("\n📈 最终统计:")
         await self.show_server_stats()
 
     async def run_external_client_test(self):
@@ -214,7 +214,7 @@ class WindowsIPCIntegrationTest:
             print(f"\n🔗 使用管道: {client.full_pipe_name}")
 
             # 基本连接测试
-            print(f"\n1️⃣ 健康检查测试")
+            print("\n1️⃣ 健康检查测试")
             health_result = client.test_single_request(
                 {
                     "method": "GET",
@@ -229,7 +229,7 @@ class WindowsIPCIntegrationTest:
                 response_data = health_result["response"]
                 if response_data.get("success"):
                     health_data = response_data["data"]
-                    print(f"   ✅ 健康检查通过")
+                    print("   ✅ 健康检查通过")
                     print(f"   状态: {health_data.get('status')}")
                     print(f"   响应时间: {health_result['response_time_ms']:.2f}ms")
                 else:
@@ -239,7 +239,7 @@ class WindowsIPCIntegrationTest:
                 return
 
             # 回声测试
-            print(f"\n2️⃣ 回声测试")
+            print("\n2️⃣ 回声测试")
             echo_data = {"message": "Hello Windows IPC!", "test_id": 123}
             echo_result = client.test_single_request(
                 {
@@ -254,17 +254,17 @@ class WindowsIPCIntegrationTest:
             if echo_result["success"] and echo_result["response"]["success"]:
                 returned_data = echo_result["response"]["data"]["data"]
                 if returned_data == echo_data:
-                    print(f"   ✅ 数据回声正确")
+                    print("   ✅ 数据回声正确")
                     print(f"   响应时间: {echo_result['response_time_ms']:.2f}ms")
                 else:
-                    print(f"   ❌ 数据不匹配")
+                    print("   ❌ 数据不匹配")
                     print(f"   发送: {echo_data}")
                     print(f"   接收: {returned_data}")
             else:
-                print(f"   ❌ 回声测试失败")
+                print("   ❌ 回声测试失败")
 
             # 数据处理测试
-            print(f"\n3️⃣ 数据处理测试")
+            print("\n3️⃣ 数据处理测试")
             process_result = client.test_single_request(
                 {
                     "method": "POST",
@@ -279,15 +279,15 @@ class WindowsIPCIntegrationTest:
 
             if process_result["success"] and process_result["response"]["success"]:
                 processed = process_result["response"]["data"]
-                print(f"   ✅ 数据处理成功")
+                print("   ✅ 数据处理成功")
                 print(f"   处理时间: {processed.get('processing_time', 0)*1000:.1f}ms")
                 print(f"   数据大小: {processed.get('size', 0)} 字符")
                 print(f"   响应时间: {process_result['response_time_ms']:.2f}ms")
             else:
-                print(f"   ❌ 数据处理失败")
+                print("   ❌ 数据处理失败")
 
             # 并发测试
-            print(f"\n4️⃣ 并发测试")
+            print("\n4️⃣ 并发测试")
             concurrent_result = client.test_concurrent_requests(
                 num_requests=10, num_workers=3
             )
@@ -299,13 +299,13 @@ class WindowsIPCIntegrationTest:
             print(f"   吞吐量: {stats['requests_per_second']:.1f} req/s")
 
             if stats["success_rate"] >= 90:
-                print(f"   ✅ 并发测试通过")
+                print("   ✅ 并发测试通过")
             else:
-                print(f"   ⚠️  并发成功率较低")
+                print("   ⚠️  并发成功率较低")
 
         except ImportError as e:
             logger.error(f"无法导入测试客户端: {e}")
-            print(f"❌ 无法运行外部客户端测试: 缺少测试客户端")
+            print("❌ 无法运行外部客户端测试: 缺少测试客户端")
         except Exception as e:
             logger.error(f"外部客户端测试失败: {e}")
             print(f"❌ 外部客户端测试失败: {e}")
@@ -352,7 +352,7 @@ if __name__ == "__main__":
         success = asyncio.run(main())
         sys.exit(0 if success else 1)
     except KeyboardInterrupt:
-        print(f"\n⚠️  测试被用户中断")
+        print("\n⚠️  测试被用户中断")
         sys.exit(130)
     except Exception as e:
         logger.error(f"测试执行失败: {e}", exc_info=True)

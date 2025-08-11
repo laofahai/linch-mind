@@ -223,7 +223,8 @@ class WebViewConfigService:
                     '            <div class="form-group">',
                     f'                <label for="{field_name}" class="form-label">',
                     f"                    {field_title}",
-                    f'                    {"<span class=\"required\">*</span>" if is_required else ""}',
+                    "                    "
+                    + ('<span class="required">*</span>' if is_required else ""),
                     "                </label>",
                 ]
             )

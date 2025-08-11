@@ -6,7 +6,6 @@
 import asyncio
 import logging
 from datetime import datetime
-from typing import Any, Dict
 
 from ..ipc_protocol import IPCRequest, IPCResponse
 from ..ipc_router import IPCRouter

@@ -7,8 +7,6 @@
 import asyncio
 import logging
 import platform
-from abc import ABC, abstractmethod
-from pathlib import Path
 from typing import Any, Dict, Optional, Protocol, runtime_checkable
 
 logger = logging.getLogger(__name__)
@@ -323,7 +321,6 @@ class IPCConnectionFactory:
             # 检测Windows Named Pipe
             try:
                 import win32file
-                import win32pipe
 
                 pipe_name = r"\\.\pipe\linch-mind-ipc"
                 try:

@@ -6,11 +6,8 @@ IPC集成测试 - 全面测试IPC通信功能
 import asyncio
 import json
 import os
-import socket
 import tempfile
 import time
-from pathlib import Path
-from unittest.mock import Mock, patch
 
 import pytest
 
@@ -410,7 +407,7 @@ class TestIPCStability:
             if connected:
                 # 发送几个请求
                 for i in range(5):
-                    response = await client.request("GET", "/health")
+                    await client.request("GET", "/health")
                     await asyncio.sleep(0.05)
 
             # 断开连接

@@ -4,7 +4,6 @@ SQLCipher数据库加密迁移脚本
 将现有明文数据库迁移到SQLCipher加密数据库
 """
 
-import os
 import sys
 from pathlib import Path
 
@@ -134,7 +133,7 @@ def migrate_database_data(source_db_path: Path, encrypted_db: EncryptedDatabaseS
                     logger.info(f"  -> 迁移了 {len(rows)} 条记录")
                     total_migrated += len(rows)
                 else:
-                    logger.info(f"  -> 表为空，跳过")
+                    logger.info("  -> 表为空，跳过")
 
         source_conn.close()
         logger.info(f"数据迁移完成，总计迁移 {total_migrated} 条记录")
@@ -177,7 +176,7 @@ def main():
             # 显示数据库信息
             db_info = get_database_info(existing_db_path)
             if db_info:
-                print(f"📊 数据库信息:")
+                print("📊 数据库信息:")
                 print(f"   文件大小: {db_info['file_size_mb']:.2f} MB")
                 print(f"   总记录数: {db_info['total_records']}")
                 print(f"   数据表: {', '.join(db_info['tables'].keys())}")
@@ -186,7 +185,7 @@ def main():
                     print(f"     - {table}: {count} 条记录")
 
             # 确认是否继续
-            confirm = input(f"\n是否要将此数据库迁移到SQLCipher加密？ (y/n): ")
+            confirm = input("\n是否要将此数据库迁移到SQLCipher加密？ (y/n): ")
             if confirm.lower().strip() != "y":
                 print("取消迁移")
                 return False
@@ -196,23 +195,23 @@ def main():
         # 2. 备份原始数据库
         backup_path = None
         if existing_db_path:
-            print(f"\n[2/6] 备份原始数据库...")
+            print("\n[2/6] 备份原始数据库...")
             backup_path = backup_original_database(existing_db_path)
             if not backup_path:
                 print("备份失败，停止迁移")
                 return False
 
         # 3. 初始化SQLCipher密钥
-        print(f"\n[3/6] 初始化SQLCipher密钥...")
+        print("\n[3/6] 初始化SQLCipher密钥...")
         try:
-            encryption_key = SQLCipherKeyManager.get_or_create_key()
+            SQLCipherKeyManager.get_or_create_key()
             print("✅ SQLCipher密钥准备完成")
         except Exception as e:
             print(f"❌ 密钥初始化失败: {e}")
             return False
 
         # 4. 创建加密数据库
-        print(f"\n[4/6] 创建SQLCipher加密数据库...")
+        print("\n[4/6] 创建SQLCipher加密数据库...")
         try:
             encrypted_db = EncryptedDatabaseService()
             print("✅ SQLCipher加密数据库创建成功")
@@ -222,7 +221,7 @@ def main():
 
         # 5. 迁移数据
         if existing_db_path:
-            print(f"\n[5/6] 迁移数据到加密数据库...")
+            print("\n[5/6] 迁移数据到加密数据库...")
             if migrate_database_data(existing_db_path, encrypted_db):
                 print("✅ 数据迁移完成")
             else:
@@ -230,10 +229,10 @@ def main():
                 encrypted_db.cleanup()
                 return False
         else:
-            print(f"\n[5/6] 跳过数据迁移（无现有数据）")
+            print("\n[5/6] 跳过数据迁移（无现有数据）")
 
         # 6. 完成并清理
-        print(f"\n[6/6] 完成迁移...")
+        print("\n[6/6] 完成迁移...")
 
         # 验证加密数据库
         try:
@@ -253,12 +252,12 @@ def main():
         if existing_db_path and backup_path:
             try:
                 existing_db_path.unlink()
-                print(f"🗑️  原始明文数据库已删除")
+                print("🗑️  原始明文数据库已删除")
                 print(f"💾 备份保存在: {backup_path}")
             except Exception as e:
                 print(f"⚠️  删除原始数据库失败: {e}")
 
-        print(f"\n🎉 === 迁移成功完成 ===")
+        print("\n🎉 === 迁移成功完成 ===")
         print("✅ 数据库现已使用SQLCipher AES-256加密保护")
         print("🔐 加密密钥安全存储在系统keyring中")
         print("🚀 应用将自动使用加密数据库")

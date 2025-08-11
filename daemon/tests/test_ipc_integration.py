@@ -5,10 +5,10 @@ IPC集成测试 - 测试纯IPC架构的daemon功能
 """
 
 import asyncio
-import json
-from pathlib import Path
 
 import pytest
+
+from tests.ipc_test_client import IPCTestClient
 
 # 使用IPC测试配置
 pytest_plugins = ["tests.conftest_ipc"]

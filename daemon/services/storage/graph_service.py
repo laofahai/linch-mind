@@ -664,7 +664,7 @@ class GraphService:
             logger.info("开始迁移图数据到选择性加密存储格式")
 
             # 备份原文件路径
-            backup_file = self.graph_file.with_suffix(".backup.pkl")
+            self.graph_file.with_suffix(".backup.pkl")
 
             # 执行迁移
             loop = asyncio.get_event_loop()

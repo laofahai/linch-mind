@@ -15,6 +15,7 @@ import asyncio
 import logging
 import os
 import sys
+from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -473,7 +474,7 @@ class EnvironmentInitializer:
                 s for s in self.initialization_steps if s["status"] == "failed"
             ]
 
-            logger.info(f"初始化摘要:")
+            logger.info("初始化摘要:")
             logger.info(f"  ✅ 成功步骤: {len(successful_steps)}")
             logger.info(f"  ❌ 失败步骤: {len(failed_steps)}")
 
