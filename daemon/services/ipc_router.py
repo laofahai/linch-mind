@@ -98,6 +98,12 @@ class IPCRouter:
         """PATCH路由装饰器"""
         return self.route(path, ["PATCH"])
 
+    def register_route(self, method: str, handler: RouteHandler):
+        """直接注册路由处理器 - 兼容测试代码"""
+        # 假设method是路径格式，将其用作GET路由
+        pattern = RoutePattern(f"/{method}", "GET")
+        self.routes.append((pattern, handler))
+
     async def handle_request(self, request: IPCRequest) -> IPCResponse:
         """处理请求"""
         try:

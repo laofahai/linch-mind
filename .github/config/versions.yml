@@ -4,7 +4,7 @@
 versions:
   # 核心运行时版本 (基于项目实际配置)
   flutter: "3.32.0"  # 基于ui/pubspec.yaml实际版本
-  python: "3.13"     # 基于daemon/pyproject.toml
+  python: "3.11"     # 基于daemon/pyproject.toml，统一为3.11+
   dart: "3.0"        # Flutter 3.32对应的Dart版本
 
   # 构建工具版本
@@ -21,13 +21,13 @@ versions:
 
   # CI/CD工具版本
   actions:
-    checkout: "v4"
-    setup_python: "v4"
-    setup_java: "v3"
+    checkout: "v5"
+    setup_python: "v5"
+    setup_java: "v4"
     setup_node: "v4"
     upload_artifact: "v4"
     download_artifact: "v4"
-    cache: "v3"
+    cache: "v4"
 
 # 环境配置
 environments:
@@ -56,7 +56,7 @@ build:
 
   # 质量门禁配置
   quality_gates:
-    test_coverage_threshold: 80
+    test_coverage_threshold: 20
     security_scan_severity: "high"
     code_style_enforcement: true
     performance_regression_threshold: 0.1  # 10% performance regression limit

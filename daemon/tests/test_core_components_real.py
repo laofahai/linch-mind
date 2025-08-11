@@ -374,9 +374,7 @@ class TestErrorHandling:
     def test_specialized_error_decorators(self):
         """测试专用错误处理装饰器"""
         # 导入专用装饰器
-        from core.error_handling import (
-            handle_ipc_errors,
-        )
+        from core.error_handling import handle_ipc_errors
 
         @handle_ipc_errors("IPC test error")
         def ipc_function():

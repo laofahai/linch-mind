@@ -4,7 +4,6 @@ pytest配置和共享fixtures
 """
 
 import asyncio
-import os
 import shutil
 import sys
 import tempfile
@@ -21,7 +20,9 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from config.core_config import CoreConfigManager
+from core.container import get_container
 from models.database_models import Base, Connector
+from services.database_service import DatabaseService
 
 
 @pytest.fixture(scope="session")
@@ -53,7 +54,17 @@ def mock_config_manager(temp_dir):
 def test_database(temp_dir):
     """创建测试数据库"""
     db_path = temp_dir / "test.db"
-    engine = create_engine(f"sqlite:///{db_path}")
+    # 添加更严格的SQLite配置来防止连接泄漏
+    engine = create_engine(
+        f"sqlite:///{db_path}",
+        echo=False,
+        pool_pre_ping=True,
+        pool_recycle=300,
+        connect_args={
+            "check_same_thread": False,
+            "timeout": 10,
+        },
+    )
     Base.metadata.create_all(engine)
 
     Session = sessionmaker(bind=engine)
@@ -61,20 +72,42 @@ def test_database(temp_dir):
 
     yield session
 
-    session.close()
-    engine.dispose()
+    try:
+        session.close()
+    except Exception:
+        pass  # 忽略关闭错误
+
+    try:
+        engine.dispose()
+    except Exception:
+        pass  # 忽略处理错误
+
+
+@pytest.fixture(scope="function")
+def database_service_fixture(test_database):
+    """真实的数据库服务fixture，并注册到容器中"""
+    container = get_container()
+
+    # 创建真实的数据库服务实例
+    db_service = DatabaseService(db_path=":memory:")
+
+    # 使用测试数据库的引擎替换服务中的引擎
+    db_service._engine = test_database.get_bind()
+    db_service._session_factory = sessionmaker(bind=db_service._engine)
+
+    # 注册到容器中
+    container.register(DatabaseService, lambda: db_service)
+
+    yield db_service
+
+    # 清理：从容器中移除服务
+    container._services.pop(DatabaseService, None)
 
 
 @pytest.fixture
-def mock_database_service(test_database):
-    """模拟数据库服务"""
-    from services.database_service import DatabaseService
-
-    service = Mock(spec=DatabaseService)
-    service.get_session.return_value.__enter__.return_value = test_database
-    service.get_session.return_value.__exit__.return_value = None
-
-    return service
+def mock_database_service(database_service_fixture):
+    """向后兼容的模拟数据库服务"""
+    return database_service_fixture
 
 
 @pytest.fixture
