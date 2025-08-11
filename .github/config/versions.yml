@@ -4,7 +4,7 @@
 versions:
   # 核心运行时版本 (基于项目实际配置)
   flutter: "3.32.0"  # 基于ui/pubspec.yaml实际版本
-  python: "3.11"     # 基于daemon/pyproject.toml，统一为3.11+
+  python: "3.13"     # 统一为3.13版本
   dart: "3.0"        # Flutter 3.32对应的Dart版本
 
   # 构建工具版本
@@ -100,7 +100,7 @@ release:
 testing:
   # 测试矩阵
   matrix:
-    python_versions: ["3.11", "3.12", "3.13"]
+    python_versions: ["3.13"]
     platforms: ["ubuntu-latest", "macos-latest", "windows-latest"]
     flutter_channels: ["stable"]
 

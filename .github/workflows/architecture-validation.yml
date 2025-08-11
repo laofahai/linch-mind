@@ -33,13 +33,39 @@ jobs:
           CI_PYTHON="${{ env.PYTHON_VERSION }}"
           echo "CI/CD uses Python: $CI_PYTHON"
 
-          # 简单版本兼容性检查
-          if [[ "$DAEMON_PYTHON" == *"$CI_PYTHON"* ]]; then
-            echo "✅ Python versions are compatible"
-          else
-            echo "❌ Python version mismatch detected"
-            echo "  Daemon: $DAEMON_PYTHON"
-            echo "  CI/CD: $CI_PYTHON"
+          # 改进的版本兼容性检查
+          # ^3.11 表示 >=3.11.0, <4.0.0
+          # >=3.11 表示 3.11 或更高版本
+
+          # 提取主版本和次版本号
+          CI_MAJOR=$(echo "$CI_PYTHON" | cut -d'.' -f1)
+          CI_MINOR=$(echo "$CI_PYTHON" | cut -d'.' -f2)
+
+          # 检查兼容性
+          COMPATIBLE=false
+
+          # 处理 ^3.11 格式 (>=3.11.0, <4.0.0)
+          if [[ "$DAEMON_PYTHON" == "^3.11" ]]; then
+            if [[ "$CI_MAJOR" == "3" ]] && [[ "$CI_MINOR" -ge 11 ]]; then
+              COMPATIBLE=true
+              echo "✅ CI Python $CI_PYTHON is compatible with $DAEMON_PYTHON (>=3.11.0, <4.0.0)"
+            fi
+          # 处理 >=3.11 格式
+          elif [[ "$DAEMON_PYTHON" == ">=3.11" ]]; then
+            if [[ "$CI_MAJOR" -gt 3 ]] || ([[ "$CI_MAJOR" == "3" ]] && [[ "$CI_MINOR" -ge 11 ]]); then
+              COMPATIBLE=true
+              echo "✅ CI Python $CI_PYTHON is compatible with $DAEMON_PYTHON"
+            fi
+          # 处理精确版本匹配
+          elif [[ "$DAEMON_PYTHON" == "$CI_PYTHON" ]]; then
+            COMPATIBLE=true
+            echo "✅ Python versions match exactly"
+          fi
+
+          if [[ "$COMPATIBLE" == false ]]; then
+            echo "❌ Python version incompatibility detected"
+            echo "  Daemon requires: $DAEMON_PYTHON"
+            echo "  CI/CD uses: $CI_PYTHON"
             exit 1
           fi
 
