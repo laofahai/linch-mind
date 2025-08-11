@@ -205,7 +205,7 @@ STAGING_URL=https://staging.linch-mind.com
 项目使用SQLite作为主要数据存储，支持：
 
 - **开发环境**: `~/.linch-mind/development/database.db`
-- **测试环境**: `~/.linch-mind/testing/database.db` 
+- **测试环境**: `~/.linch-mind/testing/database.db`
 - **生产环境**: `~/.linch-mind/production/database.db` (SQLCipher加密)
 
 测试环境自动初始化：
@@ -258,7 +258,7 @@ python daemon/scripts/initialize_environment.py testing
 所有工作流都支持`workflow_dispatch`手动触发：
 
 1. **GitHub网页**: Actions → 选择工作流 → Run workflow
-2. **GitHub CLI**: 
+2. **GitHub CLI**:
    ```bash
    gh workflow run "Flutter Build" -f platforms=linux,windows,macos
    ```

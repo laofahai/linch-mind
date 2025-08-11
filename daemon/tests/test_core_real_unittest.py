@@ -7,14 +7,12 @@
 
 import os
 import shutil
-import sqlite3
 import sys
 import tempfile
 import time
 import unittest
 from pathlib import Path
-from typing import Any, Dict
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import patch
 
 # 添加daemon到路径
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -22,7 +20,6 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 # 实际导入
 try:
     from core.container import (
-        CircularDependencyError,
         ServiceContainer,
         ServiceLifecycle,
         ServiceNotRegisteredError,
@@ -30,7 +27,6 @@ try:
     )
     from core.environment_manager import (
         Environment,
-        EnvironmentConfig,
         EnvironmentManager,
         get_current_environment,
         get_database_url,
@@ -42,7 +38,6 @@ try:
         ErrorContext,
         ErrorSeverity,
         StandardizedError,
-        error_context,
         get_error_handler,
         handle_errors,
     )
@@ -51,9 +46,6 @@ try:
         ServiceErrorType,
         ServiceFacade,
         ServiceResult,
-        get_service,
-        get_service_facade,
-        try_get_service,
     )
 
     print("✅ 所有核心模块导入成功")

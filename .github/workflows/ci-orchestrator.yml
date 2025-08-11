@@ -40,7 +40,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      
+
       - name: Analyze changed files
         id: changes
         uses: dorny/paths-filter@v2
@@ -65,7 +65,7 @@ jobs:
               - '.github/workflows/release.yml'
               - '.github/workflows/package-installer.yml'
               - '.github/config/versions.yml'
-      
+
       - name: Determine workflow type
         id: workflow
         run: |
@@ -78,10 +78,10 @@ jobs:
           else
             TYPE="build-only"
           fi
-          
+
           echo "type=$TYPE" >> $GITHUB_OUTPUT
           echo "🎯 Workflow type: $TYPE"
-      
+
       - name: Build strategy summary
         run: |
           echo "📊 Build Strategy Summary"
@@ -121,8 +121,8 @@ jobs:
   trigger-integration-tests:
     needs: [analyze-changes, trigger-flutter-build, trigger-daemon-build, trigger-connector-build]
     if: |
-      always() && 
-      (needs.analyze-changes.outputs.should_run_integration == 'true' || 
+      always() &&
+      (needs.analyze-changes.outputs.should_run_integration == 'true' ||
        needs.analyze-changes.outputs.workflow_type == 'all' ||
        needs.analyze-changes.outputs.workflow_type == 'test-only') &&
       (needs.trigger-flutter-build.result == 'success' || needs.trigger-flutter-build.result == 'skipped') &&
@@ -140,7 +140,7 @@ jobs:
     if: needs.analyze-changes.outputs.workflow_type == 'all' || github.event_name == 'schedule'
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@master
         with:
@@ -148,20 +148,20 @@ jobs:
           scan-ref: '.'
           format: 'sarif'
           output: 'trivy-results.sarif'
-      
+
       - name: Upload Trivy scan results
         uses: github/codeql-action/upload-sarif@v2
         if: always()
         with:
           sarif_file: 'trivy-results.sarif'
-      
+
       - name: Run dependency check
         run: |
           # Python依赖安全检查
           pip install safety
           cd daemon
           safety check || echo "Security issues found in Python dependencies"
-          
+
           # Flutter依赖检查
           cd ../ui
           flutter pub deps | grep -E "vulnerability|security" || echo "No security issues in Flutter dependencies"
@@ -173,29 +173,29 @@ jobs:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: "3.13"
-      
+
       - name: Install Poetry
         uses: snok/install-poetry@v1
         with:
           version: "1.7.1"
-      
+
       - name: Install dependencies
         run: |
           cd daemon
           poetry install --no-interaction
-      
+
       - name: Run performance benchmarks
         run: |
           cd daemon
           poetry run pytest tests/test_architecture_performance.py \
             --benchmark-only \
             --benchmark-json=benchmark-results.json
-      
+
       - name: Store benchmark results
         uses: benchmark-action/github-action-benchmark@v1
         with:
@@ -218,12 +218,12 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      
+
       - name: Check release readiness
         id: check
         run: |
           READY="true"
-          
+
           # 检查所有构建是否成功
           if [[ "${{ needs.trigger-flutter-build.result }}" == "failure" ||
                 "${{ needs.trigger-daemon-build.result }}" == "failure" ||
@@ -232,32 +232,32 @@ jobs:
             READY="false"
             echo "❌ Some builds failed"
           fi
-          
+
           # 检查是否有安全问题
           if [[ "${{ needs.security-scan.result }}" == "failure" ]]; then
             echo "⚠️  Security scan failed, but allowing release"
             # 不阻塞发布，但记录警告
           fi
-          
+
           echo "ready=$READY" >> $GITHUB_OUTPUT
           echo "🎯 Release readiness: $READY"
-      
+
       - name: Calculate next version
         id: version
         run: |
           # 获取当前最新标签
           CURRENT_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
           CURRENT_VERSION=${CURRENT_TAG#v}
-          
+
           # 简单的版本递增逻辑 (可以用更复杂的逻辑)
           IFS='.' read -ra VERSION_PARTS <<< "$CURRENT_VERSION"
           MAJOR=${VERSION_PARTS[0]}
           MINOR=${VERSION_PARTS[1]}
           PATCH=${VERSION_PARTS[2]:-0}
-          
+
           # 递增patch版本
           PATCH=$((PATCH + 1))
-          
+
           NEXT_VERSION="$MAJOR.$MINOR.$PATCH"
           echo "next_version=$NEXT_VERSION" >> $GITHUB_OUTPUT
           echo "📈 Next version: $NEXT_VERSION"
@@ -272,28 +272,28 @@ jobs:
       pull-requests: write
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Create release tag
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
-          
+
           TAG="v${{ needs.release-readiness.outputs.next_version }}"
           git tag -a "$TAG" -m "Auto-release $TAG
-          
+
           🤖 Automated release triggered by CI/CD pipeline
-          
+
           Changes included:
           - ✅ All builds passed
-          - ✅ Integration tests passed  
+          - ✅ Integration tests passed
           - ✅ Security scan completed
-          
+
           Build artifacts available in CI pipeline."
-          
+
           git push origin "$TAG"
-          
+
           echo "🎉 Created release tag: $TAG"
-      
+
       - name: Create GitHub Release (draft)
         uses: softprops/action-gh-release@v1
         with:
@@ -301,23 +301,23 @@ jobs:
           name: "Linch Mind v${{ needs.release-readiness.outputs.next_version }}"
           body: |
             🚀 **Automated Release v${{ needs.release-readiness.outputs.next_version }}**
-            
+
             This release was automatically created by the CI/CD pipeline after all quality checks passed.
-            
+
             ### 📦 What's New
             - See commit history for detailed changes
-            
+
             ### ✅ Quality Assurance
             - All component builds successful
             - Integration tests passed
             - Security scan completed
             - Performance benchmarks within limits
-            
+
             ### 📥 Installation
             Complete installer packages will be available shortly after this release is published.
-            
+
             ---
-            
+
             **Full Changelog**: https://github.com/${{ github.repository }}/compare/v${{ needs.release-readiness.outputs.next_version }}...HEAD
           draft: true
           prerelease: false
@@ -327,10 +327,10 @@ jobs:
   # 通知和总结
   workflow-summary:
     needs: [
-      analyze-changes, 
-      trigger-flutter-build, 
-      trigger-daemon-build, 
-      trigger-connector-build, 
+      analyze-changes,
+      trigger-flutter-build,
+      trigger-daemon-build,
+      trigger-connector-build,
       trigger-integration-tests,
       security-scan,
       performance-benchmark,
@@ -356,13 +356,13 @@ jobs:
           echo "🎯 Release Status:"
           echo "- Release Ready: ${{ needs.release-readiness.outputs.ready_for_release }}"
           echo "- Auto Release: ${{ needs.auto-release-trigger.result }}"
-          
+
           if [[ "${{ needs.auto-release-trigger.result }}" == "success" ]]; then
             echo ""
             echo "🎉 New release created: v${{ needs.release-readiness.outputs.next_version }}"
             echo "📦 Installer packages will be built automatically"
           fi
-          
+
           # 统计失败的作业
           FAILURES=0
           if [[ "${{ needs.trigger-flutter-build.result }}" == "failure" ]]; then
@@ -377,7 +377,7 @@ jobs:
           if [[ "${{ needs.trigger-integration-tests.result }}" == "failure" ]]; then
             FAILURES=$((FAILURES + 1))
           fi
-          
+
           echo ""
           if [ $FAILURES -eq 0 ]; then
             echo "✅ All critical workflows completed successfully"
@@ -385,7 +385,7 @@ jobs:
             echo "❌ $FAILURES critical workflow(s) failed"
             exit 1
           fi
-      
+
       - name: Send notifications
         if: failure() || success()
         uses: actions/github-script@v7
@@ -395,9 +395,9 @@ jobs:
             const workflow = context.workflow;
             const runId = context.runId;
             const runUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
-            
+
             console.log(`${status}: ${workflow}`);
             console.log(`Run URL: ${runUrl}`);
-            
+
             // 如果配置了Slack webhook，在这里发送通知
             // 如果配置了邮件通知，在这里发送邮件

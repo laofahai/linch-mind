@@ -7,13 +7,11 @@
 
 import os
 import shutil
-import sqlite3
 import sys
 import tempfile
 import time
 from pathlib import Path
-from typing import Any, Dict
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import patch
 
 import pytest
 
@@ -52,9 +50,7 @@ from core.service_facade import (
     ServiceErrorType,
     ServiceFacade,
     ServiceResult,
-    get_service,
     get_service_facade,
-    try_get_service,
 )
 
 
@@ -236,8 +232,8 @@ class TestServiceFacade:
 
     def test_service_facade_singleton(self):
         """测试ServiceFacade单例模式"""
-        facade1 = get_service_facade()
-        facade2 = get_service_facade()
+        get_service_facade()
+        get_service_facade()
         # 注意：如果不是严格单例，这个测试可能失败，但这是对实际实现的验证
         # assert facade1 is facade2
 
@@ -379,9 +375,6 @@ class TestErrorHandling:
         """测试专用错误处理装饰器"""
         # 导入专用装饰器
         from core.error_handling import (
-            handle_config_errors,
-            handle_connector_errors,
-            handle_database_errors,
             handle_ipc_errors,
         )
 

@@ -9,7 +9,7 @@ Linch Mind采用现代化的CI/CD体系，支持多平台构建、自动化测�
 基于深入的项目架构分析，CI/CD体系完全对齐实际技术栈：
 
 ### 📊 实际技术架构
-- **后端**: Python 3.13 + Poetry 1.8 + SQLAlchemy 2.0 + SQLite/SQLCipher
+- **后端**: Python 3.13 + Poetry 2.1.3 + SQLAlchemy 2.0 + SQLite/SQLCipher
 - **前端**: Flutter 3.32 + Dart 3.0 + Riverpod 2.4 + 跨平台支持
 - **连接器**: C++ 17 + CMake 3.16 + 跨平台共享库
 - **AI/ML**: FAISS 1.8 + NetworkX 3.4 + Sentence Transformers 3.3
@@ -20,28 +20,28 @@ graph TB
     A[Push/PR] --> B[CI/CD Orchestrator]
     B --> C[变更分析]
     C --> D{需要构建?}
-    
+
     D -->|Flutter| E[Flutter构建]
-    D -->|Daemon| F[Daemon构建]  
+    D -->|Daemon| F[Daemon构建]
     D -->|Connectors| G[连接器构建]
-    
+
     E --> H[集成测试]
     F --> H
     G --> H
-    
+
     H --> I[安全扫描]
     H --> J[性能测试]
-    
+
     I --> K{主分支?}
     J --> K
-    
+
     K -->|是| L[发布准备]
     K -->|否| M[完成]
-    
+
     L --> N{质量检查通过?}
     N -->|是| O[自动创建Release]
     N -->|否| P[阻塞发布]
-    
+
     O --> Q[完整安装包构建]
 ```
 
@@ -77,7 +77,7 @@ graph TB
 ### 变更检测
 系统自动检测代码变更，只构建必要的组件：
 - **UI变更** → 仅触发Flutter构建
-- **后端变更** → 仅触发Daemon构建  
+- **后端变更** → 仅触发Daemon构建
 - **连接器变更** → 仅触发连接器构建
 - **多组件变更** → 并行触发相关构建
 
@@ -93,7 +93,7 @@ graph TB
 
 #### Linux
 - **DEB包** (`ubuntu/debian`) - 标准APT安装
-- **RPM包** (`redhat/centos`) - 标准YUM/DNF安装  
+- **RPM包** (`redhat/centos`) - 标准YUM/DNF安装
 - **AppImage** - 通用Linux包，免安装运行
 - **Shell脚本** - 手动安装选项
 
@@ -122,14 +122,14 @@ graph TB
 ```yaml
 versions:
   flutter: "3.24.3"
-  python: "3.13" 
+  python: "3.13"
   ollama: "0.1.32"
-  
+
 build:
   platforms:
     flutter: ["linux", "macos", "windows", "android", "ios", "web"]
     installers: ["linux", "macos", "windows"]
-    
+
 packaging:
   include_ollama: true
   include_ai_models: false  # 按需下载

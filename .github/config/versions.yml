@@ -6,19 +6,19 @@ versions:
   flutter: "3.32.0"  # 基于ui/pubspec.yaml实际版本
   python: "3.13"     # 基于daemon/pyproject.toml
   dart: "3.0"        # Flutter 3.32对应的Dart版本
-  
+
   # 构建工具版本
-  poetry: "1.8"      # 匹配项目poetry.lock版本
+  poetry: "2.1.3"    # Latest stable Poetry version for 2025
   cmake: "3.16"      # 基于connectors/CMakeLists.txt最低要求
-  
+
   # 第三方AI工具版本
   ollama: "0.1.32"
-  
+
   # 依赖库关键版本
   sqlalchemy: "2.0"  # 基于daemon实际依赖
   riverpod: "2.4"    # 基于ui实际依赖
   faiss: "1.8"       # AI向量搜索库
-  
+
   # CI/CD工具版本
   actions:
     checkout: "v4"
@@ -35,12 +35,12 @@ environments:
     registry_url: "http://localhost:8001"
     daemon_url: "http://localhost:8000"
     database_encryption: false
-  
+
   staging:
     registry_url: "https://staging-registry.linch-mind.com"
     daemon_url: "https://staging-api.linch-mind.com"
     database_encryption: true
-  
+
   production:
     registry_url: "https://registry.linch-mind.com"
     daemon_url: "https://api.linch-mind.com"
@@ -53,14 +53,14 @@ build:
     flutter: ["linux", "macos", "windows", "android", "ios", "web"]
     connectors: ["ubuntu-latest", "windows-latest", "macos-latest"]
     installers: ["linux", "macos", "windows"]
-  
+
   # 质量门禁配置
   quality_gates:
     test_coverage_threshold: 80
     security_scan_severity: "high"
     code_style_enforcement: true
     performance_regression_threshold: 0.1  # 10% performance regression limit
-  
+
   # 构建优化
   cache_strategy:
     flutter: true
@@ -68,7 +68,7 @@ build:
     node: true
     gradle: true
     poetry: true
-  
+
   # 打包配置
   packaging:
     include_ollama: true
@@ -82,13 +82,13 @@ release:
   auto_release:
     branches: ["main"]
     path_patterns: ["ui/**", "daemon/**", "connectors/**"]
-  
+
   # 版本策略
   versioning:
     strategy: "semantic"
     auto_increment: true
     tag_prefix: "v"
-  
+
   # 发布渠道
   channels:
     github_releases: true
@@ -103,13 +103,13 @@ testing:
     python_versions: ["3.11", "3.12", "3.13"]
     platforms: ["ubuntu-latest", "macos-latest", "windows-latest"]
     flutter_channels: ["stable"]
-  
+
   # 测试超时
   timeouts:
     unit_tests: 10  # 分钟
     integration_tests: 30  # 分钟
     e2e_tests: 45  # 分钟
-  
+
   # 性能基准
   performance_benchmarks:
     ipc_latency_max: 0.010  # 10ms
@@ -121,7 +121,7 @@ notifications:
   slack_webhook: ""  # 留空，从secrets读取
   discord_webhook: ""  # 留空，从secrets读取
   email_recipients: []
-  
+
   # 通知触发条件
   triggers:
     build_failure: true

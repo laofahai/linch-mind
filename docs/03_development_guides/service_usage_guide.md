@@ -2,8 +2,8 @@
 
 **现代化服务获取模式** - P0代码重复消除重构的核心成果
 
-**版本**: 1.0  
-**创建时间**: 2025-08-08  
+**版本**: 1.0
+**创建时间**: 2025-08-08
 **目标**: 统一服务获取，消除代码重复，提升架构质量
 
 ---
@@ -114,7 +114,7 @@ else:
 ```python
 from core.service_facade import (
     get_connector_manager,    # ConnectorManager
-    get_database_service,     # DatabaseService  
+    get_database_service,     # DatabaseService
     get_security_manager,     # IPCSecurityManager
     get_config_manager        # CoreConfigManager
 )
@@ -293,7 +293,7 @@ def mock_connector_manager():
 
 def test_with_mocked_service(mock_connector_manager):
     from core.service_facade import get_service
-    
+
     # 获取到的是Mock对象
     manager = get_service(ConnectorManager)
     assert manager is mock_connector_manager
@@ -307,10 +307,10 @@ def test_error_handling():
     @handle_connector_errors("测试错误")
     def failing_function():
         raise ValueError("测试异常")
-    
+
     with pytest.raises(StandardizedError) as exc_info:
         failing_function()
-    
+
     error = exc_info.value
     assert error.context.severity == ErrorSeverity.MEDIUM
     assert "测试异常" in str(error)
@@ -355,6 +355,6 @@ def test_error_handling():
 
 ---
 
-**文档维护**: 本指南随ServiceFacade API更新而更新  
-**问题反馈**: 如遇到迁移问题，请参考CLAUDE.md中的开发约束  
+**文档维护**: 本指南随ServiceFacade API更新而更新
+**问题反馈**: 如遇到迁移问题，请参考CLAUDE.md中的开发约束
 **版本历史**: v1.0 (2025-08-08) - 初始版本，对应P0重构完成

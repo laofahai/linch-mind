@@ -1,9 +1,13 @@
-[tool.poetry]
+[project]
 name = "linch-mind-daemon"
 version = "0.2.0"
 description = "Linch Mind 连接器管理和数据存储服务"
-authors = ["laofahai <laofahai@gmail.com>"]
+authors = [{name = "laofahai", email = "laofahai@gmail.com"}]
 readme = "README.md"
+dynamic = []
+requires-python = ">=3.13"
+
+[tool.poetry]
 packages = [{include = "*"}]
 
 [tool.poetry.dependencies]
@@ -49,7 +53,7 @@ pre-commit = "^3.6.0"
 requires = ["poetry-core", "setuptools<81"]
 build-backend = "poetry.core.masonry.api"
 
-[tool.poetry.scripts]
+[project.scripts]
 linch-daemon = "main:main"
 test-daemon = "run_tests:main"
 
@@ -103,7 +107,7 @@ max-complexity = 10
 [tool.pylint.messages_control]
 disable = [
     "missing-module-docstring",
-    "missing-class-docstring", 
+    "missing-class-docstring",
     "missing-function-docstring",
     "too-few-public-methods",
     "too-many-arguments",

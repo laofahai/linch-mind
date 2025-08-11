@@ -39,13 +39,13 @@ jobs:
       platforms: ${{ steps.platforms.outputs.platforms }}
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Load versions config
         id: config
         run: |
           FLUTTER_VERSION=$(yq '.versions.flutter' .github/config/versions.yml)
           echo "flutter_version=$FLUTTER_VERSION" >> $GITHUB_OUTPUT
-      
+
       - name: Determine platforms
         id: platforms
         run: |
@@ -61,33 +61,33 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           cache: true
-      
+
       - name: Get dependencies
         run: |
           cd ui
           flutter pub get
-      
+
       - name: Verify formatting
         run: |
           cd ui
           dart format --output=none --set-exit-if-changed .
-      
+
       - name: Analyze project source
         run: |
           cd ui
           flutter analyze --fatal-infos
-      
+
       - name: Run tests
         run: |
           cd ui
           flutter test --coverage
-      
+
       - name: Upload coverage
         uses: codecov/codecov-action@v3
         with:
@@ -115,16 +115,16 @@ jobs:
             build_args: --release
             artifact_name: windows-x64
     runs-on: ${{ matrix.os }}
-    
+
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
           flutter-version: ${{ needs.load-config.outputs.flutter_version }}
           cache: true
-      
+
       - name: Install Linux dependencies
         if: matrix.platform == 'linux'
         run: |
@@ -134,33 +134,33 @@ jobs:
             libgtk-3-dev liblzma-dev libstdc++-12-dev \
             libjsoncpp-dev libcurl4-openssl-dev \
             libsqlite3-dev
-      
+
       - name: Install macOS dependencies
         if: matrix.platform == 'macos'
         run: |
           # macOS dependencies are typically included with Xcode
           echo "Setting up macOS build environment"
-      
+
       - name: Get dependencies
         run: |
           cd ui
           flutter pub get
-      
+
       - name: Enable platform
         run: |
           cd ui
           flutter config --enable-${{ matrix.platform }}-desktop
-      
+
       - name: Build for ${{ matrix.platform }}
         run: |
           cd ui
           flutter build ${{ matrix.platform }} ${{ matrix.build_args }}
-      
+
       - name: Package build artifacts
         run: |
           cd ui
           mkdir -p ../dist/${{ matrix.artifact_name }}
-          
+
           case "${{ matrix.platform }}" in
             "linux")
               cp -r build/linux/x64/release/bundle/* ../dist/${{ matrix.artifact_name }}/
@@ -172,7 +172,7 @@ jobs:
               cp -r build/windows/x64/runner/Release/* ../dist/${{ matrix.artifact_name }}/
               ;;
           esac
-      
+
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -197,33 +197,33 @@ jobs:
             build_args: ios --release --no-codesign
             artifact_name: ios-app
     runs-on: ${{ matrix.os }}
-    
+
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
           flutter-version: ${{ needs.load-config.outputs.flutter_version }}
           cache: true
-      
+
       - name: Setup Java (for Android)
         if: matrix.platform == 'android'
         uses: actions/setup-java@v3
         with:
           distribution: 'temurin'
           java-version: '17'
-      
+
       - name: Get dependencies
         run: |
           cd ui
           flutter pub get
-      
+
       - name: Build for ${{ matrix.platform }}
         run: |
           cd ui
           flutter build ${{ matrix.build_args }}
-      
+
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -238,26 +238,26 @@ jobs:
     needs: [load-config, quality-check]
     if: contains(needs.load-config.outputs.platforms, 'web')
     runs-on: ubuntu-latest
-    
+
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
           flutter-version: ${{ needs.load-config.outputs.flutter_version }}
           cache: true
-      
+
       - name: Get dependencies
         run: |
           cd ui
           flutter pub get
-      
+
       - name: Build web
         run: |
           cd ui
           flutter build web --release
-      
+
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -276,11 +276,11 @@ jobs:
           echo "🎯 Flutter Multi-Platform Build Summary"
           echo "======================================"
           echo "Desktop builds: ${{ needs.build-desktop.result }}"
-          echo "Mobile builds: ${{ needs.build-mobile.result }}"  
+          echo "Mobile builds: ${{ needs.build-mobile.result }}"
           echo "Web build: ${{ needs.build-web.result }}"
-          
-          if [[ "${{ needs.build-desktop.result }}" == "failure" || 
-                "${{ needs.build-mobile.result }}" == "failure" || 
+
+          if [[ "${{ needs.build-desktop.result }}" == "failure" ||
+                "${{ needs.build-mobile.result }}" == "failure" ||
                 "${{ needs.build-web.result }}" == "failure" ]]; then
             echo "❌ Some builds failed"
             exit 1

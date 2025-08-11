@@ -31,9 +31,9 @@ on:
         - staging
 
 env:
-  PYTHON_VERSION: "3.13"      # 匹配daemon实际版本
-  FLUTTER_VERSION: "3.32.0"   # 匹配UI实际版本
-  POETRY_VERSION: "1.8"       # 匹配项目实际版本
+  PYTHON_VERSION: "3.13"      # Based on daemon requirements
+  FLUTTER_VERSION: "3.32.0"   # Based on UI requirements
+  POETRY_VERSION: "2.1.3"     # Latest stable Poetry version
 
 jobs:
   # 环境准备
@@ -43,7 +43,7 @@ jobs:
       test_environment: ${{ steps.setup.outputs.test_environment }}
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Setup test environment
         id: setup
         run: |
@@ -60,32 +60,32 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
-    
+
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: ${{ env.PYTHON_VERSION }}
-      
+
       - name: Install Poetry
         uses: snok/install-poetry@v1
         with:
           version: ${{ env.POETRY_VERSION }}
           virtualenvs-create: true
           virtualenvs-in-project: true
-      
+
       - name: Install daemon dependencies
         run: |
           cd daemon
           poetry install --no-interaction
-      
+
       - name: Initialize test environment
         run: |
           cd daemon
           poetry run python scripts/initialize_environment.py ${{ needs.setup-test-env.outputs.test_environment }}
-      
+
       - name: Start daemon for testing
         run: |
           cd daemon
@@ -95,7 +95,7 @@ jobs:
           # 等待daemon启动
           sleep 10
         shell: bash
-      
+
       - name: Test IPC communication
         run: |
           cd daemon
@@ -104,21 +104,21 @@ jobs:
             --tb=short \
             --maxfail=3 \
             -k "not slow"
-      
+
       - name: Test cross-platform IPC
         run: |
-          cd daemon  
+          cd daemon
           # 测试跨平台IPC (Unix Socket/Named Pipe)
           poetry run pytest tests/test_ipc_integration_comprehensive.py -v \
             --tb=short \
             -k "ipc"
-      
+
       - name: Test environment isolation
         run: |
           cd daemon
           # 测试环境隔离系统
           poetry run python test_environment_isolation.py
-      
+
       - name: Cleanup daemon
         if: always()
         run: |
@@ -126,7 +126,7 @@ jobs:
             kill $DAEMON_PID || true
           fi
         shell: bash
-      
+
       - name: Upload IPC test logs
         uses: actions/upload-artifact@v4
         if: failure()
@@ -146,10 +146,10 @@ jobs:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
         connector: [clipboard, filesystem]
-    
+
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Install build dependencies (${{ matrix.os }})
         run: |
           case "${{ matrix.os }}" in
@@ -164,34 +164,34 @@ jobs:
               choco install cmake
               ;;
           esac
-      
+
       - name: Build connectors
         run: |
           cd connectors/scripts
           ./build.sh
-      
+
       - name: Build specific connector
         run: |
           cd connectors
           ../scripts/build-tools/build_connector.sh official/${{ matrix.connector }}
-      
+
       - name: Set up Python for daemon
         uses: actions/setup-python@v4
         with:
           python-version: ${{ env.PYTHON_VERSION }}
-      
+
       - name: Install Poetry
         uses: snok/install-poetry@v1
         with:
           version: ${{ env.POETRY_VERSION }}
           virtualenvs-create: true
           virtualenvs-in-project: true
-      
+
       - name: Install daemon dependencies
         run: |
           cd daemon
           poetry install --no-interaction
-      
+
       - name: Test connector integration
         run: |
           cd daemon
@@ -199,15 +199,15 @@ jobs:
           poetry run python main.py &
           DAEMON_PID=$!
           sleep 10
-          
+
           # 测试连接器管理
           poetry run pytest tests/test_connector_manager_effective.py -v \
             -k "test_${{ matrix.connector }}" \
             --tb=short
-          
+
           # 清理
           kill $DAEMON_PID || true
-      
+
       - name: Upload connector test results
         uses: actions/upload-artifact@v4
         if: failure()
@@ -226,28 +226,28 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest]  # Windows UI测试较复杂，暂时跳过
-    
+
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: ${{ env.PYTHON_VERSION }}
-      
+
       - name: Install Poetry
         uses: snok/install-poetry@v1
         with:
           version: ${{ env.POETRY_VERSION }}
           virtualenvs-create: true
           virtualenvs-in-project: true
-      
+
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           cache: true
-      
+
       - name: Install Linux dependencies
         if: matrix.os == 'ubuntu-latest'
         run: |
@@ -256,22 +256,22 @@ jobs:
             clang cmake ninja-build pkg-config \
             libgtk-3-dev liblzma-dev \
             xvfb
-      
+
       - name: Install daemon dependencies
         run: |
           cd daemon
           poetry install --no-interaction
-      
+
       - name: Install UI dependencies
         run: |
           cd ui
           flutter pub get
-      
+
       - name: Initialize test environment
         run: |
           cd daemon
           poetry run python scripts/initialize_environment.py ${{ needs.setup-test-env.outputs.test_environment }}
-      
+
       - name: Start daemon
         run: |
           cd daemon
@@ -280,7 +280,7 @@ jobs:
           echo "DAEMON_PID=$DAEMON_PID" >> $GITHUB_ENV
           sleep 15  # 给daemon更多时间启动
         shell: bash
-      
+
       - name: Run UI integration tests
         run: |
           cd ui
@@ -292,7 +292,7 @@ jobs:
               flutter test integration_test/ --verbose
               ;;
           esac
-      
+
       - name: Test UI-Daemon communication
         run: |
           cd ui
@@ -300,7 +300,7 @@ jobs:
           flutter test test/services/ipc_client_test.dart --verbose
           # 测试API适配器
           flutter test test/services/ipc_api_adapter_test.dart --verbose
-      
+
       - name: Cleanup
         if: always()
         run: |
@@ -308,7 +308,7 @@ jobs:
             kill $DAEMON_PID || true
           fi
         shell: bash
-      
+
       - name: Upload E2E test results
         uses: actions/upload-artifact@v4
         if: failure()
@@ -323,32 +323,32 @@ jobs:
     runs-on: ubuntu-latest
     needs: setup-test-env
     if: github.event.inputs.test_suite == 'all' || github.event.inputs.test_suite == 'performance' || github.event.inputs.test_suite == ''
-    
+
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: ${{ env.PYTHON_VERSION }}
-      
+
       - name: Install Poetry
         uses: snok/install-poetry@v1
         with:
           version: ${{ env.POETRY_VERSION }}
           virtualenvs-create: true
           virtualenvs-in-project: true
-      
+
       - name: Install dependencies
         run: |
           cd daemon
           poetry install --no-interaction
-      
+
       - name: Initialize performance test environment
         run: |
           cd daemon
           poetry run python scripts/initialize_environment.py staging
-      
+
       - name: Run architecture performance tests
         run: |
           cd daemon
@@ -356,37 +356,37 @@ jobs:
             --benchmark-only \
             --benchmark-json=benchmark-results.json \
             --benchmark-warmup=true
-      
+
       - name: Analyze performance results
         run: |
           cd daemon
           python -c "
           import json
           import sys
-          
+
           with open('benchmark-results.json', 'r') as f:
               results = json.load(f)
-          
+
           # 检查关键性能指标
           benchmarks = results['benchmarks']
-          
+
           # IPC延迟必须<10ms
           ipc_tests = [b for b in benchmarks if 'ipc' in b['name'].lower()]
           for test in ipc_tests:
               if test['stats']['mean'] > 0.01:  # 10ms
                   print(f'❌ IPC performance regression: {test[\"name\"]} took {test[\"stats\"][\"mean\"]*1000:.2f}ms')
                   sys.exit(1)
-          
+
           # 启动时间必须<3s
           startup_tests = [b for b in benchmarks if 'startup' in b['name'].lower()]
           for test in startup_tests:
               if test['stats']['mean'] > 3.0:
                   print(f'❌ Startup performance regression: {test[\"name\"]} took {test[\"stats\"][\"mean\"]:.2f}s')
                   sys.exit(1)
-          
+
           print('✅ All performance benchmarks passed')
           "
-      
+
       - name: Upload performance results
         uses: actions/upload-artifact@v4
         with:
@@ -398,19 +398,19 @@ jobs:
     runs-on: ubuntu-latest
     needs: [test-ipc-integration, test-connectors-integration]
     if: always()
-    
+
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: ${{ env.PYTHON_VERSION }}
-      
+
       - name: Run system health check
         run: |
           python scripts/simple_health_check.py
-      
+
       - name: Verify architecture integrity
         run: |
           python scripts/verify_architecture.py
@@ -420,7 +420,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: [test-ipc-integration, test-connectors-integration, test-ui-daemon-e2e, test-performance, test-system-health]
     if: always()
-    
+
     steps:
       - name: Generate test summary
         run: |
@@ -432,20 +432,20 @@ jobs:
           echo "Performance Tests: ${{ needs.test-performance.result }}"
           echo "System Health: ${{ needs.test-system-health.result }}"
           echo ""
-          
+
           # 检查关键测试是否通过
           if [[ "${{ needs.test-ipc-integration.result }}" == "failure" ]]; then
             echo "❌ Critical: IPC integration tests failed"
             exit 1
           fi
-          
+
           if [[ "${{ needs.test-performance.result }}" == "failure" ]]; then
             echo "❌ Critical: Performance tests failed"
             exit 1
           fi
-          
+
           echo "✅ Integration test suite completed"
-      
+
       - name: Report test results
         if: always()
         uses: actions/github-script@v7
@@ -458,23 +458,23 @@ jobs:
               performance: '${{ needs.test-performance.result }}',
               health: '${{ needs.test-system-health.result }}'
             };
-            
+
             const failed = Object.entries(results).filter(([, result]) => result === 'failure');
             const passed = Object.entries(results).filter(([, result]) => result === 'success');
-            
+
             const summary = `## 🔗 Integration Tests Summary
-            
+
             **Passed**: ${passed.length}/5 test suites
             **Failed**: ${failed.length}/5 test suites
-            
+
             ### Results
-            ${Object.entries(results).map(([test, result]) => 
+            ${Object.entries(results).map(([test, result]) =>
               `- ${test}: ${result === 'success' ? '✅' : result === 'failure' ? '❌' : '⏭️'} ${result}`
             ).join('\n')}
-            
+
             ${failed.length > 0 ? '### ⚠️ Failed Tests\n' + failed.map(([test]) => `- ${test}`).join('\n') : ''}
             `;
-            
+
             if (context.eventName === 'pull_request') {
               github.rest.issues.createComment({
                 issue_number: context.issue.number,

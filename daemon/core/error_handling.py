@@ -15,10 +15,10 @@ import uuid
 from collections import deque
 from contextlib import contextmanager
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import datetime
 from enum import Enum
 from functools import wraps
-from typing import Any, Callable, Dict, Optional, Type
+from typing import Any, Callable, Dict, Optional
 
 
 class ErrorSeverity(Enum):
@@ -550,12 +550,10 @@ def _register_default_recovery_handlers():
     def ipc_recovery(error: StandardizedError):
         """IPC错误恢复"""
         # 尝试重新建立IPC连接
-        pass
 
     def database_recovery(error: StandardizedError):
         """数据库错误恢复"""
         # 尝试重新连接数据库
-        pass
 
     handler.register_recovery_handler(ErrorCategory.IPC_COMMUNICATION, ipc_recovery)
     handler.register_recovery_handler(
