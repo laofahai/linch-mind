@@ -1,0 +1,239 @@
+# Linch Mind - 文件系统连接器配置
+# 高性能C++文件系统监控连接器，实时监控文件变化并自动记录和索引文件内容
+
+[metadata]
+id = "filesystem"
+name = "文件系统连接器"
+version = "0.1.1"
+author = "Linch Mind Team"
+description = "高性能C++版本文件系统监控连接器，实时监控文件变化并自动记录和索引文件内容"
+homepage = "https://github.com/linch-mind/connectors/filesystem"
+license = "MIT"
+category = "local_files"
+icon = "folder"
+
+# JSON Schema 引用
+schema = "../../connector.schema.json"
+
+[build]
+build_command = "./build.sh"
+pre_build = "echo 'Preparing C++ build environment'"
+post_build = "echo 'C++ build completed, binary size optimized'"
+
+[capabilities]
+hot_reload = true
+max_instances = 10
+supports_multiple_instances = true
+
+# 权限要求
+permissions = [
+    "filesystem:read",
+    "filesystem:watch", 
+    "network:daemon-api"
+]
+
+# 平台支持
+[platforms.linux]
+min_version = "ubuntu-20.04"
+
+[platforms.macos]
+min_version = "10.15"
+
+[platforms.windows]
+min_version = "10"
+
+# 入口点配置
+[entry.development]
+command = "bash"
+working_dir = "."
+args = [
+    "-c",
+    """# Smart build and run
+exe_name='linch-mind-filesystem'
+[[ '$OSTYPE' == 'msys' || '$OSTYPE' == 'win32' ]] && exe_name='$exe_name.exe'
+
+# Check if build is needed
+if [[ ! -f "bin/release/$exe_name" && ! -f "bin/debug/$exe_name" ]] || [[ src/main.cpp -nt "bin/release/$exe_name" ]] || [[ src/main.cpp -nt "bin/debug/$exe_name" ]]; then
+  echo '🔨 Building connector...'
+  ./build.sh > /dev/null 2>&1 || { echo 'Build failed'; exit 1; }
+fi
+
+# Run the newest build
+if [[ -f "bin/debug/$exe_name" ]]; then
+  exec "./bin/debug/$exe_name"
+elif [[ -f "bin/release/$exe_name" ]]; then
+  exec "./bin/release/$exe_name"
+else
+  echo '❌ No executable found after build'
+  exit 1
+fi"""
+]
+
+[entry.production]
+linux = "bin/release/linch-mind-filesystem"
+macos = "bin/release/linch-mind-filesystem"
+windows = "bin/release/linch-mind-filesystem.exe"
+
+# 默认配置值
+[config_default_values]
+watch_directories = ["~/Documents", "~/Desktop"]
+scan_interval = 2.0
+recursive_depth = 5
+max_file_size = 50  # MB
+max_content_length = 50000
+include_extensions = [
+    ".txt", ".md", ".pdf", ".doc", ".docx", 
+    ".xls", ".xlsx", ".ppt", ".pptx"
+]
+exclude_patterns = [
+    "^\\..*",       # 隐藏文件
+    ".*\\.tmp$",    # 临时文件
+    ".*\\.log$",    # 日志文件
+    "__pycache__",  # Python缓存
+    "node_modules"  # Node.js模块
+]
+enable_content_indexing = true
+
+# 配置模式定义
+[config_schema]
+description = "高性能文件系统监控连接器的配置选项"
+title = "文件系统连接器配置"
+type = "object"
+config_schema_source = "static"
+
+[config_schema.properties.watch_directories]
+title = "监控目录"
+description = "要监控的目录路径列表"
+type = "array"
+min_items = 1
+default = ["~/Documents", "~/Desktop"]
+
+[config_schema.properties.watch_directories.items]
+type = "string"
+
+[config_schema.properties.scan_interval]
+title = "扫描间隔 (秒)"
+description = "文件变化检查频率，较小值消耗更多CPU"
+type = "number"
+minimum = 0.5
+maximum = 60.0
+default = 2.0
+
+[config_schema.properties.recursive_depth]
+title = "递归深度"
+description = "子目录扫描的最大深度"
+type = "integer"
+minimum = 1
+maximum = 20
+default = 5
+
+[config_schema.properties.max_file_size]
+title = "最大文件大小 (MB)"
+description = "超过此大小的文件将被忽略"
+type = "integer"
+minimum = 1
+maximum = 1000
+default = 50
+
+[config_schema.properties.include_extensions]
+title = "包含的文件扩展名"
+description = "只监控这些扩展名的文件"
+type = "array"
+default = [".txt", ".md", ".pdf", ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx"]
+
+[config_schema.properties.include_extensions.items]
+type = "string"
+
+[config_schema.properties.exclude_patterns]
+title = "排除模式"
+description = "正则表达式模式，匹配的文件将被忽略"
+type = "array"
+default = ["^\\..*", ".*\\.tmp$", ".*\\.log$", "__pycache__", "node_modules"]
+
+[config_schema.properties.exclude_patterns.items]
+type = "string"
+
+[config_schema.properties.max_content_length]
+title = "最大内容长度"
+description = "文件内容截断长度（字符数）"
+type = "integer"
+minimum = 1000
+maximum = 200000
+default = 50000
+
+[config_schema.properties.enable_content_indexing]
+title = "启用内容索引"
+description = "是否索引文件内容用于搜索"
+type = "boolean"
+default = true
+
+# 必需配置字段
+config_schema.required = ["watch_directories", "scan_interval"]
+
+# UI配置模式
+[config_ui_schema]
+ui_layout = "sections"
+
+# UI节段配置
+[config_ui_schema.ui_sections.basic_config]
+ui_title = "基础设置"
+ui_icon = "folder"
+ui_description = "文件系统监控的基本配置"
+ui_collapsible = false
+
+[config_ui_schema.ui_sections.basic_config.ui_fields.watch_directories]
+ui_widget = "directory_picker"
+ui_multiple = true
+ui_help = "可以添加多个目录进行监控，支持 ~ 符号"
+
+[config_ui_schema.ui_sections.basic_config.ui_fields.scan_interval]
+ui_widget = "slider"
+ui_step = 0.5
+ui_unit = "秒"
+ui_help = "检查频率，影响响应速度和CPU占用"
+
+[config_ui_schema.ui_sections.basic_config.ui_fields.recursive_depth]
+ui_widget = "slider"
+ui_step = 1
+ui_unit = "层"
+ui_help = "深层目录扫描可能影响性能"
+
+[config_ui_schema.ui_sections.filter_config]
+ui_title = "文件过滤"
+ui_icon = "filter_alt"
+ui_description = "配置要监控和忽略的文件类型"
+ui_collapsed = false
+ui_collapsible = true
+
+[config_ui_schema.ui_sections.filter_config.ui_fields.include_extensions]
+ui_widget = "tag_input"
+ui_placeholder = "输入扩展名，如 .txt"
+ui_help = "只监控指定扩展名的文件"
+
+[config_ui_schema.ui_sections.filter_config.ui_fields.exclude_patterns]
+ui_widget = "tag_input"
+ui_placeholder = "输入排除模式"
+ui_help = "正则表达式，匹配的文件将被忽略"
+
+[config_ui_schema.ui_sections.filter_config.ui_fields.max_file_size]
+ui_widget = "slider"
+ui_step = 5
+ui_unit = "MB"
+ui_help = "大文件通常处理耗时，建议设置合理上限"
+
+[config_ui_schema.ui_sections.advanced_config]
+ui_title = "高级选项"
+ui_icon = "settings"
+ui_description = "高级索引选项"
+ui_collapsed = true
+ui_collapsible = true
+
+[config_ui_schema.ui_sections.advanced_config.ui_fields.max_content_length]
+ui_widget = "slider"
+ui_step = 5000
+ui_unit = "字符"
+ui_help = "单个文件内容的最大字符数，超过将被截断"
+
+[config_ui_schema.ui_sections.advanced_config.ui_fields.enable_content_indexing]
+ui_widget = "switch"
+ui_help = "索引文件内容用于搜索，但会消耗更多资源"

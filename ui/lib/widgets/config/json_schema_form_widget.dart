@@ -17,12 +17,12 @@ class JsonSchemaFormWidget extends StatefulWidget {
   final bool readOnly;
 
   const JsonSchemaFormWidget({
-    Key? key,
+    super.key,
     required this.schema,
     required this.data,
     required this.onChanged,
     this.readOnly = false,
-  }) : super(key: key);
+  });
 
   @override
   _JsonSchemaFormWidgetState createState() => _JsonSchemaFormWidgetState();

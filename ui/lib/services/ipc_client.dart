@@ -433,10 +433,12 @@ class IPCClient {
           io.Platform.environment['USERPROFILE'];
       if (homeDir == null) return null;
 
-      final socketFile = io.File('$homeDir/.linch-mind/daemon.socket');
-      if (!await socketFile.exists()) return null;
+      // 🔧 环境感知socket路径: 读取socket信息文件（避免文件名冲突）
+      final environment = io.Platform.environment['LINCH_MIND_MODE'] ?? 'development';
+      final socketInfoFile = io.File('$homeDir/.linch-mind/$environment/daemon.socket.info');
+      if (!await socketInfoFile.exists()) return null;
 
-      final content = await socketFile.readAsString();
+      final content = await socketInfoFile.readAsString();
       return jsonDecode(content);
     } catch (e) {
       developer.log('读取socket信息文件失败: $e', name: 'IPCClient', level: 1000);

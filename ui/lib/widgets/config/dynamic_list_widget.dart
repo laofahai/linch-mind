@@ -17,15 +17,15 @@ class DynamicListWidget extends StatefulWidget {
   final ValueChanged<List<Map<String, dynamic>>> onChanged;
 
   const DynamicListWidget({
-    Key? key,
+    super.key,
     required this.items,
     required this.itemSchema,
     required this.widgetConfig,
     required this.onChanged,
-  }) : super(key: key);
+  });
 
   @override
-  _DynamicListWidgetState createState() => _DynamicListWidgetState();
+  State<DynamicListWidget> createState() => _DynamicListWidgetState();
 }
 
 class _DynamicListWidgetState extends State<DynamicListWidget> {

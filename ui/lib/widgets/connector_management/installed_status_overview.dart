@@ -20,8 +20,6 @@ class InstalledStatusOverview extends StatelessWidget {
         connectors.where((c) => c.state == ConnectorState.stopped).length;
     final errorCount =
         connectors.where((c) => c.state == ConnectorState.error).length;
-    final installedCount =
-        connectors.where((c) => c.state == ConnectorState.installed).length;
     final stoppingCount =
         connectors.where((c) => c.state == ConnectorState.stopping).length;
 
@@ -64,13 +62,6 @@ class InstalledStatusOverview extends StatelessWidget {
               Colors.red,
               '错误',
               errorCount,
-            ),
-          if (installedCount > 0)
-            _buildStatusIndicator(
-              Icons.get_app,
-              Colors.blue,
-              '已安装',
-              installedCount,
             ),
         ],
       ),

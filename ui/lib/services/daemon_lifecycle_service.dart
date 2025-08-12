@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'dart:async';
 import 'package:flutter/foundation.dart';
+import 'package:path/path.dart' as path;
 import 'daemon_port_service.dart';
 
 /// 运行模式枚举
@@ -120,11 +121,20 @@ class DaemonLifecycleService {
         return DaemonStartResult.failure('未找到Python或Poetry环境');
       }
 
-      // 检查daemon目录
-      final daemonDir = Directory('daemon');
+      // 检查daemon目录 - 使用绝对路径
+      // 从UI目录向上一级找到项目根目录
+      final projectRoot = Directory.current.path.endsWith('/ui')
+          ? Directory.current.parent.path
+          : Directory.current.path;
+      final daemonDir = Directory(path.join(projectRoot, 'daemon'));
+      
       if (!daemonDir.existsSync()) {
-        return DaemonStartResult.failure('未找到daemon目录');
+        print('[DaemonLifecycle] 查找daemon目录失败: ${daemonDir.path}');
+        print('[DaemonLifecycle] 当前目录: ${Directory.current.path}');
+        print('[DaemonLifecycle] 项目根目录: $projectRoot');
+        return DaemonStartResult.failure('未找到daemon目录: ${daemonDir.path}');
       }
+      print('[DaemonLifecycle] 找到daemon目录: ${daemonDir.path}');
 
       Process process;
 
@@ -134,7 +144,7 @@ class DaemonLifecycleService {
         process = await Process.start(
           poetryPath,
           ['run', 'linch-daemon'],
-          workingDirectory: 'daemon',
+          workingDirectory: daemonDir.path,
           environment: {
             ...Platform.environment,
             'LINCH_MIND_MODE': 'development',
@@ -145,7 +155,7 @@ class DaemonLifecycleService {
         process = await Process.start(
           pythonPath!,
           ['-m', 'api.main'],
-          workingDirectory: 'daemon',
+          workingDirectory: daemonDir.path,
           environment: {
             ...Platform.environment,
             'PYTHONPATH': '.',

@@ -108,7 +108,7 @@ def initialize_di_container():
     from config.core_config import CoreConfigManager
     from core.container import get_container
     from services.connectors.connector_manager import ConnectorManager
-    from services.database_service import DatabaseService
+    from services.unified_database_service import UnifiedDatabaseService
     from services.ipc_security import IPCSecurityManager, create_security_manager
 
     container = get_container()
@@ -137,13 +137,13 @@ def initialize_di_container():
     container.register_singleton(CoreConfigManager, create_config_manager)
     logger.debug("已注册: CoreConfigManager")
 
-    # 💾 数据库服务
-    def create_database_service():
-        from services.database_service import DatabaseService
+    # 💾 统一数据库服务
+    def create_unified_database_service():
+        from services.unified_database_service import UnifiedDatabaseService
 
-        return DatabaseService()
+        return UnifiedDatabaseService()
 
-    container.register_singleton(DatabaseService, create_database_service)
+    container.register_singleton(UnifiedDatabaseService, create_unified_database_service)
     logger.debug("已注册: DatabaseService")
 
     # 🔧 连接器配置服务
@@ -198,7 +198,7 @@ def initialize_di_container():
         connectors_dir = project_root / connector_config.config_dir
 
         # 手动依赖注入，避免ServiceFacade循环问题
-        db_service = container.get_service(DatabaseService)
+        db_service = container.get_service(UnifiedDatabaseService)
         process_manager = container.get_service(ProcessManager)
         config_service = container.get_service(ConnectorConfigService)
         registry_service = container.get_service(ConnectorRegistryService)

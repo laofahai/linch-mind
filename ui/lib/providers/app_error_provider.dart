@@ -1,8 +1,6 @@
 import 'dart:async';
-import 'dart:collection';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:rxdart/rxdart.dart';
 
 import '../models/ui_error.dart';
 import '../utils/enhanced_error_handler.dart';
@@ -74,7 +72,7 @@ class AppErrorNotifier extends StateNotifier<AppErrorState> {
   }
 
   final _errorHandler = EnhancedErrorHandler();
-  final _activeErrors = LinkedHashMap<String, UIError>();
+  final _activeErrors = <String, UIError>{};
   final _errorCounts = <String, int>{};
 
   StreamSubscription<UIError>? _errorSubscription;

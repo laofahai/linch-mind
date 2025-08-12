@@ -34,7 +34,6 @@ class ConfigLoadError(Exception):
     """配置加载错误"""
 
 
-
 class ConfigLoader:
     """统一配置文件加载器
 

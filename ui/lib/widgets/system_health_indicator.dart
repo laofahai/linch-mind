@@ -4,7 +4,6 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import '../providers/app_error_provider.dart';
-import '../services/ipc_client.dart';
 
 /// 系统健康度级别
 enum SystemHealthLevel {
@@ -201,7 +200,7 @@ class _SystemHealthIndicatorState extends ConsumerState<SystemHealthIndicator>
                   shape: BoxShape.circle,
                   boxShadow: [
                     BoxShadow(
-                      color: healthInfo.color.withOpacity(0.4),
+                      color: healthInfo.color.withValues(alpha: 0.4),
                       blurRadius: 8,
                       spreadRadius: 2,
                     ),
@@ -251,7 +250,7 @@ class _SystemHealthIndicatorState extends ConsumerState<SystemHealthIndicator>
                             shape: BoxShape.circle,
                             boxShadow: [
                               BoxShadow(
-                                color: healthInfo.color.withOpacity(0.4),
+                                color: healthInfo.color.withValues(alpha: 0.4),
                                 blurRadius: 8,
                                 spreadRadius: 2,
                               ),
@@ -356,7 +355,6 @@ class _SystemHealthIndicatorState extends ConsumerState<SystemHealthIndicator>
   }
 
   Widget _buildSystemStats(BuildContext context, Map<String, dynamic> stats) {
-    final theme = Theme.of(context);
 
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -492,6 +490,7 @@ class SystemHealthFAB extends ConsumerWidget {
     if (!errorState.hasErrors) return const SizedBox.shrink();
 
     return FloatingActionButton.small(
+      heroTag: "systemHealthFAB",
       onPressed: onTap ?? () => _showHealthDetails(context, ref),
       backgroundColor: errorState.hasCritical ? Colors.red : Colors.orange,
       child: const SystemHealthIndicator(showDetails: false),

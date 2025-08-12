@@ -15,7 +15,7 @@ from models.database_models import Connector
 from services.connector_registry_service import ConnectorRegistryService
 from services.connectors.connector_config_service import ConnectorConfigService
 from services.connectors.process_manager import ProcessManager
-from services.database_service import DatabaseService
+from services.unified_database_service import UnifiedDatabaseService
 
 logger = logging.getLogger(__name__)
 
@@ -33,7 +33,7 @@ class ConnectorManager:
         config_manager=None,
     ):
         # 优先使用依赖注入参数，fallback到ServiceFacade
-        self.db_service = db_service or get_service(DatabaseService)
+        self.db_service = db_service or get_service(UnifiedDatabaseService)
         self.process_manager = process_manager or get_service(ProcessManager)
         self.config_service = config_service or get_service(ConnectorConfigService)
         self.registry_service = registry_service or get_service(
@@ -48,13 +48,19 @@ class ConnectorManager:
         try:
             with self.db_service.get_session() as session:
                 connectors = session.query(Connector).all()
-                return [
-                    {
+                result = []
+                for c in connectors:
+                    # 确保状态有效性
+                    status = c.status or "stopped"
+                    if status not in ["running", "starting", "stopping", "stopped", "error"]:
+                        status = "stopped"
+                    
+                    result.append({
                         "connector_id": c.connector_id,
                         "name": c.name,
                         "description": c.description,
                         "version": c.version,
-                        "status": c.status,
+                        "status": status,
                         "enabled": c.enabled,
                         "path": c.path,
                         "process_id": c.process_id,
@@ -64,9 +70,8 @@ class ConnectorManager:
                         "updated_at": (
                             c.updated_at.isoformat() if c.updated_at else None
                         ),
-                    }
-                    for c in connectors
-                ]
+                    })
+                return result
         except Exception as e:
             logger.error(f"获取连接器列表失败: {e}")
             return []
@@ -86,12 +91,17 @@ class ConnectorManager:
                 )
 
                 if connector:
+                    # 确保状态有效性
+                    status = connector.status or "stopped"
+                    if status not in ["running", "starting", "stopping", "stopped", "error"]:
+                        status = "stopped"
+                    
                     return {
                         "connector_id": connector.connector_id,
                         "name": connector.name,
                         "description": connector.description,
                         "version": connector.version,
-                        "status": connector.status,
+                        "status": status,
                         "enabled": connector.enabled,
                         "path": connector.path,
                         "process_id": connector.process_id,

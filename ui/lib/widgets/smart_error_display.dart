@@ -342,7 +342,7 @@ class _SmartErrorDisplayState extends State<SmartErrorDisplay>
     if (error.isCritical) {
       return _ErrorTheme(
         backgroundColor:
-            isDark ? Colors.red.shade900.withOpacity(0.8) : Colors.red.shade50,
+            isDark ? Colors.red.shade900.withValues(alpha: 0.8) : Colors.red.shade50,
         iconColor: Colors.red,
         icon: Icons.error,
         textColor: isDark ? Colors.red.shade100 : Colors.red.shade800,
@@ -354,7 +354,7 @@ class _SmartErrorDisplayState extends State<SmartErrorDisplay>
     } else if (error.isNetworkError) {
       return _ErrorTheme(
         backgroundColor: isDark
-            ? Colors.orange.shade900.withOpacity(0.8)
+            ? Colors.orange.shade900.withValues(alpha: 0.8)
             : Colors.orange.shade50,
         iconColor: Colors.orange,
         icon: Icons.wifi_off,
@@ -367,7 +367,7 @@ class _SmartErrorDisplayState extends State<SmartErrorDisplay>
     } else if (error.isAuthError) {
       return _ErrorTheme(
         backgroundColor: isDark
-            ? Colors.amber.shade900.withOpacity(0.8)
+            ? Colors.amber.shade900.withValues(alpha: 0.8)
             : Colors.amber.shade50,
         iconColor: Colors.amber.shade700,
         icon: Icons.lock_outline,
@@ -380,7 +380,7 @@ class _SmartErrorDisplayState extends State<SmartErrorDisplay>
     } else if (error.isInputError) {
       return _ErrorTheme(
         backgroundColor: isDark
-            ? Colors.blue.shade900.withOpacity(0.8)
+            ? Colors.blue.shade900.withValues(alpha: 0.8)
             : Colors.blue.shade50,
         iconColor: Colors.blue,
         icon: Icons.info_outline,
@@ -393,7 +393,7 @@ class _SmartErrorDisplayState extends State<SmartErrorDisplay>
     } else {
       return _ErrorTheme(
         backgroundColor: isDark
-            ? Colors.grey.shade800.withOpacity(0.9)
+            ? Colors.grey.shade800.withValues(alpha: 0.9)
             : Colors.grey.shade100,
         iconColor: Colors.grey.shade600,
         icon: Icons.warning_outlined,

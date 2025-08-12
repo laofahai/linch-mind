@@ -32,6 +32,7 @@ def register_all_routes(app):
     from .connector_config import create_connector_config_router
     from .connector_lifecycle import create_connector_lifecycle_router
     from .connector_status import create_connector_status_router  # 🆕 连接器状态路由
+    from .data_insights import create_data_insights_router  # 🆕 数据洞察路由
     from .environment import create_environment_router  # 🆕 环境管理路由
     from .events import create_events_router
     from .health import create_health_router
@@ -42,6 +43,7 @@ def register_all_routes(app):
     app.include_router(create_auth_router())  # 认证路由必须首先注册
     app.include_router(create_health_router())
     app.include_router(create_environment_router())  # 🆕 环境管理路由
+    app.include_router(create_data_insights_router())  # 🆕 数据洞察路由
     app.include_router(create_events_router())  # 事件处理路由
     app.include_router(create_connector_lifecycle_router())
     app.include_router(create_connector_config_router())
@@ -57,6 +59,7 @@ from .auth import create_auth_router
 from .connector_config import create_connector_config_router
 from .connector_lifecycle import create_connector_lifecycle_router
 from .connector_status import create_connector_status_router  # 🆕 连接器状态路由
+from .data_insights import create_data_insights_router  # 🆕 数据洞察路由
 from .environment import create_environment_router  # 🆕 环境管理路由
 from .events import create_events_router
 from .health import create_health_router
@@ -68,6 +71,7 @@ __all__ = [
     "create_auth_router",
     "create_health_router",
     "create_environment_router",  # 🆕 环境管理路由
+    "create_data_insights_router",  # 🆕 数据洞察路由
     "create_events_router",
     "create_connector_lifecycle_router",
     "create_connector_config_router",

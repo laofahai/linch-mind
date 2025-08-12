@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'dart:async';
 
 import '../models/connector_lifecycle_models.dart';
-import '../providers/app_error_provider.dart';
 
 /// 连接器状态可视化组件
 class ConnectorStatusWidget extends ConsumerStatefulWidget {
@@ -38,25 +37,13 @@ class _ConnectorStatusWidgetState extends ConsumerState<ConnectorStatusWidget>
   }
 
   // 适配器方法：获取连接器状态
-  ConnectorStatus get _connectorStatus {
+  ConnectorState get _connectorStatus {
     final connector = widget.connector;
     if (connector is ConnectorInfo) {
-      // 将ConnectorState映射到ConnectorStatus
-      switch (connector.state) {
-        case ConnectorState.running:
-          return ConnectorStatus.running;
-        case ConnectorState.stopped:
-          return ConnectorStatus.stopped;
-        case ConnectorState.error:
-          return ConnectorStatus.error;
-        case ConnectorState.available:
-          return ConnectorStatus.stopped;
-        default:
-          return ConnectorStatus.stopped;
-      }
+      return connector.state;
     }
-    // 如果是其他类型，尝试获取status字段
-    return connector?.status ?? ConnectorStatus.stopped;
+    // 如果是其他类型，尝试获取status字段，默认为stopped
+    return connector?.status ?? ConnectorState.stopped;
   }
 
   // 适配器方法：获取错误信息
@@ -71,10 +58,11 @@ class _ConnectorStatusWidgetState extends ConsumerState<ConnectorStatusWidget>
   // 适配器方法：获取运行时间
   Duration? get _uptime {
     final connector = widget.connector;
-    if (connector is ConnectorInfo && connector.lastHeartbeat != null) {
-      return DateTime.now().difference(connector.lastHeartbeat!);
+    if (connector is ConnectorInfo) {
+      // 使用 ConnectorInfo 的扩展方法获取 uptime
+      return connector.uptime;
     }
-    return connector?.uptime;
+    return null;
   }
 
   // 适配器方法：获取数据计数
@@ -140,7 +128,7 @@ class _ConnectorStatusWidgetState extends ConsumerState<ConnectorStatusWidget>
 
   void _startStatusCheck() {
     // 如果连接器正在运行，启动脉冲动画
-    if (_connectorStatus == ConnectorStatus.running) {
+    if (_connectorStatus == ConnectorState.running) {
       _pulseController.repeat(reverse: true);
     }
 
@@ -154,7 +142,7 @@ class _ConnectorStatusWidgetState extends ConsumerState<ConnectorStatusWidget>
   void _checkStatusChange() {
     final currentStatus = _connectorStatus;
 
-    if (currentStatus == ConnectorStatus.running) {
+    if (currentStatus == ConnectorState.running) {
       if (!_pulseController.isAnimating) {
         _pulseController.repeat(reverse: true);
       }
@@ -164,7 +152,7 @@ class _ConnectorStatusWidgetState extends ConsumerState<ConnectorStatusWidget>
     }
 
     // 错误状态触发震动
-    if (currentStatus == ConnectorStatus.error) {
+    if (currentStatus == ConnectorState.error) {
       _errorShakeController.forward().then((_) {
         _errorShakeController.reset();
       });
@@ -185,14 +173,16 @@ class _ConnectorStatusWidgetState extends ConsumerState<ConnectorStatusWidget>
           return Transform.translate(
             offset: Offset(_shakeAnimation.value, 0),
             child: Transform.scale(
-              scale: _connectorStatus == ConnectorStatus.running
+              scale: _connectorStatus == ConnectorState.running
                   ? _pulseAnimation.value
                   : 1.0,
               child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
+                padding: const EdgeInsets.all(10),
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
                     // 连接器名称和状态指示器
                     Row(
                       children: [
@@ -204,10 +194,10 @@ class _ConnectorStatusWidgetState extends ConsumerState<ConnectorStatusWidget>
                             color: statusInfo.color,
                             shape: BoxShape.circle,
                             boxShadow: _connectorStatus ==
-                                    ConnectorStatus.running
+                                    ConnectorState.running
                                 ? [
                                     BoxShadow(
-                                      color: statusInfo.color.withOpacity(0.6),
+                                      color: statusInfo.color.withValues(alpha: 0.6),
                                       blurRadius: 8,
                                       spreadRadius: 2,
                                     )
@@ -232,35 +222,39 @@ class _ConnectorStatusWidgetState extends ConsumerState<ConnectorStatusWidget>
                       ],
                     ),
 
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 6),
 
                     // 状态描述
                     Row(
                       children: [
                         Icon(statusInfo.icon,
-                            size: 16, color: statusInfo.color),
-                        const SizedBox(width: 6),
-                        Text(
-                          statusInfo.description,
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                            color: statusInfo.color,
-                            fontWeight: FontWeight.w500,
+                            size: 14, color: statusInfo.color),
+                        const SizedBox(width: 4),
+                        Expanded(
+                          child: Text(
+                            statusInfo.description,
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: statusInfo.color,
+                              fontWeight: FontWeight.w500,
+                              fontSize: 12,
+                            ),
                           ),
                         ),
                       ],
                     ),
 
-                    // 错误信息（如果有）
-                    if (_connectorStatus == ConnectorStatus.error &&
-                        _lastError != null) ...[
-                      const SizedBox(height: 8),
-                      _buildErrorInfo(context),
-                    ],
-
                     // 统计信息
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 6),
                     _buildStatsRow(context),
-                  ],
+
+                    // 错误信息（如果有）
+                    if (_connectorStatus == ConnectorState.error &&
+                        _lastError != null) ...[
+                      const SizedBox(height: 4),
+                      _buildCompactErrorInfo(context),
+                    ],
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -278,11 +272,11 @@ class _ConnectorStatusWidgetState extends ConsumerState<ConnectorStatusWidget>
         if (widget.onConfigure != null)
           IconButton(
             onPressed: widget.onConfigure,
-            icon: const Icon(Icons.settings, size: 18),
+            icon: const Icon(Icons.settings, size: 16),
             tooltip: '配置',
             style: IconButton.styleFrom(
-              padding: const EdgeInsets.all(8),
-              minimumSize: const Size(32, 32),
+              padding: const EdgeInsets.all(4),
+              minimumSize: const Size(24, 24),
             ),
           ),
 
@@ -290,25 +284,25 @@ class _ConnectorStatusWidgetState extends ConsumerState<ConnectorStatusWidget>
         if (widget.onRefresh != null)
           IconButton(
             onPressed: widget.onRefresh,
-            icon: const Icon(Icons.refresh, size: 18),
+            icon: const Icon(Icons.refresh, size: 16),
             tooltip: '刷新状态',
             style: IconButton.styleFrom(
-              padding: const EdgeInsets.all(8),
-              minimumSize: const Size(32, 32),
+              padding: const EdgeInsets.all(4),
+              minimumSize: const Size(24, 24),
             ),
           ),
 
         // 重启按钮（仅在错误或停止状态）
-        if ((_connectorStatus == ConnectorStatus.error ||
-                _connectorStatus == ConnectorStatus.stopped) &&
+        if ((_connectorStatus == ConnectorState.error ||
+                _connectorStatus == ConnectorState.stopped) &&
             widget.onRestart != null)
           IconButton(
             onPressed: widget.onRestart,
-            icon: const Icon(Icons.restart_alt, size: 18),
+            icon: const Icon(Icons.restart_alt, size: 16),
             tooltip: '重启连接器',
             style: IconButton.styleFrom(
-              padding: const EdgeInsets.all(8),
-              minimumSize: const Size(32, 32),
+              padding: const EdgeInsets.all(4),
+              minimumSize: const Size(24, 24),
               foregroundColor: Colors.orange,
             ),
           ),
@@ -316,74 +310,9 @@ class _ConnectorStatusWidgetState extends ConsumerState<ConnectorStatusWidget>
     );
   }
 
-  Widget _buildErrorInfo(BuildContext context) {
-    final theme = Theme.of(context);
-    final error = _lastError!;
-
-    return Container(
-      padding: const EdgeInsets.all(8),
-      decoration: BoxDecoration(
-        color: Colors.red.shade50,
-        borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: Colors.red.shade200),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(Icons.error_outline, size: 16, color: Colors.red.shade600),
-              const SizedBox(width: 6),
-              Text(
-                '错误详情',
-                style: theme.textTheme.bodySmall?.copyWith(
-                  fontWeight: FontWeight.w600,
-                  color: Colors.red.shade800,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 4),
-          Text(
-            error,
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: Colors.red.shade700,
-            ),
-          ),
-
-          // 错误恢复建议
-          if (widget.onRestart != null) ...[
-            const SizedBox(height: 8),
-            ElevatedButton.icon(
-              onPressed: () {
-                // 添加到错误管理器并触发重启
-                ref.read(appErrorProvider.notifier).handleException(
-                      Exception(error),
-                      operation: '连接器: ${_connectorName}',
-                      retryCallback: widget.onRestart,
-                    );
-                widget.onRestart?.call();
-              },
-              icon: const Icon(Icons.healing, size: 16),
-              label: const Text('尝试修复'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.orange.shade100,
-                foregroundColor: Colors.orange.shade800,
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                minimumSize: const Size(0, 32),
-              ),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-
   Widget _buildStatsRow(BuildContext context) {
-    final theme = Theme.of(context);
-
     return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
       children: [
         Expanded(
           child: _buildStatItem(
@@ -422,62 +351,119 @@ class _ConnectorStatusWidgetState extends ConsumerState<ConnectorStatusWidget>
     final theme = Theme.of(context);
 
     return Column(
+      mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(icon, size: 14, color: theme.colorScheme.onSurfaceVariant),
+        Icon(icon, size: 12, color: theme.colorScheme.onSurfaceVariant),
         const SizedBox(height: 2),
         Text(
           value,
           style: theme.textTheme.bodySmall?.copyWith(
             fontWeight: FontWeight.w600,
             color: theme.colorScheme.onSurface,
+            fontSize: 10,
           ),
+          overflow: TextOverflow.ellipsis,
+          maxLines: 1,
         ),
         Text(
           label,
           style: theme.textTheme.bodySmall?.copyWith(
-            fontSize: 10,
+            fontSize: 8,
             color: theme.colorScheme.onSurfaceVariant,
           ),
+          overflow: TextOverflow.ellipsis,
+          maxLines: 1,
         ),
       ],
     );
   }
 
-  _StatusInfo _getStatusInfo(ConnectorStatus status, ThemeData theme) {
+  /// 构建紧凑的错误信息显示
+  Widget _buildCompactErrorInfo(BuildContext context) {
+    final theme = Theme.of(context);
+    final error = _lastError!;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+      decoration: BoxDecoration(
+        color: Colors.red.shade50,
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(color: Colors.red.shade200, width: 0.5),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.error_outline, size: 12, color: Colors.red.shade600),
+          const SizedBox(width: 4),
+          Expanded(
+            child: Text(
+              error.length > 30 ? '${error.substring(0, 30)}...' : error,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: Colors.red.shade700,
+                fontSize: 9,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          if (widget.onRestart != null) ...[
+            const SizedBox(width: 4),
+            SizedBox(
+              height: 20,
+              child: TextButton(
+                onPressed: widget.onRestart,
+                style: TextButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  minimumSize: const Size(0, 20),
+                  backgroundColor: Colors.orange.shade100,
+                  foregroundColor: Colors.orange.shade800,
+                ),
+                child: Text(
+                  '修复',
+                  style: TextStyle(fontSize: 8),
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  _StatusInfo _getStatusInfo(ConnectorState status, ThemeData theme) {
     switch (status) {
-      case ConnectorStatus.running:
+      case ConnectorState.running:
         return _StatusInfo(
           color: Colors.green,
           icon: Icons.play_circle_filled,
           description: '运行中',
         );
-      case ConnectorStatus.stopped:
-        return _StatusInfo(
-          color: Colors.grey,
-          icon: Icons.stop_circle,
-          description: '已停止',
-        );
-      case ConnectorStatus.error:
-        return _StatusInfo(
-          color: Colors.red,
-          icon: Icons.error_circle,
-          description: '错误',
-        );
-      case ConnectorStatus.starting:
+      case ConnectorState.starting:
         return _StatusInfo(
           color: Colors.orange,
           icon: Icons.pending,
           description: '启动中...',
         );
-      case ConnectorStatus.stopping:
+      case ConnectorState.stopping:
         return _StatusInfo(
           color: Colors.orange,
           icon: Icons.pending,
           description: '停止中...',
         );
-      default:
+      case ConnectorState.stopped:
         return _StatusInfo(
           color: Colors.grey,
+          icon: Icons.stop_circle,
+          description: '已停止',
+        );
+      case ConnectorState.error:
+        return _StatusInfo(
+          color: Colors.red,
+          icon: Icons.error,
+          description: '错误',
+        );
+      case ConnectorState.unknown:
+        return _StatusInfo(
+          color: Colors.grey[400]!,
           icon: Icons.help_outline,
           description: '未知状态',
         );
@@ -546,22 +532,21 @@ class ConnectorStatusOverview extends ConsumerWidget {
       if (c is ConnectorInfo) {
         return c.state == ConnectorState.running;
       }
-      return c?.status == ConnectorStatus.running;
+      return c?.status == ConnectorState.running;
     }).length;
 
     final errorCount = connectors.where((c) {
       if (c is ConnectorInfo) {
         return c.state == ConnectorState.error;
       }
-      return c?.status == ConnectorStatus.error;
+      return c?.status == ConnectorState.error;
     }).length;
 
     final stoppedCount = connectors.where((c) {
       if (c is ConnectorInfo) {
-        return c.state == ConnectorState.stopped ||
-            c.state == ConnectorState.available;
+        return c.state == ConnectorState.stopped;
       }
-      return c?.status == ConnectorStatus.stopped;
+      return c?.status == ConnectorState.stopped;
     }).length;
 
     return Card(
@@ -592,7 +577,7 @@ class ConnectorStatusOverview extends ConsumerWidget {
                   '错误',
                   errorCount,
                   Colors.red,
-                  Icons.error_circle,
+                  Icons.error,
                 ),
                 _buildOverviewItem(
                   context,
@@ -624,7 +609,7 @@ class ConnectorStatusOverview extends ConsumerWidget {
           width: 48,
           height: 48,
           decoration: BoxDecoration(
-            color: color.withOpacity(0.1),
+            color: color.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(24),
           ),
           child: Icon(

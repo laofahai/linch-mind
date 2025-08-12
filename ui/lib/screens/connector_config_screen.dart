@@ -232,10 +232,13 @@ class _ConnectorConfigScreenState extends ConsumerState<ConnectorConfigScreen> {
       );
 
       if (saveResponse.success) {
-        // 更新当前配置
+        // 更新当前配置并清除缓存
         setState(() {
           _currentConfig = Map<String, dynamic>.from(formData);
           _isSaving = false;
+          // 清除缓存以强制重新计算变更状态
+          _lastFormData = null;
+          _lastHasChanges = null;
         });
 
         final saveData = _safeMapCast(saveResponse.data) ?? {};
@@ -413,7 +416,9 @@ class _ConnectorConfigScreenState extends ConsumerState<ConnectorConfigScreen> {
         uiSchema: _uiSchema,
       );
 
-      // 优化：移除频繁的监听器，使用ReactiveFormConsumer
+      // 清除缓存以强制重新计算变更状态
+      _lastFormData = null;
+      _lastHasChanges = null;
       setState(() {});
     }
   }
@@ -545,6 +550,9 @@ class _ConnectorConfigScreenState extends ConsumerState<ConnectorConfigScreen> {
                                         initialData: _currentConfig,
                                         uiSchema: _uiSchema,
                                       );
+                                      // 清除缓存以强制重新计算变更状态
+                                      _lastFormData = null;
+                                      _lastHasChanges = null;
                                       setState(() {});
                                     }
                                   },
@@ -977,6 +985,9 @@ class _ConnectorConfigScreenState extends ConsumerState<ConnectorConfigScreen> {
                               initialData: _currentConfig,
                               uiSchema: _uiSchema,
                             );
+                            // 清除缓存以强制重新计算变更状态
+                            _lastFormData = null;
+                            _lastHasChanges = null;
                             setState(() {});
                           }
                         },

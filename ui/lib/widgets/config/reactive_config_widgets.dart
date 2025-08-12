@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:reactive_forms/reactive_forms.dart';
-import 'package:file_picker/file_picker.dart';
 import '../../services/form_builder_service.dart';
 import 'reactive_directory_picker.dart';
 
@@ -433,7 +432,7 @@ class _ReactiveTagInput extends ReactiveFormField<List<String>, List<String>> {
                 safeValue = field.value!;
               } else if (field.value is List) {
                 // 尝试转换为字符串列表
-                safeValue = field.value!
+                safeValue = (field.value as List)
                     .map((item) => item?.toString() ?? '')
                     .where((str) => str.isNotEmpty)
                     .toList();

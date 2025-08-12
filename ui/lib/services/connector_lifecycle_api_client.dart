@@ -304,8 +304,8 @@ class ConnectorLifecycleApiClient {
         message: data['message'] ?? 'Connector deleted successfully',
         connectorId: data['connector_id'] ?? connectorId,
         state: ConnectorState.values.firstWhere(
-          (e) => e.name == (data['state'] ?? 'uninstalling'),
-          orElse: () => ConnectorState.uninstalling,
+          (e) => e.name == (data['state'] ?? 'stopped'),
+          orElse: () => ConnectorState.stopped,
         ),
       );
     } catch (e) {

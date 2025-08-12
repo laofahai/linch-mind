@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:collection';
 import 'package:flutter/foundation.dart';
 import 'package:rxdart/rxdart.dart';
 
@@ -18,7 +17,7 @@ class EnhancedErrorHandler {
   final _errorSubject = PublishSubject<UIError>();
 
   // 去重缓存
-  final _recentErrors = LinkedHashMap<String, DateTime>();
+  final _recentErrors = <String, DateTime>{};
   static const _dedupeWindowSeconds = 5;
   static const _maxCacheSize = 20;
 

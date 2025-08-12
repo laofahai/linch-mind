@@ -57,6 +57,7 @@ class _ConnectorManagementScreenRefactoredState
         ],
       ),
       floatingActionButton: FloatingActionButton(
+        heroTag: "connectorManagementFAB",
         onPressed: _showAddConnectorDialog,
         tooltip: '添加连接器',
         child: const Icon(Icons.add),

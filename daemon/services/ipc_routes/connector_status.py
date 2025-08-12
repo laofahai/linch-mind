@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 
 from core.service_facade import get_service
 from models.database_models import Connector
-from services.database_service import DatabaseService
+from services.unified_database_service import UnifiedDatabaseService
 
 from ..ipc_protocol import IPCRequest, IPCResponse
 from ..ipc_router import IPCRouter
@@ -44,7 +44,7 @@ def create_connector_status_router() -> IPCRouter:
             message = data.get("message", "")
             data.get("metadata", {})
 
-            db_service = get_service(DatabaseService)
+            db_service = get_service(UnifiedDatabaseService)
 
             with db_service.get_session() as session:
                 connector = (
@@ -117,7 +117,7 @@ def create_connector_status_router() -> IPCRouter:
             data.get("status", "alive")
             data.get("metadata", {})
 
-            db_service = get_service(DatabaseService)
+            db_service = get_service(UnifiedDatabaseService)
 
             with db_service.get_session() as session:
                 connector = (
@@ -168,7 +168,7 @@ def create_connector_status_router() -> IPCRouter:
                     "INVALID_REQUEST", "Missing connector_id"
                 )
 
-            db_service = get_service(DatabaseService)
+            db_service = get_service(UnifiedDatabaseService)
 
             with db_service.get_session() as session:
                 connector = (

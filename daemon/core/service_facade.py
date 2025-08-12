@@ -254,10 +254,10 @@ def get_connector_manager():
 
 
 def get_database_service():
-    """获取数据库服务 - 替代重复的get_database_service调用"""
-    from services.database_service import DatabaseService
+    """获取统一数据库服务 - 替代重复的get_database_service调用"""
+    from services.unified_database_service import UnifiedDatabaseService
 
-    return get_service(DatabaseService)
+    return get_service(UnifiedDatabaseService)
 
 
 def get_security_manager():

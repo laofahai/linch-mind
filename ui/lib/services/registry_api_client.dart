@@ -25,6 +25,8 @@ class RegistryApiClient {
     String? category,
   }) async {
     try {
+      print('[DEBUG] 开始获取市场连接器列表...');
+      
       // 构建查询参数
       final queryParams = <String, dynamic>{};
       if (query != null && query.isNotEmpty) {
@@ -34,33 +36,78 @@ class RegistryApiClient {
         queryParams['category'] = category;
       }
 
+      print('[DEBUG] 查询参数: $queryParams');
+
+      // 添加超时处理，防止UI卡死
       final responseData = await _ipcApi.get(
         '/system-config/registry/connectors',
         queryParameters: queryParams.isNotEmpty ? queryParams : null,
+      ).timeout(
+        const Duration(seconds: 10),
+        onTimeout: () {
+          throw Exception('获取市场连接器超时（10秒）');
+        },
       );
 
+      print('[DEBUG] API响应: ${responseData.keys}');
+
       if (responseData['data'] != null) {
-        final List<dynamic> data = responseData['data'] as List;
+        final dynamic dataField = responseData['data'];
+        
+        // 处理不同的数据结构
+        List<dynamic> data;
+        if (dataField is List) {
+          data = dataField;
+        } else if (dataField is Map<String, dynamic>) {
+          // 如果返回的是Map，可能包含connectors字段
+          if (dataField.containsKey('connectors')) {
+            final connectorsField = dataField['connectors'];
+            if (connectorsField is List) {
+              data = connectorsField;
+            } else {
+              print('[WARNING] connectors字段不是List类型: ${connectorsField.runtimeType}');
+              return [];
+            }
+          } else {
+            print('[WARNING] Map数据中未找到connectors字段: ${dataField.keys}');
+            return [];
+          }
+        } else {
+          print('[WARNING] 意外的数据类型: ${dataField.runtimeType}');
+          return [];
+        }
+        
         return data
             .map((item) {
               // 安全地处理可能为null的item
-              if (item == null) return null;
+              if (item == null) {
+                print('[DEBUG] 跳过null连接器项');
+                return null;
+              }
 
               try {
                 // 首先尝试使用标准fromJson
                 if (item is Map<String, dynamic>) {
+                  print('[DEBUG] 解析连接器: ${item['connector_id'] ?? item['name'] ?? 'unknown'}');
                   return ConnectorDefinition.fromJson(item);
                 } else {
-                  print('[WARNING] 跳过非Map类型的连接器项: $item');
+                  print('[WARNING] 跳过非Map类型的连接器项: ${item.runtimeType} - $item');
                   return null;
                 }
               } catch (e) {
+                print('[WARNING] 标准fromJson失败: $e, 尝试Registry解析');
                 // 如果标准fromJson失败，尝试使用Registry专用的解析
                 try {
-                  return ConnectorDefinitionRegistry.fromRegistryJson(
-                      item as Map<String, dynamic>);
+                  if (item is Map<String, dynamic>) {
+                    return ConnectorDefinitionRegistry.fromRegistryJson(item);
+                  } else {
+                    print('[ERROR] Registry解析失败：item不是Map类型: ${item.runtimeType}');
+                    return null;
+                  }
                 } catch (e2) {
-                  print('[ERROR] 解析连接器定义失败: $e2, 数据: $item');
+                  print('[ERROR] Registry解析连接器定义失败: $e2');
+                  print('[ERROR] 原始数据: $item');
+                  print('[ERROR] 数据类型: ${item.runtimeType}');
                   return null;
                 }
               }

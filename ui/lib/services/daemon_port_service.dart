@@ -103,7 +103,12 @@ class DaemonPortService {
       print('[DaemonPortService] 无法获取用户主目录');
       return null;
     }
-    return File('$homeDir/$_configDirName/$_socketFileName');
+    
+    // 🔧 环境感知socket信息文件路径: 读取daemon.socket.info而不是Unix socket本身
+    final environment = Platform.environment['LINCH_MIND_MODE'] ?? 'development';
+    final socketInfoPath = '$homeDir/$_configDirName/$environment/$_socketFileName.info';
+    print('[DaemonPortService] Socket info file path: $socketInfoPath');
+    return File(socketInfoPath);
   }
 
   /// 读取并解析socket文件

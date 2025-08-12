@@ -105,6 +105,10 @@ _$ConnectorInfoImpl _$$ConnectorInfoImplFromJson(Map<String, dynamic> json) =>
       updatedAt: json['updated_at'] == null
           ? null
           : DateTime.parse(json['updated_at'] as String),
+      uptimeSeconds: (json['uptime_seconds'] as num?)?.toInt(),
+      startedAt: json['started_at'] == null
+          ? null
+          : DateTime.parse(json['started_at'] as String),
       config: json['config'] as Map<String, dynamic>? ?? const {},
     );
 
@@ -120,19 +124,18 @@ Map<String, dynamic> _$$ConnectorInfoImplToJson(_$ConnectorInfoImpl instance) =>
       'error_message': instance.errorMessage,
       'created_at': instance.createdAt?.toIso8601String(),
       'updated_at': instance.updatedAt?.toIso8601String(),
+      'uptime_seconds': instance.uptimeSeconds,
+      'started_at': instance.startedAt?.toIso8601String(),
       'config': instance.config,
     };
 
 const _$ConnectorStateEnumMap = {
-  ConnectorState.available: 'available',
-  ConnectorState.installed: 'installed',
   ConnectorState.running: 'running',
-  ConnectorState.stopped: 'stopped',
   ConnectorState.starting: 'starting',
   ConnectorState.stopping: 'stopping',
+  ConnectorState.stopped: 'stopped',
   ConnectorState.error: 'error',
-  ConnectorState.updating: 'updating',
-  ConnectorState.uninstalling: 'uninstalling',
+  ConnectorState.unknown: 'unknown',
 };
 
 _$InstallConnectorRequestImpl _$$InstallConnectorRequestImplFromJson(

@@ -163,7 +163,7 @@ class _InstalledConnectorsTabState
           padding: const EdgeInsets.all(16),
           gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: crossAxisCount,
-            childAspectRatio: 4.2,
+            childAspectRatio: 5.0,
             crossAxisSpacing: 16,
             mainAxisSpacing: 16,
           ),

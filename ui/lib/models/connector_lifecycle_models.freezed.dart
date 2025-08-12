@@ -965,7 +965,11 @@ mixin _$ConnectorInfo {
   @JsonKey(name: 'created_at')
   DateTime? get createdAt => throw _privateConstructorUsedError;
   @JsonKey(name: 'updated_at')
-  DateTime? get updatedAt => throw _privateConstructorUsedError;
+  DateTime? get updatedAt => throw _privateConstructorUsedError; // 添加运行时间相关字段
+  @JsonKey(name: 'uptime_seconds')
+  int? get uptimeSeconds => throw _privateConstructorUsedError;
+  @JsonKey(name: 'started_at')
+  DateTime? get startedAt => throw _privateConstructorUsedError;
   Map<String, dynamic> get config => throw _privateConstructorUsedError;
 
   /// Serializes this ConnectorInfo to a JSON map.
@@ -995,6 +999,8 @@ abstract class $ConnectorInfoCopyWith<$Res> {
       @JsonKey(name: 'error_message') String? errorMessage,
       @JsonKey(name: 'created_at') DateTime? createdAt,
       @JsonKey(name: 'updated_at') DateTime? updatedAt,
+      @JsonKey(name: 'uptime_seconds') int? uptimeSeconds,
+      @JsonKey(name: 'started_at') DateTime? startedAt,
       Map<String, dynamic> config});
 }
 
@@ -1023,6 +1029,8 @@ class _$ConnectorInfoCopyWithImpl<$Res, $Val extends ConnectorInfo>
     Object? errorMessage = freezed,
     Object? createdAt = freezed,
     Object? updatedAt = freezed,
+    Object? uptimeSeconds = freezed,
+    Object? startedAt = freezed,
     Object? config = null,
   }) {
     return _then(_value.copyWith(
@@ -1066,6 +1074,14 @@ class _$ConnectorInfoCopyWithImpl<$Res, $Val extends ConnectorInfo>
           ? _value.updatedAt
           : updatedAt // ignore: cast_nullable_to_non_nullable
               as DateTime?,
+      uptimeSeconds: freezed == uptimeSeconds
+          ? _value.uptimeSeconds
+          : uptimeSeconds // ignore: cast_nullable_to_non_nullable
+              as int?,
+      startedAt: freezed == startedAt
+          ? _value.startedAt
+          : startedAt // ignore: cast_nullable_to_non_nullable
+              as DateTime?,
       config: null == config
           ? _value.config
           : config // ignore: cast_nullable_to_non_nullable
@@ -1093,6 +1109,8 @@ abstract class _$$ConnectorInfoImplCopyWith<$Res>
       @JsonKey(name: 'error_message') String? errorMessage,
       @JsonKey(name: 'created_at') DateTime? createdAt,
       @JsonKey(name: 'updated_at') DateTime? updatedAt,
+      @JsonKey(name: 'uptime_seconds') int? uptimeSeconds,
+      @JsonKey(name: 'started_at') DateTime? startedAt,
       Map<String, dynamic> config});
 }
 
@@ -1119,6 +1137,8 @@ class __$$ConnectorInfoImplCopyWithImpl<$Res>
     Object? errorMessage = freezed,
     Object? createdAt = freezed,
     Object? updatedAt = freezed,
+    Object? uptimeSeconds = freezed,
+    Object? startedAt = freezed,
     Object? config = null,
   }) {
     return _then(_$ConnectorInfoImpl(
@@ -1162,6 +1182,14 @@ class __$$ConnectorInfoImplCopyWithImpl<$Res>
           ? _value.updatedAt
           : updatedAt // ignore: cast_nullable_to_non_nullable
               as DateTime?,
+      uptimeSeconds: freezed == uptimeSeconds
+          ? _value.uptimeSeconds
+          : uptimeSeconds // ignore: cast_nullable_to_non_nullable
+              as int?,
+      startedAt: freezed == startedAt
+          ? _value.startedAt
+          : startedAt // ignore: cast_nullable_to_non_nullable
+              as DateTime?,
       config: null == config
           ? _value._config
           : config // ignore: cast_nullable_to_non_nullable
@@ -1185,6 +1213,8 @@ class _$ConnectorInfoImpl implements _ConnectorInfo {
       @JsonKey(name: 'error_message') this.errorMessage,
       @JsonKey(name: 'created_at') this.createdAt,
       @JsonKey(name: 'updated_at') this.updatedAt,
+      @JsonKey(name: 'uptime_seconds') this.uptimeSeconds,
+      @JsonKey(name: 'started_at') this.startedAt,
       final Map<String, dynamic> config = const {}})
       : _config = config;
 
@@ -1221,6 +1251,13 @@ class _$ConnectorInfoImpl implements _ConnectorInfo {
   @override
   @JsonKey(name: 'updated_at')
   final DateTime? updatedAt;
+// 添加运行时间相关字段
+  @override
+  @JsonKey(name: 'uptime_seconds')
+  final int? uptimeSeconds;
+  @override
+  @JsonKey(name: 'started_at')
+  final DateTime? startedAt;
   final Map<String, dynamic> _config;
   @override
   @JsonKey()
@@ -1232,7 +1269,7 @@ class _$ConnectorInfoImpl implements _ConnectorInfo {
 
   @override
   String toString() {
-    return 'ConnectorInfo(connectorId: $connectorId, displayName: $displayName, state: $state, enabled: $enabled, processId: $processId, lastHeartbeat: $lastHeartbeat, dataCount: $dataCount, errorMessage: $errorMessage, createdAt: $createdAt, updatedAt: $updatedAt, config: $config)';
+    return 'ConnectorInfo(connectorId: $connectorId, displayName: $displayName, state: $state, enabled: $enabled, processId: $processId, lastHeartbeat: $lastHeartbeat, dataCount: $dataCount, errorMessage: $errorMessage, createdAt: $createdAt, updatedAt: $updatedAt, uptimeSeconds: $uptimeSeconds, startedAt: $startedAt, config: $config)';
   }
 
   @override
@@ -1258,6 +1295,10 @@ class _$ConnectorInfoImpl implements _ConnectorInfo {
                 other.createdAt == createdAt) &&
             (identical(other.updatedAt, updatedAt) ||
                 other.updatedAt == updatedAt) &&
+            (identical(other.uptimeSeconds, uptimeSeconds) ||
+                other.uptimeSeconds == uptimeSeconds) &&
+            (identical(other.startedAt, startedAt) ||
+                other.startedAt == startedAt) &&
             const DeepCollectionEquality().equals(other._config, _config));
   }
 
@@ -1275,6 +1316,8 @@ class _$ConnectorInfoImpl implements _ConnectorInfo {
       errorMessage,
       createdAt,
       updatedAt,
+      uptimeSeconds,
+      startedAt,
       const DeepCollectionEquality().hash(_config));
 
   /// Create a copy of ConnectorInfo
@@ -1307,6 +1350,8 @@ abstract class _ConnectorInfo implements ConnectorInfo {
       @JsonKey(name: 'error_message') final String? errorMessage,
       @JsonKey(name: 'created_at') final DateTime? createdAt,
       @JsonKey(name: 'updated_at') final DateTime? updatedAt,
+      @JsonKey(name: 'uptime_seconds') final int? uptimeSeconds,
+      @JsonKey(name: 'started_at') final DateTime? startedAt,
       final Map<String, dynamic> config}) = _$ConnectorInfoImpl;
 
   factory _ConnectorInfo.fromJson(Map<String, dynamic> json) =
@@ -1339,7 +1384,13 @@ abstract class _ConnectorInfo implements ConnectorInfo {
   DateTime? get createdAt;
   @override
   @JsonKey(name: 'updated_at')
-  DateTime? get updatedAt;
+  DateTime? get updatedAt; // 添加运行时间相关字段
+  @override
+  @JsonKey(name: 'uptime_seconds')
+  int? get uptimeSeconds;
+  @override
+  @JsonKey(name: 'started_at')
+  DateTime? get startedAt;
   @override
   Map<String, dynamic> get config;
 

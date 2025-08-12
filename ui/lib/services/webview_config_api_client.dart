@@ -45,8 +45,8 @@ class WebViewConfigApiClient {
       );
 
       // IPC返回的是JSON格式，提取HTML内容
-      if (responseData is Map && responseData['html'] != null) {
-        return responseData['html'] as String;
+      if (responseData case Map data when data['html'] != null) {
+        return data['html'] as String;
       } else {
         return responseData.toString();
       }
@@ -68,8 +68,8 @@ class WebViewConfigApiClient {
       );
 
       // IPC返回的是JSON格式，提取HTML内容
-      if (responseData is Map && responseData['html'] != null) {
-        return responseData['html'] as String;
+      if (responseData case Map data when data['html'] != null) {
+        return data['html'] as String;
       } else {
         return responseData.toString();
       }

@@ -9,7 +9,7 @@ from typing import Any, Dict, Optional
 
 from core.service_facade import get_service
 from models.database_models import ConnectorLog, EntityMetadata
-from services.database_service import DatabaseService
+from services.unified_database_service import UnifiedDatabaseService
 
 logger = logging.getLogger(__name__)
 
@@ -29,7 +29,7 @@ class GenericEventStorage:
         """懒加载数据库服务"""
         if self._db_service is None:
             try:
-                self._db_service = get_service(DatabaseService)
+                self._db_service = get_service(UnifiedDatabaseService)
             except Exception as e:
                 logger.warning(f"Database service not available: {str(e)}")
                 return None

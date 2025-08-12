@@ -33,7 +33,7 @@ logger = logging.getLogger(__name__)
 
 def _map_daemon_state_to_ui(status: str, enabled: bool) -> str:
     """
-    简化的状态映射逻辑：直接传递daemon原始状态给UI
+    简化的状态映射逻辑：确保返回有效的状态值
 
     状态说明：
     - running: 正在运行
@@ -41,16 +41,24 @@ def _map_daemon_state_to_ui(status: str, enabled: bool) -> str:
     - stopping: 停止中
     - stopped: 已停止
     - error: 错误状态
+    - unknown: 未知状态
 
     Args:
         status: 数据库中的运行状态
         enabled: 是否启用 (UI通过enabled字段判断用户意图)
 
     Returns:
-        UI端对应的状态字符串 (直接使用daemon状态)
+        UI端对应的状态字符串
     """
-    # 直接传递daemon状态给UI，让UI根据status+enabled组合显示
-    return status
+    # 确保状态值在有效范围内
+    valid_states = {'running', 'starting', 'stopping', 'stopped', 'error'}
+    
+    if status and status.lower() in valid_states:
+        return status.lower()
+    
+    # 如果状态无效或为空，返回默认状态
+    logger.warning(f"Invalid connector status: {status}, returning 'unknown'")
+    return 'unknown'
 
 
 def create_connector_lifecycle_router() -> IPCRouter:
@@ -75,8 +83,8 @@ def create_connector_lifecycle_router() -> IPCRouter:
             for conn in connectors:
                 # conn 是字典，需要使用字典访问方式
                 # 状态映射：数据库的status字段 + enabled字段 -> UI的state字段
-                status = conn["status"]
-                enabled = conn["enabled"]
+                status = conn.get("status", "stopped")  # 使用get方法，默认为stopped
+                enabled = conn.get("enabled", True)     # 使用get方法，默认为True
 
                 # 修正后的状态映射逻辑：考虑运行状态和启用状态
                 ui_state = _map_daemon_state_to_ui(status, enabled)

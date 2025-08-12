@@ -3,14 +3,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:window_manager/window_manager.dart';
 import 'screens/connector_management_screen.dart';
-import 'screens/my_mind_screen.dart';
+import 'screens/data_insights_screen.dart';
 import 'screens/knowledge_nebula_screen.dart';
 import 'screens/settings_screen.dart';
 import 'providers/app_providers.dart';
-import 'providers/app_error_provider.dart';
 import 'widgets/unified_app_bar.dart';
 import 'widgets/responsive_navigation.dart';
-import 'widgets/error_monitor_widget.dart';
 import 'widgets/smart_error_display.dart';
 import 'widgets/system_health_indicator.dart';
 import 'utils/app_logger.dart';
@@ -214,7 +212,7 @@ class _MainAppState extends ConsumerState<MainApp> {
   int _currentIndex = 0;
 
   final List<Widget> _pages = const [
-    MyMindScreen(),
+    DataInsightsScreen(),
     KnowledgeNebulaScreen(),
     ConnectorManagementScreen(),
     SettingsScreen(),

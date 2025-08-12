@@ -35,26 +35,20 @@ int _dataCountFromJson(dynamic value) {
   return 0;
 }
 
-/// 连接器状态枚举 - 对应daemon原始状态
+/// 连接器状态枚举 - 与daemon后端完全一致（6个核心状态）
 enum ConnectorState {
-  @JsonValue('available')
-  available,
-  @JsonValue('installed')
-  installed,
   @JsonValue('running')
-  running,
-  @JsonValue('stopped')
-  stopped,
+  running,     // 正在运行
   @JsonValue('starting')
-  starting,
+  starting,    // 启动中
   @JsonValue('stopping')
-  stopping,
+  stopping,    // 停止中
+  @JsonValue('stopped')
+  stopped,     // 已停止
   @JsonValue('error')
-  error,
-  @JsonValue('updating')
-  updating,
-  @JsonValue('uninstalling')
-  uninstalling,
+  error,       // 错误状态
+  @JsonValue('unknown')
+  unknown,     // 未知状态（初始化或异常）
 }
 
 /// 连接器信息 - 不再区分类型，每个连接器都是独立的
@@ -126,11 +120,37 @@ class ConnectorInfo with _$ConnectorInfo {
     @JsonKey(name: 'error_message') String? errorMessage,
     @JsonKey(name: 'created_at') DateTime? createdAt,
     @JsonKey(name: 'updated_at') DateTime? updatedAt,
+    // 添加运行时间相关字段
+    @JsonKey(name: 'uptime_seconds') int? uptimeSeconds,
+    @JsonKey(name: 'started_at') DateTime? startedAt,
     @Default({}) Map<String, dynamic> config,
   }) = _ConnectorInfo;
 
   factory ConnectorInfo.fromJson(Map<String, dynamic> json) =>
       _$ConnectorInfoFromJson(json);
+}
+
+/// ConnectorInfo的扩展方法
+extension ConnectorInfoExtensions on ConnectorInfo {
+  /// 获取运行时间 Duration
+  Duration? get uptime {
+    // 优先使用 uptimeSeconds 字段
+    if (uptimeSeconds != null && uptimeSeconds! > 0) {
+      return Duration(seconds: uptimeSeconds!);
+    }
+    
+    // 如果有 started_at，计算从启动到现在的时间
+    if (startedAt != null && state == ConnectorState.running) {
+      return DateTime.now().difference(startedAt!);
+    }
+    
+    // 如果有 last_heartbeat 且状态为运行中，使用心跳时间计算
+    if (lastHeartbeat != null && state == ConnectorState.running) {
+      return DateTime.now().difference(lastHeartbeat!);
+    }
+    
+    return null;
+  }
 }
 
 /// 统一的连接器安装请求
