@@ -13,6 +13,7 @@ from typing import Any, Dict, List, Optional
 
 from core.service_facade import get_database_service
 from models.database_models import Connector, ConnectorConfigHistory
+from utils.config_loader import ConfigLoader, ConfigLoadError
 
 from .connector_config_schema import create_basic_config_schema
 
@@ -75,30 +76,28 @@ class ConnectorConfigService:
         return self._db_service
 
     def get_connector_config(self, connector_id: str) -> Optional[Dict[str, Any]]:
-        """获取连接器配置文件内容 (connector.json)
+        """获取连接器配置文件内容 (优先 connector.toml，向后兼容 connector.json)
 
-        此方法修复了 'ConnectorConfigService' object has no attribute 'get_connector_config' 错误
+        统一配置格式：TOML优先，JSON向后兼容
         """
         try:
-            # 查找connector.json文件的可能路径
-            potential_paths = [
-                self.connectors_dir / "official" / connector_id / "connector.json",
-                self.connectors_dir / connector_id / "connector.json",
-                Path("connectors") / "official" / connector_id / "connector.json",
-                Path("connectors") / connector_id / "connector.json",
+            # 查找连接器配置文件的可能路径 - TOML优先，JSON兼容
+            search_dirs = [
+                self.connectors_dir / "official" / connector_id,
+                self.connectors_dir / connector_id,
+                Path("connectors") / "official" / connector_id,
+                Path("connectors") / connector_id,
             ]
 
-            for config_path in potential_paths:
-                if config_path.exists():
-                    with open(config_path, "r", encoding="utf-8") as f:
-                        config_data = json.load(f)
-
-                    logger.debug(f"成功加载连接器配置: {config_path}")
-                    return config_data
-
-            logger.warning(f"未找到连接器配置文件: {connector_id}")
-            logger.debug(f"搜索路径: {[str(p) for p in potential_paths]}")
-            return None
+            # 使用统一配置加载器，自动检测格式
+            try:
+                config_data = ConfigLoader.load_with_fallback("connector", search_dirs)
+                logger.debug(f"成功加载连接器配置: {connector_id}")
+                return config_data
+            except ConfigLoadError:
+                logger.warning(f"未找到连接器配置文件: {connector_id}")
+                logger.debug(f"搜索目录: {[str(d) for d in search_dirs]}")
+                return None
 
         except Exception as e:
             logger.error(f"读取连接器配置失败 {connector_id}: {e}")

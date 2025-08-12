@@ -407,8 +407,9 @@ async def ipc_lifespan():
 
 def check_existing_process():
     """检查是否已有进程在运行"""
-    # 检查PID文件
-    pid_file = config_manager.get_paths()["app_data"] / "daemon.pid"
+    # 检查PID文件 - 使用管理脚本期望的位置
+    runtime_dir = Path.home() / ".linch-mind"
+    pid_file = runtime_dir / "daemon.pid"
     if pid_file.exists():
         try:
             with open(pid_file, "r") as f:
@@ -445,8 +446,10 @@ def main():
         return
 
     try:
-        # 写入当前进程PID
-        pid_file = config_manager.get_paths()["app_data"] / "daemon.pid"
+        # 写入当前进程PID - 使用管理脚本期望的位置
+        runtime_dir = Path.home() / ".linch-mind"
+        runtime_dir.mkdir(exist_ok=True)
+        pid_file = runtime_dir / "daemon.pid"
         with open(pid_file, "w") as f:
             f.write(str(os.getpid()))
 
@@ -469,7 +472,7 @@ def main():
    - 架构: 完全独立于FastAPI的IPC系统
 
 📁 数据目录:
-   - 应用数据: {paths['app_data']}
+   - 应用数据: {paths['data']}
    - 配置文件: {paths['primary_config']}
    - 数据库: {paths['database']}/linch_mind.db
    - 日志: {paths['logs']}
@@ -503,7 +506,7 @@ def main():
         raise
     finally:
         # 清理PID文件
-        pid_file = config_manager.get_paths()["app_data"] / "daemon.pid"
+        pid_file = config_manager.get_paths()["data"] / "daemon.pid"
         if pid_file.exists():
             try:
                 pid_file.unlink()

@@ -1,0 +1,42 @@
+# Linch Mind Daemon - 开发环境配置
+# 开发环境优化：完整日志、调试模式、快速响应
+
+[environment]
+name = "development"
+
+[server]
+debug = true                # 启用调试模式，详细错误信息
+log_level = "DEBUG"         # 完整日志输出，便于开发调试
+
+[server.ipc]
+socket_path = "~/.linch-mind/development/daemon.socket"  # 开发环境Socket路径
+timeout = 30                # IPC超时时间(秒) - 开发环境宽松设置
+buffer_size = 8192          # IPC缓冲区大小 - 平衡性能和内存
+
+[database]
+use_encryption = false      # 开发环境不加密，便于调试和数据检查
+backup_enabled = false      # 开发环境无需备份
+connection_pool_size = 5    # 连接池大小 - 开发环境中等设置
+query_timeout = 30          # 查询超时时间(秒)
+
+[ai]
+default_embedding_model = "all-MiniLM-L6-v2"  # 轻量级模型，适合开发
+cache_embeddings = true     # 开发环境启用缓存，减少重复计算
+
+[ai.providers.openai]
+enabled = true              # 启用OpenAI provider
+api_key_env = "OPENAI_API_KEY"  # 环境变量中读取API密钥
+model = "gpt-3.5-turbo"     # 开发环境使用较便宜的模型
+max_tokens = 1000           # token限制
+
+[storage]
+vector_dimension = 384      # 向量维度，匹配embedding模型
+vector_index_type = "faiss" # 使用FAISS进行向量索引
+vector_max_workers = 2      # 开发环境使用较少worker
+enable_backup = false       # 开发环境无需向量数据备份
+
+[connector]
+health_check_interval = 10  # 连接器健康检查间隔(秒)
+auto_restart_failed = true  # 自动重启失败的连接器
+max_restart_attempts = 3    # 最大重启尝试次数
+startup_delay = 1           # 启动延迟(秒) - 开发环境快速启动

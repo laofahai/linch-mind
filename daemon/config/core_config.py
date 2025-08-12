@@ -8,9 +8,12 @@ import sys
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
 import yaml
+
+if TYPE_CHECKING:
+    from .config_context import ConfigContext
 
 from .error_handling import (
     ConfigFileError,
@@ -24,17 +27,17 @@ logger = get_logger(__name__)
 
 
 @dataclass
-class ServerConfig:
-    """服务器配置"""
+class IPCServerConfig:
+    """IPC服务器配置 - 纯IPC架构，无端口概念"""
 
-    host: str = "0.0.0.0"  # nosec B104
-    port: int = 0  # 0表示使用随机端口
-    port_range: List[int] = field(
-        default_factory=lambda: [49152, 65535]
-    )  # 使用标准动态端口范围
+    socket_path: Optional[str] = None  # Unix Socket路径，None表示自动生成
+    pipe_name: Optional[str] = None  # Windows Named Pipe名称，None表示自动生成
     reload: bool = True
     log_level: str = "info"
-    debug: bool = True  # 🔧 开发环境保持debug日志
+    debug: bool = True
+    max_connections: int = 100  # 最大并发连接数
+    connection_timeout: int = 30  # 连接超时时间（秒）
+    auth_required: bool = True  # 是否要求认证
 
 
 @dataclass
@@ -127,7 +130,7 @@ class AppConfig:
     debug: bool = False
 
     # 子配置
-    server: ServerConfig = field(default_factory=ServerConfig)
+    server: IPCServerConfig = field(default_factory=IPCServerConfig)
     database: DatabaseConfig = field(default_factory=DatabaseConfig)
     storage: StorageConfig = field(default_factory=StorageConfig)
     connectors: ConnectorConfig = field(default_factory=ConnectorConfig)
@@ -147,29 +150,35 @@ class CoreConfigManager:
     4. 清晰的错误处理和日志记录
     """
 
-    def __init__(self, config_root: Optional[Path] = None):
+    def __init__(
+        self,
+        config_context: Optional["ConfigContext"] = None,
+        config_root: Optional[Path] = None,
+    ):
+        """
+        初始化配置管理器 - 企业级最佳实践
+
+        Args:
+            config_context: 配置上下文接口（推荐使用）
+            config_root: 配置根目录（向后兼容，将被弃用）
+        """
+        # 依赖倒置：接受配置上下文抽象
+        if config_context is not None:
+            self.context = config_context
+        else:
+            # 向后兼容和工厂模式
+            from .config_context import create_config_context
+
+            self.context = create_config_context(config_root)
+
+        # 使用配置上下文获取路径信息 - 关注点分离
+        self.config_dir = self.context.get_config_dir()
+        self.data_dir = self.context.get_data_dir()
+        self.logs_dir = self.context.get_logs_dir()
+        self.db_dir = self.context.get_database_dir()
+
+        # 配置文件路径
         self.config_root = config_root or Path(__file__).parent.parent.parent
-
-        # 🆕 Environment Manager Integration - V62环境隔离架构
-        from core.environment_manager import get_environment_manager
-
-        self.env_manager = get_environment_manager()
-
-        # 使用环境管理器提供的路径，而非硬编码路径
-        env_config = self.env_manager.current_config
-
-        # 环境隔离的目录结构
-        self.app_data_dir = env_config.base_path
-        self.config_dir = env_config.config_dir
-        self.data_dir = env_config.data_dir
-        self.logs_dir = env_config.logs_dir
-        self.db_dir = env_config.database_dir
-
-        # 确保目录存在 (EnvironmentManager已创建，这里是双重保险)
-        for dir_path in [self.config_dir, self.data_dir, self.logs_dir, self.db_dir]:
-            dir_path.mkdir(parents=True, exist_ok=True)
-
-        # 环境特定的配置文件路径
         self.primary_config_path = self.config_dir / "app.yaml"
         self.fallback_config_path = self.config_root / "linch-mind.config.yaml"
 
@@ -179,7 +188,7 @@ class CoreConfigManager:
         self._apply_env_overrides()
 
         logger.info(
-            f"Core config loaded - Environment: {self.env_manager.current_environment.value}, Path: {self._get_active_config_path()}"
+            f"Core config loaded - Environment: {self.context.get_environment_name()}, Path: {self._get_active_config_path()}"
         )
 
     def _get_active_config_path(self) -> Path:
@@ -287,7 +296,7 @@ class CoreConfigManager:
                 version=data.get("version", "0.1.0"),
                 description=data.get("description", "Personal AI Life Assistant API"),
                 debug=bool(data.get("debug", False)),
-                server=ServerConfig(**server_data),
+                server=IPCServerConfig(**server_data),
                 database=DatabaseConfig(**database_data),
                 storage=StorageConfig(**storage_data),
                 connectors=ConnectorConfig(**connectors_data),
@@ -310,6 +319,9 @@ class CoreConfigManager:
 """
 
         try:
+            # 确保配置目录存在
+            config_path.parent.mkdir(parents=True, exist_ok=True)
+
             with open(config_path, "w", encoding="utf-8") as f:
                 f.write(yaml_content)
                 yaml.dump(
@@ -338,22 +350,22 @@ class CoreConfigManager:
             or any("test" in arg for arg in sys.argv)
         )
 
-        # 环境特定的数据库配置
-        if is_test_env:
-            # 测试环境：强制使用内存数据库
-            self.config.database.sqlite_url = "sqlite:///:memory:"
-            self.config.database.chroma_persist_directory = ":memory:"
-            logger.info("测试环境检测：使用内存数据库")
+        # 使用配置上下文的数据库配置 - 最佳实践
+        if is_test_env or self.context.is_test_environment():
+            # 测试环境：只有当database.sqlite_url为空时才使用内存数据库
+            if not self.config.database.sqlite_url:
+                self.config.database.sqlite_url = "sqlite:///:memory:"
+                logger.info("测试环境检测：使用内存数据库（默认）")
+            if not self.config.database.chroma_persist_directory:
+                self.config.database.chroma_persist_directory = ":memory:"
         else:
-            # 使用环境管理器的数据库配置
-            self.config.database.sqlite_url = self.env_manager.get_database_url()
+            # 使用配置上下文的数据库配置
+            self.config.database.sqlite_url = self.context.get_database_url()
             self.config.database.chroma_persist_directory = (
-                self.env_manager.get_chroma_persist_directory()
+                self.context.get_chroma_persist_directory()
             )
 
-            logger.info(
-                f"环境数据库配置 ({self.env_manager.current_environment.value})"
-            )
+            logger.info("使用配置上下文的数据库配置")
             logger.info(f"  Database: {self.config.database.sqlite_url}")
             logger.info(f"  ChromaDB: {self.config.database.chroma_persist_directory}")
 
@@ -362,7 +374,7 @@ class CoreConfigManager:
             self.config.storage.data_directory = str(self.data_dir)
 
         # 设置向量索引路径 - 环境隔离
-        vector_index_path = self.env_manager.get_vector_index_path()
+        vector_index_path = self.context.get_vector_index_path()
         if hasattr(self.config.storage, "vector_index_path"):
             self.config.storage.vector_index_path = str(vector_index_path)
 
@@ -376,24 +388,53 @@ class CoreConfigManager:
                 logger.debug(f"使用项目连接器目录: {project_connectors_dir}")
             else:
                 # 如果项目connectors目录不存在，使用环境特定的connectors目录
-                env_connectors_dir = (
-                    self.env_manager.current_config.base_path / "connectors"
-                )
+                env_connectors_dir = self.context.get_connectors_dir()
                 env_connectors_dir.mkdir(exist_ok=True)
                 self.config.connectors.config_dir = str(env_connectors_dir)
                 logger.debug(f"使用环境connectors目录: {env_connectors_dir}")
 
         # 环境特定的调试配置
-        if self.env_manager.is_debug_enabled():
+        if self.context.is_debug_enabled():
             self.config.debug = True
             self.config.server.debug = True
-            logger.debug(
-                f"环境 {self.env_manager.current_environment.value} 启用调试模式"
-            )
+            logger.debug(f"环境 {self.context.get_environment_name()} 启用调试模式")
 
     def _apply_env_overrides(self):
-        """应用环境变量覆盖 - 移除，环境变量处理过度复杂"""
-        # 移除环境变量覆盖功能，简化配置管理
+        """应用环境变量覆盖 - 简化版本"""
+        import os
+
+        # IPC架构的环境变量映射
+        env_mappings = {
+            "LINCH_SOCKET_PATH": ("server.socket_path", str),
+            "LINCH_PIPE_NAME": ("server.pipe_name", str),
+            "LINCH_DEBUG": ("debug", lambda x: x.lower() in ("true", "1", "yes")),
+            "LINCH_LOG_LEVEL": ("server.log_level", str),
+            "LINCH_MAX_CONNECTIONS": ("server.max_connections", int),
+            "LINCH_CONNECTION_TIMEOUT": ("server.connection_timeout", int),
+            "LINCH_AUTH_REQUIRED": (
+                "server.auth_required",
+                lambda x: x.lower() in ("true", "1", "yes"),
+            ),
+        }
+
+        for env_var, (config_path, converter) in env_mappings.items():
+            env_value = os.environ.get(env_var)
+            if env_value is not None:
+                try:
+                    # 解析配置路径
+                    parts = config_path.split(".")
+                    obj = self.config
+
+                    # 导航到父对象
+                    for part in parts[:-1]:
+                        obj = getattr(obj, part)
+
+                    # 设置值
+                    converted_value = converter(env_value)
+                    setattr(obj, parts[-1], converted_value)
+                    logger.debug(f"Applied env override: {env_var}={converted_value}")
+                except Exception as e:
+                    logger.warning(f"Failed to apply env override {env_var}: {e}")
 
     def save_config(self):
         """保存当前配置"""
@@ -414,11 +455,11 @@ class CoreConfigManager:
             return False
 
     def get_paths(self) -> Dict[str, Path]:
-        """获取各种路径"""
+        """获取各种路径 - 使用配置上下文"""
         return {
-            "app_data": self.app_data_dir,
             "config": self.config_dir,
             "data": self.data_dir,
+            "app_data": self.data_dir,  # 向后兼容的别名
             "logs": self.logs_dir,
             "database": self.db_dir,
             "primary_config": self.primary_config_path,
@@ -426,66 +467,123 @@ class CoreConfigManager:
         }
 
     def get_server_info(self) -> Dict[str, Any]:
-        """获取服务器信息"""
+        """获取IPC服务器信息"""
         return {
             "app_name": self.config.app_name,
             "version": self.config.version,
-            "host": self.config.server.host,
-            "port": self.config.server.port,
+            "socket_path": self.config.server.socket_path,
+            "pipe_name": self.config.server.pipe_name,
+            "max_connections": self.config.server.max_connections,
+            "auth_required": self.config.server.auth_required,
             "debug": self.config.debug,
             "started_at": datetime.now(timezone.utc).isoformat(),
             "config_source": str(self._get_active_config_path()),
         }
 
     def validate_config(self) -> List[str]:
-        """验证配置完整性 - 使用统一验证器"""
+        """验证配置完整性 - 企业级最佳实践实现"""
         errors = []
 
+        # 验证应用基础配置
         try:
-            # 验证服务器配置 - 对于纯IPC架构跳过端口验证
-            validate_required_field("server.host", self.config.server.host, str)
-            # 注释掉端口验证，因为IPC模式使用port=0是合理的
-            # validate_port_range("server.port", self.config.server.port)
+            validate_required_field("app_name", self.config.app_name, str)
+            validate_required_field("version", self.config.version, str)
+            if not self.config.app_name.strip():
+                errors.append("app_name cannot be empty")
+            if not self.config.version.strip():
+                errors.append("version cannot be empty")
         except ConfigValidationError as e:
             errors.append(str(e))
+        except Exception as e:
+            errors.append(f"App config validation failed: {e}")
 
+        # 验证IPC服务器配置
         try:
-            # 验证连接器配置目录
+            # 验证日志级别
+            valid_log_levels = {"debug", "info", "warning", "error", "critical"}
+            if self.config.server.log_level.lower() not in valid_log_levels:
+                errors.append(f"Invalid log_level: must be one of {valid_log_levels}")
+
+            # 验证连接数限制
+            if self.config.server.max_connections <= 0:
+                errors.append("max_connections must be positive")
+            elif self.config.server.max_connections > 10000:
+                errors.append("max_connections should not exceed 10000 for stability")
+
+            # 验证超时配置
+            if self.config.server.connection_timeout <= 0:
+                errors.append("connection_timeout must be positive")
+            elif self.config.server.connection_timeout > 300:
+                errors.append("connection_timeout should not exceed 300 seconds")
+
+            # 验证socket路径（如果指定的话）
+            if self.config.server.socket_path:
+                socket_path = Path(self.config.server.socket_path)
+                if not socket_path.parent.exists():
+                    errors.append(
+                        f"Socket parent directory does not exist: {socket_path.parent}"
+                    )
+
+        except ConfigValidationError as e:
+            errors.append(str(e))
+        except Exception as e:
+            errors.append(f"IPC server config validation failed: {e}")
+
+        # 验证数据库配置
+        try:
+            validate_required_field(
+                "database.sqlite_url", self.config.database.sqlite_url, str
+            )
+            validate_required_field(
+                "database.embedding_model", self.config.database.embedding_model, str
+            )
+
+            if self.config.database.vector_dimension <= 0:
+                errors.append("database.vector_dimension must be positive")
+
+        except ConfigValidationError as e:
+            errors.append(str(e))
+        except Exception as e:
+            errors.append(f"Database config validation failed: {e}")
+
+        # 验证存储配置
+        try:
+            data_dir = Path(self.config.storage.data_directory)
+            if not data_dir.parent.exists():
+                errors.append(
+                    f"Storage parent directory does not exist: {data_dir.parent}"
+                )
+
+            # 验证数值配置
+            if self.config.storage.graph_cache_ttl_seconds <= 0:
+                errors.append("graph_cache_ttl_seconds must be positive")
+            if self.config.storage.max_storage_gb <= 0:
+                errors.append("max_storage_gb must be positive")
+            if self.config.storage.cache_size_mb <= 0:
+                errors.append("cache_size_mb must be positive")
+
+        except Exception as e:
+            errors.append(f"Storage config validation failed: {e}")
+
+        # 验证连接器配置
+        try:
             connectors_dir = Path(self.config.connectors.config_dir)
             if not connectors_dir.exists():
-                logger.warning(
-                    "Connectors directory missing, creating", path=str(connectors_dir)
-                )
+                logger.info(f"Creating connectors directory: {connectors_dir}")
                 try:
                     connectors_dir.mkdir(parents=True, exist_ok=True)
                 except Exception as e:
                     errors.append(f"Cannot create connectors directory: {e}")
         except Exception as e:
-            errors.append(f"Connectors directory validation failed: {e}")
-
-        try:
-            # 验证数据库配置
-            validate_required_field(
-                "database.sqlite_url", self.config.database.sqlite_url, str
-            )
-        except ConfigValidationError as e:
-            errors.append(str(e))
-
-        try:
-            # 验证ChromaDB目录路径
-            chroma_dir = Path(self.config.database.chroma_persist_directory)
-            chroma_dir.mkdir(parents=True, exist_ok=True)
-            logger.debug("ChromaDB directory validated", path=str(chroma_dir))
-        except Exception as e:
-            errors.append(f"Cannot create ChromaDB directory: {e}")
+            errors.append(f"Connectors config validation failed: {e}")
 
         # 记录验证结果
         if errors:
-            logger.error("Configuration validation failed", error_count=len(errors))
+            logger.warning(f"Configuration validation found {len(errors)} issues")
             for error in errors:
-                logger.error("Validation error", error=error)
+                logger.warning(f"Config validation: {error}")
         else:
-            logger.info("Configuration validation passed")
+            logger.debug("Configuration validation passed")
 
         return errors
 
@@ -521,8 +619,12 @@ class CoreConfigManager:
             "ai": asdict(self.config.ai),
         }
 
-        # 🆕 添加环境信息
-        system_config["environment"] = self.env_manager.get_environment_summary()
+        # 🆕 添加环境信息 - 使用配置上下文
+        system_config["environment"] = {
+            "name": self.context.get_environment_name(),
+            "debug": self.context.is_debug_enabled(),
+            "test_mode": self.context.is_test_environment(),
+        }
 
         return system_config
 
@@ -542,32 +644,36 @@ class CoreConfigManager:
             logger.error(f"更新系统配置失败: {e}")
             return False
 
-    # 🆕 环境管理相关方法
+    # 🆕 环境管理相关方法 - 使用配置上下文
     def get_environment_info(self) -> Dict[str, Any]:
         """获取当前环境信息"""
-        return self.env_manager.get_environment_summary()
+        return {
+            "name": self.context.get_environment_name(),
+            "debug": self.context.is_debug_enabled(),
+            "test_mode": self.context.is_test_environment(),
+            "config_dir": str(self.context.get_config_dir()),
+            "data_dir": str(self.context.get_data_dir()),
+            "database_url": self.context.get_database_url(),
+        }
 
     def list_all_environments(self) -> List[Dict[str, Any]]:
         """列出所有可用环境"""
-        return self.env_manager.list_environments()
+        # 简化版本 - 返回当前环境信息
+        return [self.get_environment_info()]
 
     def switch_environment(self, env_name: str) -> bool:
         """切换到指定环境 (需要重启服务)"""
-        try:
-            from core.environment_manager import Environment
-
-            target_env = Environment.from_string(env_name)
-            return self.env_manager.permanently_switch_environment(target_env)
-        except Exception as e:
-            logger.error(f"切换环境失败 {env_name}: {e}")
-            return False
+        logger.warning(f"环境切换需要通过环境管理器实现: {env_name}")
+        return False  # 需要外部环境管理器支持
 
     def get_environment_paths(self) -> Dict[str, str]:
         """获取当前环境的路径信息"""
-        from core.environment_manager import get_environment_paths
-
-        paths = get_environment_paths()
-        return {key: str(path) for key, path in paths.items()}
+        return {
+            "config": str(self.context.get_config_dir()),
+            "data": str(self.context.get_data_dir()),
+            "logs": str(self.context.get_logs_dir()),
+            "database": str(self.context.get_database_dir()),
+        }
 
 
 # 全局单例
@@ -583,7 +689,7 @@ def get_core_config() -> CoreConfigManager:
 
 
 # 便捷访问函数
-def get_server_config() -> ServerConfig:
+def get_server_config() -> IPCServerConfig:
     """获取服务器配置"""
     return get_core_config().config.server
 

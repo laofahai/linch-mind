@@ -424,6 +424,11 @@ def secure_socket_file(socket_path: str) -> bool:
         return False
 
 
+def create_security_manager() -> IPCSecurityManager:
+    """创建IPC安全管理器实例"""
+    return IPCSecurityManager()
+
+
 def secure_socket_directory(socket_dir: Path) -> bool:
     """加固socket目录安全性"""
     try:

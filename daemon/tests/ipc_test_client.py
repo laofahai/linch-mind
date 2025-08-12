@@ -39,8 +39,9 @@ class IPCTestClient:
             raise RuntimeError("Not connected to IPC server")
 
         message = IPCRequest(
-            method=method,
-            params=params or {},
+            method="POST",  # HTTP方法
+            path=f"/{method}",  # 路径
+            data=params or {},  # 数据负载
             request_id="test_request_" + str(asyncio.get_event_loop().time()),
         )
 
@@ -123,12 +124,14 @@ class MockIPCDaemon:
                     result = await self.router.handle_request(
                         message.method, message.params
                     )
-                    response = IPCResponse(
-                        success=True, data=result, request_id=message.request_id
+                    response = IPCResponse.success_response(
+                        data=result, request_id=message.request_id
                     )
                 except Exception as e:
-                    response = IPCResponse(
-                        success=False, error=str(e), request_id=message.request_id
+                    response = IPCResponse.error_response(
+                        error_code="INTERNAL_ERROR",
+                        message=str(e),
+                        request_id=message.request_id,
                     )
 
                 # 发送响应
@@ -206,7 +209,12 @@ def create_mock_ipc_response(
     success: bool = True, data: Any = None, error: str = None
 ) -> Dict[str, Any]:
     """创建模拟IPC响应"""
-    response = IPCResponse(
-        success=success, data=data, error=error, request_id="test_request"
-    )
+    if success:
+        response = IPCResponse.success_response(data=data, request_id="test_request")
+    else:
+        response = IPCResponse.error_response(
+            error_code="TEST_ERROR",
+            message=error or "Test error",
+            request_id="test_request",
+        )
     return response.to_dict()

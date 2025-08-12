@@ -20,6 +20,7 @@ psutil = "^7.0.0"
 python-multipart = "^0.0.20"
 cryptography = "^42.0.0"
 pyyaml = "^6.0.0"
+tomli-w = "^1.0.0"  # TOML写入支持 (Python 3.11+有内置tomllib读取)
 jsonschema = "^4.17.0"
 faiss-cpu = "^1.8.0"
 sentence-transformers = "^3.3.0"

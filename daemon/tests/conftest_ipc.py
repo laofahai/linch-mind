@@ -159,6 +159,11 @@ async def ipc_client(mock_ipc_daemon):
     await asyncio.sleep(0.1)
 
     client = IPCTestClient(socket_path)
+    # 自动连接客户端
+    connected = await client.connect()
+    if not connected:
+        raise RuntimeError(f"Failed to connect to IPC server at {socket_path}")
+
     yield client
     client.close()
 

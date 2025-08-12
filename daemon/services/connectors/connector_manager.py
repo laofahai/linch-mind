@@ -465,16 +465,15 @@ class ConnectorManager:
             connector_id = config.get("id", connector_dir.name)
             name = config.get("name", connector_id)
             description = config.get("description", "")
-            version = config.get("version", "unknown")
+            config.get("version", "unknown")
 
             # 注册连接器
             asyncio.run(
                 self.register_connector(
                     connector_id=connector_id,
                     name=name,
-                    path=str(path),
                     description=description,
-                    version=version,
+                    enabled=True,
                 )
             )
 

@@ -31,6 +31,7 @@ def register_all_routes(app):
     from .auth import create_auth_router
     from .connector_config import create_connector_config_router
     from .connector_lifecycle import create_connector_lifecycle_router
+    from .connector_status import create_connector_status_router  # 🆕 连接器状态路由
     from .environment import create_environment_router  # 🆕 环境管理路由
     from .events import create_events_router
     from .health import create_health_router
@@ -44,6 +45,7 @@ def register_all_routes(app):
     app.include_router(create_events_router())  # 事件处理路由
     app.include_router(create_connector_lifecycle_router())
     app.include_router(create_connector_config_router())
+    app.include_router(create_connector_status_router())  # 🆕 连接器状态路由
     app.include_router(create_webview_config_router())
     app.include_router(create_system_config_router())
 
@@ -54,6 +56,7 @@ def register_all_routes(app):
 from .auth import create_auth_router
 from .connector_config import create_connector_config_router
 from .connector_lifecycle import create_connector_lifecycle_router
+from .connector_status import create_connector_status_router  # 🆕 连接器状态路由
 from .environment import create_environment_router  # 🆕 环境管理路由
 from .events import create_events_router
 from .health import create_health_router
@@ -68,6 +71,7 @@ __all__ = [
     "create_events_router",
     "create_connector_lifecycle_router",
     "create_connector_config_router",
+    "create_connector_status_router",  # 🆕 连接器状态路由
     "create_webview_config_router",
     "create_system_config_router",
 ]

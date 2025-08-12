@@ -1,0 +1,44 @@
+# Linch Mind Daemon - 预发布环境配置
+# 预发布环境：接近生产配置，用于最终测试验证
+
+[environment]
+name = "staging"
+
+[server]
+debug = true                # 预发布保留调试，便于问题排查
+log_level = "INFO"          # 标准日志级别
+
+[server.ipc]
+socket_path = "~/.linch-mind/staging/daemon.socket"  # 预发布环境Socket路径
+timeout = 30                # IPC超时时间(秒) - 适中设置
+buffer_size = 8192          # 标准缓冲区大小
+
+[database]
+use_encryption = true       # 🔒 预发布环境启用加密测试
+backup_enabled = true       # 启用备份功能测试
+backup_interval_hours = 6   # 6小时备份间隔
+connection_pool_size = 10   # 中等连接池配置
+query_timeout = 15          # 适中的查询超时
+
+[ai]
+default_embedding_model = "all-MiniLM-L6-v2"  # 与生产环境一致
+cache_embeddings = true     # 启用缓存
+
+[ai.providers.openai]
+enabled = true              # OpenAI provider
+api_key_env = "OPENAI_API_KEY"  # 环境变量读取
+model = "gpt-3.5-turbo"     # 预发布环境使用中级模型
+max_tokens = 2000           # 中等token限制
+
+[storage]
+vector_dimension = 384      # 向量维度
+vector_index_type = "faiss" # FAISS向量索引
+vector_max_workers = 4      # 中等并发worker
+enable_backup = true        # 测试向量备份功能
+backup_interval_hours = 12  # 12小时备份间隔
+
+[connector]
+health_check_interval = 30  # 30秒检查间隔 - 适中监控
+auto_restart_failed = true  # 自动重启测试
+max_restart_attempts = 5    # 适中重试次数
+startup_delay = 2           # 较短启动延迟

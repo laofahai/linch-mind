@@ -94,6 +94,55 @@ def create_connector_lifecycle_router() -> IPCRouter:
                         f"Failed to get config for {conn['connector_id']}: {e}"
                     )
 
+                # 计算运行时间
+                uptime_seconds = None
+                started_at = None
+                last_heartbeat = None
+
+                # 获取时间字段
+                if "last_heartbeat" in conn and conn["last_heartbeat"]:
+                    try:
+                        from datetime import datetime
+
+                        if isinstance(conn["last_heartbeat"], str):
+                            last_heartbeat = conn["last_heartbeat"]
+                        else:
+                            last_heartbeat = conn["last_heartbeat"].isoformat()
+                    except:
+                        last_heartbeat = None
+
+                # 如果是运行状态，计算运行时间
+                if (
+                    status == "running"
+                    and "last_heartbeat" in conn
+                    and conn["last_heartbeat"]
+                ):
+                    try:
+                        from datetime import datetime, timezone
+
+                        if isinstance(conn["last_heartbeat"], str):
+                            # 如果是字符串，尝试解析
+                            heartbeat_dt = datetime.fromisoformat(
+                                conn["last_heartbeat"].replace("Z", "+00:00")
+                            )
+                        else:
+                            heartbeat_dt = conn["last_heartbeat"]
+
+                        # 确保时区信息
+                        if heartbeat_dt.tzinfo is None:
+                            heartbeat_dt = heartbeat_dt.replace(tzinfo=timezone.utc)
+
+                        now = datetime.now(timezone.utc)
+                        uptime_seconds = max(
+                            0, int((now - heartbeat_dt).total_seconds())
+                        )
+                        started_at = heartbeat_dt.isoformat()
+                    except Exception as e:
+                        logger.debug(
+                            f"Failed to calculate uptime for {conn['connector_id']}: {e}"
+                        )
+                        uptime_seconds = None
+
                 connector_info = {
                     "connector_id": conn["connector_id"],
                     "display_name": conn["name"],
@@ -104,6 +153,11 @@ def create_connector_lifecycle_router() -> IPCRouter:
                     "error_message": conn.get(
                         "error_message", None
                     ),  # 使用get避免KeyError
+                    "last_heartbeat": last_heartbeat,
+                    "uptime_seconds": uptime_seconds,
+                    "started_at": started_at,
+                    "created_at": conn.get("created_at", None),
+                    "updated_at": conn.get("updated_at", None),
                     "config": connector_config,  # 使用实际配置
                 }
                 connector_infos.append(connector_info)

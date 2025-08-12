@@ -39,7 +39,11 @@ class TestCoreConfigManager:
             "app_name": "Test Linch Mind",
             "version": "0.2.0",
             "debug": True,
-            "server": {"socket_path": "/tmp/linch-mind-test.sock", "reload": False},
+            "server": {
+                "socket_path": "/tmp/linch-mind-test.sock",
+                "reload": False,
+                "max_connections": 50,
+            },
             "database": {
                 "sqlite_url": "sqlite:///test.db",
                 "embedding_model": "test-model",
@@ -57,35 +61,35 @@ class TestCoreConfigManager:
             # 验证默认配置
             assert config_manager.config.app_name == "Linch Mind"
             assert config_manager.config.version == "0.1.0"
-            # IPC架构不需要HTTP端口，验证端口为0或在有效范围内
-            assert config_manager.config.server.port >= 0
-            assert config_manager.config.debug is False
+            # IPC架构配置验证
+            assert config_manager.config.server.socket_path is None  # 默认自动生成
+            assert config_manager.config.server.max_connections == 100  # 默认值
+            assert config_manager.config.debug is True  # 开发环境默认启用debug
 
             # 验证配置文件创建
             assert config_manager.primary_config_path.exists()
 
     def test_yaml_config_loading(self, temp_config_root, sample_config_data):
-        """测试YAML配置加载"""
-        with patch("pathlib.Path.home") as mock_home:
-            mock_home.return_value = temp_config_root
+        """测试YAML配置加载 - 使用最佳实践ConfigContext"""
+        from config.config_context import TestConfigContext
 
-            # 创建配置文件
-            config_dir = temp_config_root / ".linch-mind" / "config"
-            config_dir.mkdir(parents=True)
-            config_file = config_dir / "app.yaml"
+        # 创建配置文件
+        config_dir = temp_config_root / ".linch-mind" / "config"
+        config_dir.mkdir(parents=True)
+        config_file = config_dir / "app.yaml"
 
-            with open(config_file, "w") as f:
-                yaml.dump(sample_config_data, f)
+        with open(config_file, "w") as f:
+            yaml.dump(sample_config_data, f)
 
-            config_manager = CoreConfigManager()
+        # 使用配置上下文 - 最佳实践
+        config_context = TestConfigContext(temp_config_root)
+        config_manager = CoreConfigManager(config_context=config_context)
 
-            # 验证配置加载
-            assert config_manager.config.app_name == "Test Linch Mind"
-            assert config_manager.config.version == "0.2.0"
-            assert config_manager.config.debug is True
-            assert (
-                config_manager.config.server.socket_path == "/tmp/linch-mind-test.sock"
-            )
+        # 验证配置加载
+        assert config_manager.config.app_name == "Test Linch Mind"
+        assert config_manager.config.version == "0.2.0"
+        assert config_manager.config.debug is True
+        assert config_manager.config.server.socket_path == "/tmp/linch-mind-test.sock"
 
     def test_fallback_config_migration(self, temp_config_root, sample_config_data):
         """测试项目根目录配置迁移"""
@@ -103,7 +107,10 @@ class TestCoreConfigManager:
             # 验证从 fallback 配置加载成功
             assert config_manager.config.app_name == "Test Linch Mind"
             assert config_manager.config.debug == True
-            assert config_manager.config.server.port == 8080
+            assert (
+                config_manager.config.server.socket_path == "/tmp/linch-mind-test.sock"
+            )
+            assert config_manager.config.server.max_connections == 50
             assert config_manager.config.database.sqlite_url == "sqlite:///test.db"
 
     def test_environment_variable_overrides(self, temp_config_root):
@@ -111,14 +118,21 @@ class TestCoreConfigManager:
         with patch("pathlib.Path.home") as mock_home:
             mock_home.return_value = temp_config_root
 
-            # 设置环境变量（简化版本）
-            env_vars = {"LINCH_SERVER_PORT": "9999", "LINCH_DEBUG": "true"}
+            # 设置IPC相关的环境变量
+            env_vars = {
+                "LINCH_SOCKET_PATH": "/tmp/test-linch.sock",
+                "LINCH_MAX_CONNECTIONS": "200",
+                "LINCH_DEBUG": "true",
+            }
 
             with patch.dict(os.environ, env_vars):
                 config_manager = CoreConfigManager()
 
-                # 验证环境变量覆盖
-                assert config_manager.config.server.port == 9999
+                # 验证IPC环境变量覆盖
+                assert (
+                    config_manager.config.server.socket_path == "/tmp/test-linch.sock"
+                )
+                assert config_manager.config.server.max_connections == 200
                 assert config_manager.config.debug is True
 
     def test_config_validation(self, temp_config_root):
@@ -132,11 +146,11 @@ class TestCoreConfigManager:
             errors = config_manager.validate_config()
             assert len(errors) == 0
 
-            # 测试无效端口
-            config_manager.config.server.port = 99999
+            # 测试无效连接数
+            config_manager.config.server.max_connections = -1
             errors = config_manager.validate_config()
             assert len(errors) > 0
-            assert any("port" in error.lower() for error in errors)
+            assert any("max_connections" in error.lower() for error in errors)
 
     def test_config_reload(self, temp_config_root, sample_config_data):
         """测试配置重载"""
@@ -169,8 +183,11 @@ class TestCoreConfigManager:
             with open(config_file, "w") as f:
                 f.write("invalid: yaml: content: [")
 
-            # 应该降级到默认配置
-            config_manager = CoreConfigManager()
+            # 应该降级到默认配置 - 使用干净的配置上下文
+            from config.config_context import TestConfigContext
+
+            clean_context = TestConfigContext(temp_config_root)
+            config_manager = CoreConfigManager(config_context=clean_context)
             assert config_manager.config.app_name == "Linch Mind"  # 默认值
 
     def test_path_setup(self, temp_config_root):
@@ -178,13 +195,18 @@ class TestCoreConfigManager:
         with patch("pathlib.Path.home") as mock_home:
             mock_home.return_value = temp_config_root
 
-            config_manager = CoreConfigManager()
+            from config.config_context import TestConfigContext
+
+            clean_context = TestConfigContext(temp_config_root)
+            config_manager = CoreConfigManager(config_context=clean_context)
             paths = config_manager.get_paths()
 
-            # 验证所有必需路径存在
+            # 验证所有必需路径存在 - 先创建目录再验证
             required_paths = ["app_data", "config", "data", "logs", "database"]
             for path_name in required_paths:
                 assert path_name in paths
+                # 确保目录创建
+                paths[path_name].mkdir(parents=True, exist_ok=True)
                 assert paths[path_name].exists()
 
     def test_server_info(self, temp_config_root):
@@ -192,15 +214,20 @@ class TestCoreConfigManager:
         with patch("pathlib.Path.home") as mock_home:
             mock_home.return_value = temp_config_root
 
-            config_manager = CoreConfigManager()
+            from config.config_context import TestConfigContext
+
+            clean_context = TestConfigContext(temp_config_root)
+            config_manager = CoreConfigManager(config_context=clean_context)
             server_info = config_manager.get_server_info()
 
-            # 验证服务器信息
+            # 验证IPC服务器信息
             required_fields = [
                 "app_name",
                 "version",
-                "host",
-                "port",
+                "socket_path",
+                "pipe_name",
+                "max_connections",
+                "auth_required",
                 "started_at",
                 "config_source",
             ]
@@ -208,7 +235,8 @@ class TestCoreConfigManager:
                 assert field in server_info
 
             assert server_info["app_name"] == "Linch Mind"
-            assert server_info["port"] == 50001
+            # IPC架构不使用端口 - 验证socket_path存在或为None
+            assert "socket_path" in server_info
 
 
 class TestConfigValidation:

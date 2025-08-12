@@ -10,6 +10,8 @@ import os
 import platform
 from typing import Any, Dict, Optional
 
+from .ipc_protocol import IPCResponse
+
 logger = logging.getLogger(__name__)
 
 
@@ -32,16 +34,23 @@ class IPCClient:
 
     async def connect(self):
         """连接到IPC服务器并自动认证（内部客户端）"""
-        if not self.socket_path:
-            # 自动发现socket路径
-            self.socket_path = await self._discover_socket_path()
+        try:
+            if not self.socket_path:
+                # 自动发现socket路径
+                self.socket_path = await self._discover_socket_path()
 
-        if platform.system() == "Windows":
-            raise NotImplementedError("Windows Named Pipe support not implemented yet")
-        else:
-            await self._connect_unix_socket()
-            # 内部客户端自动进行认证握手
-            await self._perform_internal_authentication()
+            if platform.system() == "Windows":
+                raise NotImplementedError(
+                    "Windows Named Pipe support not implemented yet"
+                )
+            else:
+                await self._connect_unix_socket()
+                # 内部客户端自动进行认证握手
+                await self._perform_internal_authentication()
+                return True
+        except Exception as e:
+            logger.error(f"IPC连接失败: {e}")
+            return False
 
     async def _discover_socket_path(self) -> str:
         """自动发现socket路径"""
@@ -52,7 +61,7 @@ class IPCClient:
             config_manager = get_config_manager()
 
             # 纯IPC架构：只从daemon.socket文件读取socket路径
-            socket_file = config_manager.get_paths()["app_data"] / "daemon.socket"
+            socket_file = config_manager.get_paths()["data"] / "daemon.socket"
             if socket_file.exists():
                 with open(socket_file, "r") as f:
                     socket_info = json.load(f)
@@ -97,7 +106,8 @@ class IPCClient:
         data: Optional[Dict[str, Any]] = None,
         headers: Optional[Dict[str, str]] = None,
         query_params: Optional[Dict[str, Any]] = None,
-    ) -> Dict[str, Any]:
+        timeout: Optional[float] = None,
+    ) -> IPCResponse:
         """发送IPC请求"""
         if not self.writer:
             await self.connect()
@@ -117,18 +127,23 @@ class IPCClient:
         }
 
         # 发送请求
+        request_timeout = timeout or self.timeout
         try:
             await self._send_message(message)
-            response = await self._receive_response()
-            return response
+            response_dict = await asyncio.wait_for(
+                self._receive_response(), timeout=request_timeout
+            )
+            return IPCResponse.from_dict(response_dict)
         except Exception as e:
             # 连接可能断开，尝试重连一次
             logger.warning(f"IPC request failed, trying to reconnect: {e}")
             await self.disconnect()
             await self.connect()
             await self._send_message(message)
-            response = await self._receive_response()
-            return response
+            response_dict = await asyncio.wait_for(
+                self._receive_response(), timeout=request_timeout
+            )
+            return IPCResponse.from_dict(response_dict)
 
     async def _send_message(self, message: Dict[str, Any]):
         """发送消息到服务器"""
@@ -208,7 +223,7 @@ class IPCClient:
         path: str,
         params: Optional[Dict[str, Any]] = None,
         headers: Optional[Dict[str, str]] = None,
-    ) -> Dict[str, Any]:
+    ) -> IPCResponse:
         """GET请求"""
         # 为daemon内部请求添加认证头部
         if not headers:
@@ -222,7 +237,7 @@ class IPCClient:
         path: str,
         data: Optional[Dict[str, Any]] = None,
         headers: Optional[Dict[str, str]] = None,
-    ) -> Dict[str, Any]:
+    ) -> IPCResponse:
         """POST请求"""
         # 为daemon内部请求添加认证头部
         if not headers:
@@ -236,7 +251,7 @@ class IPCClient:
         path: str,
         data: Optional[Dict[str, Any]] = None,
         headers: Optional[Dict[str, str]] = None,
-    ) -> Dict[str, Any]:
+    ) -> IPCResponse:
         """PUT请求"""
         # 为daemon内部请求添加认证头部
         if not headers:
@@ -247,7 +262,7 @@ class IPCClient:
 
     async def delete(
         self, path: str, headers: Optional[Dict[str, str]] = None
-    ) -> Dict[str, Any]:
+    ) -> IPCResponse:
         """DELETE请求"""
         # 为daemon内部请求添加认证头部
         if not headers:
@@ -285,25 +300,25 @@ class IPCClientSession:
             await self.client.disconnect()
             self._connected = False
 
-    async def request(self, method: str, path: str, **kwargs) -> Dict[str, Any]:
+    async def request(self, method: str, path: str, **kwargs) -> IPCResponse:
         """发送请求"""
         if not self._connected:
             await self.start()
         return await self.client.request(method, path, **kwargs)
 
-    async def get(self, path: str, **kwargs) -> Dict[str, Any]:
+    async def get(self, path: str, **kwargs) -> IPCResponse:
         """GET请求"""
         return await self.request("GET", path, **kwargs)
 
-    async def post(self, path: str, **kwargs) -> Dict[str, Any]:
+    async def post(self, path: str, **kwargs) -> IPCResponse:
         """POST请求"""
         return await self.request("POST", path, **kwargs)
 
-    async def put(self, path: str, **kwargs) -> Dict[str, Any]:
+    async def put(self, path: str, **kwargs) -> IPCResponse:
         """PUT请求"""
         return await self.request("PUT", path, **kwargs)
 
-    async def delete(self, path: str, **kwargs) -> Dict[str, Any]:
+    async def delete(self, path: str, **kwargs) -> IPCResponse:
         """DELETE请求"""
         return await self.request("DELETE", path, **kwargs)
 
@@ -333,25 +348,25 @@ async def cleanup_ipc_client():
 
 
 # 便捷的全局函数
-async def ipc_get(path: str, **kwargs) -> Dict[str, Any]:
+async def ipc_get(path: str, **kwargs) -> IPCResponse:
     """全局GET请求"""
     client = await get_ipc_client()
     return await client.get(path, **kwargs)
 
 
-async def ipc_post(path: str, **kwargs) -> Dict[str, Any]:
+async def ipc_post(path: str, **kwargs) -> IPCResponse:
     """全局POST请求"""
     client = await get_ipc_client()
     return await client.post(path, **kwargs)
 
 
-async def ipc_put(path: str, **kwargs) -> Dict[str, Any]:
+async def ipc_put(path: str, **kwargs) -> IPCResponse:
     """全局PUT请求"""
     client = await get_ipc_client()
     return await client.put(path, **kwargs)
 
 
-async def ipc_delete(path: str, **kwargs) -> Dict[str, Any]:
+async def ipc_delete(path: str, **kwargs) -> IPCResponse:
     """全局DELETE请求"""
     client = await get_ipc_client()
     return await client.delete(path, **kwargs)

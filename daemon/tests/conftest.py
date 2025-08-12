@@ -23,6 +23,7 @@ from config.core_config import CoreConfigManager
 from core.container import get_container
 from models.database_models import Base, Connector
 from services.database_service import DatabaseService
+from services.ipc_security import IPCSecurityManager
 
 
 @pytest.fixture(scope="session")
@@ -44,10 +45,20 @@ def temp_dir():
 @pytest.fixture
 def mock_config_manager(temp_dir):
     """模拟配置管理器"""
-    with patch("pathlib.Path.home") as mock_home:
-        mock_home.return_value = temp_dir
-        config_manager = CoreConfigManager()
-        yield config_manager
+    mock_manager = Mock()
+    mock_manager.get_paths.return_value = {
+        "data": temp_dir,
+        "app_data": temp_dir,
+        "logs": temp_dir / "logs",
+        "cache": temp_dir / "cache",
+    }
+    # 添加其他必要的方法
+    mock_manager.config = Mock()
+    mock_manager.config.server = Mock()
+    mock_manager.config.server.log_level = "INFO"
+    mock_manager.config.server.debug = True
+
+    yield mock_manager
 
 
 @pytest.fixture
@@ -60,9 +71,12 @@ def test_database(temp_dir):
         echo=False,
         pool_pre_ping=True,
         pool_recycle=300,
+        pool_size=1,
+        max_overflow=0,
         connect_args={
             "check_same_thread": False,
             "timeout": 10,
+            "isolation_level": None,  # autocommit mode
         },
     )
     Base.metadata.create_all(engine)
@@ -72,19 +86,22 @@ def test_database(temp_dir):
 
     yield session
 
+    # 更严格的清理
     try:
+        session.rollback()
         session.close()
     except Exception:
-        pass  # 忽略关闭错误
+        pass
 
     try:
+        # 关闭所有连接
         engine.dispose()
     except Exception:
-        pass  # 忽略处理错误
+        pass
 
 
 @pytest.fixture(scope="function")
-def database_service_fixture(test_database):
+def database_service_fixture(test_database, mock_config_manager):
     """真实的数据库服务fixture，并注册到容器中"""
     container = get_container()
 
@@ -96,12 +113,23 @@ def database_service_fixture(test_database):
     db_service._session_factory = sessionmaker(bind=db_service._engine)
 
     # 注册到容器中
-    container.register(DatabaseService, lambda: db_service)
+    container.register_instance(DatabaseService, db_service)
+    container.register_instance(CoreConfigManager, mock_config_manager)
 
-    yield db_service
+    # 注册IPCSecurityManager
+    security_manager = IPCSecurityManager()
+    container.register_instance(IPCSecurityManager, security_manager)
+
+    # 修补config.dependencies.get_config_manager函数
+    with patch(
+        "config.dependencies.get_config_manager", return_value=mock_config_manager
+    ):
+        yield db_service
 
     # 清理：从容器中移除服务
     container._services.pop(DatabaseService, None)
+    container._services.pop(CoreConfigManager, None)
+    container._services.pop(IPCSecurityManager, None)
 
 
 @pytest.fixture

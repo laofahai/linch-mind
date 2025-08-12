@@ -201,7 +201,7 @@ class StructuredExceptionHandler:
         log_data = {
             "operation": operation,
             "error_code": exc.error_code,
-            "message": exc.message,
+            "error_message": exc.message,
             "count": self.error_counts[error_key],
             "details": exc.details,
         }

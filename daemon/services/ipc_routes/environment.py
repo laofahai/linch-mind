@@ -325,13 +325,28 @@ def create_environment_router():
 
     router = IPCRouter(prefix="/environment")
 
-    # 注册环境管理路由
-    router.get("/current", handle_get_current_environment)
-    router.get("/list", handle_list_environments)
-    router.post("/switch", handle_switch_environment)
-    router.get("/paths", handle_get_environment_paths)
-    router.post("/initialize", handle_initialize_environment)
-    router.delete("/cleanup", handle_cleanup_environment)
+    # 注册环境管理路由 - 使用直接注册方式
+    from ..ipc_router import RoutePattern
+
+    # 手动注册路由模式
+    router.routes.append(
+        (RoutePattern("/environment/current", "GET"), handle_get_current_environment)
+    )
+    router.routes.append(
+        (RoutePattern("/environment/list", "GET"), handle_list_environments)
+    )
+    router.routes.append(
+        (RoutePattern("/environment/switch", "POST"), handle_switch_environment)
+    )
+    router.routes.append(
+        (RoutePattern("/environment/paths", "GET"), handle_get_environment_paths)
+    )
+    router.routes.append(
+        (RoutePattern("/environment/initialize", "POST"), handle_initialize_environment)
+    )
+    router.routes.append(
+        (RoutePattern("/environment/cleanup", "DELETE"), handle_cleanup_environment)
+    )
 
     logger.info("Environment router created with 6 endpoints")
     return router

@@ -122,7 +122,7 @@ class IPCServer:
         """写入socket信息到配置文件"""
         from config.dependencies import get_config_manager
 
-        config_manager = get_config_manager()
+        get_config_manager()
 
         # 准备socket信息
         socket_info = {
@@ -136,16 +136,22 @@ class IPCServer:
             "protocol": "ipc",
         }
 
-        # 写入主要的socket配置文件
-        socket_file = config_manager.get_paths()["app_data"] / "daemon.socket"
-        with open(socket_file, "w") as f:
+        # 🔧 修复：socket.info文件应该写到环境根目录，与daemon.socket和daemon.pid保持一致
+        # UI期望在环境根目录找到此文件，而不是在data子目录
+        # 获取环境根目录
+        from core.environment_manager import get_environment_manager
+
+        env_manager = get_environment_manager()
+        env_root = env_manager.current_config.base_path
+        socket_info_file = env_root / "daemon.socket.info"
+        with open(socket_info_file, "w") as f:
             json.dump(socket_info, f, indent=2)
 
         # 设置文件权限
         if platform.system() != "Windows":
-            os.chmod(socket_file, stat.S_IRUSR | stat.S_IWUSR)
+            os.chmod(socket_info_file, stat.S_IRUSR | stat.S_IWUSR)
 
-        logger.info(f"Socket信息已写入: {socket_file}")
+        logger.info(f"Socket信息已写入: {socket_info_file}")
 
     async def _handle_client(
         self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter
@@ -252,7 +258,8 @@ class IPCServer:
                         ).get("authenticated", False)
                         if authenticated:
                             # 记录认证信息到连接上下文
-                            client_pid = ipc_request.data.get("client_pid", 0)
+                            request_data = ipc_request.data or {}
+                            client_pid = request_data.get("client_pid", 0)
                             server_pid = os.getpid()
                             is_internal = client_pid == server_pid
                             self.client_connections[connection_id] = {
@@ -439,14 +446,24 @@ class IPCServer:
         # 清理配置文件
         from config.dependencies import get_config_manager
 
-        config_manager = get_config_manager()
+        get_config_manager()
 
         # 清理socket文件
-        socket_file = config_manager.get_paths()["app_data"] / "daemon.socket"
-        if socket_file.exists():
-            os.unlink(socket_file)
+        if self.socket_path:
+            socket_file = Path(self.socket_path)
+            if socket_file.exists():
+                try:
+                    os.unlink(socket_file)
+                except OSError:
+                    pass  # 忽略清理错误
 
         logger.info("IPC服务器已停止")
+
+    async def start_unix_server(self, socket_path: Optional[str] = None):
+        """别名方法 - 为了与测试兼容"""
+        if socket_path:
+            self.socket_path = socket_path
+        return await self._start_unix_socket()
 
     def get_server_status(self) -> Dict[str, Any]:
         """获取服务器状态信息"""
@@ -473,7 +490,24 @@ def get_ipc_server() -> IPCServer:
     """获取全局IPC服务器实例"""
     global _ipc_server
     if _ipc_server is None:
-        _ipc_server = IPCServer()
+        from config.dependencies import get_config_manager
+
+        config_manager = get_config_manager()
+
+        # 🔧 使用配置文件中的socket_path，遵循环境隔离原则
+        configured_socket_path = config_manager.config.server.socket_path
+        if configured_socket_path:
+            # 展开波浪号路径
+            from pathlib import Path
+
+            socket_path = Path(configured_socket_path).expanduser()
+            logger.info(f"✅ 使用配置的socket路径: {socket_path}")
+        else:
+            # 回退到默认路径（保持向后兼容）
+            socket_path = config_manager.get_paths()["data"] / "daemon.socket"
+            logger.warning(f"⚠️ 配置中未设置socket_path，使用默认路径: {socket_path}")
+
+        _ipc_server = IPCServer(socket_path=str(socket_path))
     return _ipc_server
 
 
