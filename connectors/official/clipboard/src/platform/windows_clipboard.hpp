@@ -1,9 +1,12 @@
 #pragma once
 
 #include <string>
+#include <functional>
+#include <memory>
 
 /**
  * Windows clipboard implementation using Win32 API
+ * Now supports event-driven monitoring using GetClipboardSequenceNumber
  */
 class WindowsClipboard {
 public:
@@ -30,7 +33,26 @@ public:
      */
     unsigned int getSequenceNumber();
 
+    /**
+     * Start event-driven clipboard monitoring
+     * @param callback Function to call when clipboard changes
+     */
+    void startEventMonitoring(std::function<void()> callback);
+
+    /**
+     * Stop clipboard monitoring
+     */
+    void stopEventMonitoring();
+
+    /**
+     * Check if monitoring is currently active
+     */
+    bool isMonitoring() const;
+
 private:
+    class Impl;
+    std::unique_ptr<Impl> pImpl;
+    
     bool openClipboard();
     void closeClipboard();
 };

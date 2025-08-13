@@ -5,6 +5,7 @@ import '../models/connector_lifecycle_models.dart';
 import '../services/connector_lifecycle_api_client.dart';
 import '../services/registry_api_client.dart';
 import '../providers/app_error_provider.dart';
+import '../providers/daemon_providers.dart';
 import '../widgets/connector_status_widget.dart';
 import '../utils/app_logger.dart';
 import 'connector_config_screen.dart';
@@ -42,8 +43,18 @@ class _ConnectorManagementScreenState
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
-    // 延迟加载以确保组件完全初始化
-    Future.microtask(() => _loadInstalledConnectors());
+    // 监听daemon状态变化，只有在daemon运行时才加载连接器
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkDaemonAndLoadConnectors();
+    });
+  }
+  
+  /// 检查daemon状态并加载连接器
+  void _checkDaemonAndLoadConnectors() {
+    final daemonRunning = ref.read(daemonRunningProvider);
+    if (daemonRunning) {
+      _loadInstalledConnectors();
+    }
   }
 
   @override
@@ -198,6 +209,14 @@ class _ConnectorManagementScreenState
 
   @override
   Widget build(BuildContext context) {
+    // 监听daemon状态变化
+    ref.listen<bool>(daemonRunningProvider, (previous, current) {
+      if (current && (previous == null || !previous)) {
+        // daemon刚刚启动，加载连接器
+        _loadInstalledConnectors();
+      }
+    });
+
     return Column(
       children: [
         // Tab导航

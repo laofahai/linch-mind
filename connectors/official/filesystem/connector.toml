@@ -77,10 +77,11 @@ windows = "bin/release/linch-mind-filesystem.exe"
 # 默认配置值
 [config_default_values]
 watch_directories = ["~/Documents", "~/Desktop"]
-scan_interval = 2.0
 recursive_depth = 5
 max_file_size = 50  # MB
 max_content_length = 50000
+batch_interval = 300  # 批量事件处理间隔(毫秒)
+debounce_time = 300   # 事件去重时间(毫秒)
 include_extensions = [
     ".txt", ".md", ".pdf", ".doc", ".docx", 
     ".xls", ".xlsx", ".ppt", ".pptx"
@@ -111,13 +112,21 @@ default = ["~/Documents", "~/Desktop"]
 [config_schema.properties.watch_directories.items]
 type = "string"
 
-[config_schema.properties.scan_interval]
-title = "扫描间隔 (秒)"
-description = "文件变化检查频率，较小值消耗更多CPU"
-type = "number"
-minimum = 0.5
-maximum = 60.0
-default = 2.0
+[config_schema.properties.batch_interval]
+title = "批量处理间隔 (毫秒)"
+description = "聚合文件事件的时间间隔，减少网络调用"
+type = "integer"
+minimum = 100
+maximum = 2000
+default = 300
+
+[config_schema.properties.debounce_time]
+title = "事件去重时间 (毫秒)"
+description = "同一文件的重复事件去重时间"
+type = "integer"
+minimum = 100
+maximum = 1000
+default = 300
 
 [config_schema.properties.recursive_depth]
 title = "递归深度"
@@ -168,7 +177,7 @@ type = "boolean"
 default = true
 
 # 必需配置字段
-config_schema.required = ["watch_directories", "scan_interval"]
+config_schema.required = ["watch_directories"]
 
 # UI配置模式
 [config_ui_schema]
@@ -186,11 +195,17 @@ ui_widget = "directory_picker"
 ui_multiple = true
 ui_help = "可以添加多个目录进行监控，支持 ~ 符号"
 
-[config_ui_schema.ui_sections.basic_config.ui_fields.scan_interval]
+[config_ui_schema.ui_sections.basic_config.ui_fields.batch_interval]
 ui_widget = "slider"
-ui_step = 0.5
-ui_unit = "秒"
-ui_help = "检查频率，影响响应速度和CPU占用"
+ui_step = 50
+ui_unit = "毫秒"
+ui_help = "聚合事件间隔，较小值响应更快但网络调用更频繁"
+
+[config_ui_schema.ui_sections.basic_config.ui_fields.debounce_time]
+ui_widget = "slider"
+ui_step = 50
+ui_unit = "毫秒"
+ui_help = "去重时间，避免同一文件的重复事件"
 
 [config_ui_schema.ui_sections.basic_config.ui_fields.recursive_depth]
 ui_widget = "slider"

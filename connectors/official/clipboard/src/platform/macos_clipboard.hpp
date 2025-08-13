@@ -1,9 +1,12 @@
 #pragma once
 
 #include <string>
+#include <functional>
+#include <memory>
 
 /**
  * macOS clipboard implementation using NSPasteboard
+ * Now supports event-driven monitoring using changeCount
  */
 class MacOSClipboard {
 public:
@@ -29,6 +32,22 @@ public:
      * @return Current change count
      */
     int getChangeCount();
+
+    /**
+     * Start event-driven clipboard monitoring
+     * @param callback Function to call when clipboard changes
+     */
+    void startEventMonitoring(std::function<void()> callback);
+
+    /**
+     * Stop clipboard monitoring
+     */
+    void stopEventMonitoring();
+
+    /**
+     * Check if monitoring is currently active
+     */
+    bool isMonitoring() const;
 
 private:
     class Impl;

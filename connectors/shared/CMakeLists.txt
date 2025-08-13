@@ -28,6 +28,7 @@ set(SOURCES
     src/config_manager.cpp
     src/utils.cpp
     src/connector_status.cpp
+    src/base_connector.cpp
 )
 
 # 创建静态库

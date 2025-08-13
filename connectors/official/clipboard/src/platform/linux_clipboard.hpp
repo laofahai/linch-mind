@@ -2,9 +2,11 @@
 
 #include <string>
 #include <memory>
+#include <functional>
 
 /**
  * Linux clipboard implementation using X11
+ * Now supports event-driven monitoring using XGetSelectionOwner
  */
 class LinuxClipboard {
 public:
@@ -23,6 +25,22 @@ public:
      * @return true if successful
      */
     bool setText(const std::string& text);
+
+    /**
+     * Start event-driven clipboard monitoring
+     * @param callback Function to call when clipboard changes
+     */
+    void startEventMonitoring(std::function<void()> callback);
+
+    /**
+     * Stop clipboard monitoring
+     */
+    void stopEventMonitoring();
+
+    /**
+     * Check if monitoring is currently active
+     */
+    bool isMonitoring() const;
 
 private:
     class Impl;

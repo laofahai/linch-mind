@@ -1,10 +1,142 @@
 #include "windows_clipboard.hpp"
 #include <windows.h>
 #include <iostream>
+#include <thread>
+#include <functional>
+#include <atomic>
 
-WindowsClipboard::WindowsClipboard() {}
+class WindowsClipboard::Impl {
+private:
+    static const UINT WM_CLIPBOARDUPDATE = 0x031D;
+    static LRESULT CALLBACK windowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
+        if (uMsg == WM_CLIPBOARDUPDATE) {
+            Impl* self = reinterpret_cast<Impl*>(GetWindowLongPtr(hwnd, GWLP_USERDATA));
+            if (self && self->changeCallback) {
+                self->changeCallback();
+            }
+            return 0;
+        }
+        return DefWindowProc(hwnd, uMsg, wParam, lParam);
+    }
 
-WindowsClipboard::~WindowsClipboard() {}
+public:
+    DWORD lastSequenceNumber;
+    std::thread monitorThread;
+    std::atomic<bool> monitoring{false};
+    std::function<void()> changeCallback;
+    HWND hiddenWindow;
+    bool eventDrivenMode;
+    
+    Impl() : hiddenWindow(nullptr), eventDrivenMode(false) {
+        lastSequenceNumber = GetClipboardSequenceNumber();
+    }
+    
+    ~Impl() {
+        stopEventMonitoring();
+    }
+    
+    bool createHiddenWindow() {
+        const char* className = "LinchMindClipboardWindow";
+        
+        WNDCLASS wc = {};
+        wc.lpfnWndProc = windowProc;
+        wc.hInstance = GetModuleHandle(nullptr);
+        wc.lpszClassName = className;
+        
+        RegisterClass(&wc);
+        
+        hiddenWindow = CreateWindow(
+            className, "LinchMindClipboard",
+            0, 0, 0, 0, 0,
+            HWND_MESSAGE, nullptr, GetModuleHandle(nullptr), nullptr
+        );
+        
+        if (hiddenWindow) {
+            SetWindowLongPtr(hiddenWindow, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(this));
+            return AddClipboardFormatListener(hiddenWindow);
+        }
+        return false;
+    }
+    
+    void destroyHiddenWindow() {
+        if (hiddenWindow) {
+            RemoveClipboardFormatListener(hiddenWindow);
+            DestroyWindow(hiddenWindow);
+            hiddenWindow = nullptr;
+        }
+    }
+    
+    void startEventMonitoring(std::function<void()> callback) {
+        if (monitoring.load()) return;
+        
+        changeCallback = callback;
+        monitoring.store(true);
+        
+        // 尝试使用事件驱动模式
+        eventDrivenMode = createHiddenWindow();
+        
+        monitorThread = std::thread([this]() {
+            if (eventDrivenMode) {
+                // 事件驱动模式：运行消息循环
+                MSG msg;
+                while (monitoring.load()) {
+                    BOOL result = GetMessage(&msg, hiddenWindow, 0, 0);
+                    if (result > 0) {
+                        TranslateMessage(&msg);
+                        DispatchMessage(&msg);
+                    } else if (result == 0) {
+                        // WM_QUIT received
+                        break;
+                    }
+                    // result < 0 means error, continue
+                }
+            } else {
+                // 降级到轮询模式
+                int idleCount = 0;
+                
+                while (monitoring.load()) {
+                    DWORD currentSequenceNumber = GetClipboardSequenceNumber();
+                    if (currentSequenceNumber != lastSequenceNumber) {
+                        lastSequenceNumber = currentSequenceNumber;
+                        idleCount = 0;
+                        
+                        if (changeCallback) {
+                            changeCallback();
+                        }
+                    } else {
+                        idleCount++;
+                    }
+                    
+                    // 自适应间隔
+                    int interval = (idleCount < 10) ? 50 : 
+                                  (idleCount < 100) ? 200 : 
+                                  (idleCount < 600) ? 1000 : 2000;
+                    
+                    Sleep(interval);
+                }
+            }
+        });
+    }
+    
+    void stopEventMonitoring() {
+        monitoring.store(false);
+        
+        if (eventDrivenMode && hiddenWindow) {
+            PostMessage(hiddenWindow, WM_QUIT, 0, 0);
+        }
+        
+        if (monitorThread.joinable()) {
+            monitorThread.join();
+        }
+        
+        destroyHiddenWindow();
+        eventDrivenMode = false;
+    }
+};
+
+WindowsClipboard::WindowsClipboard() : pImpl(std::make_unique<Impl>()) {}
+
+WindowsClipboard::~WindowsClipboard() = default;
 
 bool WindowsClipboard::openClipboard() {
     // Try to open clipboard with retry
@@ -79,4 +211,16 @@ bool WindowsClipboard::setText(const std::string& text) {
 
 unsigned int WindowsClipboard::getSequenceNumber() {
     return GetClipboardSequenceNumber();
+}
+
+void WindowsClipboard::startEventMonitoring(std::function<void()> callback) {
+    pImpl->startEventMonitoring(callback);
+}
+
+void WindowsClipboard::stopEventMonitoring() {
+    pImpl->stopEventMonitoring();
+}
+
+bool WindowsClipboard::isMonitoring() const {
+    return pImpl->monitoring.load();
 }

@@ -39,10 +39,12 @@ else()
     set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/bin/release)
 endif()
 
-# Source files (移除了重复的http_client.cpp和config_manager.cpp)
+# Source files (使用新的统一架构)
 set(SOURCES
     src/main.cpp
     src/clipboard_monitor.cpp
+    src/clipboard_monitor_adapter.cpp
+    src/clipboard_connector.cpp
     ${PLATFORM_SOURCES}
 )
 

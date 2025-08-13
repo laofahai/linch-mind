@@ -20,6 +20,24 @@ public:
 #else
     LinuxClipboard clipboard;
 #endif
+
+    std::function<void(const std::string&)> userCallback;
+    std::string lastContent;
+
+    void onClipboardChange() {
+        try {
+            std::string currentContent = clipboard.getText();
+            
+            if (currentContent != lastContent) {
+                lastContent = currentContent;
+                if (userCallback && !currentContent.empty()) {
+                    userCallback(currentContent);
+                }
+            }
+        } catch (const std::exception& e) {
+            std::cerr << "Error handling clipboard change: " << e.what() << std::endl;
+        }
+    }
 };
 
 ClipboardMonitor::ClipboardMonitor() : pImpl(std::make_unique<Impl>()) {}
@@ -33,22 +51,32 @@ bool ClipboardMonitor::startMonitoring(ChangeCallback callback, int interval_ms)
         return false; // Already monitoring
     }
 
-    m_callback = callback;
-    m_interval_ms = interval_ms;
+    // Store user callback and get initial content
+    pImpl->userCallback = callback;
+    pImpl->lastContent = getCurrentContent();
     
-    // Get initial content
-    m_lastContent = getCurrentContent();
+    // Use event-driven monitoring instead of polling
+    auto eventCallback = [this]() {
+        pImpl->onClipboardChange();
+    };
     
     m_monitoring.store(true);
-    m_monitorThread = std::thread(&ClipboardMonitor::monitorLoop, this);
+    pImpl->clipboard.startEventMonitoring(eventCallback);
     
+    std::cout << "📋 Started event-driven clipboard monitoring (optimized)" << std::endl;
     return true;
 }
 
+bool ClipboardMonitor::startMonitoring(ChangeCallback callback) {
+    // Default to event-driven monitoring without interval
+    return startMonitoring(callback, 0);
+}
+
 void ClipboardMonitor::stopMonitoring() {
-    m_monitoring.store(false);
-    if (m_monitorThread.joinable()) {
-        m_monitorThread.join();
+    if (m_monitoring.load()) {
+        pImpl->clipboard.stopEventMonitoring();
+        m_monitoring.store(false);
+        std::cout << "📋 Stopped event-driven clipboard monitoring" << std::endl;
     }
 }
 
@@ -57,34 +85,9 @@ std::string ClipboardMonitor::getCurrentContent() {
 }
 
 bool ClipboardMonitor::isMonitoring() const {
-    return m_monitoring.load();
-}
-
-void ClipboardMonitor::monitorLoop() {
-    while (m_monitoring.load()) {
-        try {
-            std::string currentContent = getClipboardText();
-            
-            if (currentContent != m_lastContent) {
-                m_lastContent = currentContent;
-                if (m_callback && !currentContent.empty()) {
-                    m_callback(currentContent);
-                }
-            }
-        } catch (const std::exception& e) {
-            std::cerr << "Error in clipboard monitoring: " << e.what() << std::endl;
-        }
-        
-        std::this_thread::sleep_for(std::chrono::milliseconds(m_interval_ms));
-    }
+    return m_monitoring.load() && pImpl->clipboard.isMonitoring();
 }
 
 std::string ClipboardMonitor::getClipboardText() {
-#ifdef _WIN32
     return pImpl->clipboard.getText();
-#elif __APPLE__
-    return pImpl->clipboard.getText();
-#else
-    return pImpl->clipboard.getText();
-#endif
 }
