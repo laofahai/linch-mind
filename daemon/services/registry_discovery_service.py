@@ -472,13 +472,4 @@ class RegistryDiscoveryService:
         }
 
 
-# 全局单例
-_discovery_service = None
-
-
-def get_registry_discovery_service() -> RegistryDiscoveryService:
-    """获取注册表发现服务单例"""
-    global _discovery_service
-    if _discovery_service is None:
-        _discovery_service = RegistryDiscoveryService()
-    return _discovery_service
+# ServiceFacade现在负责管理服务单例，不再需要本地单例模式

@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/ui_error.dart';
 import '../utils/enhanced_error_handler.dart';
 import '../services/ipc_client.dart';
+import '../core/ui_service_facade.dart';
 
 /// 应用错误状态
 class AppErrorState {
@@ -222,14 +223,14 @@ final appErrorProvider = StateNotifierProvider<AppErrorNotifier, AppErrorState>(
 
 /// 用于监控和处理IPC连接状态的Provider
 final ipcConnectionProvider = StreamProvider<bool>((ref) {
-  return IPCService.instance.connectionStream
-      .map((status) => status == ConnectionStatus.connected)
+  return getService<IPCClient>().connectionStream
+      .map((status) => status == ConnectionStatus.connected || status == ConnectionStatus.authenticated)
       .handleError((error) {
     // IPC连接错误自动添加到错误管理器
     ref.read(appErrorProvider.notifier).handleException(
           error,
           operation: 'IPC连接监控',
-          retryCallback: () => IPCService.instance.connect(),
+          retryCallback: () => getService<IPCClient>().connect(),
         );
     return false;
   });

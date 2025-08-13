@@ -12,9 +12,7 @@ from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 
-# 添加项目路径到系统路径
-project_root = Path(__file__).parent.parent
-sys.path.insert(0, str(project_root))
+# 使用标准Python包导入，无需动态路径添加
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
@@ -22,7 +20,7 @@ from sqlalchemy.orm import sessionmaker
 from config.core_config import CoreConfigManager
 from core.container import get_container
 from models.database_models import Base, Connector
-from services.database_service import DatabaseService
+from services.unified_database_service import UnifiedDatabaseService as DatabaseService
 from services.ipc_security import IPCSecurityManager
 
 

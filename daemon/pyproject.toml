@@ -8,7 +8,16 @@ dynamic = []
 requires-python = ">=3.11"
 
 [tool.poetry]
-packages = [{include = "*"}]
+packages = [
+    {include = "config"},
+    {include = "core"}, 
+    {include = "services"},
+    {include = "models"},
+    {include = "utils"},
+    {include = "scripts"},
+    {include = "main.py", format = "sdist"},
+    {include = "run_tests.py", format = "sdist"}
+]
 
 [tool.poetry.dependencies]
 python = "^3.11"

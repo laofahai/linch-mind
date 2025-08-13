@@ -8,7 +8,7 @@ import asyncio
 
 import pytest
 
-from tests.ipc_test_client import IPCTestClient
+from services.ipc_client import IPCClient
 
 # 使用IPC测试配置
 pytest_plugins = ["tests.conftest_ipc"]

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <linch_connector/connector_event.hpp>
+#include <linch_connector/unified_config.hpp>
 #include "clipboard_monitor.hpp"
 #include <memory>
 #include <mutex>
@@ -16,12 +17,22 @@ public:
     ClipboardMonitorAdapter();
     ~ClipboardMonitorAdapter() override;
 
-    // IConnectorMonitor 接口实现
-    bool start(std::function<void(const ConnectorEvent&)> callback) override;
+    // IConnectorMonitor 接口实现 - 零拷贝优化版本
+    bool start(std::function<void(ConnectorEvent&&)> callback) override;
     void stop() override;
     bool isRunning() const override;
     Statistics getStatistics() const override;
 
+    /**
+     * 设置统一配置 - 新的配置接口
+     */
+    bool setConfig(const config::ClipboardConfig& config);
+    
+    /**
+     * 获取当前配置
+     */
+    config::ClipboardConfig getConfig() const;
+    
     /**
      * 获取当前剪贴板内容
      */
@@ -29,8 +40,11 @@ public:
 
 private:
     std::unique_ptr<ClipboardMonitor> m_monitor;
-    std::function<void(const ConnectorEvent&)> m_eventCallback;
+    std::function<void(ConnectorEvent&&)> m_eventCallback;
     std::string m_lastContent;
+    
+    // 配置
+    config::ClipboardConfig m_config;
     
     // 统计信息
     mutable std::mutex m_statsMutex;

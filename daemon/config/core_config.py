@@ -95,8 +95,33 @@ class ConnectorConfig:
     """连接器配置"""
 
     config_dir: str = "connectors"
-    filesystem_enabled: bool = True
-    clipboard_enabled: bool = False
+    
+    # 动态连接器启用状态配置 - 支持任意连接器ID
+    enabled_connectors: dict = field(default_factory=lambda: {
+        "filesystem": True,
+        "clipboard": False,
+        # 支持添加任意新连接器而无需修改代码
+    })
+    
+    def is_connector_enabled(self, connector_id: str) -> bool:
+        """检查指定连接器是否启用"""
+        if isinstance(self.enabled_connectors, dict) and connector_id in self.enabled_connectors:
+            return self.enabled_connectors[connector_id]
+        
+        # 默认新连接器为禁用状态
+        return False
+    
+    def enable_connector(self, connector_id: str) -> None:
+        """启用指定连接器"""
+        if not isinstance(self.enabled_connectors, dict):
+            self.enabled_connectors = {}
+        self.enabled_connectors[connector_id] = True
+    
+    def disable_connector(self, connector_id: str) -> None:
+        """禁用指定连接器"""
+        if not isinstance(self.enabled_connectors, dict):
+            self.enabled_connectors = {}
+        self.enabled_connectors[connector_id] = False
 
 
 @dataclass

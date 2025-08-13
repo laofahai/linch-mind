@@ -512,22 +512,4 @@ class DataMigrationService:
             return {"error": str(e)}
 
 
-# 全局迁移服务实例
-_migration_service: Optional[DataMigrationService] = None
-
-
-async def get_migration_service() -> DataMigrationService:
-    """获取迁移服务实例（单例模式）"""
-    global _migration_service
-    if _migration_service is None:
-        _migration_service = DataMigrationService()
-        await _migration_service.initialize()
-
-    return _migration_service
-
-
-async def cleanup_migration_service():
-    """清理迁移服务"""
-    global _migration_service
-    if _migration_service:
-        _migration_service = None
+# ServiceFacade现在负责管理服务单例，不再需要本地单例模式

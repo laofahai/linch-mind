@@ -38,7 +38,6 @@ class _WebViewConfigWidgetState extends ConsumerState<WebViewConfigWidget> {
   bool _isLoading = true;
   bool _hasError = false;
   String _errorMessage = '';
-  Map<String, dynamic> _pendingConfig = {};
 
   @override
   void initState() {
@@ -131,14 +130,12 @@ class _WebViewConfigWidgetState extends ConsumerState<WebViewConfigWidget> {
       switch (action) {
         case 'configChanged':
           if (payload is Map<String, dynamic>) {
-            _pendingConfig = payload;
             widget.onConfigChanged(payload);
           }
           break;
 
         case 'saveConfig':
           if (payload is Map<String, dynamic>) {
-            _pendingConfig = payload;
             widget.onConfigChanged(payload);
           }
           if (widget.onSave != null) {

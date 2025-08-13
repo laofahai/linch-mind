@@ -19,6 +19,11 @@ class ResponsiveNavigation extends StatelessWidget {
       label: 'Mind',
     ),
     NavigationDestination(
+      icon: Icon(Icons.search_outlined),
+      selectedIcon: Icon(Icons.search),
+      label: '搜索',
+    ),
+    NavigationDestination(
       icon: Icon(Icons.scatter_plot_outlined),
       selectedIcon: Icon(Icons.scatter_plot),
       label: '星云',

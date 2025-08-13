@@ -1,10 +1,12 @@
-// 数据洞察服务 - 通过IPC获取智能分析数据
+// 数据洞察服务 - 纯UI数据获取层（零业务逻辑）
 import 'dart:async';
 import '../models/data_insights_models.dart';
 import '../models/ipc_protocol.dart';
 import 'ipc_client.dart';
 import '../utils/app_logger.dart';
 
+/// 纯UI数据服务 - 仅负责IPC通信和数据缓存
+/// 所有业务逻辑已迁移到daemon端处理
 class DataInsightsService {
   final IPCClient _ipcClient;
   late final StreamController<DataInsightsOverview> _overviewController;
@@ -19,53 +21,23 @@ class DataInsightsService {
   Stream<DataInsightsOverview> get overviewStream => _overviewController.stream;
   Stream<List<TimelineItem>> get timelineStream => _timelineController.stream;
 
-  /// 获取数据洞察概览
+  /// 获取数据洞察概览 - 纯数据获取，无业务逻辑
   Future<DataInsightsOverview> getOverview() async {
     try {
       AppLogger.info('获取数据洞察概览', module: 'DataInsightsService');
 
-      // 通过IPC获取真实数据
-      final dashboardRequest = IPCRequest(
+      // 直接从daemon获取完整的概览数据
+      final request = IPCRequest(
         method: 'GET',
-        path: '/data/dashboard',
-        requestId: 'dashboard_${DateTime.now().millisecondsSinceEpoch}',
+        path: '/insights/overview',
+        requestId: 'overview_${DateTime.now().millisecondsSinceEpoch}',
       );
 
-      final insightsRequest = IPCRequest(
-        method: 'GET',
-        path: '/data/insights',
-        requestId: 'insights_${DateTime.now().millisecondsSinceEpoch}',
-      );
+      final response = await _ipcClient.sendRequest(request);
+      final data = _ensureStringDynamicMap(response.data ?? {});
 
-      final timelineRequest = IPCRequest(
-        method: 'GET',
-        path: '/data/timeline',
-        requestId: 'timeline_${DateTime.now().millisecondsSinceEpoch}',
-        queryParams: {'limit': '10'},
-      );
-
-      // 并行请求所有数据
-      final results = await Future.wait([
-        _ipcClient.sendRequest(dashboardRequest),
-        _ipcClient.sendRequest(insightsRequest),
-        _ipcClient.sendRequest(timelineRequest),
-      ]);
-
-      final dashboardResponse = results[0];
-      final insightsResponse = results[1];
-      final timelineResponse = results[2];
-
-      // 解析响应数据 - 修复类型转换问题
-      final dashboardData = _ensureStringDynamicMap(dashboardResponse.data ?? {});
-      final insightsData = _ensureStringDynamicMap(insightsResponse.data ?? {});
-      final timelineData = _ensureStringDynamicMap(timelineResponse.data ?? {});
-
-      // 构建概览数据
-      final overview = _buildOverviewFromApiData(
-        dashboardData,
-        insightsData,
-        timelineData,
-      );
+      // 直接构建概览数据，无任何业务逻辑处理
+      final overview = _buildOverviewFromCompleteApiData(data);
       
       // 更新流
       _overviewController.add(overview);
@@ -73,15 +45,11 @@ class DataInsightsService {
       return overview;
     } catch (e) {
       AppLogger.error('获取数据洞察概览失败: $e', module: 'DataInsightsService');
-      
-      // 降级到模拟数据
-      final mockOverview = _createMockOverview();
-      _overviewController.add(mockOverview);
-      return mockOverview;
+      rethrow; // 不再使用Mock数据，直接抛出错误
     }
   }
 
-  /// 获取实体详情列表
+  /// 获取实体详情列表 - 纯数据获取
   Future<List<EntityDetail>> getEntities({
     String? type,
     int limit = 50,
@@ -106,46 +74,177 @@ class DataInsightsService {
       return entitiesList.map((entity) => _parseEntityDetail(entity)).toList();
     } catch (e) {
       AppLogger.error('获取实体列表失败: $e', module: 'DataInsightsService');
-      // 降级到模拟数据
-      return _createMockEntities(type: type, limit: limit);
+      rethrow; // 不再使用Mock数据
     }
   }
 
-  /// 获取时间线活动
+  /// 获取时间线活动 - 纯数据获取
   Future<List<TimelineItem>> getTimeline({
     DateTime? startDate,
     DateTime? endDate,
     int limit = 100,
   }) async {
     try {
-      final timeline = _createMockTimeline(limit: limit);
+      final request = IPCRequest(
+        method: 'GET',
+        path: '/data/timeline',
+        requestId: 'timeline_${DateTime.now().millisecondsSinceEpoch}',
+        queryParams: {'limit': limit.toString()},
+      );
+
+      final response = await _ipcClient.sendRequest(request);
+      final data = _ensureStringDynamicMap(response.data ?? {});
+      final timelineList = data['timeline'] as List<dynamic>? ?? [];
+
+      final timeline = timelineList.map((item) => _parseTimelineItem(item)).toList();
       _timelineController.add(timeline);
       return timeline;
     } catch (e) {
       AppLogger.error('获取时间线失败: $e', module: 'DataInsightsService');
-      return [];
+      rethrow;
     }
   }
 
-  /// 搜索实体
+  /// 搜索实体 - 纯数据获取
   Future<List<EntityDetail>> searchEntities(String query) async {
     try {
-      // TODO: 实现真实的搜索API
-      return _createMockEntities(searchQuery: query);
+      final request = IPCRequest(
+        method: 'POST',
+        path: '/data/search',
+        requestId: 'search_${DateTime.now().millisecondsSinceEpoch}',
+        data: {'query': query, 'limit': 20},
+      );
+
+      final response = await _ipcClient.sendRequest(request);
+      final data = _ensureStringDynamicMap(response.data ?? {});
+      final resultsList = data['results'] as List<dynamic>? ?? [];
+
+      return resultsList.map((entity) => _parseEntityDetail(entity)).toList();
     } catch (e) {
       AppLogger.error('搜索实体失败: $e', module: 'DataInsightsService');
+      rethrow;
+    }
+  }
+
+  /// 获取连接器状态 - 暂时不实现，由overview接口返回
+  Future<List<ConnectorStatus>> getConnectorStatuses() async {
+    try {
+      // 连接器状态现在由/insights/overview接口统一返回
+      final overview = await getOverview();
+      return overview.connectorStatuses;
+    } catch (e) {
+      AppLogger.error('获取连接器状态失败: $e', module: 'DataInsightsService');
+      rethrow;
+    }
+  }
+
+  /// 向量语义搜索
+  Future<List<VectorSearchResult>> vectorSearch(VectorSearchQuery query) async {
+    try {
+      AppLogger.info('执行向量搜索: ${query.query}', module: 'DataInsightsService');
+
+      final request = IPCRequest(
+        method: 'POST',
+        path: '/search/vector',
+        requestId: 'vector_search_${DateTime.now().millisecondsSinceEpoch}',
+        data: query.toJson(),
+      );
+
+      final response = await _ipcClient.sendRequest(request);
+      final data = _ensureStringDynamicMap(response.data ?? {});
+      final resultsList = data['results'] as List<dynamic>? ?? [];
+
+      return resultsList.map((result) => _parseVectorSearchResult(result)).toList();
+    } catch (e) {
+      AppLogger.error('向量搜索失败: $e', module: 'DataInsightsService');
+      rethrow;
+    }
+  }
+
+  /// 获取搜索建议
+  Future<List<SearchSuggestion>> getSearchSuggestions(String query) async {
+    try {
+      final request = IPCRequest(
+        method: 'POST',
+        path: '/search/suggestions',
+        requestId: 'suggestions_${DateTime.now().millisecondsSinceEpoch}',
+        data: {'query': query},
+      );
+
+      final response = await _ipcClient.sendRequest(request);
+      final data = _ensureStringDynamicMap(response.data ?? {});
+      final suggestionsList = data['suggestions'] as List<dynamic>? ?? [];
+
+      return suggestionsList.map((suggestion) => _parseSearchSuggestion(suggestion)).toList();
+    } catch (e) {
+      AppLogger.error('获取搜索建议失败: $e', module: 'DataInsightsService');
       return [];
     }
   }
 
-  /// 获取连接器状态
-  Future<List<ConnectorStatus>> getConnectorStatuses() async {
+  /// 计算实体相似性
+  Future<List<SimilarityResult>> calculateSimilarity(String entityId, {int limit = 10}) async {
     try {
-      // TODO: 集成真实的连接器状态API
-      return _createMockConnectorStatuses();
+      final request = IPCRequest(
+        method: 'POST',
+        path: '/similarity/calculate',
+        requestId: 'similarity_${DateTime.now().millisecondsSinceEpoch}',
+        data: {
+          'entity_id': entityId,
+          'limit': limit,
+        },
+      );
+
+      final response = await _ipcClient.sendRequest(request);
+      final data = _ensureStringDynamicMap(response.data ?? {});
+      final resultsList = data['similarities'] as List<dynamic>? ?? [];
+
+      return resultsList.map((result) => _parseSimilarityResult(result)).toList();
     } catch (e) {
-      AppLogger.error('获取连接器状态失败: $e', module: 'DataInsightsService');
-      return [];
+      AppLogger.error('计算相似性失败: $e', module: 'DataInsightsService');
+      rethrow;
+    }
+  }
+
+  /// 获取内容聚类结果
+  Future<List<ClusterResult>> getContentClusters({int numClusters = 10}) async {
+    try {
+      final request = IPCRequest(
+        method: 'POST',
+        path: '/clustering/analyze',
+        requestId: 'clustering_${DateTime.now().millisecondsSinceEpoch}',
+        data: {
+          'num_clusters': numClusters,
+        },
+      );
+
+      final response = await _ipcClient.sendRequest(request);
+      final data = _ensureStringDynamicMap(response.data ?? {});
+      final clustersList = data['clusters'] as List<dynamic>? ?? [];
+
+      return clustersList.map((cluster) => _parseClusterResult(cluster)).toList();
+    } catch (e) {
+      AppLogger.error('获取聚类结果失败: $e', module: 'DataInsightsService');
+      rethrow;
+    }
+  }
+
+  /// 获取向量数据库指标
+  Future<VectorMetrics> getVectorMetrics() async {
+    try {
+      final request = IPCRequest(
+        method: 'GET',
+        path: '/vector/metrics',
+        requestId: 'metrics_${DateTime.now().millisecondsSinceEpoch}',
+      );
+
+      final response = await _ipcClient.sendRequest(request);
+      final data = _ensureStringDynamicMap(response.data ?? {});
+
+      return _parseVectorMetrics(data);
+    } catch (e) {
+      AppLogger.error('获取向量指标失败: $e', module: 'DataInsightsService');
+      rethrow;
     }
   }
 
@@ -155,434 +254,98 @@ class DataInsightsService {
     _timelineController.close();
   }
 
-  // Mock数据生成方法
+  // 数据转换方法 - 纯数据映射，无业务逻辑
 
-  DataInsightsOverview _createMockOverview() {
-    final now = DateTime.now();
-    return DataInsightsOverview(
-      todayStats: const TodayStats(
-        newEntities: 127,
-        activeConnectors: 2,
-        aiAnalysisCompleted: 89,
-        knowledgeConnections: 34,
-      ),
-      entityBreakdown: const EntityBreakdown(
-        url: 45,
-        filePath: 23,
-        email: 12,
-        phone: 8,
-        keyword: 39,
-        other: 15,
-      ),
-      recentInsights: [
-        AIInsight(
-          type: 'pattern_detection',
-          title: '检测到开发工作模式',
-          description: '过去2小时集中访问代码文件和技术文档',
-          confidence: 0.87,
-          entities: const ['Python文件', 'Flutter项目', 'GitHub链接'],
-          detectedAt: now.subtract(const Duration(minutes: 15)),
-          iconName: 'trending_up',
-          actionLabel: '查看详情',
-        ),
-        AIInsight(
-          type: 'content_analysis',
-          title: '发现新的学习主题',
-          description: 'UI/UX设计相关内容增加显著',
-          confidence: 0.73,
-          entities: const ['设计系统', 'Material Design', '用户体验'],
-          detectedAt: now.subtract(const Duration(hours: 1)),
-          iconName: 'lightbulb',
-          actionLabel: '探索更多',
-        ),
-        AIInsight(
-          type: 'productivity_insight',
-          title: '高效工作时段识别',
-          description: '检测到你在上午10-12点最为专注',
-          confidence: 0.91,
-          entities: const ['代码编辑', '文档阅读', '问题解决'],
-          detectedAt: now.subtract(const Duration(hours: 2)),
-          iconName: 'schedule',
-          actionLabel: '优化日程',
-        ),
-      ],
-      trendingEntities: [
-        const TrendingEntity(
-          name: 'Linch Mind项目',
-          type: 'project',
-          frequency: 42,
-          trend: '+15%',
-          trendValue: 15.0,
-          description: '个人AI生活助手项目',
-        ),
-        const TrendingEntity(
-          name: 'Flutter开发',
-          type: 'skill',
-          frequency: 28,
-          trend: '+8%',
-          trendValue: 8.0,
-          description: '跨平台UI开发框架',
-        ),
-        const TrendingEntity(
-          name: 'AI界面设计',
-          type: 'topic',
-          frequency: 19,
-          trend: '+12%',
-          trendValue: 12.0,
-          description: '人工智能用户界面设计',
-        ),
-      ],
-      recentActivities: _createMockTimeline(limit: 10),
-      connectorStatuses: _createMockConnectorStatuses(),
-      lastUpdated: now,
-    );
-  }
-
-  List<EntityDetail> _createMockEntities({
-    String? type,
-    String? searchQuery,
-    int limit = 50,
-  }) {
-    final now = DateTime.now();
-    final entities = <EntityDetail>[];
-
-    // 根据类型或搜索查询生成不同的实体
-    if (type == 'url' || searchQuery?.contains('github') == true) {
-      entities.addAll([
-        EntityDetail(
-          id: 'url_1',
-          name: 'https://github.com/flutter/flutter',
-          type: 'url',
-          description: 'Flutter框架GitHub仓库',
-          createdAt: now.subtract(const Duration(hours: 2)),
-          lastAccessed: now.subtract(const Duration(minutes: 30)),
-          accessCount: 15,
-          tags: const ['开发', 'Flutter', 'GitHub'],
-        ),
-        EntityDetail(
-          id: 'url_2',
-          name: 'https://material.io/design',
-          type: 'url',
-          description: 'Material Design设计系统',
-          createdAt: now.subtract(const Duration(hours: 4)),
-          lastAccessed: now.subtract(const Duration(hours: 1)),
-          accessCount: 8,
-          tags: const ['设计', 'UI', 'Material Design'],
-        ),
-      ]);
-    }
-
-    if (type == 'file_path' || searchQuery?.contains('项目') == true) {
-      entities.addAll([
-        EntityDetail(
-          id: 'file_1',
-          name: '/Users/developer/workspace/linch-mind/ui/lib/main.dart',
-          type: 'file_path',
-          description: '主应用入口文件',
-          createdAt: now.subtract(const Duration(hours: 1)),
-          lastAccessed: now.subtract(const Duration(minutes: 10)),
-          accessCount: 23,
-          tags: const ['Flutter', '代码', '入口文件'],
-        ),
-        EntityDetail(
-          id: 'file_2',
-          name: '/Users/developer/workspace/linch-mind/daemon/main.py',
-          type: 'file_path',
-          description: 'Python后端服务主文件',
-          createdAt: now.subtract(const Duration(hours: 3)),
-          lastAccessed: now.subtract(const Duration(minutes: 45)),
-          accessCount: 18,
-          tags: const ['Python', '后端', '服务'],
-        ),
-      ]);
-    }
-
-    // 添加更多模拟数据
-    for (int i = entities.length; i < limit; i++) {
-      entities.add(EntityDetail(
-        id: 'entity_$i',
-        name: '实体 $i',
-        type: ['url', 'file_path', 'keyword', 'email'][i % 4],
-        description: '这是第 $i 个实体的描述',
-        createdAt: now.subtract(Duration(hours: i)),
-        lastAccessed: now.subtract(Duration(minutes: i * 5)),
-        accessCount: (limit - i),
-        tags: ['标签${i % 3}', '类别${i % 2}'],
-      ));
-    }
-
-    return entities;
-  }
-
-  List<TimelineItem> _createMockTimeline({int limit = 100}) {
-    final now = DateTime.now();
-    final activities = <TimelineItem>[];
-
-    final activityTypes = [
-      'entity_created',
-      'insight_generated',
-      'connector_activity',
-      'analysis_completed',
-    ];
-
-    for (int i = 0; i < limit; i++) {
-      final type = activityTypes[i % activityTypes.length];
-      final timestamp = now.subtract(Duration(minutes: i * 5));
-
-      activities.add(TimelineItem(
-        id: 'timeline_$i',
-        title: _getActivityTitle(type, i),
-        description: _getActivityDescription(type, i),
-        timestamp: timestamp,
-        type: type,
-        iconName: _getActivityIcon(type),
-        connectorId: type == 'connector_activity' ? 'clipboard' : null,
-        metadata: {
-          'index': i,
-          'priority': i < 10 ? 'high' : 'normal',
-        },
-      ));
-    }
-
-    return activities;
-  }
-
-  List<ConnectorStatus> _createMockConnectorStatuses() {
-    final now = DateTime.now();
-    return [
-      ConnectorStatus(
-        id: 'clipboard',
-        name: '剪贴板连接器',
-        status: 'running',
-        enabled: true,
-        dataCount: 156,
-        lastHeartbeat: now.subtract(const Duration(seconds: 30)),
-      ),
-      ConnectorStatus(
-        id: 'filesystem',
-        name: '文件系统连接器',
-        status: 'stopped',
-        enabled: false,
-        dataCount: 0,
-        lastHeartbeat: null,
-      ),
-    ];
-  }
-
-  String _getActivityTitle(String type, int index) {
-    switch (type) {
-      case 'entity_created':
-        return '新实体创建';
-      case 'insight_generated':
-        return 'AI洞察生成';
-      case 'connector_activity':
-        return '连接器活动';
-      case 'analysis_completed':
-        return '内容分析完成';
-      default:
-        return '系统活动 $index';
-    }
-  }
-
-  String _getActivityDescription(String type, int index) {
-    switch (type) {
-      case 'entity_created':
-        return '检测到新的URL实体并完成分析';
-      case 'insight_generated':
-        return '识别出新的工作模式和行为趋势';
-      case 'connector_activity':
-        return '剪贴板连接器采集了新的内容';
-      case 'analysis_completed':
-        return '完成对文档内容的智能分析';
-      default:
-        return '系统执行了第 $index 个活动';
-    }
-  }
-
-  String _getActivityIcon(String type) {
-    switch (type) {
-      case 'entity_created':
-        return 'add_circle';
-      case 'insight_generated':
-        return 'psychology';
-      case 'connector_activity':
-        return 'sensors';
-      case 'analysis_completed':
-        return 'analytics';
-      default:
-        return 'info';
-    }
-  }
-
-  // 真实API数据解析方法
-
-  DataInsightsOverview _buildOverviewFromApiData(
-    Map<String, dynamic> dashboardData,
-    Map<String, dynamic> insightsData,
-    Map<String, dynamic> timelineData,
-  ) {
-    final now = DateTime.now();
-    
-    // 解析仪表板数据
-    final entityTypes = dashboardData['entity_types'] as Map<String, dynamic>? ?? {};
-    final totalEntities = dashboardData['total_entities'] as int? ?? 0;
-    final todayEntities = dashboardData['today_entities'] as int? ?? 0;
-
-    // 解析AI洞察数据
-    final workPatterns = insightsData['work_patterns'] as Map<String, dynamic>? ?? {};
-    final contentCategories = insightsData['content_categories'] as Map<String, dynamic>? ?? {};
-    final productivityInsights = insightsData['productivity_insights'] as Map<String, dynamic>? ?? {};
-
-    // 解析时间线数据
-    final timelineList = timelineData['timeline'] as List<dynamic>? ?? [];
+  /// 从完整的API数据构建概览对象
+  DataInsightsOverview _buildOverviewFromCompleteApiData(Map<String, dynamic> data) {
+    final todayStatsData = data['todayStats'] as Map<String, dynamic>? ?? {};
+    final entityBreakdownData = data['entityBreakdown'] as Map<String, dynamic>? ?? {};
+    final recentInsightsList = data['recentInsights'] as List<dynamic>? ?? [];
+    final trendingEntitiesList = data['trendingEntities'] as List<dynamic>? ?? [];
+    final recentActivitiesList = data['recentActivities'] as List<dynamic>? ?? [];
+    final connectorStatusesList = data['connectorStatuses'] as List<dynamic>? ?? [];
 
     return DataInsightsOverview(
       todayStats: TodayStats(
-        newEntities: todayEntities,
-        activeConnectors: 2, // 硬编码，未来从连接器状态获取
-        aiAnalysisCompleted: totalEntities,
-        knowledgeConnections: (totalEntities * 0.3).round(),
+        newEntities: todayStatsData['newEntities'] as int? ?? 0,
+        activeConnectors: todayStatsData['activeConnectors'] as int? ?? 0,
+        aiAnalysisCompleted: todayStatsData['aiAnalysisCompleted'] as int? ?? 0,
+        knowledgeConnections: todayStatsData['knowledgeConnections'] as int? ?? 0,
       ),
       entityBreakdown: EntityBreakdown(
-        url: entityTypes['urls'] as int? ?? 0,
-        filePath: entityTypes['files'] as int? ?? 0,
-        email: entityTypes['emails'] as int? ?? 0,
-        phone: entityTypes['phones'] as int? ?? 0,
-        keyword: entityTypes['keywords'] as int? ?? 0,
-        other: 0,
+        url: entityBreakdownData['url'] as int? ?? 0,
+        filePath: entityBreakdownData['filePath'] as int? ?? 0,
+        email: entityBreakdownData['email'] as int? ?? 0,
+        phone: entityBreakdownData['phone'] as int? ?? 0,
+        keyword: entityBreakdownData['keyword'] as int? ?? 0,
+        other: entityBreakdownData['other'] as int? ?? 0,
       ),
-      recentInsights: _parseAIInsights(workPatterns, contentCategories, productivityInsights),
-      trendingEntities: _parseTrendingEntities(contentCategories),
-      recentActivities: timelineList.map((item) => _parseTimelineItem(item)).toList(),
-      connectorStatuses: _createMockConnectorStatuses(), // 暂时使用模拟数据
-      lastUpdated: now,
+      recentInsights: recentInsightsList.map((item) => _parseAIInsight(item)).toList(),
+      trendingEntities: trendingEntitiesList.map((item) => _parseTrendingEntity(item)).toList(),
+      recentActivities: recentActivitiesList.map((item) => _parseTimelineItem(item)).toList(),
+      connectorStatuses: connectorStatusesList.map((item) => _parseConnectorStatus(item)).toList(),
+      lastUpdated: DateTime.tryParse(data['lastUpdated']?.toString() ?? '') ?? DateTime.now(),
     );
   }
 
-  List<AIInsight> _parseAIInsights(
-    Map<String, dynamic> workPatterns,
-    Map<String, dynamic> contentCategories,
-    Map<String, dynamic> productivityInsights,
-  ) {
-    final insights = <AIInsight>[];
-    final now = DateTime.now();
-
-    // 解析工作模式洞察
-    final primaryWorkMode = workPatterns['primary_work_mode'] as String? ?? '常规办公';
-    final detectedPatterns = workPatterns['detected_patterns'] as List<dynamic>? ?? [];
-
-    if (primaryWorkMode != '常规办公') {
-      insights.add(AIInsight(
-        type: 'pattern_detection',
-        title: '检测到工作模式: $primaryWorkMode',
-        description: detectedPatterns.isNotEmpty 
-            ? detectedPatterns.first.toString() 
-            : '分析了你的工作习惯和内容偏好',
-        confidence: 0.85,
-        entities: [primaryWorkMode],
-        detectedAt: now.subtract(const Duration(minutes: 15)),
-        iconName: 'trending_up',
-        actionLabel: '查看详情',
-      ));
-    }
-
-    // 解析内容类别洞察
-    final learningTopics = contentCategories['learning_topics'] as List<dynamic>? ?? [];
-
-    if (learningTopics.isNotEmpty) {
-      insights.add(AIInsight(
-        type: 'content_analysis',
-        title: '发现学习主题',
-        description: '检测到你在关注: ${learningTopics.join(', ')}',
-        confidence: 0.78,
-        entities: learningTopics.cast<String>(),
-        detectedAt: now.subtract(const Duration(hours: 1)),
-        iconName: 'lightbulb',
-        actionLabel: '探索更多',
-      ));
-    }
-
-    // 解析生产力洞察
-    final efficiencyScore = productivityInsights['efficiency_score'] as double? ?? 0.7;
-    final recommendations = productivityInsights['recommendations'] as List<dynamic>? ?? [];
-
-    if (efficiencyScore > 0.7 && recommendations.isNotEmpty) {
-      insights.add(AIInsight(
-        type: 'productivity_insight',
-        title: '生产力分析',
-        description: recommendations.isNotEmpty 
-            ? recommendations.first.toString()
-            : '分析了你的效率模式',
-        confidence: efficiencyScore,
-        entities: const ['工作效率', '时间管理'],
-        detectedAt: now.subtract(const Duration(hours: 2)),
-        iconName: 'schedule',
-        actionLabel: '查看建议',
-      ));
-    }
-
-    return insights;
+  /// 解析AI洞察数据
+  AIInsight _parseAIInsight(Map<String, dynamic> data) {
+    return AIInsight(
+      type: data['type']?.toString() ?? '',
+      title: data['title']?.toString() ?? '',
+      description: data['description']?.toString() ?? '',
+      confidence: (data['confidence'] as num?)?.toDouble() ?? 0.0,
+      entities: (data['entities'] as List<dynamic>?)?.cast<String>() ?? [],
+      detectedAt: DateTime.tryParse(data['detectedAt']?.toString() ?? '') ?? DateTime.now(),
+      iconName: data['iconName']?.toString() ?? 'info',
+      actionLabel: data['actionLabel']?.toString() ?? '',
+    );
   }
 
-  List<TrendingEntity> _parseTrendingEntities(Map<String, dynamic> contentCategories) {
-    final entities = <TrendingEntity>[];
-    final popularDomains = contentCategories['popular_domains'] as Map<String, dynamic>? ?? {};
-    final learningTopics = contentCategories['learning_topics'] as List<dynamic>? ?? [];
-
-    // 将域名转换为趋势实体
-    popularDomains.forEach((domain, count) {
-      if (count is int && count > 1) {
-        entities.add(TrendingEntity(
-          name: domain,
-          type: 'domain',
-          frequency: count,
-          trend: '+${(count * 5).toStringAsFixed(0)}%',
-          trendValue: count * 5.0,
-          description: '经常访问的网站',
-        ));
-      }
-    });
-
-    // 将学习主题转换为趋势实体
-    for (int i = 0; i < learningTopics.length && i < 3; i++) {
-      final topic = learningTopics[i].toString();
-      entities.add(TrendingEntity(
-        name: topic,
-        type: 'topic',
-        frequency: 10 + i * 5,
-        trend: '+${5 + i * 2}%',
-        trendValue: 5.0 + i * 2,
-        description: '学习兴趣主题',
-      ));
-    }
-
-    return entities;
+  /// 解析趋势实体数据
+  TrendingEntity _parseTrendingEntity(Map<String, dynamic> data) {
+    return TrendingEntity(
+      name: data['name']?.toString() ?? '',
+      type: data['type']?.toString() ?? '',
+      frequency: data['frequency'] as int? ?? 0,
+      trend: data['trend']?.toString() ?? '',
+      trendValue: (data['trendValue'] as num?)?.toDouble() ?? 0.0,
+      description: data['description']?.toString() ?? '',
+    );
   }
 
+  /// 解析连接器状态数据
+  ConnectorStatus _parseConnectorStatus(Map<String, dynamic> data) {
+    return ConnectorStatus(
+      id: data['id']?.toString() ?? '',
+      name: data['name']?.toString() ?? '',
+      status: data['status']?.toString() ?? '',
+      enabled: data['enabled'] as bool? ?? false,
+      dataCount: data['dataCount'] as int? ?? 0,
+      lastHeartbeat: data['lastHeartbeat'] != null 
+          ? DateTime.tryParse(data['lastHeartbeat'].toString())
+          : null,
+    );
+  }
+
+  // 简化的数据解析方法（仅用于字段解析，无业务逻辑）
+
+  /// 解析时间线项目数据
   TimelineItem _parseTimelineItem(Map<String, dynamic> item) {
     return TimelineItem(
       id: item['id']?.toString() ?? '',
-      title: item['description']?.toString() ?? '',
-      description: _getTimelineDescription(item),
+      title: item['type']?.toString() ?? '',
+      description: item['description']?.toString() ?? '',
       timestamp: DateTime.tryParse(item['timestamp']?.toString() ?? '') ?? DateTime.now(),
       type: item['type']?.toString() ?? 'system_activity',
-      iconName: _getTimelineIcon(item['type']?.toString() ?? ''),
+      iconName: _getTimelineIcon(item['type']?.toString()),
+      connectorId: item['source']?.toString(),
       metadata: item['metadata'] as Map<String, dynamic>?,
     );
   }
 
-  String _getTimelineDescription(Map<String, dynamic> item) {
-    final metadata = item['metadata'] as Map<String, dynamic>? ?? {};
-    final entitiesCount = metadata['entities_count'] as int? ?? 0;
-    
-    if (entitiesCount > 0) {
-      return '智能识别了 $entitiesCount 个实体';
-    }
-    
-    return item['description']?.toString() ?? '系统活动';
-  }
-
-  String _getTimelineIcon(String type) {
+  /// 获取时间线图标
+  String _getTimelineIcon(String? type) {
     switch (type) {
       case '数据采集':
         return 'sensors';
@@ -593,51 +356,80 @@ class DataInsightsService {
     }
   }
 
+  /// 解析实体详情数据
   EntityDetail _parseEntityDetail(Map<String, dynamic> entity) {
+    final metadata = entity['metadata'] as Map<String, dynamic>? ?? {};
     return EntityDetail(
       id: entity['id']?.toString() ?? '',
       name: entity['content']?.toString() ?? '',
       type: entity['type']?.toString() ?? '',
-      description: _getEntityDescription(entity),
+      description: entity['description']?.toString() ?? '智能识别的实体',
       createdAt: DateTime.tryParse(entity['timestamp']?.toString() ?? ''),
-      properties: entity['metadata'] as Map<String, dynamic>?,
-      tags: _getEntityTags(entity),
+      lastAccessed: DateTime.tryParse(entity['lastAccessed']?.toString() ?? ''),
+      accessCount: entity['accessCount'] as int? ?? 0,
+      properties: metadata,
+      tags: (entity['tags'] as List<dynamic>?)?.cast<String>() ?? [],
     );
   }
 
-  String _getEntityDescription(Map<String, dynamic> entity) {
-    final type = entity['type']?.toString() ?? '';
-    final content = entity['content']?.toString() ?? '';
-    
-    switch (type) {
-      case 'url':
-        return 'Web链接: ${Uri.tryParse(content)?.host ?? content}';
-      case 'email':
-        return '邮箱地址';
-      case 'phone':
-        return '电话号码';
-      case 'file':
-        return '文件路径';
-      default:
-        return '智能识别的实体';
-    }
+  /// 解析向量搜索结果
+  VectorSearchResult _parseVectorSearchResult(Map<String, dynamic> data) {
+    return VectorSearchResult(
+      id: data['id']?.toString() ?? '',
+      content: data['content']?.toString() ?? '',
+      similarity: (data['similarity'] as num?)?.toDouble() ?? 0.0,
+      metadata: data['metadata'] as Map<String, dynamic>?,
+      entityId: data['entity_id']?.toString(),
+      entityType: data['entity_type']?.toString(),
+      timestamp: DateTime.tryParse(data['timestamp']?.toString() ?? ''),
+      highlightedTerms: (data['highlighted_terms'] as List<dynamic>?)?.cast<String>() ?? [],
+    );
   }
 
-  List<String> _getEntityTags(Map<String, dynamic> entity) {
-    final type = entity['type']?.toString() ?? '';
-    final metadataRaw = entity['metadata'];
-    final metadata = _ensureStringDynamicMap(metadataRaw is Map ? metadataRaw.cast<String, dynamic>() : {});
-    final tags = <String>[type];
-    
-    if (metadata['domain'] != null) {
-      tags.add(metadata['domain'].toString());
-    }
-    
-    if (metadata['is_secure'] == true) {
-      tags.add('安全连接');
-    }
-    
-    return tags;
+  /// 解析搜索建议
+  SearchSuggestion _parseSearchSuggestion(Map<String, dynamic> data) {
+    return SearchSuggestion(
+      text: data['text']?.toString() ?? '',
+      confidence: (data['confidence'] as num?)?.toDouble() ?? 0.0,
+      type: data['type']?.toString(),
+      matchedTerms: (data['matched_terms'] as List<dynamic>?)?.cast<String>() ?? [],
+    );
+  }
+
+  /// 解析相似性结果
+  SimilarityResult _parseSimilarityResult(Map<String, dynamic> data) {
+    return SimilarityResult(
+      sourceId: data['source_id']?.toString() ?? '',
+      targetId: data['target_id']?.toString() ?? '',
+      similarity: (data['similarity'] as num?)?.toDouble() ?? 0.0,
+      sourceContent: data['source_content']?.toString(),
+      targetContent: data['target_content']?.toString(),
+      metadata: data['metadata'] as Map<String, dynamic>?,
+    );
+  }
+
+  /// 解析聚类结果
+  ClusterResult _parseClusterResult(Map<String, dynamic> data) {
+    return ClusterResult(
+      clusterId: data['cluster_id'] as int? ?? 0,
+      label: data['label']?.toString() ?? '',
+      entityIds: (data['entity_ids'] as List<dynamic>?)?.cast<String>() ?? [],
+      coherence: (data['coherence'] as num?)?.toDouble() ?? 0.0,
+      keywords: (data['keywords'] as List<dynamic>?)?.cast<String>() ?? [],
+      metadata: data['metadata'] as Map<String, dynamic>?,
+    );
+  }
+
+  /// 解析向量指标
+  VectorMetrics _parseVectorMetrics(Map<String, dynamic> data) {
+    return VectorMetrics(
+      totalVectors: data['total_vectors'] as int? ?? 0,
+      dimension: data['dimension'] as int? ?? 0,
+      indexType: data['index_type']?.toString(),
+      memoryUsageMb: (data['memory_usage_mb'] as num?)?.toDouble() ?? 0.0,
+      searchTimeAvgMs: (data['search_time_avg_ms'] as num?)?.toDouble() ?? 0.0,
+      lastUpdated: DateTime.tryParse(data['last_updated']?.toString() ?? ''),
+    );
   }
 
   /// 确保 Map是 String -> dynamic 类型

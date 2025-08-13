@@ -276,7 +276,7 @@ class EntityBreakdownChart extends ConsumerWidget {
                   const SizedBox(height: 12), // 减少间距
                   if (total > 0) ...[
                     // 简化的饼图效果
-                    Container(
+                    SizedBox(
                       height: chartHeight,
                       child: Row(
                         children: items.map((item) {

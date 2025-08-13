@@ -9,7 +9,7 @@ import logging
 from dataclasses import dataclass
 from enum import Enum
 from functools import wraps
-from typing import Any, Dict, Optional, Type, TypeVar
+from typing import Any, Dict, List, Optional, Type, TypeVar
 
 from .container import ServiceNotRegisteredError, get_container
 
@@ -63,11 +63,14 @@ class ServiceFacade:
     - 提供标准化错误处理
     - 统一服务获取接口
     - 支持服务状态监控
+    - 🆕 服务实例缓存优化
     """
 
     def __init__(self):
         self._container = None  # 延迟获取容器
         self._access_stats: Dict[str, int] = {}
+        self._service_cache: Dict[str, Any] = {}  # 🆕 服务实例缓存
+        self._cache_enabled = True  # 🆕 缓存开关
 
     @property
     def container(self):
@@ -82,10 +85,11 @@ class ServiceFacade:
     def reset_container(self):
         """重置容器实例，用于服务注册完成后刷新"""
         self._container = None
-        logger.debug("ServiceFacade容器已重置，下次获取时将刷新")
+        self._service_cache.clear()  # 🆕 清理缓存
+        logger.debug("ServiceFacade容器已重置，服务缓存已清理")
 
     def get_service(self, service_type: Type[T], safe: bool = False) -> T:
-        """获取服务实例
+        """获取服务实例 - 🆕 带缓存优化
 
         Args:
             service_type: 服务类型
@@ -102,7 +106,16 @@ class ServiceFacade:
                 self._access_stats.get(service_name, 0) + 1
             )
 
-            # 调试信息
+            # 🆕 缓存检查 - 显著减少容器查询开销
+            if self._cache_enabled and service_name in self._service_cache:
+                cached_service = self._service_cache[service_name]
+                logger.debug(f"🚀 从缓存获取服务: {service_name}")
+                
+                if safe:
+                    return ServiceResult(success=True, service=cached_service)
+                return cached_service
+
+            # 调试信息 - 仅在缓存未命中时记录
             container = self.container
             registered_services = list(container.get_all_services().keys())
             logger.debug(
@@ -111,6 +124,11 @@ class ServiceFacade:
 
             # 从容器获取服务
             service = container.get_service(service_type)
+
+            # 🆕 缓存服务实例 (仅缓存单例服务)
+            if self._cache_enabled:
+                self._service_cache[service_name] = service
+                logger.debug(f"📦 服务已缓存: {service_name}")
 
             if safe:
                 return ServiceResult(success=True, service=service)
@@ -158,12 +176,42 @@ class ServiceFacade:
         return self.container.is_registered(service_type)
 
     def get_service_stats(self) -> Dict[str, Any]:
-        """获取服务访问统计"""
+        """获取服务访问统计 - 🆕 包含缓存统计"""
+        total_accesses = sum(self._access_stats.values())
+        cached_services = len(self._service_cache)
+        
         return {
             "access_stats": self._access_stats.copy(),
             "registered_services": list(self.container.get_all_services().keys()),
-            "total_accesses": sum(self._access_stats.values()),
+            "total_accesses": total_accesses,
+            "cached_services_count": cached_services,  # 🆕 缓存服务数量
+            "cache_hit_potential": cached_services / len(self._access_stats) if self._access_stats else 0,  # 🆕 缓存潜在命中率
+            "cache_enabled": self._cache_enabled,  # 🆕 缓存状态
         }
+
+    def clear_service_cache(self) -> int:
+        """清理服务缓存，返回清理的服务数量"""
+        cleared_count = len(self._service_cache)
+        self._service_cache.clear()
+        logger.info(f"🧹 服务缓存已清理，清理了 {cleared_count} 个缓存服务")
+        return cleared_count
+
+    def enable_cache(self, enabled: bool = True):
+        """启用/禁用服务缓存"""
+        old_state = self._cache_enabled
+        self._cache_enabled = enabled
+        
+        if not enabled:
+            cleared_count = self.clear_service_cache()
+            logger.info(f"🚫 服务缓存已禁用，清理了 {cleared_count} 个缓存服务")
+        else:
+            logger.info("✅ 服务缓存已启用")
+        
+        return old_state
+
+    def get_cached_services(self) -> List[str]:
+        """获取已缓存的服务列表"""
+        return list(self._service_cache.keys())
 
 
 # 全局服务facade实例
@@ -293,6 +341,83 @@ def get_environment_manager():
     from core.environment_manager import EnvironmentManager
 
     return get_service(EnvironmentManager)
+
+
+def get_cached_networkx_service():
+    """获取缓存NetworkX服务"""
+    from services.cached_networkx_service import CachedNetworkXService
+
+    return get_service(CachedNetworkXService)
+
+
+def get_unified_storage_service():
+    """获取统一存储服务"""
+    from services.storage.unified_storage_service import UnifiedStorageService
+
+    return get_service(UnifiedStorageService)
+
+
+def get_system_config_service():
+    """获取系统配置服务"""
+    from services.system_config_service import SystemConfigService
+
+    return get_service(SystemConfigService)
+
+
+def get_content_analysis_service():
+    """获取内容分析服务"""
+    from services.content_analysis_service import ContentAnalysisService
+
+    return get_service(ContentAnalysisService)
+
+
+def get_registry_discovery_service():
+    """获取注册表发现服务"""
+    from services.registry_discovery_service import RegistryDiscoveryService
+
+    return get_service(RegistryDiscoveryService)
+
+
+def get_connector_registry_service():
+    """获取连接器注册服务"""
+    from services.connector_registry_service import ConnectorRegistryService
+
+    return get_service(ConnectorRegistryService)
+
+
+def get_data_insights_service():
+    """获取数据洞察服务"""
+    from services.api.data_insights_service import DataInsightsService
+
+    return get_service(DataInsightsService)
+
+
+async def get_vector_service():
+    """获取向量服务"""
+    from services.storage.vector_service import VectorService
+
+    return get_service(VectorService)
+
+
+async def get_graph_service():
+    """获取图服务"""
+    from services.storage.graph_service import GraphService
+
+    return get_service(GraphService)
+
+
+async def get_embedding_service():
+    """获取嵌入服务"""
+    from services.storage.embedding_service import EmbeddingService
+
+    return get_service(EmbeddingService)
+
+
+async def get_migration_service():
+    """获取数据迁移服务"""
+    from services.storage.data_migration import DataMigrationService
+
+    return get_service(DataMigrationService)
 
 
 if __name__ == "__main__":

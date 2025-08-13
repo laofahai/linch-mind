@@ -443,32 +443,4 @@ class EmbeddingService:
             logger.error(f"模型预热失败: {e}")
 
 
-# 全局嵌入服务实例
-_embedding_service: Optional[EmbeddingService] = None
-
-
-async def get_embedding_service() -> EmbeddingService:
-    """获取嵌入服务实例（单例模式）"""
-    global _embedding_service
-    if _embedding_service is None:
-        from config.core_config import get_storage_config
-
-        storage_config = get_storage_config()
-
-        _embedding_service = EmbeddingService(
-            model_name=storage_config.embedding_model_name,
-            cache_dir=Path(storage_config.data_directory) / "embeddings",
-            max_workers=storage_config.embedding_max_workers,
-            enable_cache=storage_config.embedding_cache_enabled,
-        )
-        await _embedding_service.initialize()
-
-    return _embedding_service
-
-
-async def cleanup_embedding_service():
-    """清理嵌入服务"""
-    global _embedding_service
-    if _embedding_service:
-        await _embedding_service.close()
-        _embedding_service = None
+# ServiceFacade现在负责管理服务单例，不再需要本地单例模式

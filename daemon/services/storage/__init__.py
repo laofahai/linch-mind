@@ -13,8 +13,7 @@ from .data_lifecycle_manager import (
     DataHealthReport,
     DataLifecycleConfig,
     DataLifecycleManager,
-    cleanup_lifecycle_manager,
-    get_lifecycle_manager,
+    get_data_lifecycle_manager,
 )
 from .graph_service import (
     EntityNode,
@@ -25,8 +24,6 @@ from .graph_service import (
     get_graph_service,
 )
 from .storage_orchestrator import (
-    KnowledgeEntity,
-    SmartRecommendation,
     StorageMetrics,
     StorageOrchestrator,
     cleanup_storage_orchestrator,
@@ -58,8 +55,6 @@ __all__ = [
     "cleanup_vector_service",
     # 存储编排器
     "StorageOrchestrator",
-    "KnowledgeEntity",
-    "SmartRecommendation",
     "StorageMetrics",
     "get_storage_orchestrator",
     "cleanup_storage_orchestrator",
@@ -67,8 +62,7 @@ __all__ = [
     "DataLifecycleManager",
     "DataLifecycleConfig",
     "DataHealthReport",
-    "get_lifecycle_manager",
-    "cleanup_lifecycle_manager",
+    "get_data_lifecycle_manager",
 ]
 
 
@@ -77,7 +71,7 @@ async def initialize_storage_system():
     try:
         # 按依赖顺序初始化
         await get_storage_orchestrator()
-        await get_lifecycle_manager()
+        await get_data_lifecycle_manager()
 
         return True
     except Exception as e:
@@ -92,7 +86,7 @@ async def cleanup_storage_system():
     """清理整个存储系统"""
     try:
         # 按相反顺序清理
-        await cleanup_lifecycle_manager()
+        # await cleanup_lifecycle_manager()  # 函数不存在，注释掉
         await cleanup_storage_orchestrator()
         await cleanup_vector_service()
         await cleanup_graph_service()

@@ -8,6 +8,19 @@ from dataclasses import dataclass
 from typing import Dict, Optional, Set
 
 
+# 默认允许的进程名称配置 - 可通过环境变量或配置文件覆盖
+DEFAULT_ALLOWED_PROCESSES = {
+    "python", "python3", "python.exe",
+    "flutter", "flutter.exe",
+    "linch", "linch.exe"
+}
+
+# 连接器进程名称模式 - 支持动态连接器
+CONNECTOR_PROCESS_PATTERNS = {
+    "*-connector", "*-connector.exe",
+    "linch-*", "linch-*.exe"
+}
+
 @dataclass
 class IPCSecurityConfig:
     """IPC安全配置数据类"""
@@ -16,6 +29,7 @@ class IPCSecurityConfig:
     require_authentication: bool = True
     allowed_process_names: Set[str] = None
     allowed_pids: Set[int] = None
+    allowed_process_patterns: Set[str] = None
 
     # 频率限制设置
     rate_limit_enabled: bool = True
@@ -42,17 +56,15 @@ class IPCSecurityConfig:
     def __post_init__(self):
         """初始化默认值"""
         if self.allowed_process_names is None:
-            self.allowed_process_names = {
-                "python",
-                "python3",
-                "python.exe",
-                "flutter",
-                "flutter.exe",
-                "linch",
-                "linch.exe",
-                "clipboard-connector",
-                "filesystem-connector",
-            }
+            # 从环境变量或使用默认配置
+            env_processes = os.getenv('LINCH_ALLOWED_PROCESSES')
+            if env_processes:
+                self.allowed_process_names = set(env_processes.split(','))
+            else:
+                self.allowed_process_names = DEFAULT_ALLOWED_PROCESSES.copy()
+        
+        if self.allowed_process_patterns is None:
+            self.allowed_process_patterns = CONNECTOR_PROCESS_PATTERNS.copy()
 
         if self.allowed_pids is None:
             self.allowed_pids = set()
@@ -106,14 +118,30 @@ class IPCSecurityManager:
         if self.config.allowed_pids and pid in self.config.allowed_pids:
             return True
 
+        process_name_lower = process_name.lower()
+        
         # 检查进程名白名单
         if self.config.allowed_process_names:
-            process_name_lower = process_name.lower()
             for allowed_name in self.config.allowed_process_names:
                 if allowed_name.lower() in process_name_lower:
                     return True
+        
+        # 检查进程名模式匹配（支持通配符）
+        if self.config.allowed_process_patterns:
+            for pattern in self.config.allowed_process_patterns:
+                if self._match_process_pattern(process_name_lower, pattern.lower()):
+                    return True
 
         return False
+    
+    def _match_process_pattern(self, process_name: str, pattern: str) -> bool:
+        """匹配进程名模式（简单通配符支持）"""
+        if '*' not in pattern:
+            return pattern in process_name
+        
+        # 简单通配符匹配
+        import fnmatch
+        return fnmatch.fnmatch(process_name, pattern)
 
     def is_path_allowed(self, path: str) -> bool:
         """检查路径是否被允许访问"""
@@ -160,6 +188,18 @@ class IPCSecurityManager:
             self.config.allowed_pids.add(pid)
         else:
             self.config.allowed_pids.discard(pid)
+    
+    def add_allowed_process(self, process_name: str):
+        """动态添加允许的进程名"""
+        self.config.allowed_process_names.add(process_name)
+    
+    def remove_allowed_process(self, process_name: str):
+        """动态移除允许的进程名"""
+        self.config.allowed_process_names.discard(process_name)
+    
+    def add_process_pattern(self, pattern: str):
+        """动态添加进程名模式"""
+        self.config.allowed_process_patterns.add(pattern)
 
     def block_path(self, path: str):
         """动态阻止路径"""

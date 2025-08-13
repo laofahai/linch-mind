@@ -10,9 +10,7 @@ import sys
 # 🔧 移除lru_cache - 使用DI容器替代
 from pathlib import Path
 
-# 添加项目根目录到Python路径
-project_root = Path(__file__).parent.parent
-sys.path.insert(0, str(project_root))
+# 使用标准Python包导入，无需动态路径添加
 
 from config.core_config import CoreConfigManager
 

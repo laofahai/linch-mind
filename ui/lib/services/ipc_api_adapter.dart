@@ -1,4 +1,5 @@
 import 'ipc_client.dart';
+import '../core/ui_service_facade.dart';
 import '../models/ipc_protocol.dart';
 import '../utils/enhanced_error_handler.dart';
 import 'response_parser.dart';
@@ -22,8 +23,8 @@ class IPCApiAdapter {
     }
   }
 
-  final IPCClient _ipcClient = IPCService.instance;
-  final _errorHandler = EnhancedErrorHandler();
+  final IPCClient _ipcClient = getService<IPCClient>();
+  final _errorHandler = getService<EnhancedErrorHandler>();
   bool _isInitialized = false;
 
   /// 确保IPC连接已建立
@@ -31,10 +32,8 @@ class IPCApiAdapter {
     if (_isInitialized) return;
 
     final connected = await _ipcClient.connect();
-    print('[DEBUG] IPC连接结果: connected=$connected');
-
+    
     if (!connected) {
-      print('[ERROR] IPC连接失败，无法继续');
       throw Exception('无法连接到daemon IPC服务，请确保daemon正在运行');
     }
 
@@ -53,8 +52,8 @@ class IPCApiAdapter {
     return await _errorHandler.safeAsync(
           () async {
             await _ensureInitialized();
-            final response =
-                await _ipcClient.get(path, queryParams: queryParameters);
+            final request = IPCRequest.get(path: path, queryParams: queryParameters);
+            final response = await _ipcClient.sendRequest(request);
 
             // 处理IPC错误
             if (!response.success && response.error != null) {
@@ -85,7 +84,8 @@ class IPCApiAdapter {
     return await _errorHandler.safeAsync(
           () async {
             await _ensureInitialized();
-            final response = await _ipcClient.post(path, data: data);
+            final request = IPCRequest.post(path: path, data: data);
+            final response = await _ipcClient.sendRequest(request);
 
             // 处理IPC错误
             if (!response.success && response.error != null) {
@@ -115,7 +115,8 @@ class IPCApiAdapter {
     return await _errorHandler.safeAsync(
           () async {
             await _ensureInitialized();
-            final response = await _ipcClient.put(path, data: data);
+            final request = IPCRequest.put(path: path, data: data);
+            final response = await _ipcClient.sendRequest(request);
 
             // 处理IPC错误
             if (!response.success && response.error != null) {
@@ -145,13 +146,7 @@ class IPCApiAdapter {
     return await _errorHandler.safeAsync(
           () async {
             await _ensureInitialized();
-
-            final request = IPCRequest(
-              method: 'DELETE',
-              path: path,
-              queryParams: queryParameters ?? {},
-            );
-
+            final request = IPCRequest.delete(path: path, queryParams: queryParameters);
             final response = await _ipcClient.sendRequest(request);
 
             // 处理IPC错误

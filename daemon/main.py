@@ -11,13 +11,11 @@ from contextlib import asynccontextmanager
 from datetime import datetime
 from pathlib import Path
 
-# 添加项目根目录到Python路径
-project_root = Path(__file__).parent.parent
-sys.path.insert(0, str(project_root))
-sys.path.insert(0, str(project_root / "daemon"))
+# 使用标准Python包导入，无需动态路径添加
 
-# 导入核心配置管理器
-from config.core_config import get_core_config
+# 🚀 导入优化的延迟配置管理器
+from config.lazy_config import get_lazy_config_manager
+from config.core_config import get_core_config  # 保持兼容
 
 # 🚨 架构修复：移除对已删除函数的导入
 from config.logging_config import get_logger, setup_global_logging
@@ -25,13 +23,16 @@ from config.logging_config import get_logger, setup_global_logging
 # 导入纯IPC服务器
 from services.ipc_server import start_ipc_server, stop_ipc_server
 
-# 初始化配置和日志
-config_manager = get_core_config()
-config = config_manager.config
+# 🚀 初始化延迟配置管理器 - 显著减少启动时间
+lazy_config_manager = get_lazy_config_manager()
+# 仅获取启动必需的服务器配置
+server_config = lazy_config_manager.get_server_config()
+# 获取核心路径，无需加载完整配置
+core_paths = lazy_config_manager.get_core_paths()
 
-# 设置全局日志
+# 🚀 设置全局日志 - 使用延迟加载的配置
 setup_global_logging(
-    level=config.server.log_level, console=config.server.debug, json_format=False
+    level=server_config.log_level, console=server_config.debug, json_format=False
 )
 
 # 获取日志记录器
@@ -130,9 +131,8 @@ def initialize_di_container():
 
     # 🗄️ 配置管理服务
     def create_config_manager():
-        from config.core_config import get_core_config
-
-        return get_core_config()
+        # 🚀 使用延迟配置管理器
+        return lazy_config_manager
 
     container.register_singleton(CoreConfigManager, create_config_manager)
     logger.debug("已注册: CoreConfigManager")
@@ -187,6 +187,19 @@ def initialize_di_container():
         ConnectorRegistryService, create_connector_registry_service
     )
     logger.debug("已注册: ConnectorRegistryService")
+
+    # 🔍 连接器发现服务
+    def create_connector_discovery_service():
+        from services.connectors.connector_discovery_service import ConnectorDiscoveryService
+        
+        return ConnectorDiscoveryService()
+
+    from services.connectors.connector_discovery_service import ConnectorDiscoveryService
+
+    container.register_singleton(
+        ConnectorDiscoveryService, create_connector_discovery_service
+    )
+    logger.debug("已注册: ConnectorDiscoveryService")
 
     # 🔌 连接器管理服务
     def create_connector_manager():
@@ -247,7 +260,7 @@ def initialize_di_container():
         from services.storage.vector_service import VectorService
 
         storage_config = get_storage_config()
-        app_data_dir = config_manager.get_paths()["app_data"]
+        app_data_dir = core_paths["app_data"]
         return VectorService(
             data_dir=app_data_dir / "vectors",
             dimension=storage_config.vector_dimension,
@@ -268,7 +281,7 @@ def initialize_di_container():
     def create_embedding_service():
         from services.storage.embedding_service import EmbeddingService
 
-        app_data_dir = config_manager.get_paths()["app_data"]
+        app_data_dir = core_paths["app_data"]
         return EmbeddingService(
             model_name="all-MiniLM-L6-v2",
             cache_dir=app_data_dir / "embeddings",
@@ -287,7 +300,7 @@ def initialize_di_container():
     def create_graph_service():
         from services.storage.graph_service import GraphService
 
-        app_data_dir = config_manager.get_paths()["app_data"]
+        app_data_dir = core_paths["app_data"]
         return GraphService(
             data_dir=app_data_dir / "graph", max_workers=4, enable_cache=True
         )
@@ -453,15 +466,18 @@ def main():
         with open(pid_file, "w") as f:
             f.write(str(os.getpid()))
 
-        # 验证配置
-        config_errors = config_manager.validate_config()
-        if config_errors:
-            logger.warning(f"配置验证发现问题: {len(config_errors)} 个")
-            for error in config_errors:
-                logger.warning(f"  - {error}")
+        # 🚀 验证配置 - 仅在需要时加载完整配置
+        try:
+            config_errors = lazy_config_manager.validate_config()
+            if config_errors:
+                logger.warning(f"配置验证发现问题: {len(config_errors)} 个")
+                for error in config_errors:
+                    logger.warning(f"  - {error}")
+        except Exception as e:
+            logger.warning(f"配置验证跳过: {e}")
 
-        # 显示启动信息
-        paths = config_manager.get_paths()
+        # 显示启动信息 - 使用核心路径
+        paths = core_paths
         print(
             f"""
 🚀 Linch Mind 纯IPC Daemon 启动中... (Session V67)
@@ -506,7 +522,7 @@ def main():
         raise
     finally:
         # 清理PID文件
-        pid_file = config_manager.get_paths()["data"] / "daemon.pid"
+        pid_file = core_paths["data"] / "daemon.pid"
         if pid_file.exists():
             try:
                 pid_file.unlink()

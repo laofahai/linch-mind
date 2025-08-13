@@ -10,9 +10,7 @@ import logging
 from pathlib import Path
 from typing import List, Tuple, Dict, Set
 
-# 添加项目根目录到Python路径
-project_root = Path(__file__).parent.parent
-sys.path.insert(0, str(project_root))
+# 使用标准Python包导入，无需动态路径添加
 
 logger = logging.getLogger(__name__)
 

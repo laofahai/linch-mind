@@ -13,7 +13,7 @@ import networkx as nx
 
 from core.service_facade import get_service
 from models.database_models import EntityMetadata, EntityRelationship
-from services.database_service import DatabaseService
+from services.unified_database_service import UnifiedDatabaseService as DatabaseService
 
 logger = logging.getLogger(__name__)
 
@@ -627,23 +627,9 @@ class CachedNetworkXService:
 
 
 # 全局服务实例
-_cached_networkx_service: Optional[CachedNetworkXService] = None
-
-
-def get_cached_networkx_service() -> CachedNetworkXService:
-    """获取缓存NetworkX服务实例（单例模式）"""
-    global _cached_networkx_service
-    if _cached_networkx_service is None:
-        _cached_networkx_service = CachedNetworkXService()
-    return _cached_networkx_service
+# ServiceFacade现在负责管理服务单例，不再需要本地单例模式
 
 
 def cleanup_cached_networkx_service():
-    """清理缓存NetworkX服务"""
-    global _cached_networkx_service
-    if _cached_networkx_service:
-        # NetworkX服务主要是内存操作，清理缓存即可
-        _cached_networkx_service.query_cache.clear()
-        _cached_networkx_service.metrics_cache.clear()
-        _cached_networkx_service = None
-        logger.info("CachedNetworkXService 已清理")
+    """清理缓存NetworkX服务 - 现在由ServiceFacade管理生命周期"""
+    logger.info("CachedNetworkXService 的清理现在由ServiceFacade负责管理")

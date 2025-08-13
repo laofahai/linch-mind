@@ -153,3 +153,116 @@ class FilterOptions with _$FilterOptions {
   factory FilterOptions.fromJson(Map<String, dynamic> json) =>
       _$FilterOptionsFromJson(json);
 }
+
+/// 向量搜索结果
+@freezed
+class VectorSearchResult with _$VectorSearchResult {
+  const factory VectorSearchResult({
+    required String id,
+    required String content,
+    @Default(0.0) double similarity,
+    Map<String, dynamic>? metadata,
+    String? entityId,
+    String? entityType,
+    DateTime? timestamp,
+    @Default([]) List<String> highlightedTerms,
+  }) = _VectorSearchResult;
+
+  factory VectorSearchResult.fromJson(Map<String, dynamic> json) =>
+      _$VectorSearchResultFromJson(json);
+}
+
+/// 向量搜索查询参数
+@freezed
+class VectorSearchQuery with _$VectorSearchQuery {
+  const factory VectorSearchQuery({
+    required String query,
+    @Default(10) int k,
+    @Default(0.0) double threshold,
+    @Default([]) List<String> entityTypes,
+    @Default([]) List<String> tags,
+    Map<String, dynamic>? metadata,
+    DateTime? dateFrom,
+    DateTime? dateTo,
+  }) = _VectorSearchQuery;
+
+  factory VectorSearchQuery.fromJson(Map<String, dynamic> json) =>
+      _$VectorSearchQueryFromJson(json);
+}
+
+/// 相似性计算结果
+@freezed
+class SimilarityResult with _$SimilarityResult {
+  const factory SimilarityResult({
+    required String sourceId,
+    required String targetId,
+    @Default(0.0) double similarity,
+    String? sourceContent,
+    String? targetContent,
+    Map<String, dynamic>? metadata,
+  }) = _SimilarityResult;
+
+  factory SimilarityResult.fromJson(Map<String, dynamic> json) =>
+      _$SimilarityResultFromJson(json);
+}
+
+/// 聚类结果
+@freezed
+class ClusterResult with _$ClusterResult {
+  const factory ClusterResult({
+    required int clusterId,
+    required String label,
+    @Default([]) List<String> entityIds,
+    @Default(0.0) double coherence,
+    @Default([]) List<String> keywords,
+    Map<String, dynamic>? metadata,
+  }) = _ClusterResult;
+
+  factory ClusterResult.fromJson(Map<String, dynamic> json) =>
+      _$ClusterResultFromJson(json);
+}
+
+/// 向量数据库性能指标
+@freezed
+class VectorMetrics with _$VectorMetrics {
+  const factory VectorMetrics({
+    @Default(0) int totalVectors,
+    @Default(0) int dimension,
+    String? indexType,
+    @Default(0.0) double memoryUsageMb,
+    @Default(0.0) double searchTimeAvgMs,
+    DateTime? lastUpdated,
+  }) = _VectorMetrics;
+
+  factory VectorMetrics.fromJson(Map<String, dynamic> json) =>
+      _$VectorMetricsFromJson(json);
+}
+
+/// 搜索建议
+@freezed
+class SearchSuggestion with _$SearchSuggestion {
+  const factory SearchSuggestion({
+    required String text,
+    @Default(0.0) double confidence,
+    String? type,
+    @Default([]) List<String> matchedTerms,
+  }) = _SearchSuggestion;
+
+  factory SearchSuggestion.fromJson(Map<String, dynamic> json) =>
+      _$SearchSuggestionFromJson(json);
+}
+
+/// 搜索历史记录
+@freezed
+class SearchHistory with _$SearchHistory {
+  const factory SearchHistory({
+    required String id,
+    required String query,
+    required DateTime timestamp,
+    @Default(0) int resultsCount,
+    @Default(0.0) double searchTime,
+  }) = _SearchHistory;
+
+  factory SearchHistory.fromJson(Map<String, dynamic> json) =>
+      _$SearchHistoryFromJson(json);
+}

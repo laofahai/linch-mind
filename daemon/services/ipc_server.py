@@ -443,6 +443,18 @@ class IPCServer:
         if self.socket_path and os.path.exists(self.socket_path):
             os.unlink(self.socket_path)
 
+        # 清理socket信息文件
+        try:
+            from core.environment_manager import get_environment_manager
+            env_manager = get_environment_manager()
+            env_root = env_manager.current_config.base_path
+            socket_info_file = env_root / "daemon.socket.info"
+            if socket_info_file.exists():
+                socket_info_file.unlink()
+                logger.info(f"已清理socket信息文件: {socket_info_file}")
+        except Exception as e:
+            logger.warning(f"清理socket信息文件失败: {e}")
+        
         # 清理配置文件
         from config.dependencies import get_config_manager
 

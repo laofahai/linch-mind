@@ -42,7 +42,12 @@ public:
         if (homeDir.empty()) {
             return "";
         }
-        return homeDir + "/.linch-mind/daemon.socket";
+        
+        // 🔧 环境感知: 读取LINCH_MIND_MODE环境变量，默认为development
+        const char* envMode = std::getenv("LINCH_MIND_MODE");
+        std::string environment = envMode ? std::string(envMode) : "development";
+        
+        return homeDir + "/.linch-mind/" + environment + "/daemon.socket.info";
     }
     
     std::string getPortFilePath() {

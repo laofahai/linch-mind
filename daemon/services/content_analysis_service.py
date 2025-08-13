@@ -430,13 +430,4 @@ class ContentAnalysisService:
         }
 
 
-# 单例模式
-_content_analysis_service = None
-
-
-def get_content_analysis_service() -> ContentAnalysisService:
-    """获取内容分析服务实例"""
-    global _content_analysis_service
-    if _content_analysis_service is None:
-        _content_analysis_service = ContentAnalysisService()
-    return _content_analysis_service
+# ServiceFacade现在负责管理服务单例，不再需要本地单例模式

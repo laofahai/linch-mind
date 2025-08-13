@@ -77,56 +77,69 @@ class ConnectorRegistryService:
             return self._get_local_fallback_registry()
 
     def _get_local_fallback_registry(self) -> Dict[str, Any]:
-        """获取本地备用注册表数据"""
-        return {
-            "schema_version": "1.0",
-            "last_updated": datetime.now().isoformat(),
-            "metadata": {
-                "total_count": 2,
-                "repository": "laofahai/linch-mind",
-                "commit": "local",
-                "release_tag": "local-ipc",
-            },
-            "connectors": {
-                "filesystem": {
-                    "id": "filesystem",
-                    "name": "文件系统连接器",
-                    "description": "监控文件系统变化，提供文件内容索引",
-                    "version": "1.0.0",
-                    "author": "Linch Mind Team",
-                    "category": "system",
-                    "type": "official",
-                    "platforms": {
-                        "linux-x64": {"supported": True},
-                        "darwin-x64": {"supported": True},
-                        "darwin-arm64": {"supported": True},
-                    },
-                    "capabilities": {"file_monitoring": True, "content_indexing": True},
-                    "permissions": ["read_files", "monitor_filesystem"],
+        """获取本地备用注册表数据 - 动态从连接器发现服务获取"""
+        try:
+            from services.connectors.connector_discovery_service import ConnectorDiscoveryService
+            from core.service_facade import get_service
+            
+            discovery_service = get_service(ConnectorDiscoveryService)
+            discovered_connectors = discovery_service.discover_connectors()
+            
+            # 转换为注册表格式
+            registry_connectors = {}
+            for connector_id, metadata in discovered_connectors.items():
+                # 构建平台支持信息
+                platforms = {}
+                for platform, info in metadata.platforms.items():
+                    if platform in ["linux", "macos", "windows"]:
+                        # 转换为注册表格式
+                        arch_key = f"{platform}-x64" if platform != "macos" else "darwin-x64"
+                        platforms[arch_key] = {"supported": True}
+                        
+                        # 为macOS添加ARM64支持
+                        if platform == "macos":
+                            platforms["darwin-arm64"] = {"supported": True}
+                
+                registry_connectors[connector_id] = {
+                    "id": metadata.id,
+                    "name": metadata.name,
+                    "description": metadata.description,
+                    "version": metadata.version,
+                    "author": metadata.author,
+                    "category": metadata.category,
+                    "type": "official",  # 假设本地连接器都是官方的
+                    "platforms": platforms,
+                    "capabilities": metadata.capabilities,
+                    "permissions": metadata.permissions,
                     "last_updated": datetime.now().isoformat(),
+                }
+            
+            return {
+                "schema_version": "1.0",
+                "last_updated": datetime.now().isoformat(),
+                "metadata": {
+                    "total_count": len(registry_connectors),
+                    "repository": "laofahai/linch-mind",
+                    "commit": "local",
+                    "release_tag": "local-dynamic",
                 },
-                "clipboard": {
-                    "id": "clipboard",
-                    "name": "剪贴板连接器",
-                    "description": "监控剪贴板内容变化，提供智能历史管理",
-                    "version": "1.0.0",
-                    "author": "Linch Mind Team",
-                    "category": "system",
-                    "type": "official",
-                    "platforms": {
-                        "linux-x64": {"supported": True},
-                        "darwin-x64": {"supported": True},
-                        "darwin-arm64": {"supported": True},
-                    },
-                    "capabilities": {
-                        "clipboard_monitoring": True,
-                        "history_management": True,
-                    },
-                    "permissions": ["read_clipboard", "monitor_clipboard"],
-                    "last_updated": datetime.now().isoformat(),
+                "connectors": registry_connectors,
+            }
+            
+        except Exception as e:
+            logger.error(f"动态生成本地注册表失败: {e}")
+            # 最后的空回退
+            return {
+                "schema_version": "1.0",
+                "last_updated": datetime.now().isoformat(),
+                "metadata": {
+                    "total_count": 0,
+                    "repository": "laofahai/linch-mind",
+                    "commit": "local",
+                    "release_tag": "local-fallback",
                 },
-            },
-        }
+                "connectors": {},
+            }
 
     def _is_cache_valid(self) -> bool:
         """检查缓存是否有效"""
@@ -307,13 +320,4 @@ class ConnectorRegistryService:
             return None
 
 
-# 全局单例
-_registry_service = None
-
-
-def get_connector_registry_service() -> ConnectorRegistryService:
-    """获取连接器注册表服务单例"""
-    global _registry_service
-    if _registry_service is None:
-        _registry_service = ConnectorRegistryService()
-    return _registry_service
+# ServiceFacade现在负责管理服务单例，不再需要本地单例模式

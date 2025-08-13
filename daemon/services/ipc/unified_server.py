@@ -10,15 +10,17 @@ import platform
 from typing import Any, Dict, Optional
 
 from .strategy import IPCStrategy, IPCStrategyFactory
+from .connection_pool import DynamicConnectionPool, get_connection_pool
 
 logger = logging.getLogger(__name__)
 
 
 class UnifiedIPCServer:
-    """统一的IPC服务器实现
+    """统一的IPC服务器实现 - 🚀 集成动态连接池
 
     使用策略模式处理平台差异，提供一致的API接口
     消除Unix Socket和Windows Named Pipe的重复实现
+    🆕 支持动态连接池，提升并发处理能力
     """
 
     def __init__(
@@ -26,6 +28,10 @@ class UnifiedIPCServer:
         socket_path: Optional[str] = None,
         pipe_name: Optional[str] = None,
         auto_detect_platform: bool = True,
+        # 🆕 连接池配置
+        min_connections: int = 2,
+        max_connections: int = 20,
+        enable_connection_pool: bool = True,
     ):
         """初始化统一IPC服务器
 
@@ -33,10 +39,18 @@ class UnifiedIPCServer:
             socket_path: Unix socket路径（Unix平台使用）
             pipe_name: Named pipe名称（Windows平台使用）
             auto_detect_platform: 是否自动检测平台
+            min_connections: 最小连接数
+            max_connections: 最大连接数
+            enable_connection_pool: 是否启用连接池
         """
         self.socket_path = socket_path
         self.pipe_name = pipe_name
         self.auto_detect_platform = auto_detect_platform
+
+        # 🆕 连接池配置
+        self.min_connections = min_connections
+        self.max_connections = max_connections
+        self.enable_connection_pool = enable_connection_pool
 
         # 根据平台创建策略
         self._strategy = self._create_strategy()
@@ -45,10 +59,13 @@ class UnifiedIPCServer:
         self.app = None
         self.security_manager = None
 
+        # 🆕 连接池管理
+        self._connection_pool: Optional[DynamicConnectionPool] = None
+
         # 服务器状态
         self._is_initialized = False
 
-        logger.info(f"统一IPC服务器初始化完成 - 策略: {type(self._strategy).__name__}")
+        logger.info(f"统一IPC服务器初始化完成 - 策略: {type(self._strategy).__name__}, 连接池: {'启用' if enable_connection_pool else '禁用'}")
 
     def _create_strategy(self) -> IPCStrategy:
         """根据配置创建相应的IPC策略"""
@@ -77,7 +94,7 @@ class UnifiedIPCServer:
         logger.info("IPC安全管理器已设置")
 
     async def start(self) -> None:
-        """启动IPC服务器"""
+        """启动IPC服务器 - 🚀 集成连接池管理"""
         if not self.app:
             raise RuntimeError("IPC应用未设置，请先调用set_ipc_app()")
 
@@ -87,9 +104,26 @@ class UnifiedIPCServer:
         logger.info("启动统一IPC服务器...")
 
         try:
+            # 🆕 初始化连接池
+            if self.enable_connection_pool:
+                self._connection_pool = DynamicConnectionPool(
+                    min_connections=self.min_connections,
+                    max_connections=self.max_connections
+                )
+                
+                # 设置连接工厂
+                async def connection_factory():
+                    return self.app  # 返回IPC应用作为连接处理器
+                
+                self._connection_pool.set_connection_factory(connection_factory)
+                await self._connection_pool.start()
+                logger.info(f"🏊 连接池启动完成 - 范围: {self.min_connections}-{self.max_connections}")
+
             # 使用策略启动服务器
             await self._strategy.start(
-                app=self.app, security_manager=self.security_manager
+                app=self.app, 
+                security_manager=self.security_manager,
+                connection_pool=self._connection_pool  # 传递连接池
             )
 
             self._is_initialized = True
@@ -101,10 +135,14 @@ class UnifiedIPCServer:
 
         except Exception as e:
             logger.error(f"统一IPC服务器启动失败: {e}")
+            # 清理连接池
+            if self._connection_pool:
+                await self._connection_pool.stop()
+                self._connection_pool = None
             raise
 
     async def stop(self) -> None:
-        """停止IPC服务器"""
+        """停止IPC服务器 - 🚀 集成连接池管理"""
         if not self._is_initialized:
             logger.warning("IPC服务器未启动，无需停止")
             return
@@ -112,7 +150,15 @@ class UnifiedIPCServer:
         logger.info("停止统一IPC服务器...")
 
         try:
+            # 先停止策略
             await self._strategy.stop()
+            
+            # 🆕 停止连接池
+            if self._connection_pool:
+                await self._connection_pool.stop()
+                self._connection_pool = None
+                logger.info("🏊 连接池已停止")
+            
             self._is_initialized = False
             logger.info("✅ 统一IPC服务器已停止")
 
@@ -134,7 +180,7 @@ class UnifiedIPCServer:
         return {**base_info, **strategy_info}
 
     def get_server_status(self) -> Dict[str, Any]:
-        """获取详细的服务器状态信息"""
+        """获取详细的服务器状态信息 - 🚀 包含连接池状态"""
         base_status = {
             "is_initialized": self._is_initialized,
             "is_running": self.is_running(),
@@ -142,11 +188,22 @@ class UnifiedIPCServer:
             "security_configured": self.security_manager is not None,
             "platform": platform.system(),
             "strategy_type": type(self._strategy).__name__,
+            # 🆕 连接池状态
+            "connection_pool_enabled": self.enable_connection_pool,
+            "connection_pool_active": self._connection_pool is not None,
         }
 
         # 合并策略特定的统计信息
         strategy_stats = self._strategy.get_stats()
-        return {**base_status, **strategy_stats}
+        result = {**base_status, **strategy_stats}
+        
+        # 🆕 添加连接池统计
+        if self._connection_pool:
+            result["connection_pool"] = asyncio.create_task(
+                self._connection_pool.get_stats()
+            )
+        
+        return result
 
     def is_running(self) -> bool:
         """检查服务器是否运行中"""

@@ -4,6 +4,7 @@ import 'package:file_picker/file_picker.dart';
 import '../models/connector_lifecycle_models.dart';
 import '../services/connector_lifecycle_api_client.dart';
 import '../services/registry_api_client.dart';
+import '../core/ui_service_facade.dart';
 import '../providers/app_error_provider.dart';
 import '../providers/daemon_providers.dart';
 import '../widgets/connector_status_widget.dart';
@@ -22,7 +23,7 @@ class ConnectorManagementScreen extends ConsumerStatefulWidget {
 class _ConnectorManagementScreenState
     extends ConsumerState<ConnectorManagementScreen>
     with TickerProviderStateMixin {
-  final _apiClient = ConnectorLifecycleApiService.instance;
+  final _apiClient = getService<ConnectorLifecycleApiClient>();
 
   // Tab控制器
   late TabController _tabController;
@@ -882,7 +883,7 @@ class _ConnectorManagementScreenState
                     const Text('选择连接器目录:'),
                     const SizedBox(height: 4),
                     Text(
-                      '支持选择连接器根目录或具体连接器目录\n例如: connectors/ 或 connectors/official/filesystem',
+                      '支持选择连接器根目录或具体连接器目录\n例如: connectors/ 或 connectors/official/<connector_id>',
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
                             color: Theme.of(context).disabledColor,
                           ),

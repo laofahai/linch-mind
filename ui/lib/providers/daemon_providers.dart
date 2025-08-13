@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../services/daemon_lifecycle_service.dart';
 import '../services/daemon_port_service.dart';
+import '../core/ui_service_facade.dart';
 import 'base_state_notifier.dart';
 
 /// Daemon状态数据类
@@ -54,15 +55,14 @@ class DaemonStateNotifier extends BaseStateNotifier<DaemonState> {
   DaemonStateNotifier()
       : super(DaemonState(
           isRunning: false,
-          mode: DaemonLifecycleService.instance.runMode,
+          mode: getService<DaemonLifecycleService>().runMode,
           lastUpdate: DateTime.now(),
         )) {
     _initialize();
   }
 
-  final DaemonLifecycleService _lifecycleService =
-      DaemonLifecycleService.instance;
-  final DaemonPortService _portService = DaemonPortService.instance;
+  final DaemonLifecycleService _lifecycleService = getService<DaemonLifecycleService>();
+  final DaemonPortService _portService = getService<DaemonPortService>();
 
   /// 初始化状态
   Future<void> _initialize() async {

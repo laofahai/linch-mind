@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/connector_lifecycle_models.dart';
 import '../../services/connector_lifecycle_api_client.dart';
+import '../../core/ui_service_facade.dart';
 import 'installed_connector_card.dart';
 import 'installed_search_filter.dart';
 import 'installed_status_overview.dart';
@@ -17,7 +18,7 @@ class InstalledConnectorsTab extends ConsumerStatefulWidget {
 
 class _InstalledConnectorsTabState
     extends ConsumerState<InstalledConnectorsTab> {
-  final _apiClient = ConnectorLifecycleApiService.instance;
+  final _apiClient = getService<ConnectorLifecycleApiClient>();
 
   List<ConnectorInfo> _installedConnectors = [];
   bool _installedLoading = true;

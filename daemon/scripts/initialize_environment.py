@@ -145,7 +145,7 @@ class EnvironmentInitializer:
 
         try:
             # 获取数据库服务 (通过DI容器)
-            from services.database_service import DatabaseService
+            from services.unified_database_service import UnifiedDatabaseService as DatabaseService
 
             container = get_container()
 
@@ -389,7 +389,7 @@ class EnvironmentInitializer:
             # 检查2: 数据库连接
             total_checks += 1
             try:
-                from services.database_service import DatabaseService
+                from services.unified_database_service import UnifiedDatabaseService as DatabaseService
 
                 db_service = get_service(DatabaseService)
                 stats = db_service.get_database_stats()

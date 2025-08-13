@@ -108,7 +108,7 @@ class _EntityDisplayWidgetState extends ConsumerState<EntityDisplayWidget>
         children: [
           // 类型选择标签页
           if (widget.showAllTypes)
-            Container(
+            SizedBox(
               height: 48,
               child: TabBar(
                 controller: _tabController,

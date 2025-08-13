@@ -1,10 +1,12 @@
 #include "clipboard_monitor_adapter.hpp"
+#include <linch_connector/optimized_event_utils.hpp>
 #include <iostream>
 
 namespace linch_connector {
 
 ClipboardMonitorAdapter::ClipboardMonitorAdapter()
     : m_monitor(std::make_unique<ClipboardMonitor>())
+    , m_config(config::ClipboardConfig::createDefault())
 {
 }
 
@@ -12,7 +14,7 @@ ClipboardMonitorAdapter::~ClipboardMonitorAdapter() {
     stop();
 }
 
-bool ClipboardMonitorAdapter::start(std::function<void(const ConnectorEvent&)> callback) {
+bool ClipboardMonitorAdapter::start(std::function<void(ConnectorEvent&&)> callback) {
     if (m_isRunning) {
         return false;
     }
@@ -72,31 +74,47 @@ std::string ClipboardMonitorAdapter::getCurrentContent() {
 }
 
 void ClipboardMonitorAdapter::onClipboardChange(const std::string& content) {
+    // 早期返回，避免不必要的处理
     if (!m_eventCallback || content == m_lastContent) {
         return;
     }
     
+    // 基础长度检查 - 防止系统崩溃
+    if (content.length() > m_config.maxContentLength) {
+        std::cout << "📋 剪贴板内容过长，已截断: " << content.length() << " 字符" << std::endl;
+        return;
+    }
+    
+    // 存储内容
     m_lastContent = content;
     
-    // 创建剪贴板事件
-    json eventData = {
-        {"content", content},
-        {"content_length", content.length()},
-        {"content_type", "text"}, // 目前只支持文本
-        {"timestamp", std::chrono::duration_cast<std::chrono::milliseconds>(
-            std::chrono::system_clock::now().time_since_epoch()).count()}
-    };
+    // 创建事件
+    ConnectorEvent event = optimization::EventUtils::createClipboardEvent(content);
     
-    ConnectorEvent event = ConnectorEvent::create("clipboard", "changed", eventData);
-    
-    // 更新统计信息
+    // 更新统计
     {
         std::lock_guard<std::mutex> lock(m_statsMutex);
         m_eventsProcessed++;
     }
     
-    // 调用回调
-    m_eventCallback(event);
+    // 传递事件
+    m_eventCallback(std::move(event));
+}
+
+bool ClipboardMonitorAdapter::setConfig(const config::ClipboardConfig& config) {
+    std::string errorMessage;
+    if (!config.validate(errorMessage)) {
+        std::cerr << "配置验证失败: " << errorMessage << std::endl;
+        return false;
+    }
+    
+    m_config = config;
+    std::cout << "✅ " << config.getDescription() << std::endl;
+    return true;
+}
+
+config::ClipboardConfig ClipboardMonitorAdapter::getConfig() const {
+    return m_config;
 }
 
 } // namespace linch_connector

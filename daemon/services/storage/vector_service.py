@@ -682,32 +682,4 @@ class VectorService:
             return False
 
 
-# 全局向量服务实例
-_vector_service: Optional[VectorService] = None
-
-
-async def get_vector_service() -> VectorService:
-    """获取向量服务实例（单例模式）"""
-    global _vector_service
-    if _vector_service is None:
-        from config.core_config import get_storage_config
-
-        storage_config = get_storage_config()
-
-        _vector_service = VectorService(
-            data_dir=Path(storage_config.data_directory) / "vectors",
-            dimension=storage_config.vector_dimension,
-            index_type=storage_config.vector_index_type,
-            max_workers=storage_config.vector_max_workers,
-        )
-        await _vector_service.initialize()
-
-    return _vector_service
-
-
-async def cleanup_vector_service():
-    """清理向量服务"""
-    global _vector_service
-    if _vector_service:
-        await _vector_service.close()
-        _vector_service = None
+# ServiceFacade现在负责管理服务单例，不再需要本地单例模式

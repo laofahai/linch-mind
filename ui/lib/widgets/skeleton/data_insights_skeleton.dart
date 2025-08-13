@@ -125,16 +125,16 @@ class AIInsightsSkeleton extends StatelessWidget {
   Widget _buildInsightItem() {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const SkeletonCircle(size: 24),
-        const SizedBox(width: 12),
+      children: const [
+        SkeletonCircle(size: 24),
+        SizedBox(width: 12),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const SkeletonText(width: double.infinity, height: 16),
-              const SizedBox(height: 4),
-              const SkeletonText(
+              SkeletonText(width: double.infinity, height: 16),
+              SizedBox(height: 4),
+              SkeletonText(
                 width: 300,
                 height: 14,
               ),
@@ -168,7 +168,7 @@ class EntityBreakdownChartSkeleton extends StatelessWidget {
               const SkeletonText(width: 120, height: 18),
               const SizedBox(height: 12),
               // 图表区域
-              Container(
+              SizedBox(
                 height: chartHeight,
                 child: Row(
                   children: List.generate(6, (index) => 
@@ -322,12 +322,12 @@ class TimelineSkeleton extends StatelessWidget {
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const SkeletonText(width: 80, height: 12), // 时间
-              const SizedBox(height: 4),
-              const SkeletonText(width: double.infinity, height: 16), // 标题
-              const SizedBox(height: 4),
-              const SkeletonText(
+            children: const [
+              SkeletonText(width: 80, height: 12), // 时间
+              SizedBox(height: 4),
+              SkeletonText(width: double.infinity, height: 16), // 标题
+              SizedBox(height: 4),
+              SkeletonText(
                 width: 250,
                 height: 14,
               ), // 描述

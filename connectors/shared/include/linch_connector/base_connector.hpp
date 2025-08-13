@@ -22,8 +22,8 @@ namespace linch_connector {
  */
 class BaseConnector {
 public:
-    using EventCallback = std::function<void(const ConnectorEvent&)>;
-    using BatchEventCallback = std::function<void(const std::vector<ConnectorEvent>&)>;
+    using EventCallback = std::function<void(ConnectorEvent&&)>;
+    using BatchEventCallback = std::function<void(std::vector<ConnectorEvent>&&)>;
 
     BaseConnector(const std::string& connectorId, const std::string& displayName);
     virtual ~BaseConnector();

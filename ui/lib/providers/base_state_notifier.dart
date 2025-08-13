@@ -50,13 +50,3 @@ abstract class BaseStateNotifier<T extends BaseState> extends StateNotifier<T> {
   T updateStateWithLoading(bool loading);
 }
 
-/// 用于带有连接状态的StateNotifier的Mixin
-mixin ConnectionStateMixin<T extends BaseState> on BaseStateNotifier<T> {
-  /// 设置连接状态的通用方法
-  void setConnected(bool connected) {
-    state = updateStateWithConnection(connected);
-  }
-
-  /// 子类需要实现：更新连接状态
-  T updateStateWithConnection(bool connected);
-}

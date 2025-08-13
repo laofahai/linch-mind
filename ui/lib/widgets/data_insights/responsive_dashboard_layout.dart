@@ -24,16 +24,16 @@ class ResponsiveDashboardLayout extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final screenWidth = MediaQuery.of(context).size.width;
-    final isDesktop = screenWidth >= 1200;
-    final isTablet = screenWidth >= 768 && screenWidth < 1200;
-    final isMobile = screenWidth < 768;
-
     return Container(
       constraints: maxWidth != null ? BoxConstraints(maxWidth: maxWidth!) : null,
       padding: padding ?? _getDefaultPadding(context),
       child: LayoutBuilder(
         builder: (context, constraints) {
+          final screenWidth = constraints.maxWidth;
+          final isDesktop = screenWidth >= 1200;
+          final isTablet = screenWidth >= 768 && screenWidth < 1200;
+          final isMobile = screenWidth < 768;
+          
           final availableHeight = constraints.maxHeight.isFinite 
               ? constraints.maxHeight 
               : MediaQuery.of(context).size.height;

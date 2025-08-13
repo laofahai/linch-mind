@@ -142,7 +142,7 @@ class GenericEventStorage:
         """
         try:
             # 尝试导入内容分析服务
-            from services.content_analysis_service import get_content_analysis_service
+            from core.service_facade import get_content_analysis_service
 
             analysis_service = get_content_analysis_service()
 

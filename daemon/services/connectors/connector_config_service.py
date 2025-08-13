@@ -217,9 +217,4 @@ class ConnectorConfigService:
         return merged
 
 
-# 兼容性函数
-def get_connector_config_service(
-    connectors_dir: Optional[Path] = None,
-) -> ConnectorConfigService:
-    """获取连接器配置服务实例"""
-    return ConnectorConfigService(connectors_dir)
+# ServiceFacade现在负责管理服务单例，不再需要本地单例模式

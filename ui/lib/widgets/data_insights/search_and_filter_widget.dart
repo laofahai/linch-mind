@@ -2,7 +2,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/data_insights_models.dart';
+import '../../models/connector_lifecycle_models.dart';
 import '../../providers/data_insights_provider.dart';
+import '../../services/connector_lifecycle_api_client.dart';
 
 /// 智能搜索组件
 class SmartSearchWidget extends ConsumerStatefulWidget {
@@ -402,8 +404,38 @@ class AdvancedFiltersDialog extends ConsumerStatefulWidget {
 class _AdvancedFiltersDialogState extends ConsumerState<AdvancedFiltersDialog> {
   DateTime? _startDate;
   DateTime? _endDate;
-  List<String> _selectedTypes = [];
-  List<String> _selectedConnectors = [];
+  final List<String> _selectedTypes = [];
+  final List<String> _selectedConnectors = [];
+  List<ConnectorDefinition> _availableConnectors = [];
+  bool _isLoadingConnectors = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadAvailableConnectors();
+  }
+
+  Future<void> _loadAvailableConnectors() async {
+    try {
+      final client = ConnectorLifecycleApiClient();
+      final response = await client.discoverConnectors();
+      if (response.success && response.connectors.isNotEmpty) {
+        setState(() {
+          _availableConnectors = response.connectors;
+          _isLoadingConnectors = false;
+        });
+      } else {
+        setState(() {
+          _isLoadingConnectors = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('[DEBUG] Failed to load connectors: $e');
+      setState(() {
+        _isLoadingConnectors = false;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -501,25 +533,27 @@ class _AdvancedFiltersDialogState extends ConsumerState<AdvancedFiltersDialog> {
               ),
             ),
             const SizedBox(height: 12),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: ['clipboard', 'filesystem'].map((connector) {
-                return FilterChip(
-                  label: Text(_getConnectorLabel(connector)),
-                  selected: _selectedConnectors.contains(connector),
-                  onSelected: (selected) {
-                    setState(() {
-                      if (selected) {
-                        _selectedConnectors.add(connector);
-                      } else {
-                        _selectedConnectors.remove(connector);
-                      }
-                    });
-                  },
-                );
-              }).toList(),
-            ),
+            _isLoadingConnectors
+                ? const CircularProgressIndicator()
+                : Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: _availableConnectors.map((connector) {
+                      return FilterChip(
+                        label: Text(connector.displayName.isNotEmpty ? connector.displayName : connector.name),
+                        selected: _selectedConnectors.contains(connector.connectorId),
+                        onSelected: (selected) {
+                          setState(() {
+                            if (selected) {
+                              _selectedConnectors.add(connector.connectorId);
+                            } else {
+                              _selectedConnectors.remove(connector.connectorId);
+                            }
+                          });
+                        },
+                      );
+                    }).toList(),
+                  ),
 
             const SizedBox(height: 30),
 
@@ -607,11 +641,4 @@ class _AdvancedFiltersDialogState extends ConsumerState<AdvancedFiltersDialog> {
     }
   }
 
-  String _getConnectorLabel(String connector) {
-    switch (connector) {
-      case 'clipboard': return '剪贴板连接器';
-      case 'filesystem': return '文件系统连接器';
-      default: return connector;
-    }
-  }
 }

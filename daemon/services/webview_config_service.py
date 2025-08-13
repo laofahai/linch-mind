@@ -171,14 +171,24 @@ class WebViewConfigService:
 
     def _get_connector_display_name(self, connector_id: str) -> str:
         """获取连接器显示名称"""
-        # 可以从配置或连接器注册信息中获取
-        display_names = {
-            "filesystem": "文件系统连接器",
-            "clipboard": "剪贴板连接器",
-            "browser": "浏览器连接器",
-            "email": "邮件连接器",
-        }
-        return display_names.get(connector_id, connector_id.title())
+        # 使用动态连接器发现服务获取显示名称
+        try:
+            from services.connectors.connector_discovery_service import ConnectorDiscoveryService
+            from core.service_facade import get_service
+            
+            discovery_service = get_service(ConnectorDiscoveryService)
+            metadata = discovery_service.get_connector_metadata(connector_id)
+            
+            if metadata and metadata.name:
+                return metadata.name
+            
+            # 回退到格式化的连接器ID
+            return connector_id.replace('_', ' ').title()
+            
+        except Exception as e:
+            logger.warning(f"获取连接器显示名称失败 {connector_id}: {e}")
+            # 最后的回退方案
+            return connector_id.replace('_', ' ').title()
 
     def _generate_fallback_html(
         self,

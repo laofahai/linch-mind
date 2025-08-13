@@ -139,6 +139,20 @@ class IPCRequest with _$IPCRequest {
       requestId: requestId,
     );
   }
+
+  /// 创建DELETE请求
+  factory IPCRequest.delete({
+    required String path,
+    Map<String, dynamic>? queryParams,
+    String? requestId,
+  }) {
+    return IPCRequest(
+      method: 'DELETE',
+      path: path,
+      queryParams: queryParams,
+      requestId: requestId,
+    );
+  }
 }
 
 /// 连接器运行状态枚举 - 与Python/C++完全一致

@@ -5,6 +5,7 @@ import 'package:window_manager/window_manager.dart';
 import 'screens/connector_management_screen.dart';
 import 'screens/data_insights_screen.dart';
 import 'screens/knowledge_nebula_screen.dart';
+import 'screens/vector_search_screen.dart';
 import 'screens/settings_screen.dart';
 import 'providers/app_providers.dart';
 import 'widgets/unified_app_bar.dart';
@@ -14,6 +15,8 @@ import 'widgets/system_health_indicator.dart';
 import 'utils/app_logger.dart';
 import 'utils/enhanced_error_handler.dart';
 import 'config/app_constants.dart';
+import 'core/service_initializer.dart';
+import 'core/ui_service_facade.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -22,8 +25,11 @@ void main() async {
   AppLogger.setDebugMode(kDebugMode);
   AppLogger.info('应用启动', module: 'Main');
 
+  // 🚀 统一初始化所有服务 - 消除.instance调用
+  initializeServices();
+
   // 🔧 设置全局错误处理器
-  final errorHandler = EnhancedErrorHandler();
+  final errorHandler = getService<EnhancedErrorHandler>();
 
   // 处理Flutter框架错误
   FlutterError.onError = (FlutterErrorDetails details) {
@@ -213,6 +219,7 @@ class _MainAppState extends ConsumerState<MainApp> {
 
   final List<Widget> _pages = const [
     DataInsightsScreen(),
+    VectorSearchScreen(),
     KnowledgeNebulaScreen(),
     ConnectorManagementScreen(),
     SettingsScreen(),

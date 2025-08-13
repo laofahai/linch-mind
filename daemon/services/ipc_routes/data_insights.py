@@ -9,7 +9,7 @@ from typing import Optional
 
 from ..ipc_protocol import IPCRequest, IPCResponse
 from ..ipc_router import IPCRouter
-from services.api.data_insights_service import get_data_insights_service
+from core.service_facade import get_data_insights_service
 
 logger = logging.getLogger(__name__)
 
@@ -147,6 +147,24 @@ def create_data_insights_router() -> IPCRouter:
             return IPCResponse.error_response(
                 error_code="SEARCH_ERROR",
                 message=f"Failed to search entities: {str(e)}",
+                request_id=request.request_id,
+            )
+
+    @router.get("/insights/overview")
+    async def get_insights_overview(request: IPCRequest) -> IPCResponse:
+        """获取完整的数据洞察概览 - 专为UI层设计"""
+        try:
+            # 获取完整的洞察概览数据
+            overview = insights_service.get_complete_insights_overview()
+            return IPCResponse.success_response(
+                data=overview,
+                request_id=request.request_id,
+            )
+        except Exception as e:
+            logger.error(f"获取完整洞察概览失败: {e}")
+            return IPCResponse.error_response(
+                error_code="OVERVIEW_ERROR", 
+                message=f"Failed to get insights overview: {str(e)}",
                 request_id=request.request_id,
             )
 

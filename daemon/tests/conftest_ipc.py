@@ -14,9 +14,7 @@ from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 
-# 添加项目路径到系统路径
-project_root = Path(__file__).parent.parent
-sys.path.insert(0, str(project_root))
+# 使用标准Python包导入，无需动态路径添加
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
@@ -70,7 +68,7 @@ def test_database(temp_dir):
 @pytest.fixture
 def mock_database_service(test_database):
     """模拟数据库服务"""
-    from services.database_service import DatabaseService
+    from services.unified_database_service import UnifiedDatabaseService as DatabaseService
 
     service = Mock(spec=DatabaseService)
     service.get_session.return_value.__enter__.return_value = test_database

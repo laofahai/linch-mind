@@ -19,7 +19,7 @@ from services.connector_registry_service import ConnectorRegistryService
 from services.connectors.connector_config_service import ConnectorConfigService
 from services.connectors.connector_manager import ConnectorManager
 from services.connectors.process_manager import ProcessManager
-from services.database_service import DatabaseService
+from services.unified_database_service import UnifiedDatabaseService as DatabaseService
 
 
 class TestConnectorManagerEffective:

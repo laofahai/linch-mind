@@ -9,7 +9,7 @@ namespace linch_connector {
 using json = nlohmann::json;
 
 /**
- * 统一连接器事件结构
+ * 统一连接器事件结构 - 零拷贝优化版本
  * 所有连接器都使用此结构发送事件到daemon
  */
 struct ConnectorEvent {
@@ -34,15 +34,53 @@ struct ConnectorEvent {
     }
 
     /**
-     * 创建一个基本事件
+     * 默认构造函数
      */
-    static ConnectorEvent create(const std::string& connectorId, 
-                                const std::string& eventType,
-                                const json& eventData) {
+    ConnectorEvent() = default;
+    
+    /**
+     * 移动构造函数 - 零拷贝优化
+     */
+    ConnectorEvent(ConnectorEvent&&) noexcept = default;
+    ConnectorEvent& operator=(ConnectorEvent&&) noexcept = default;
+    
+    /**
+     * 拷贝构造函数 - 为兼容性保留，但标记为性能敏感
+     * 推荐使用移动语义以获得更好性能
+     */
+    ConnectorEvent(const ConnectorEvent&) = default;
+    ConnectorEvent& operator=(const ConnectorEvent&) = default;
+    
+    /**
+     * 高性能构造函数 - 使用移动语义
+     */
+    ConnectorEvent(std::string connectorId, std::string eventType, json eventData)
+        : connectorId(std::move(connectorId))
+        , eventType(std::move(eventType))
+        , eventData(std::move(eventData))
+        , timestamp(std::chrono::system_clock::now())
+        , metadata(json::object()) {}
+    
+    /**
+     * 创建事件 - 零拷贝版本
+     */
+    static ConnectorEvent create(std::string connectorId, 
+                                std::string eventType,
+                                json eventData) {
+        return ConnectorEvent(std::move(connectorId), std::move(eventType), std::move(eventData));
+    }
+    
+    /**
+     * 原地构造事件数据 - 最高性能版本
+     */
+    template<typename... Args>
+    static ConnectorEvent emplace(std::string connectorId, 
+                                 std::string eventType,
+                                 Args&&... args) {
         ConnectorEvent event;
-        event.connectorId = connectorId;
-        event.eventType = eventType;
-        event.eventData = eventData;
+        event.connectorId = std::move(connectorId);
+        event.eventType = std::move(eventType);
+        event.eventData = json(std::forward<Args>(args)...);
         event.timestamp = std::chrono::system_clock::now();
         event.metadata = json::object();
         return event;
@@ -58,11 +96,11 @@ public:
     virtual ~IConnectorMonitor() = default;
 
     /**
-     * 开始监控
-     * @param callback 事件回调函数
+     * 开始监控 - 零拷贝优化回调
+     * @param callback 事件回调函数 (接受移动语义)
      * @return 是否成功启动
      */
-    virtual bool start(std::function<void(const ConnectorEvent&)> callback) = 0;
+    virtual bool start(std::function<void(ConnectorEvent&&)> callback) = 0;
 
     /**
      * 停止监控

@@ -784,31 +784,4 @@ class GraphService:
         return False
 
 
-# 全局图服务实例
-_graph_service: Optional[GraphService] = None
-
-
-async def get_graph_service() -> GraphService:
-    """获取图服务实例（单例模式）"""
-    global _graph_service
-    if _graph_service is None:
-        from config.core_config import get_storage_config
-
-        storage_config = get_storage_config()
-
-        _graph_service = GraphService(
-            data_dir=Path(storage_config.data_directory) / "graph",
-            max_workers=storage_config.graph_max_workers,
-            enable_cache=storage_config.graph_enable_cache,
-        )
-        await _graph_service.initialize()
-
-    return _graph_service
-
-
-async def cleanup_graph_service():
-    """清理图服务"""
-    global _graph_service
-    if _graph_service:
-        await _graph_service.close()
-        _graph_service = None
+# ServiceFacade现在负责管理服务单例，不再需要本地单例模式

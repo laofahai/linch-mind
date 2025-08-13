@@ -25,10 +25,10 @@ class JsonSchemaFormWidget extends StatefulWidget {
   });
 
   @override
-  _JsonSchemaFormWidgetState createState() => _JsonSchemaFormWidgetState();
+  JsonSchemaFormWidgetState createState() => JsonSchemaFormWidgetState();
 }
 
-class _JsonSchemaFormWidgetState extends State<JsonSchemaFormWidget> {
+class JsonSchemaFormWidgetState extends State<JsonSchemaFormWidget> {
   late Map<String, dynamic> _data;
 
   @override

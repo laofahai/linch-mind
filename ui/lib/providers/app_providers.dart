@@ -6,7 +6,7 @@ import '../services/connector_lifecycle_api_client.dart';
 import '../services/daemon_lifecycle_service.dart';
 import '../utils/app_logger.dart';
 import '../utils/error_monitor.dart';
-import 'base_state_notifier.dart';
+import '../core/ui_service_facade.dart';
 
 // 主题管理提供者
 final themeModeProvider =
@@ -39,7 +39,7 @@ class ThemeModeNotifier extends StateNotifier<ThemeMode> {
 // 连接器生命周期API客户端提供者
 final connectorLifecycleApiProvider =
     Provider<ConnectorLifecycleApiClient>((ref) {
-  return ConnectorLifecycleApiService.instance;
+  return getService<ConnectorLifecycleApiClient>();
 });
 
 // 连接器定义提供者
@@ -60,7 +60,7 @@ final connectorsProvider = FutureProvider<List<ConnectorInfo>>((ref) async {
 // 后台daemon初始化提供者 - 不阻塞UI启动
 final backgroundDaemonInitProvider = FutureProvider<bool>((ref) async {
   try {
-    final daemonService = DaemonLifecycleService.instance;
+    final daemonService = getService<DaemonLifecycleService>();
     AppLogger.daemonInfo('开始后台daemon初始化');
 
     final result = await daemonService.ensureDaemonRunning();
@@ -111,14 +111,11 @@ final appStateProvider =
   return AppStateNotifier();
 });
 
-// 应用状态数据类
-class AppState implements BaseState {
+// 应用状态数据类 - 简化为普通数据类
+class AppState {
   final bool isConnected;
-  @override
   final String? errorMessage;
-  @override
   final DateTime lastUpdate;
-  @override
   final bool isLoading;
 
   AppState({
@@ -128,7 +125,6 @@ class AppState implements BaseState {
     this.isLoading = false,
   });
 
-  @override
   bool get hasError => errorMessage != null;
 
   AppState copyWith({
@@ -147,45 +143,44 @@ class AppState implements BaseState {
   }
 }
 
-// 应用状态通知器
-class AppStateNotifier extends BaseStateNotifier<AppState>
-    with ConnectionStateMixin<AppState> {
+// 应用状态通知器 - 简化为直接StateNotifier模式
+class AppStateNotifier extends StateNotifier<AppState> {
   AppStateNotifier()
       : super(AppState(
           isConnected: false,
           lastUpdate: DateTime.now(),
         ));
 
-  @override
-  AppState updateStateWithError(String error) {
-    return state.copyWith(
+  /// 设置连接状态
+  void setConnected(bool connected) {
+    state = state.copyWith(
+      isConnected: connected,
+      errorMessage: connected ? null : 'Connection lost',
+      lastUpdate: DateTime.now(),
+    );
+  }
+
+  /// 处理错误
+  void handleError(String error) {
+    state = state.copyWith(
       isConnected: false,
       errorMessage: error,
       lastUpdate: DateTime.now(),
     );
   }
 
-  @override
-  AppState updateStateWithClearError() {
-    return state.copyWith(
+  /// 清除错误
+  void clearError() {
+    state = state.copyWith(
       clearError: true,
       lastUpdate: DateTime.now(),
     );
   }
 
-  @override
-  AppState updateStateWithLoading(bool loading) {
-    return state.copyWith(
+  /// 设置加载状态
+  void setLoading(bool loading) {
+    state = state.copyWith(
       isLoading: loading,
-      lastUpdate: DateTime.now(),
-    );
-  }
-
-  @override
-  AppState updateStateWithConnection(bool connected) {
-    return state.copyWith(
-      isConnected: connected,
-      errorMessage: connected ? null : 'Connection lost',
       lastUpdate: DateTime.now(),
     );
   }

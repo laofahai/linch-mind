@@ -288,8 +288,9 @@ class _AppInitializationScreenState
 
     if (!mounted) return;
 
-    showDialog(
-      context: context,
+    if (context.mounted) {
+      showDialog(
+        context: context,
       builder: (context) => AlertDialog(
         title: const Text('系统状态'),
         content: SingleChildScrollView(
@@ -320,6 +321,7 @@ class _AppInitializationScreenState
         ],
       ),
     );
+    }
   }
 
   /// 构建调试信息项

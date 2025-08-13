@@ -73,171 +73,22 @@ linux = "bin/release/linch-mind-clipboard"
 macos = "bin/release/linch-mind-clipboard"
 windows = "bin/release/linch-mind-clipboard.exe"
 
-# 默认配置值
+# 默认配置值 - 简单直接
 [config_default_values]
-monitor_interval = 0.5      # 剪贴板检查间隔(秒)
-max_content_length = 10000  # 最大内容长度
-enable_text_analysis = true # 启用文本分析
-enable_url_extraction = true # URL提取
-enable_file_path_detection = true # 文件路径检测
-history_retention_hours = 24 # 历史记录保留时间(小时)
-ignore_duplicate_interval = 2.0 # 忽略重复内容的时间间隔(秒)
+max_content_length = 50000             # 最大内容长度
 
-# 内容类型过滤
-content_types = ["text", "url", "file_path", "image_path"]
-ignore_patterns = [
-    "^\\s*$",           # 空白内容
-    "^.{1,2}$",         # 过短内容
-    "password",         # 包含密码的内容
-    "secret",           # 包含密钥的内容
-    "token"             # 包含token的内容
-]
-
-# 配置模式定义
+# 配置模式定义 - 极简配置
 [config_schema]
-description = "剪贴板监控连接器的配置选项"
-title = "剪贴板连接器配置"
+description = "剪贴板连接器配置"
+title = "剪贴板连接器"
 type = "object"
-config_schema_source = "static"
-
-[config_schema.properties.monitor_interval]
-title = "监控间隔 (秒)"
-description = "剪贴板内容检查频率"
-type = "number"
-minimum = 0.1
-maximum = 5.0
-default = 0.5
 
 [config_schema.properties.max_content_length]
 title = "最大内容长度"
-description = "剪贴板内容的最大字符数"
+description = "超过此长度的内容将被截断"
 type = "integer"
-minimum = 100
-maximum = 50000
-default = 10000
+minimum = 1000
+maximum = 1000000
+default = 50000
 
-[config_schema.properties.enable_text_analysis]
-title = "启用文本分析"
-description = "对剪贴板文本内容进行智能分析"
-type = "boolean"
-default = true
-
-[config_schema.properties.enable_url_extraction]
-title = "启用URL提取"
-description = "自动识别和提取URL链接"
-type = "boolean"
-default = true
-
-[config_schema.properties.enable_file_path_detection]
-title = "启用文件路径检测"
-description = "自动识别文件路径"
-type = "boolean"
-default = true
-
-[config_schema.properties.history_retention_hours]
-title = "历史保留时间 (小时)"
-description = "剪贴板历史记录保留时长"
-type = "integer"
-minimum = 1
-maximum = 168  # 7天
-default = 24
-
-[config_schema.properties.ignore_duplicate_interval]
-title = "忽略重复间隔 (秒)"
-description = "短时间内的重复内容将被忽略"
-type = "number"
-minimum = 0.5
-maximum = 10.0
-default = 2.0
-
-[config_schema.properties.content_types]
-title = "内容类型"
-description = "要监控的剪贴板内容类型"
-type = "array"
-default = ["text", "url", "file_path", "image_path"]
-
-[config_schema.properties.content_types.items]
-type = "string"
-enum = ["text", "url", "file_path", "image_path", "rich_text"]
-
-[config_schema.properties.ignore_patterns]
-title = "忽略模式"
-description = "匹配这些正则表达式的内容将被忽略"
-type = "array"
-default = ["^\\s*$", "^.{1,2}$", "password", "secret", "token"]
-
-[config_schema.properties.ignore_patterns.items]
-type = "string"
-
-# 必需配置字段
-config_schema.required = ["monitor_interval", "max_content_length"]
-
-# UI配置模式
-[config_ui_schema]
-ui_layout = "sections"
-
-# UI节段配置
-[config_ui_schema.ui_sections.basic_config]
-ui_title = "基础设置"
-ui_icon = "content_paste"
-ui_description = "剪贴板监控的基本配置"
-ui_collapsible = false
-
-[config_ui_schema.ui_sections.basic_config.ui_fields.monitor_interval]
-ui_widget = "slider"
-ui_step = 0.1
-ui_unit = "秒"
-ui_help = "检查频率，过低可能影响系统性能"
-
-[config_ui_schema.ui_sections.basic_config.ui_fields.max_content_length]
-ui_widget = "slider"
-ui_step = 1000
-ui_unit = "字符"
-ui_help = "超过此长度的内容将被截断"
-
-[config_ui_schema.ui_sections.basic_config.ui_fields.history_retention_hours]
-ui_widget = "slider"
-ui_step = 1
-ui_unit = "小时"
-ui_help = "历史记录保留时间，过长可能占用更多存储"
-
-[config_ui_schema.ui_sections.analysis_config]
-ui_title = "内容分析"
-ui_icon = "analytics"
-ui_description = "剪贴板内容的智能分析选项"
-ui_collapsed = false
-ui_collapsible = true
-
-[config_ui_schema.ui_sections.analysis_config.ui_fields.enable_text_analysis]
-ui_widget = "switch"
-ui_help = "对文本内容进行智能分析和分类"
-
-[config_ui_schema.ui_sections.analysis_config.ui_fields.enable_url_extraction]
-ui_widget = "switch"
-ui_help = "自动识别URL并提取元信息"
-
-[config_ui_schema.ui_sections.analysis_config.ui_fields.enable_file_path_detection]
-ui_widget = "switch"
-ui_help = "识别文件路径并关联文件系统"
-
-[config_ui_schema.ui_sections.analysis_config.ui_fields.content_types]
-ui_widget = "checkbox_group"
-ui_help = "选择要监控的剪贴板内容类型"
-
-[config_ui_schema.ui_sections.filter_config]
-ui_title = "过滤设置"
-ui_icon = "filter_alt"
-ui_description = "配置要忽略的内容模式"
-ui_collapsed = true
-ui_collapsible = true
-
-[config_ui_schema.ui_sections.filter_config.ui_fields.ignore_duplicate_interval]
-ui_widget = "slider"
-ui_step = 0.5
-ui_unit = "秒"
-ui_help = "短时间内的重复内容将被忽略"
-
-[config_ui_schema.ui_sections.filter_config.ui_fields.ignore_patterns]
-ui_widget = "tag_input"
-ui_placeholder = "输入正则表达式模式"
-ui_help = "匹配的内容将被忽略，支持正则表达式"
+config_schema.required = ["max_content_length"]

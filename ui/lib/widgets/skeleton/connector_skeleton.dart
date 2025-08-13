@@ -24,10 +24,10 @@ class ConnectorCardSkeleton extends StatelessWidget {
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const SkeletonText(width: 140, height: 18),
-                    const SizedBox(height: 4),
-                    const SkeletonText(width: 100, height: 14),
+                  children: const [
+                    SkeletonText(width: 140, height: 18),
+                    SizedBox(height: 4),
+                    SkeletonText(width: 100, height: 14),
                   ],
                 ),
               ),
@@ -93,10 +93,10 @@ class ConnectorCardSkeleton extends StatelessWidget {
   Widget _buildStatItem() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const SkeletonText(width: 40, height: 16),
-        const SizedBox(height: 2),
-        const SkeletonText(width: 60, height: 12),
+      children: const [
+        SkeletonText(width: 40, height: 16),
+        SizedBox(height: 2),
+        SkeletonText(width: 60, height: 12),
       ],
     );
   }

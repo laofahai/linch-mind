@@ -36,6 +36,7 @@ class ErrorCategory(Enum):
     IPC_COMMUNICATION = "ipc_communication"
     DATABASE_OPERATION = "database_operation"
     CONNECTOR_MANAGEMENT = "connector_management"
+    CONNECTOR_DISCOVERY = "connector_discovery"  # 新增连接器发现类别
     FILE_SYSTEM = "file_system"
     CONFIGURATION = "configuration"
     SECURITY = "security"

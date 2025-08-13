@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:reactive_forms/reactive_forms.dart';
 import '../../services/form_builder_service.dart';
+import '../../config/ui_text_constants.dart';
 import 'reactive_directory_picker.dart';
 
 /// 基于reactive_forms的配置组件库
@@ -286,7 +287,11 @@ class ReactiveConfigWidgets {
       keyboardType: TextInputType.emailAddress,
       decoration: InputDecoration(
         labelText: config['title'],
-        hintText: config['placeholder'] ?? 'user@example.com',
+        hintText: UITextConstants.getWidgetPlaceholder(
+          'email_input',
+          fieldConfig: config,
+          fieldName: fieldName,
+        ),
         helperText: config['description'] ?? config['help_text'],
         prefixIcon: const Icon(Icons.email),
         border: const OutlineInputBorder(),
@@ -302,7 +307,11 @@ class ReactiveConfigWidgets {
       keyboardType: TextInputType.url,
       decoration: InputDecoration(
         labelText: config['title'],
-        hintText: config['placeholder'] ?? 'https://example.com',
+        hintText: UITextConstants.getWidgetPlaceholder(
+          'url_input',
+          fieldConfig: config,
+          fieldName: fieldName,
+        ),
         helperText: config['description'] ?? config['help_text'],
         prefixIcon: const Icon(Icons.link),
         border: const OutlineInputBorder(),
@@ -341,14 +350,14 @@ class ReactiveConfigWidgets {
   /// 获取标准验证消息
   static Map<String, String Function(Object)> _getValidationMessages() {
     return {
-      'required': (error) => '此项为必填项',
-      'email': (error) => '请输入有效的邮箱地址',
+      'required': (error) => UITextConstants.validationMessages['required']!,
+      'email': (error) => UITextConstants.validationMessages['email']!,
       'minLength': (error) => '最少需要 ${(error as Map)['requiredLength']} 个字符',
       'maxLength': (error) => '最多允许 ${(error as Map)['requiredLength']} 个字符',
       'min': (error) => '不能小于 ${(error as Map)['min']}',
       'max': (error) => '不能大于 ${(error as Map)['max']}',
-      'pattern': (error) => '格式不正确',
-      'uri': (error) => '请输入有效的URL地址',
+      'pattern': (error) => UITextConstants.validationMessages['pattern']!,
+      'uri': (error) => UITextConstants.validationMessages['uri']!,
     };
   }
 
@@ -525,7 +534,7 @@ class _TagInputWidgetState extends State<_TagInputWidget> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          widget.fieldConfig['title'] ?? '标签',
+          widget.fieldConfig['title'] ?? UITextConstants.labels['predefined_options']!,
           style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
         ),
         if (widget.fieldConfig['description'] != null ||
@@ -541,7 +550,7 @@ class _TagInputWidgetState extends State<_TagInputWidget> {
 
         // 预定义标签
         if (predefinedTags.isNotEmpty) ...[
-          Text('常用选项:', style: Theme.of(context).textTheme.bodySmall),
+          Text('${UITextConstants.labels['predefined_options']}:', style: Theme.of(context).textTheme.bodySmall),
           const SizedBox(height: 4),
           Wrap(
             spacing: 8,
@@ -572,7 +581,10 @@ class _TagInputWidgetState extends State<_TagInputWidget> {
           TextField(
             controller: _controller,
             decoration: InputDecoration(
-              hintText: widget.fieldConfig['placeholder'] ?? '输入后按回车添加',
+              hintText: UITextConstants.getWidgetPlaceholder(
+                'tag_input',
+                fieldConfig: widget.fieldConfig,
+              ),
               border: OutlineInputBorder(
                 borderSide: BorderSide(
                   color: widget.hasError ? Colors.red : Colors.grey,
@@ -591,7 +603,7 @@ class _TagInputWidgetState extends State<_TagInputWidget> {
 
         // 当前标签
         if (_tags.isNotEmpty) ...[
-          Text('已选择:', style: Theme.of(context).textTheme.bodySmall),
+          Text('${UITextConstants.labels['selected_items']}:', style: Theme.of(context).textTheme.bodySmall),
           const SizedBox(height: 4),
           Wrap(
             spacing: 8,
@@ -891,7 +903,7 @@ class _ArrayInputWidgetState extends State<_ArrayInputWidget> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text(
-              widget.fieldConfig['title'] ?? '列表',
+              widget.fieldConfig['title'] ?? UITextConstants.labels['array_item']!,
               style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
             ),
             IconButton(
@@ -928,7 +940,7 @@ class _ArrayInputWidgetState extends State<_ArrayInputWidget> {
                           TextEditingController(text: item?.toString() ?? ''),
                       onChanged: (value) => _updateItem(index, value),
                       decoration: InputDecoration(
-                        hintText: '项目 ${index + 1}',
+                        hintText: UITextConstants.placeholders['array_input'] ?? '项目 ${index + 1}',
                         border: const OutlineInputBorder(),
                         isDense: true,
                       ),
@@ -1051,7 +1063,7 @@ class _ObjectEditorWidgetState extends State<_ObjectEditorWidget> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text(
-              widget.fieldConfig['title'] ?? '对象',
+              widget.fieldConfig['title'] ?? UITextConstants.labels['object_property']!,
               style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
             ),
             IconButton(
@@ -1088,9 +1100,9 @@ class _ObjectEditorWidgetState extends State<_ObjectEditorWidget> {
                       controller: TextEditingController(text: key),
                       onChanged: (newKey) =>
                           _updateProperty(key, newKey, value),
-                      decoration: const InputDecoration(
-                        labelText: '属性名',
-                        border: OutlineInputBorder(),
+                      decoration: InputDecoration(
+                        labelText: UITextConstants.labels['object_property'] ?? '属性名',
+                        border: const OutlineInputBorder(),
                         isDense: true,
                       ),
                     ),
@@ -1103,9 +1115,9 @@ class _ObjectEditorWidgetState extends State<_ObjectEditorWidget> {
                           TextEditingController(text: value?.toString() ?? ''),
                       onChanged: (newValue) =>
                           _updateProperty(key, key, newValue),
-                      decoration: const InputDecoration(
-                        labelText: '值',
-                        border: OutlineInputBorder(),
+                      decoration: InputDecoration(
+                        labelText: UITextConstants.labels['object_value'] ?? '值',
+                        border: const OutlineInputBorder(),
                         isDense: true,
                       ),
                     ),

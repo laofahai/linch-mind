@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:reactive_forms/reactive_forms.dart';
+import '../config/ui_text_constants.dart';
 
 /// JSON Schema 到 ReactiveForm 的映射服务
 class FormBuilderService {
@@ -345,7 +346,7 @@ class FormBuilderService {
     );
   }
 
-  /// 获取字段的UI配置 - 支持点号路径访问
+  /// 获取字段的UI配置 - 支持点号路径访问和智能placeholder生成
   static Map<String, dynamic> getFieldUIConfig(
     String fieldPath,
     Map<String, dynamic> fieldSchema,
@@ -376,6 +377,35 @@ class FormBuilderService {
       }
     }
 
+    // 智能生成placeholder（如果配置中没有明确指定）
+    if (!config.containsKey('placeholder') || config['placeholder'] == null) {
+      config['placeholder'] = UITextConstants.getPlaceholder(
+        fieldConfig: config,
+        fieldName: fieldPath,
+        fieldType: config['type'] as String?,
+      );
+    }
+
+    return config;
+  }
+
+  /// 获取增强的字段UI配置，包含所有UI提示文本
+  static Map<String, dynamic> getEnhancedFieldUIConfig(
+    String fieldPath,
+    Map<String, dynamic> fieldSchema,
+    Map<String, dynamic>? uiSchema,
+  ) {
+    final config = getFieldUIConfig(fieldPath, fieldSchema, uiSchema);
+    
+    // 确保有合适的帮助文本
+    if (!config.containsKey('help_text') && !config.containsKey('description')) {
+      final inferredWidget = inferWidgetType(config);
+      final helpText = UITextConstants.helpTexts[inferredWidget];
+      if (helpText != null) {
+        config['help_text'] = helpText;
+      }
+    }
+    
     return config;
   }
 
