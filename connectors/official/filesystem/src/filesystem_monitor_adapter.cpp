@@ -1,4 +1,5 @@
 #include "filesystem_monitor_adapter.hpp"
+#include <linch_connector/optimized_event_utils.hpp>
 #include <iostream>
 #include <filesystem>
 
@@ -8,6 +9,7 @@ namespace fs = std::filesystem;
 
 FilesystemMonitorAdapter::FilesystemMonitorAdapter()
     : m_monitor(std::make_unique<FileSystemMonitor>(MonitorType::AUTO))
+    , m_config(config::FilesystemConfig::createDefault())
 {
 }
 
@@ -15,7 +17,7 @@ FilesystemMonitorAdapter::~FilesystemMonitorAdapter() {
     stop();
 }
 
-bool FilesystemMonitorAdapter::start(std::function<void(const ConnectorEvent&)> callback) {
+bool FilesystemMonitorAdapter::start(std::function<void(ConnectorEvent&&)> callback) {
     if (isRunning()) {
         return false;
     }
@@ -99,7 +101,7 @@ std::vector<std::string> FilesystemMonitorAdapter::getMonitoredPaths() const {
     return m_monitor ? m_monitor->getMonitoredPaths() : std::vector<std::string>{};
 }
 
-void FilesystemMonitorAdapter::setBatchCallback(std::function<void(const std::vector<ConnectorEvent>&)> callback,
+void FilesystemMonitorAdapter::setBatchCallback(std::function<void(std::vector<ConnectorEvent>&&)> callback,
                                                std::chrono::milliseconds interval) {
     m_batchCallback = callback;
     
@@ -114,69 +116,102 @@ void FilesystemMonitorAdapter::setBatchCallback(std::function<void(const std::ve
 
 void FilesystemMonitorAdapter::onFileSystemEvent(const FileSystemEvent& event) {
     if (m_eventCallback) {
-        ConnectorEvent connectorEvent = convertFileSystemEvent(event);
-        m_eventCallback(connectorEvent);
+        // 🚀 性能优化: 直接使用优化的事件构造工具
+        ConnectorEvent connectorEvent = optimization::EventUtils::createFilesystemEvent(
+            std::string(event.path),    // 复制路径用于移动
+            getEventTypeString(event.type),
+            event.isDirectory,
+            event.fileSize,
+            std::string(event.oldPath)  // 复制旧路径用于移动
+        );
+        
+        // 🚀 性能优化: 使用移动语义传递事件
+        m_eventCallback(std::move(connectorEvent));
     }
 }
 
 void FilesystemMonitorAdapter::onBatchFileSystemEvents(const std::vector<FileSystemEvent>& events) {
     if (m_batchCallback && !events.empty()) {
-        std::vector<ConnectorEvent> connectorEvents;
-        connectorEvents.reserve(events.size());
+        // 🚀 性能优化: 预分配容器并使用零拷贝构造
+        auto connectorEvents = optimization::EventUtils::createEventBatch(events.size());
         
         for (const auto& event : events) {
-            connectorEvents.push_back(convertFileSystemEvent(event));
+            connectorEvents.emplace_back(
+                optimization::EventUtils::createFilesystemEvent(
+                    std::string(event.path),
+                    getEventTypeString(event.type),
+                    event.isDirectory,
+                    event.fileSize,
+                    std::string(event.oldPath)
+                )
+            );
         }
         
-        m_batchCallback(connectorEvents);
+        // 🚀 性能优化: 使用移动语义传递整个批次
+        m_batchCallback(std::move(connectorEvents));
     }
 }
 
-ConnectorEvent FilesystemMonitorAdapter::convertFileSystemEvent(const FileSystemEvent& event) const {
-    fs::path filePath(event.path);
-    
-    std::string eventTypeStr;
-    switch (event.type) {
-        case FileEventType::CREATED:
-            eventTypeStr = "created";
-            break;
-        case FileEventType::MODIFIED:
-            eventTypeStr = "modified";
-            break;
-        case FileEventType::DELETED:
-            eventTypeStr = "deleted";
-            break;
-        case FileEventType::RENAMED_OLD:
-            eventTypeStr = "renamed_old";
-            break;
-        case FileEventType::RENAMED_NEW:
-            eventTypeStr = "renamed_new";
-            break;
-        default:
-            eventTypeStr = "unknown";
-            break;
+std::string_view FilesystemMonitorAdapter::getEventTypeString(FileEventType type) const {
+    // 🚀 性能优化: 使用string_view避免字符串分配
+    switch (type) {
+        case FileEventType::CREATED:     return "created";
+        case FileEventType::MODIFIED:    return "modified";
+        case FileEventType::DELETED:     return "deleted";
+        case FileEventType::RENAMED_OLD: return "renamed_old";
+        case FileEventType::RENAMED_NEW: return "renamed_new";
+        default:                         return "unknown";
+    }
+}
+
+bool FilesystemMonitorAdapter::setConfig(const config::FilesystemConfig& config) {
+    std::string errorMessage;
+    if (!config.validate(errorMessage)) {
+        std::cerr << "配置验证失败: " << errorMessage << std::endl;
+        return false;
     }
     
-    // 创建文件事件数据
-    json eventData = {
-        {"file_path", event.path},
-        {"file_name", filePath.filename().string()},
-        {"extension", filePath.extension().string()},
-        {"directory", filePath.parent_path().string()},
-        {"is_directory", event.isDirectory}
-    };
+    m_config = config;
     
-    // 如果文件存在，添加大小信息
-    if (!event.isDirectory && event.fileSize > 0) {
-        eventData["size"] = event.fileSize;
+    // 应用配置到监控器
+    if (m_monitor) {
+        // 清除现有路径
+        auto currentPaths = m_monitor->getMonitoredPaths();
+        for (const auto& path : currentPaths) {
+            m_monitor->removePath(path);
+        }
+        
+        // 添加新配置的路径
+        for (const auto& pathConfig : m_config.paths) {
+            // 转换为旧式MonitorConfig (向后兼容)
+            ::MonitorConfig legacyConfig(pathConfig.path);
+            legacyConfig.recursive = pathConfig.recursive;
+            legacyConfig.maxFileSize = pathConfig.maxFileSize;
+            legacyConfig.includeExtensions = pathConfig.includeExtensions;
+            legacyConfig.excludePatterns = pathConfig.excludePatterns;
+            legacyConfig.watchDirectories = pathConfig.watchDirectories;
+            legacyConfig.watchFiles = pathConfig.watchFiles;
+            
+            if (!m_monitor->addPath(legacyConfig)) {
+                std::cerr << "添加监控路径失败: " << pathConfig.path << std::endl;
+            }
+        }
+        
+        // 应用批处理配置
+        if (m_batchCallback) {
+            auto batchCb = [this](const std::vector<FileSystemEvent>& events) {
+                onBatchFileSystemEvents(events);
+            };
+            m_monitor->setBatchCallback(batchCb, m_config.batchInterval);
+        }
     }
     
-    // 如果有旧路径（重命名事件）
-    if (!event.oldPath.empty()) {
-        eventData["old_path"] = event.oldPath;
-    }
-    
-    return ConnectorEvent::create("filesystem", eventTypeStr, eventData);
+    std::cout << "✅ " << config.getDescription() << std::endl;
+    return true;
+}
+
+config::FilesystemConfig FilesystemMonitorAdapter::getConfig() const {
+    return m_config;
 }
 
 } // namespace linch_connector

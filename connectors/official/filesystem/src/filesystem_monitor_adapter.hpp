@@ -1,6 +1,7 @@
 #pragma once
 
 #include <linch_connector/connector_event.hpp>
+#include <linch_connector/unified_config.hpp>
 #include "monitor_factory.hpp"
 #include <memory>
 #include <vector>
@@ -16,16 +17,26 @@ public:
     FilesystemMonitorAdapter();
     ~FilesystemMonitorAdapter() override;
 
-    // IConnectorMonitor 接口实现
-    bool start(std::function<void(const ConnectorEvent&)> callback) override;
+    // IConnectorMonitor 接口实现 - 零拷贝优化版本
+    bool start(std::function<void(ConnectorEvent&&)> callback) override;
     void stop() override;
     bool isRunning() const override;
     Statistics getStatistics() const override;
 
     /**
-     * 添加监控路径
+     * 设置统一配置 - 新的配置接口
      */
-    bool addPath(const MonitorConfig& config);
+    bool setConfig(const config::FilesystemConfig& config);
+    
+    /**
+     * 获取当前配置
+     */
+    config::FilesystemConfig getConfig() const;
+    
+    /**
+     * 添加监控路径 (兼容接口)
+     */
+    bool addPath(const MonitorConfig& legacyConfig);
 
     /**
      * 移除监控路径
@@ -38,20 +49,24 @@ public:
     std::vector<std::string> getMonitoredPaths() const;
 
     /**
-     * 设置批处理回调
+     * 设置批处理回调 - 零拷贝优化版本
      */
-    void setBatchCallback(std::function<void(const std::vector<ConnectorEvent>&)> callback,
+    void setBatchCallback(std::function<void(std::vector<ConnectorEvent>&&)> callback,
                          std::chrono::milliseconds interval = std::chrono::milliseconds(300));
 
 private:
     std::unique_ptr<FileSystemMonitor> m_monitor;
-    std::function<void(const ConnectorEvent&)> m_eventCallback;
-    std::function<void(const std::vector<ConnectorEvent>&)> m_batchCallback;
+    std::function<void(ConnectorEvent&&)> m_eventCallback;
+    std::function<void(std::vector<ConnectorEvent>&&)> m_batchCallback;
+    
+    // 🚀 统一配置系统
+    config::FilesystemConfig m_config;
     
     void onFileSystemEvent(const FileSystemEvent& event);
     void onBatchFileSystemEvents(const std::vector<FileSystemEvent>& events);
     
-    ConnectorEvent convertFileSystemEvent(const FileSystemEvent& event) const;
+    // 🚀 性能优化: 轻量级事件类型转换
+    std::string_view getEventTypeString(FileEventType type) const;
 };
 
 } // namespace linch_connector
