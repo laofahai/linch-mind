@@ -117,6 +117,15 @@ def database_service_fixture(test_database, mock_config_manager):
     # 注册IPCSecurityManager
     security_manager = IPCSecurityManager()
     container.register_instance(IPCSecurityManager, security_manager)
+    
+    # 注册DataInsightsService
+    try:
+        from services.api.data_insights_service import DataInsightsService
+        data_insights_service = DataInsightsService()
+        container.register_instance(DataInsightsService, data_insights_service)
+    except Exception as e:
+        # 如果DataInsightsService注册失败，记录错误但继续
+        print(f"Warning: Failed to register DataInsightsService: {e}")
 
     # 修补config.dependencies.get_config_manager函数
     with patch(
@@ -128,6 +137,13 @@ def database_service_fixture(test_database, mock_config_manager):
     container._services.pop(DatabaseService, None)
     container._services.pop(CoreConfigManager, None)
     container._services.pop(IPCSecurityManager, None)
+    
+    # 清理DataInsightsService
+    try:
+        from services.api.data_insights_service import DataInsightsService
+        container._services.pop(DataInsightsService, None)
+    except ImportError:
+        pass
 
 
 @pytest.fixture

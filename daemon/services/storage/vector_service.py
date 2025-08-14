@@ -682,4 +682,32 @@ class VectorService:
             return False
 
 
-# ServiceFacade现在负责管理服务单例，不再需要本地单例模式
+# === 服务管理函数 ===
+
+# 全局服务实例
+_vector_service: Optional[VectorService] = None
+
+
+async def get_vector_service() -> VectorService:
+    """获取向量服务实例（单例模式）"""
+    global _vector_service
+    if _vector_service is None:
+        _vector_service = VectorService()
+        await _vector_service.migrate_to_selective_encryption()
+    return _vector_service
+
+
+async def cleanup_vector_service():
+    """清理向量服务"""
+    global _vector_service
+    if _vector_service:
+        try:
+            await _vector_service.save_index()
+            logger.info("向量服务已清理")
+        except Exception as e:
+            logger.error(f"向量服务清理失败: {e}")
+        finally:
+            _vector_service = None
+
+
+# ServiceFacade现在负责管理服务单例，但保留向后兼容的函数

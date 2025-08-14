@@ -784,4 +784,32 @@ class GraphService:
         return False
 
 
-# ServiceFacade现在负责管理服务单例，不再需要本地单例模式
+# === 服务管理函数 ===
+
+# 全局服务实例
+_graph_service: Optional[GraphService] = None
+
+
+async def get_graph_service() -> GraphService:
+    """获取图服务实例（单例模式）"""
+    global _graph_service
+    if _graph_service is None:
+        _graph_service = GraphService()
+        await _graph_service.migrate_to_selective_encryption()
+    return _graph_service
+
+
+async def cleanup_graph_service():
+    """清理图服务"""
+    global _graph_service
+    if _graph_service:
+        try:
+            await _graph_service.save_graph()
+            logger.info("图服务已清理")
+        except Exception as e:
+            logger.error(f"图服务清理失败: {e}")
+        finally:
+            _graph_service = None
+
+
+# ServiceFacade现在负责管理服务单例，但保留向后兼容的函数

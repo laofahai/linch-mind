@@ -9,12 +9,6 @@
 - 智能数据生命周期管理
 """
 
-from .data_lifecycle_manager import (
-    DataHealthReport,
-    DataLifecycleConfig,
-    DataLifecycleManager,
-    get_data_lifecycle_manager,
-)
 from .graph_service import (
     EntityNode,
     GraphMetrics,
@@ -58,20 +52,14 @@ __all__ = [
     "StorageMetrics",
     "get_storage_orchestrator",
     "cleanup_storage_orchestrator",
-    # 数据生命周期管理
-    "DataLifecycleManager",
-    "DataLifecycleConfig",
-    "DataHealthReport",
-    "get_data_lifecycle_manager",
 ]
 
 
 async def initialize_storage_system():
     """初始化整个存储系统"""
     try:
-        # 按依赖顺序初始化
+        # 初始化存储编排器
         await get_storage_orchestrator()
-        await get_data_lifecycle_manager()
 
         return True
     except Exception as e:
@@ -86,7 +74,6 @@ async def cleanup_storage_system():
     """清理整个存储系统"""
     try:
         # 按相反顺序清理
-        # await cleanup_lifecycle_manager()  # 函数不存在，注释掉
         await cleanup_storage_orchestrator()
         await cleanup_vector_service()
         await cleanup_graph_service()
@@ -108,7 +95,6 @@ def get_storage_info():
             "graph": "NetworkX内存图数据库",
             "vector": "FAISS向量搜索引擎",
             "orchestrator": "统一存储编排器",
-            "lifecycle": "智能数据生命周期管理",
         },
         "features": [
             "35K-130K实体支持",
@@ -116,7 +102,6 @@ def get_storage_info():
             "10GB-50GB向量数据支持",
             "实时语义搜索",
             "图关系推荐",
-            "智能数据清理",
-            "性能监控和优化",
+            "多层次数据管理",
         ],
     }

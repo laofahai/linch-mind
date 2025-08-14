@@ -97,11 +97,8 @@ class ConnectorConfig:
     config_dir: str = "connectors"
     
     # 动态连接器启用状态配置 - 支持任意连接器ID
-    enabled_connectors: dict = field(default_factory=lambda: {
-        "filesystem": True,
-        "clipboard": False,
-        # 支持添加任意新连接器而无需修改代码
-    })
+    # 默认为空字典，不硬编码任何连接器
+    enabled_connectors: dict = field(default_factory=dict)
     
     def is_connector_enabled(self, connector_id: str) -> bool:
         """检查指定连接器是否启用"""
@@ -202,10 +199,12 @@ class CoreConfigManager:
         self.logs_dir = self.context.get_logs_dir()
         self.db_dir = self.context.get_database_dir()
 
-        # 配置文件路径
+        # 配置文件路径 - 优先使用 TOML
         self.config_root = config_root or Path(__file__).parent.parent.parent
-        self.primary_config_path = self.config_dir / "app.yaml"
-        self.fallback_config_path = self.config_root / "linch-mind.config.yaml"
+        self.primary_config_path = self.config_dir / "app.toml"
+        self.primary_yaml_path = self.config_dir / "app.yaml"
+        self.fallback_config_path = self.config_root / "linch-mind.config.toml"
+        self.fallback_yaml_path = self.config_root / "linch-mind.config.yaml"
 
         # 加载配置
         self.config = self._load_config()
@@ -218,63 +217,97 @@ class CoreConfigManager:
 
     def _get_active_config_path(self) -> Path:
         """获取当前活跃的配置文件路径"""
+        # 按优先级检查：TOML > YAML
         if self.primary_config_path.exists():
             return self.primary_config_path
+        elif self.primary_yaml_path.exists():
+            return self.primary_yaml_path
         elif self.fallback_config_path.exists():
             return self.fallback_config_path
+        elif self.fallback_yaml_path.exists():
+            return self.fallback_yaml_path
         else:
-            return self.primary_config_path  # 将要创建的路径
+            return self.primary_config_path  # 将要创建的路径（TOML）
 
     def _load_config(self) -> AppConfig:
-        """加载配置 - 简化版本，去除复杂的环境变量处理"""
+        """加载配置 - 支持 TOML 和 YAML"""
 
-        # 1. 尝试从主配置路径加载
+        # 1. 尝试从主配置路径加载（优先 TOML）
         if self.primary_config_path.exists():
             try:
-                return self._load_from_yaml(self.primary_config_path)
+                return self._load_from_file(self.primary_config_path)
             except Exception as e:
-                logger.error(f"Failed to load primary config: {e}")
+                logger.error(f"Failed to load primary TOML config: {e}")
+        
+        # 2. 尝试加载 YAML 配置
+        if self.primary_yaml_path.exists():
+            try:
+                return self._load_from_file(self.primary_yaml_path)
+            except Exception as e:
+                logger.error(f"Failed to load primary YAML config: {e}")
 
-        # 2. 尝试从项目根目录配置加载
+        # 3. 尝试从项目根目录配置加载
         if self.fallback_config_path.exists():
             try:
-                config = self._load_from_yaml(self.fallback_config_path)
+                config = self._load_from_file(self.fallback_config_path)
                 # 保存到主配置路径
                 self._save_config(config, self.primary_config_path)
                 logger.info("Migrated config from project root to user directory")
                 return config
             except Exception as e:
-                logger.error(f"Failed to load fallback config: {e}")
+                logger.error(f"Failed to load fallback TOML config: {e}")
+        
+        if self.fallback_yaml_path.exists():
+            try:
+                config = self._load_from_file(self.fallback_yaml_path)
+                # 保存到主配置路径
+                self._save_config(config, self.primary_config_path)
+                logger.info("Migrated config from project root to user directory")
+                return config
+            except Exception as e:
+                logger.error(f"Failed to load fallback YAML config: {e}")
 
-        # 3. 创建默认配置
+        # 4. 创建默认配置
         config = AppConfig()
         self._save_config(config, self.primary_config_path)
         logger.info("Created default configuration")
         return config
 
-    def _load_from_yaml(self, config_path: Path) -> AppConfig:
-        """从YAML文件加载配置 - 增强错误处理"""
+    def _load_from_file(self, config_path: Path) -> AppConfig:
+        """从配置文件加载（支持 TOML 和 YAML）"""
 
         def load_operation():
             try:
-                with open(config_path, "r", encoding="utf-8") as f:
-                    yaml_data = yaml.safe_load(f)
+                if config_path.suffix == '.toml':
+                    # 加载 TOML 文件
+                    try:
+                        import tomli
+                    except ImportError:
+                        logger.warning("tomli not installed, falling back to tomllib")
+                        import tomllib as tomli
+                    
+                    with open(config_path, "rb") as f:
+                        config_data = tomli.load(f)
+                else:
+                    # 加载 YAML 文件
+                    with open(config_path, "r", encoding="utf-8") as f:
+                        config_data = yaml.safe_load(f)
 
-                if not yaml_data:
-                    yaml_data = {}
+                if not config_data:
+                    config_data = {}
 
-                return self._dict_to_config(yaml_data)
+                return self._dict_to_config(config_data)
             except FileNotFoundError:
                 raise ConfigFileError(
                     file_path=str(config_path),
                     operation="read",
                     reason="File not found",
                 )
-            except yaml.YAMLError as e:
+            except (yaml.YAMLError if config_path.suffix != '.toml' else Exception) as e:
                 raise ConfigFileError(
                     file_path=str(config_path),
                     operation="parse",
-                    reason=f"Invalid YAML syntax: {e}",
+                    reason=f"Invalid {config_path.suffix[1:].upper()} syntax: {e}",
                 )
             except PermissionError:
                 raise ConfigFileError(
@@ -334,19 +367,31 @@ class CoreConfigManager:
             return AppConfig()
 
     def _save_config(self, config: AppConfig, config_path: Path):
-        """保存配置文件 - 改进格式化"""
+        """保存配置文件 - 支持 TOML 和 YAML"""
         config_dict = asdict(config)
-
-        # 简化文件头
-        yaml_content = f"""# Linch Mind Configuration
-# Generated: {datetime.now(timezone.utc).isoformat()}
-
-"""
 
         try:
             # 确保配置目录存在
             config_path.parent.mkdir(parents=True, exist_ok=True)
 
+            if config_path.suffix == '.toml':
+                # 保存为 TOML 格式
+                try:
+                    import tomli_w
+                except ImportError:
+                    logger.warning("tomli_w not installed, falling back to YAML")
+                    config_path = config_path.with_suffix('.yaml')
+                else:
+                    with open(config_path, "wb") as f:
+                        tomli_w.dump(config_dict, f)
+                    logger.info(f"TOML configuration saved to: {config_path}")
+                    return
+            
+            # 保存为 YAML 格式（后备选项）
+            yaml_content = f"""# Linch Mind Configuration
+# Generated: {datetime.now(timezone.utc).isoformat()}
+
+"""
             with open(config_path, "w", encoding="utf-8") as f:
                 f.write(yaml_content)
                 yaml.dump(
@@ -357,7 +402,7 @@ class CoreConfigManager:
                     indent=2,
                 )
 
-            logger.info(f"Configuration saved to: {config_path}")
+            logger.info(f"YAML configuration saved to: {config_path}")
         except Exception as e:
             logger.error(f"Failed to save config: {e}")
             raise

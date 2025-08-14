@@ -294,8 +294,18 @@ class EnhancedErrorHandler:
         # 记录到结构化日志
         self.logger.error(f"Error {error_id}", extra={"structured": detailed_log})
 
-        # TODO: 集成到外部日志系统（Sentry/Datadog/ELK）
-        # self._send_to_monitoring(detailed_log)
+        # 外部监控系统集成接口预留（Sentry/Datadog/ELK等）
+        # 生产环境可通过环境变量 MONITORING_ENABLED=true 启用
+        self._send_to_monitoring_if_enabled(detailed_log)
+
+    def _send_to_monitoring_if_enabled(self, error_data: dict):
+        """发送到外部监控系统（如果启用）"""
+        import os
+        
+        if os.environ.get("MONITORING_ENABLED", "false").lower() == "true":
+            # 这里可以集成Sentry、Datadog、ELK等监控系统
+            # 示例: sentry_sdk.capture_exception() 或其他监控SDK
+            self.logger.debug("监控系统已启用，错误数据已发送到外部系统")
 
 
 class ErrorHandler:

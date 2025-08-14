@@ -163,8 +163,8 @@ class UnifiedStorageService:
     - ✅ 搜索服务 (vector_service + sqlite FTS)
     - ✅ 关系管理 (graph_service 简化版)
     - ✅ 智能缓存 (多层缓存优化)
-    - ✅ 数据生命周期 (data_lifecycle_manager 核心功能)
-    - ✅ 性能监控 (performance_optimizer 核心指标)
+    - ✅ 数据生命周期 (简化数据管理)
+    - ✅ 基础性能监控
     
     移除的复杂性:
     - ❌ 复杂的图算法 (保留基础关系查询)

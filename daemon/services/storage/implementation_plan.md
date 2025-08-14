@@ -13,7 +13,7 @@
     ↓
 核心存储层: SQLite + NetworkX + FAISS
     ↓
-数据管理层: DataLifecycleManager (智能清理+优化)
+数据管理层: IntelligentDataLifecycle (智能清理+质量分析)
 ```
 
 ## 📅 分阶段实施计划

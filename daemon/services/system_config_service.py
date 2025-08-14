@@ -211,5 +211,23 @@ class SystemConfigService:
             }
 
 
+# === 服务管理函数 ===
+
 # 全局服务实例
-# ServiceFacade现在负责管理服务单例，不再需要本地单例模式
+_system_config_service: SystemConfigService = None
+
+
+def get_system_config_service() -> SystemConfigService:
+    """获取系统配置服务实例（单例模式）"""
+    global _system_config_service
+    if _system_config_service is None:
+        _system_config_service = SystemConfigService()
+    return _system_config_service
+
+
+def system_config_service() -> SystemConfigService:
+    """获取系统配置服务实例的简化函数"""
+    return get_system_config_service()
+
+
+# ServiceFacade现在负责管理服务单例，但保留向后兼容的函数

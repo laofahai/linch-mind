@@ -139,7 +139,7 @@ class LazyConfigManager:
                 "data": self.data_dir,
                 "logs": self.logs_dir,
                 "database": self.db_dir,
-                "primary_config": self.config_dir / "app.yaml",
+                "primary_config": self.config_dir / "app.toml",
                 "app_data": self.data_dir / "app_data",
             }
             

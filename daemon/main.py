@@ -153,6 +153,7 @@ def initialize_di_container():
 
         connector_config = get_connector_config()
         # 将相对路径转换为项目根目录的绝对路径
+        project_root = Path(__file__).parent.parent
         connectors_dir = project_root / connector_config.config_dir
         return ConnectorConfigService(connectors_dir=connectors_dir)
 
@@ -208,6 +209,7 @@ def initialize_di_container():
 
         connector_config = get_connector_config()
         # 将相对路径转换为项目根目录的绝对路径
+        project_root = Path(__file__).parent.parent
         connectors_dir = project_root / connector_config.config_dir
 
         # 手动依赖注入，避免ServiceFacade循环问题
@@ -253,6 +255,17 @@ def initialize_di_container():
 
     container.register_singleton(SystemConfigService, create_system_config_service)
     logger.debug("已注册: SystemConfigService")
+
+    # 📊 数据洞察服务
+    def create_data_insights_service():
+        from services.api.data_insights_service import DataInsightsService
+        
+        return DataInsightsService()
+    
+    from services.api.data_insights_service import DataInsightsService
+    
+    container.register_singleton(DataInsightsService, create_data_insights_service)
+    logger.debug("已注册: DataInsightsService")
 
     # 🗄️ 存储服务
     def create_vector_service():
