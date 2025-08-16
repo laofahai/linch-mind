@@ -61,7 +61,8 @@ class DaemonStateNotifier extends BaseStateNotifier<DaemonState> {
     _initialize();
   }
 
-  final DaemonLifecycleService _lifecycleService = getService<DaemonLifecycleService>();
+  final DaemonLifecycleService _lifecycleService =
+      getService<DaemonLifecycleService>();
   final DaemonPortService _portService = getService<DaemonPortService>();
 
   /// 初始化状态

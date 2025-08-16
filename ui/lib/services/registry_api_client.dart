@@ -26,7 +26,7 @@ class RegistryApiClient {
   }) async {
     try {
       print('[DEBUG] 开始获取市场连接器列表...');
-      
+
       // 构建查询参数
       final queryParams = <String, dynamic>{};
       if (query != null && query.isNotEmpty) {
@@ -39,10 +39,12 @@ class RegistryApiClient {
       print('[DEBUG] 查询参数: $queryParams');
 
       // 添加超时处理，防止UI卡死
-      final responseData = await _ipcApi.get(
+      final responseData = await _ipcApi
+          .get(
         '/system-config/registry/connectors',
         queryParameters: queryParams.isNotEmpty ? queryParams : null,
-      ).timeout(
+      )
+          .timeout(
         const Duration(seconds: 10),
         onTimeout: () {
           throw Exception('获取市场连接器超时（10秒）');
@@ -53,7 +55,7 @@ class RegistryApiClient {
 
       if (responseData['data'] != null) {
         final dynamic dataField = responseData['data'];
-        
+
         // 处理不同的数据结构
         List<dynamic> data;
         if (dataField is List) {
@@ -65,7 +67,8 @@ class RegistryApiClient {
             if (connectorsField is List) {
               data = connectorsField;
             } else {
-              print('[WARNING] connectors字段不是List类型: ${connectorsField.runtimeType}');
+              print(
+                  '[WARNING] connectors字段不是List类型: ${connectorsField.runtimeType}');
               return [];
             }
           } else {
@@ -76,7 +79,7 @@ class RegistryApiClient {
           print('[WARNING] 意外的数据类型: ${dataField.runtimeType}');
           return [];
         }
-        
+
         return data
             .map((item) {
               // 安全地处理可能为null的item
@@ -88,7 +91,8 @@ class RegistryApiClient {
               try {
                 // 首先尝试使用标准fromJson
                 if (item is Map<String, dynamic>) {
-                  print('[DEBUG] 解析连接器: ${item['connector_id'] ?? item['name'] ?? 'unknown'}');
+                  print(
+                      '[DEBUG] 解析连接器: ${item['connector_id'] ?? item['name'] ?? 'unknown'}');
                   return ConnectorDefinition.fromJson(item);
                 } else {
                   print('[WARNING] 跳过非Map类型的连接器项: ${item.runtimeType} - $item');
@@ -101,7 +105,8 @@ class RegistryApiClient {
                   if (item is Map<String, dynamic>) {
                     return ConnectorDefinitionRegistry.fromRegistryJson(item);
                   } else {
-                    print('[ERROR] Registry解析失败：item不是Map类型: ${item.runtimeType}');
+                    print(
+                        '[ERROR] Registry解析失败：item不是Map类型: ${item.runtimeType}');
                     return null;
                   }
                 } catch (e2) {

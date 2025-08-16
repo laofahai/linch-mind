@@ -38,17 +38,17 @@ int _dataCountFromJson(dynamic value) {
 /// 连接器状态枚举 - 与daemon后端完全一致（6个核心状态）
 enum ConnectorState {
   @JsonValue('running')
-  running,     // 正在运行
+  running, // 正在运行
   @JsonValue('starting')
-  starting,    // 启动中
+  starting, // 启动中
   @JsonValue('stopping')
-  stopping,    // 停止中
+  stopping, // 停止中
   @JsonValue('stopped')
-  stopped,     // 已停止
+  stopped, // 已停止
   @JsonValue('error')
-  error,       // 错误状态
+  error, // 错误状态
   @JsonValue('unknown')
-  unknown,     // 未知状态（初始化或异常）
+  unknown, // 未知状态（初始化或异常）
 }
 
 /// 连接器信息 - 不再区分类型，每个连接器都是独立的
@@ -138,17 +138,17 @@ extension ConnectorInfoExtensions on ConnectorInfo {
     if (uptimeSeconds != null && uptimeSeconds! > 0) {
       return Duration(seconds: uptimeSeconds!);
     }
-    
+
     // 如果有 started_at，计算从启动到现在的时间
     if (startedAt != null && state == ConnectorState.running) {
       return DateTime.now().difference(startedAt!);
     }
-    
+
     // 如果有 last_heartbeat 且状态为运行中，使用心跳时间计算
     if (lastHeartbeat != null && state == ConnectorState.running) {
       return DateTime.now().difference(lastHeartbeat!);
     }
-    
+
     return null;
   }
 }

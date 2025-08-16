@@ -440,7 +440,8 @@ class ConnectorLifecycleApiClient {
   }
 
   /// 切换连接器启用状态
-  Future<OperationResponse> toggleConnectorEnabled(String connectorId, bool enabled) async {
+  Future<OperationResponse> toggleConnectorEnabled(
+      String connectorId, bool enabled) async {
     try {
       final responseData = await _ipcApi.put(
         '/connector-lifecycle/connectors/$connectorId/enabled',
@@ -461,14 +462,15 @@ class ConnectorLifecycleApiClient {
         } else {
           errorMessage = 'Unknown error';
         }
-        
+
         throw ConnectorApiException(
             'Failed to toggle connector enabled: $errorMessage');
       }
 
       return OperationResponse(
         success: data['success'] ?? success,
-        message: data['message'] ?? 'Connector enabled status updated successfully',
+        message:
+            data['message'] ?? 'Connector enabled status updated successfully',
         connectorId: data['connector_id'] ?? connectorId,
         state: ConnectorState.values.firstWhere(
           (e) => e.name == (data['state'] ?? 'stopped'),

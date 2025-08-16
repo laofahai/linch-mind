@@ -16,13 +16,13 @@ void initializeServices() {
   // 工具服务 - 优先注册基础服务
   registerService<EnhancedErrorHandler>(EnhancedErrorHandler());
   registerService<ErrorMonitor>(ErrorMonitor());
-  
+
   // IPC核心服务
   registerService<IPCClient>(IPCClient());
-  
+
   // API客户端服务
   registerService<ConnectorLifecycleApiClient>(ConnectorLifecycleApiClient());
-  
+
   // Daemon服务 - 先注册这些，其他服务后续添加
   registerService<DaemonPortService>(DaemonPortService.instance);
   registerService<DaemonLifecycleService>(DaemonLifecycleService.instance);

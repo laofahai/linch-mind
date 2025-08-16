@@ -3,6 +3,7 @@
 #ifdef __APPLE__
 
 #include "../../zero_scan_interface.hpp"
+#include "../../../progress/scan_progress_manager.hpp"
 #include <memory>
 #include <atomic>
 #include <thread>
@@ -64,6 +65,10 @@ private:
     std::atomic<bool> m_paused{false};
     std::atomic<int> m_throttle_level{0};
     
+    // 系统负载监控
+    double m_max_mds_cpu_percent = 50.0;
+    mutable std::atomic<size_t> m_current_batch_size{0};
+    
     // 回调函数
     std::function<void(const UnifiedFileRecord&)> m_file_callback;
     std::function<void(const FileChangeEvent&)> m_change_callback;
@@ -76,7 +81,7 @@ private:
     // 线程管理
     std::unique_ptr<std::thread> m_fsevents_thread;
     std::unique_ptr<std::thread> m_worker_thread;
-    std::mutex m_mutex;
+    mutable std::mutex m_mutex;
     std::condition_variable m_cv;
     
     // 缓存
@@ -87,11 +92,18 @@ private:
     };
     Cache m_cache;
     
+    // 进度管理器
+    std::unique_ptr<progress::ScanProgressManager> m_progress_manager;
+    
     // 核心实现方法
-    bool initializeMDQuery();
+    bool initializeSystemMonitoring();
     bool initializeFSEvents();
     bool executeMDQuery(std::function<void(const UnifiedFileRecord&)> callback);
-    void processMDQueryResults(void* mdquery);
+    bool executeBatchQuery(const std::string& queryString, 
+                          std::function<void(const UnifiedFileRecord&)> callback,
+                          size_t maxResults);
+    bool checkSystemLoad() const;
+    void processMDQueryResults(void* mdquery);  // 废弃的方法
     
     // FSEvents 处理
     void startFSEventsRunLoop();

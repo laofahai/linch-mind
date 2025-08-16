@@ -534,7 +534,8 @@ class _TagInputWidgetState extends State<_TagInputWidget> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          widget.fieldConfig['title'] ?? UITextConstants.labels['predefined_options']!,
+          widget.fieldConfig['title'] ??
+              UITextConstants.labels['predefined_options']!,
           style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
         ),
         if (widget.fieldConfig['description'] != null ||
@@ -550,7 +551,8 @@ class _TagInputWidgetState extends State<_TagInputWidget> {
 
         // 预定义标签
         if (predefinedTags.isNotEmpty) ...[
-          Text('${UITextConstants.labels['predefined_options']}:', style: Theme.of(context).textTheme.bodySmall),
+          Text('${UITextConstants.labels['predefined_options']}:',
+              style: Theme.of(context).textTheme.bodySmall),
           const SizedBox(height: 4),
           Wrap(
             spacing: 8,
@@ -603,7 +605,8 @@ class _TagInputWidgetState extends State<_TagInputWidget> {
 
         // 当前标签
         if (_tags.isNotEmpty) ...[
-          Text('${UITextConstants.labels['selected_items']}:', style: Theme.of(context).textTheme.bodySmall),
+          Text('${UITextConstants.labels['selected_items']}:',
+              style: Theme.of(context).textTheme.bodySmall),
           const SizedBox(height: 4),
           Wrap(
             spacing: 8,
@@ -903,7 +906,8 @@ class _ArrayInputWidgetState extends State<_ArrayInputWidget> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text(
-              widget.fieldConfig['title'] ?? UITextConstants.labels['array_item']!,
+              widget.fieldConfig['title'] ??
+                  UITextConstants.labels['array_item']!,
               style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
             ),
             IconButton(
@@ -940,7 +944,8 @@ class _ArrayInputWidgetState extends State<_ArrayInputWidget> {
                           TextEditingController(text: item?.toString() ?? ''),
                       onChanged: (value) => _updateItem(index, value),
                       decoration: InputDecoration(
-                        hintText: UITextConstants.placeholders['array_input'] ?? '项目 ${index + 1}',
+                        hintText: UITextConstants.placeholders['array_input'] ??
+                            '项目 ${index + 1}',
                         border: const OutlineInputBorder(),
                         isDense: true,
                       ),
@@ -1063,7 +1068,8 @@ class _ObjectEditorWidgetState extends State<_ObjectEditorWidget> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text(
-              widget.fieldConfig['title'] ?? UITextConstants.labels['object_property']!,
+              widget.fieldConfig['title'] ??
+                  UITextConstants.labels['object_property']!,
               style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
             ),
             IconButton(
@@ -1101,7 +1107,8 @@ class _ObjectEditorWidgetState extends State<_ObjectEditorWidget> {
                       onChanged: (newKey) =>
                           _updateProperty(key, newKey, value),
                       decoration: InputDecoration(
-                        labelText: UITextConstants.labels['object_property'] ?? '属性名',
+                        labelText:
+                            UITextConstants.labels['object_property'] ?? '属性名',
                         border: const OutlineInputBorder(),
                         isDense: true,
                       ),
@@ -1116,7 +1123,8 @@ class _ObjectEditorWidgetState extends State<_ObjectEditorWidget> {
                       onChanged: (newValue) =>
                           _updateProperty(key, key, newValue),
                       decoration: InputDecoration(
-                        labelText: UITextConstants.labels['object_value'] ?? '值',
+                        labelText:
+                            UITextConstants.labels['object_value'] ?? '值',
                         border: const OutlineInputBorder(),
                         isDense: true,
                       ),

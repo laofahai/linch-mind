@@ -30,7 +30,6 @@ class TimelineWidget extends ConsumerWidget {
             TimelineFilters(),
             const SizedBox(height: 16),
           ],
-          
           _buildTimelineContent(context, timelineState),
         ],
       ),
@@ -95,9 +94,8 @@ class TimelineWidget extends ConsumerWidget {
       return _buildEmptyTimeline(context);
     }
 
-    final displayItems = maxItems != null 
-        ? state.items.take(maxItems!).toList()
-        : state.items;
+    final displayItems =
+        maxItems != null ? state.items.take(maxItems!).toList() : state.items;
 
     return Container(
       constraints: const BoxConstraints(maxHeight: 500),
@@ -109,7 +107,8 @@ class TimelineWidget extends ConsumerWidget {
         itemBuilder: (context, index) {
           final item = displayItems[index];
           final isLast = index == displayItems.length - 1;
-          return RepaintBoundary( // 性能优化：减少不必要的重绘
+          return RepaintBoundary(
+            // 性能优化：减少不必要的重绘
             child: TimelineItemWidget(
               item: item,
               isLast: isLast,
@@ -122,7 +121,7 @@ class TimelineWidget extends ConsumerWidget {
 
   Widget _buildEmptyTimeline(BuildContext context) {
     final theme = Theme.of(context);
-    
+
     return Container(
       height: 300,
       alignment: Alignment.center,
@@ -227,9 +226,12 @@ class TimelineFilters extends ConsumerWidget {
               items: const [
                 DropdownMenuItem(value: null, child: Text('全部类型')),
                 DropdownMenuItem(value: 'entity_created', child: Text('实体创建')),
-                DropdownMenuItem(value: 'insight_generated', child: Text('洞察生成')),
-                DropdownMenuItem(value: 'connector_activity', child: Text('连接器活动')),
-                DropdownMenuItem(value: 'analysis_completed', child: Text('分析完成')),
+                DropdownMenuItem(
+                    value: 'insight_generated', child: Text('洞察生成')),
+                DropdownMenuItem(
+                    value: 'connector_activity', child: Text('连接器活动')),
+                DropdownMenuItem(
+                    value: 'analysis_completed', child: Text('分析完成')),
               ],
               onChanged: (value) {
                 // TODO: 筛选时间线
@@ -317,9 +319,9 @@ class TimelineItemWidget extends StatelessWidget {
               ],
             ),
           ),
-          
+
           const SizedBox(width: 16),
-          
+
           // 内容
           Expanded(
             child: Card(
@@ -352,7 +354,7 @@ class TimelineItemWidget extends StatelessWidget {
                         ),
                       ],
                     ),
-                    
+
                     if (item.description != null) ...[
                       const SizedBox(height: 4),
                       Flexible(
@@ -366,14 +368,16 @@ class TimelineItemWidget extends StatelessWidget {
                         ),
                       ),
                     ],
-                    
+
                     // 连接器标识
                     if (item.connectorId != null) ...[
                       const SizedBox(height: 4),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 6, vertical: 2),
                         decoration: BoxDecoration(
-                          color: _getActivityColor(item.type).withValues(alpha: 0.1),
+                          color: _getActivityColor(item.type)
+                              .withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Text(
@@ -429,7 +433,7 @@ class TimelineItemWidget extends StatelessWidget {
   String _formatTimestamp(DateTime timestamp) {
     final now = DateTime.now();
     final difference = now.difference(timestamp);
-    
+
     if (difference.inMinutes < 1) {
       return '刚刚';
     } else if (difference.inMinutes < 60) {
@@ -452,7 +456,7 @@ class TrendingEntitiesWidget extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final dataInsightsState = ref.watch(dataInsightsProvider);
     final trendingEntities = dataInsightsState.overview?.trendingEntities ?? [];
-    
+
     // 性能优化：限制显示数量，避免溢出
     final limitedEntities = trendingEntities.take(4).toList();
 
@@ -461,10 +465,10 @@ class TrendingEntitiesWidget extends ConsumerWidget {
       subtitle: '当前最活跃和增长最快的数据实体',
       child: LayoutBuilder(
         builder: (context, constraints) {
-          final maxHeight = constraints.maxHeight.isFinite 
-              ? constraints.maxHeight.clamp(100.0, 300.0) 
+          final maxHeight = constraints.maxHeight.isFinite
+              ? constraints.maxHeight.clamp(100.0, 300.0)
               : 250.0;
-          
+
           return SizedBox(
             height: maxHeight,
             child: Column(
@@ -478,7 +482,8 @@ class TrendingEntitiesWidget extends ConsumerWidget {
                       shrinkWrap: true,
                       physics: const ClampingScrollPhysics(),
                       itemCount: limitedEntities.length,
-                      separatorBuilder: (context, index) => const SizedBox(height: 6),
+                      separatorBuilder: (context, index) =>
+                          const SizedBox(height: 6),
                       itemBuilder: (context, index) => TrendingEntityCard(
                         entity: limitedEntities[index],
                       ),
@@ -502,13 +507,13 @@ class TrendingEntitiesWidget extends ConsumerWidget {
 
   Widget _buildEmptyTrending(BuildContext context) {
     final theme = Theme.of(context);
-    
+
     return LayoutBuilder(
       builder: (context, constraints) {
-        final maxHeight = constraints.maxHeight.isFinite 
-            ? constraints.maxHeight.clamp(80.0, 180.0) 
+        final maxHeight = constraints.maxHeight.isFinite
+            ? constraints.maxHeight.clamp(80.0, 180.0)
             : 120.0;
-        
+
         return Container(
           height: maxHeight,
           alignment: Alignment.center,
@@ -579,9 +584,9 @@ class TrendingEntityCard extends StatelessWidget {
                   color: _getEntityTypeColor(),
                 ),
               ),
-              
+
               const SizedBox(width: 8), // 减少间距
-              
+
               // 实体信息
               Expanded(
                 child: Column(
@@ -616,9 +621,9 @@ class TrendingEntityCard extends StatelessWidget {
                   ],
                 ),
               ),
-              
+
               const SizedBox(width: 8),
-              
+
               // 频次和趋势
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
@@ -636,7 +641,8 @@ class TrendingEntityCard extends StatelessWidget {
                   if (entity.trend != null)
                     Container(
                       margin: const EdgeInsets.only(top: 1),
-                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 4, vertical: 1),
                       decoration: BoxDecoration(
                         color: _getTrendColor().withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(6),

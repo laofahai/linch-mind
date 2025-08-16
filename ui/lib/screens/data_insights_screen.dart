@@ -30,7 +30,7 @@ class _DataInsightsScreenState extends ConsumerState<DataInsightsScreen>
   void initState() {
     super.initState();
     _mainTabController = TabController(length: 3, vsync: this);
-    
+
     // 记录页面访问
     AppLogger.info('智能数据洞察页面打开', module: 'DataInsightsScreen');
   }
@@ -158,7 +158,8 @@ class _DataInsightsScreenState extends ConsumerState<DataInsightsScreen>
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             decoration: BoxDecoration(
-              color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+              color: theme.colorScheme.surfaceContainerHighest
+                  .withValues(alpha: 0.5),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Row(
@@ -210,7 +211,8 @@ class _DataInsightsScreenState extends ConsumerState<DataInsightsScreen>
         Container(
           height: 48,
           decoration: BoxDecoration(
-            color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
+            color: theme.colorScheme.surfaceContainerHighest
+                .withValues(alpha: 0.3),
             borderRadius: BorderRadius.circular(8),
           ),
           child: TabBar(
@@ -238,12 +240,13 @@ class _DataInsightsScreenState extends ConsumerState<DataInsightsScreen>
         Expanded(
           child: LayoutBuilder(
             builder: (context, constraints) {
-              final maxHeight = constraints.maxHeight.isFinite 
-                  ? constraints.maxHeight 
+              final maxHeight = constraints.maxHeight.isFinite
+                  ? constraints.maxHeight
                   : MediaQuery.of(context).size.height * 0.6;
-              
+
               return SizedBox(
-                height: maxHeight.clamp(300.0, MediaQuery.of(context).size.height * 0.7),
+                height: maxHeight.clamp(
+                    300.0, MediaQuery.of(context).size.height * 0.7),
                 child: TabBarView(
                   controller: _mainTabController,
                   children: [
@@ -262,9 +265,10 @@ class _DataInsightsScreenState extends ConsumerState<DataInsightsScreen>
 
   Widget _buildOverviewTab(BuildContext context) {
     final dataInsightsState = ref.watch(dataInsightsProvider);
-    
+
     return LoadingStateWrapper(
-      isLoading: dataInsightsState.isLoading && dataInsightsState.overview == null,
+      isLoading:
+          dataInsightsState.isLoading && dataInsightsState.overview == null,
       error: dataInsightsState.error,
       loadingWidget: SingleChildScrollView(
         child: Column(
@@ -289,11 +293,11 @@ class _DataInsightsScreenState extends ConsumerState<DataInsightsScreen>
         child: LayoutBuilder(
           builder: (context, constraints) {
             // 根据可用高度动态调整布局
-            final availableHeight = constraints.maxHeight.isFinite 
-                ? constraints.maxHeight 
+            final availableHeight = constraints.maxHeight.isFinite
+                ? constraints.maxHeight
                 : MediaQuery.of(context).size.height * 0.6;
             final isWideScreen = constraints.maxWidth > 800;
-            
+
             return FadeTransitionWrapper(
               child: Column(
                 children: [
@@ -303,7 +307,7 @@ class _DataInsightsScreenState extends ConsumerState<DataInsightsScreen>
                       minHeight: 200.0,
                       maxHeight: (availableHeight * 0.65).clamp(200.0, 350.0),
                     ),
-                    child: isWideScreen 
+                    child: isWideScreen
                         ? Row(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: const [
@@ -342,9 +346,9 @@ class _DataInsightsScreenState extends ConsumerState<DataInsightsScreen>
                             ],
                           ),
                   ),
-                  
+
                   const SizedBox(height: 16),
-                  
+
                   // 实体类型分布图表 - 限制高度
                   ConstrainedBox(
                     constraints: BoxConstraints(
@@ -365,7 +369,7 @@ class _DataInsightsScreenState extends ConsumerState<DataInsightsScreen>
 
   Widget _buildEntitiesTab(BuildContext context) {
     final entityListState = ref.watch(entityListProvider);
-    
+
     return LoadingStateWrapper(
       isLoading: entityListState.isLoading && entityListState.entities.isEmpty,
       error: entityListState.error,
@@ -374,7 +378,8 @@ class _DataInsightsScreenState extends ConsumerState<DataInsightsScreen>
       ),
       errorWidget: ErrorRecoveryWidget(
         error: entityListState.error ?? '加载实体数据失败',
-        onRetry: () => ref.read(entityListProvider.notifier).loadEntities(refresh: true),
+        onRetry: () =>
+            ref.read(entityListProvider.notifier).loadEntities(refresh: true),
       ),
       child: const SingleChildScrollView(
         child: FadeTransitionWrapper(
@@ -388,7 +393,7 @@ class _DataInsightsScreenState extends ConsumerState<DataInsightsScreen>
 
   Widget _buildTimelineTab(BuildContext context) {
     final timelineState = ref.watch(timelineProvider);
-    
+
     return LoadingStateWrapper(
       isLoading: timelineState.isLoading && timelineState.items.isEmpty,
       error: timelineState.error,
@@ -415,14 +420,14 @@ class _DataInsightsScreenState extends ConsumerState<DataInsightsScreen>
       children: [
         // 系统状态概览
         _buildSystemStatusCard(context, theme),
-        
+
         const SizedBox(height: 16),
-        
+
         // 快速统计
         _buildQuickStatsCard(context, theme),
-        
+
         const SizedBox(height: 16),
-        
+
         // 最近活动预览
         CollapsibleCard(
           title: '最近活动',
@@ -439,7 +444,7 @@ class _DataInsightsScreenState extends ConsumerState<DataInsightsScreen>
 
   Widget _buildSystemStatusCard(BuildContext context, ThemeData theme) {
     final connectorsAsync = ref.watch(connectorsProvider);
-    
+
     return CollapsibleCard(
       title: '系统状态',
       subtitle: '连接器和服务状态',
@@ -454,7 +459,9 @@ class _DataInsightsScreenState extends ConsumerState<DataInsightsScreen>
                   return Padding(
                     padding: const EdgeInsets.only(bottom: 8),
                     child: SlideTransitionWrapper(
-                      duration: Duration(milliseconds: 200 + (connectors.indexOf(connector) * 50)),
+                      duration: Duration(
+                          milliseconds:
+                              200 + (connectors.indexOf(connector) * 50)),
                       beginOffset: const Offset(0.1, 0),
                       child: _buildStatusItem(
                         context,
@@ -467,10 +474,11 @@ class _DataInsightsScreenState extends ConsumerState<DataInsightsScreen>
                   );
                 }(),
               ],
-              
+
               // AI分析服务 - 静态状态
               SlideTransitionWrapper(
-                duration: Duration(milliseconds: 200 + (connectors.length * 50)),
+                duration:
+                    Duration(milliseconds: 200 + (connectors.length * 50)),
                 beginOffset: const Offset(0.1, 0),
                 child: _buildStatusItem(
                   context,
@@ -491,16 +499,16 @@ class _DataInsightsScreenState extends ConsumerState<DataInsightsScreen>
       ),
     );
   }
-  
+
   /// 获取连接器状态信息
   Map<String, dynamic> _getConnectorStatusInfo(dynamic connector) {
     String status;
     IconData icon;
     Color color;
-    
+
     // 检查连接器状态
     final connectorState = connector.state ?? connector.status;
-    
+
     switch (connectorState.toString()) {
       case 'ConnectorState.running':
         status = '运行中';
@@ -533,7 +541,7 @@ class _DataInsightsScreenState extends ConsumerState<DataInsightsScreen>
         icon = Icons.help_outline;
         color = Colors.grey;
     }
-    
+
     return {
       'status': status,
       'icon': icon,
@@ -549,7 +557,7 @@ class _DataInsightsScreenState extends ConsumerState<DataInsightsScreen>
     Color color,
   ) {
     final theme = Theme.of(context);
-    
+
     return Row(
       children: [
         Icon(icon, size: 16, color: color),
@@ -598,19 +606,24 @@ class _DataInsightsScreenState extends ConsumerState<DataInsightsScreen>
               SlideTransitionWrapper(
                 duration: const Duration(milliseconds: 200),
                 beginOffset: const Offset(0.1, 0),
-                child: _buildQuickStatItem('总实体数', '${_getTotalEntities(overview)}', Icons.storage),
+                child: _buildQuickStatItem(
+                    '总实体数', '${_getTotalEntities(overview)}', Icons.storage),
               ),
               const SizedBox(height: 8),
               SlideTransitionWrapper(
                 duration: const Duration(milliseconds: 250),
                 beginOffset: const Offset(0.1, 0),
-                child: _buildQuickStatItem('AI洞察数', '${overview?.recentInsights.length ?? 0}', Icons.lightbulb),
+                child: _buildQuickStatItem('AI洞察数',
+                    '${overview?.recentInsights.length ?? 0}', Icons.lightbulb),
               ),
               const SizedBox(height: 8),
               SlideTransitionWrapper(
                 duration: const Duration(milliseconds: 300),
                 beginOffset: const Offset(0.1, 0),
-                child: _buildQuickStatItem('活动记录', '${overview?.recentActivities.length ?? 0}', Icons.timeline),
+                child: _buildQuickStatItem(
+                    '活动记录',
+                    '${overview?.recentActivities.length ?? 0}',
+                    Icons.timeline),
               ),
             ],
           ),
@@ -621,7 +634,7 @@ class _DataInsightsScreenState extends ConsumerState<DataInsightsScreen>
 
   Widget _buildQuickStatItem(String label, String value, IconData icon) {
     final theme = Theme.of(context);
-    
+
     return Row(
       children: [
         Icon(icon, size: 16, color: theme.colorScheme.primary),
@@ -687,7 +700,7 @@ class _DataInsightsScreenState extends ConsumerState<DataInsightsScreen>
   String _formatLastRefresh(DateTime lastRefresh) {
     final now = DateTime.now();
     final difference = now.difference(lastRefresh);
-    
+
     if (difference.inMinutes < 1) {
       return '刚刚';
     } else if (difference.inMinutes < 60) {
@@ -700,15 +713,19 @@ class _DataInsightsScreenState extends ConsumerState<DataInsightsScreen>
   int _getTotalEntities(overview) {
     if (overview?.entityBreakdown == null) return 0;
     final breakdown = overview.entityBreakdown;
-    return breakdown.url + breakdown.filePath + breakdown.email + 
-           breakdown.phone + breakdown.keyword + breakdown.other;
+    return breakdown.url +
+        breakdown.filePath +
+        breakdown.email +
+        breakdown.phone +
+        breakdown.keyword +
+        breakdown.other;
   }
 
   void _refreshAllData() {
     AppLogger.info('刷新所有数据', module: 'DataInsightsScreen');
     ref.read(dataInsightsProvider.notifier).refresh();
     ref.read(timelineProvider.notifier).loadTimeline();
-    
+
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('正在刷新数据...')),
     );
@@ -740,8 +757,8 @@ class _DataInsightsScreenState extends ConsumerState<DataInsightsScreen>
             Text(
               'AI快速操作',
               style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.w600,
-              ),
+                    fontWeight: FontWeight.w600,
+                  ),
             ),
             const SizedBox(height: 16),
             ListTile(

@@ -4,7 +4,7 @@
 #include <linch_connector/enhanced_config.hpp>
 #include "filesystem_monitor_adapter.hpp"
 #include "file_index_provider.hpp"
-#include "intelligent_index_strategy.hpp"
+#include "zero_scan/zero_scan_interface.hpp"
 
 namespace linch_connector {
 
@@ -36,17 +36,23 @@ private:
     
     // 双重监控模式
     FilesystemMonitorAdapter* m_fsAdapter{nullptr};          // 实时监控适配器
-    std::unique_ptr<FileIndexProvider> m_indexProvider;      // 零扫描索引提供者
+    std::unique_ptr<FileIndexProvider> m_indexProvider;      // 文件索引提供者
+    std::unique_ptr<zero_scan::IZeroScanProvider> m_zeroScanProvider;  // 零扫描提供者
     
     // 初始化和配置
     void logConfig();
     bool setupRealtimeMonitoring();  // 设置实时文件监控
-    bool setupIndexProvider();       // 设置零扫描索引
+    bool setupIndexProvider();       // 设置文件索引提供者
+    bool setupZeroScanProvider();    // 设置零扫描提供者
     
     // FileIndexProvider回调处理
     void onInitialBatch(const std::vector<FileInfo>& files);
     void onFileEvent(const FileEvent& event);
     void onIndexProgress(uint64_t indexed, uint64_t total);
+    
+    // ZeroScanProvider回调处理
+    void onZeroScanFile(const zero_scan::UnifiedFileRecord& record);
+    void onZeroScanChange(const zero_scan::FileChangeEvent& event);
     
     // 数据转换和发送
     ConnectorEvent convertFileInfoToEvent(const FileInfo& fileInfo, const std::string& eventType);

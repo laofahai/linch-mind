@@ -49,4 +49,3 @@ abstract class BaseStateNotifier<T extends BaseState> extends StateNotifier<T> {
   /// 子类需要实现：更新状态时设置加载状态
   T updateStateWithLoading(bool loading);
 }
-

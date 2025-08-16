@@ -95,7 +95,8 @@ class TimelineItem with _$TimelineItem {
     required String title,
     String? description,
     required DateTime timestamp,
-    required String type, // 'entity_created', 'insight_generated', 'connector_activity'
+    required String
+        type, // 'entity_created', 'insight_generated', 'connector_activity'
     Map<String, dynamic>? metadata,
     String? iconName,
     String? connectorId,

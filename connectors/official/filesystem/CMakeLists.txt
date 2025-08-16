@@ -31,7 +31,7 @@ else()
     set(PLATFORM_COMPILE_DEFINITIONS)
 endif()
 
-# Source files - 使用零扫描索引架构
+# Source files - 使用零扫描索引架构 + 进度管理
 set(SOURCES
     src/main.cpp
     src/native_monitor.hpp
@@ -39,6 +39,8 @@ set(SOURCES
     src/filesystem_monitor_adapter.cpp
     src/filesystem_connector.cpp
     src/file_index_provider.cpp
+    src/zero_scan/zero_scan_factory.cpp
+    src/progress/scan_progress_manager.cpp
 )
 
 # 平台特定源文件
@@ -46,8 +48,7 @@ if(APPLE)
     list(APPEND SOURCES
         src/platform/macos_fsevents_monitor.cpp
         src/platform/macos_file_index_provider.cpp
-        src/platform/macos_spotlight_zero_scan.mm
-        src/platform/macos_zero_scan.cpp
+        src/zero_scan/platform/macos/macos_zero_scan_provider.mm
     )
 elseif(UNIX)
     list(APPEND SOURCES
@@ -68,6 +69,8 @@ add_executable(linch-mind-filesystem ${SOURCES})
 target_include_directories(linch-mind-filesystem PRIVATE
     src
     src/platform
+    src/zero_scan
+    src/progress
     ../../shared/include  # shared库头文件
 )
 

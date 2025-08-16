@@ -14,7 +14,7 @@ class AIInsightsWidget extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final dataInsightsState = ref.watch(dataInsightsProvider);
     final insights = dataInsightsState.overview?.recentInsights ?? [];
-    
+
     // 性能优化：限制显示的洞察数量
     final limitedInsights = insights.take(5).toList();
 
@@ -26,23 +26,25 @@ class AIInsightsWidget extends ConsumerWidget {
         children: [
           if (limitedInsights.isEmpty)
             AIInsightsEmptyState(
-              onRefresh: () => ref.read(dataInsightsProvider.notifier).refresh(),
+              onRefresh: () =>
+                  ref.read(dataInsightsProvider.notifier).refresh(),
             )
           else
             // 性能优化：使用ListView.builder替代Column+map
             LayoutBuilder(
               builder: (context, constraints) {
-                final maxHeight = constraints.maxHeight.isFinite 
+                final maxHeight = constraints.maxHeight.isFinite
                     ? constraints.maxHeight.clamp(200.0, 350.0)
                     : 300.0;
-                
+
                 return SizedBox(
                   height: maxHeight,
                   child: ListView.separated(
                     shrinkWrap: true,
                     physics: const ClampingScrollPhysics(),
                     itemCount: limitedInsights.length,
-                    separatorBuilder: (context, index) => const SizedBox(height: 12),
+                    separatorBuilder: (context, index) =>
+                        const SizedBox(height: 12),
                     itemBuilder: (context, index) => AIInsightCard(
                       insight: limitedInsights[index],
                     ),
@@ -50,16 +52,16 @@ class AIInsightsWidget extends ConsumerWidget {
                 );
               },
             ),
-          
+
           const SizedBox(height: 8),
-          
+
           // 查看更多按钮
           if (insights.isNotEmpty)
             TextButton(
               onPressed: () => _showAllInsights(context, insights),
-              child: Text(insights.length > 5 
-                ? '查看所有洞察 (${insights.length})' 
-                : '查看所有洞察'),
+              child: Text(insights.length > 5
+                  ? '查看所有洞察 (${insights.length})'
+                  : '查看所有洞察'),
             ),
         ],
       ),
@@ -73,7 +75,6 @@ class AIInsightsWidget extends ConsumerWidget {
       tooltip: '更多选项',
     );
   }
-
 
   void _showInsightMenu(BuildContext context) {
     showModalBottomSheet(
@@ -129,8 +130,8 @@ class AIInsightsWidget extends ConsumerWidget {
                   Text(
                     '所有AI洞察',
                     style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
+                          fontWeight: FontWeight.w600,
+                        ),
                   ),
                   const Spacer(),
                   IconButton(
@@ -143,7 +144,8 @@ class AIInsightsWidget extends ConsumerWidget {
               Expanded(
                 child: ListView.separated(
                   itemCount: insights.length,
-                  separatorBuilder: (context, index) => const SizedBox(height: 16),
+                  separatorBuilder: (context, index) =>
+                      const SizedBox(height: 16),
                   itemBuilder: (context, index) {
                     return AIInsightCard(insight: insights[index]);
                   },
@@ -189,7 +191,8 @@ class AIInsightCard extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: _getInsightColor(insight.type).withValues(alpha: 0.1),
+                      color:
+                          _getInsightColor(insight.type).withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Icon(
@@ -199,7 +202,7 @@ class AIInsightCard extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(width: 12),
-                  
+
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -220,14 +223,14 @@ class AIInsightCard extends StatelessWidget {
                       ],
                     ),
                   ),
-                  
+
                   // 置信度指示器
                   ConfidenceIndicator(confidence: insight.confidence),
                 ],
               ),
-              
+
               const SizedBox(height: 12),
-              
+
               // 洞察描述
               Text(
                 insight.description,
@@ -235,32 +238,37 @@ class AIInsightCard extends StatelessWidget {
                 maxLines: 3,
                 overflow: TextOverflow.ellipsis,
               ),
-              
+
               // 相关实体
               if (insight.entities.isNotEmpty) ...[
                 const SizedBox(height: 12),
                 Wrap(
                   spacing: 6,
                   runSpacing: 4,
-                  children: insight.entities.take(5).map((entity) => Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: _getInsightColor(insight.type).withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text(
-                      entity,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: _getInsightColor(insight.type),
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  )).toList(),
+                  children: insight.entities
+                      .take(5)
+                      .map((entity) => Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: _getInsightColor(insight.type)
+                                  .withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text(
+                              entity,
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: _getInsightColor(insight.type),
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ))
+                      .toList(),
                 ),
               ],
-              
+
               const SizedBox(height: 12),
-              
+
               // 操作按钮
               Row(
                 children: [
@@ -320,7 +328,7 @@ class AIInsightCard extends StatelessWidget {
   String _formatDateTime(DateTime dateTime) {
     final now = DateTime.now();
     final difference = now.difference(dateTime);
-    
+
     if (difference.inMinutes < 1) {
       return '刚刚';
     } else if (difference.inHours < 1) {
@@ -451,9 +459,9 @@ class AIInsightDetailDialog extends StatelessWidget {
                 ),
               ],
             ),
-            
+
             const SizedBox(height: 20),
-            
+
             // 洞察标题
             Text(
               insight.title,
@@ -461,9 +469,9 @@ class AIInsightDetailDialog extends StatelessWidget {
                 fontWeight: FontWeight.w600,
               ),
             ),
-            
+
             const SizedBox(height: 8),
-            
+
             // 置信度和时间
             Row(
               children: [
@@ -478,15 +486,15 @@ class AIInsightDetailDialog extends StatelessWidget {
                   ),
               ],
             ),
-            
+
             const SizedBox(height: 16),
-            
+
             // 洞察描述
             Text(
               insight.description,
               style: theme.textTheme.bodyMedium,
             ),
-            
+
             // 相关实体
             if (insight.entities.isNotEmpty) ...[
               const SizedBox(height: 20),
@@ -500,15 +508,18 @@ class AIInsightDetailDialog extends StatelessWidget {
               Wrap(
                 spacing: 8,
                 runSpacing: 8,
-                children: insight.entities.map((entity) => Chip(
-                  label: Text(entity),
-                  backgroundColor: theme.colorScheme.surfaceContainerHighest,
-                )).toList(),
+                children: insight.entities
+                    .map((entity) => Chip(
+                          label: Text(entity),
+                          backgroundColor:
+                              theme.colorScheme.surfaceContainerHighest,
+                        ))
+                    .toList(),
               ),
             ],
-            
+
             const SizedBox(height: 24),
-            
+
             // 操作按钮
             Row(
               children: [

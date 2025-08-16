@@ -49,7 +49,7 @@ class _ConnectorManagementScreenState
       _checkDaemonAndLoadConnectors();
     });
   }
-  
+
   /// 检查daemon状态并加载连接器
   void _checkDaemonAndLoadConnectors() {
     final daemonRunning = ref.read(daemonRunningProvider);
@@ -66,9 +66,9 @@ class _ConnectorManagementScreenState
 
   Future<void> _loadInstalledConnectors() async {
     AppLogger.uiDebug('开始加载已安装连接器');
-    
+
     if (!mounted) return;
-    
+
     setState(() {
       _installedLoading = true;
       _installedErrorMessage = null;
@@ -91,7 +91,7 @@ class _ConnectorManagementScreenState
       });
       AppLogger.uiDebug('UI状态更新完成',
           data: {'installed_connectors_length': _installedConnectors.length});
-          
+
       // 如果加载成功但连接器列表为空，显示提示
       if (_installedConnectors.isEmpty) {
         AppLogger.uiInfo('已安装连接器列表为空');
@@ -126,7 +126,8 @@ class _ConnectorManagementScreenState
 
     try {
       // 从Registry API获取市场连接器，添加超时处理
-      final marketConnectors = await RegistryApiClient.getMarketConnectors().timeout(
+      final marketConnectors =
+          await RegistryApiClient.getMarketConnectors().timeout(
         const Duration(seconds: 15),
         onTimeout: () {
           throw Exception('加载市场连接器超时（15秒），请检查网络连接');
@@ -377,7 +378,6 @@ class _ConnectorManagementScreenState
     );
   }
 
-
   Widget _buildInstalledContent() {
     if (_installedLoading) {
       return const Center(
@@ -588,7 +588,8 @@ class _ConnectorManagementScreenState
       onRefresh: () => _refreshConnectorStatus(connector),
       onRestart: () => _restartConnector(connector),
       onConfigure: () => _configureConnector(connector),
-      onEnabledChanged: (enabled) => _toggleConnectorEnabled(connector, enabled),
+      onEnabledChanged: (enabled) =>
+          _toggleConnectorEnabled(connector, enabled),
     );
   }
 
@@ -665,7 +666,8 @@ class _ConnectorManagementScreenState
   }
 
   /// 切换连接器启用状态
-  Future<void> _toggleConnectorEnabled(ConnectorInfo connector, bool enabled) async {
+  Future<void> _toggleConnectorEnabled(
+      ConnectorInfo connector, bool enabled) async {
     try {
       AppLogger.uiInfo('切换连接器启用状态: ${connector.connectorId} -> $enabled');
 
@@ -674,7 +676,8 @@ class _ConnectorManagementScreenState
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('已${enabled ? '启用' : '禁用'}连接器: ${connector.displayName}'),
+            content:
+                Text('已${enabled ? '启用' : '禁用'}连接器: ${connector.displayName}'),
             backgroundColor: enabled ? Colors.green : Colors.orange,
           ),
         );
@@ -699,7 +702,6 @@ class _ConnectorManagementScreenState
       }
     }
   }
-
 
   Widget _buildMarketConnectorCard(ConnectorDefinition connector) {
     final isInstalled = connector.isRegistered ?? false;
@@ -977,16 +979,18 @@ class _ConnectorManagementScreenState
                                                 .timeout(
                                               const Duration(seconds: 15),
                                               onTimeout: () {
-                                                throw Exception('扫描目录超时（15秒），请检查目录权限或选择较小的目录');
+                                                throw Exception(
+                                                    '扫描目录超时（15秒），请检查目录权限或选择较小的目录');
                                               },
                                             );
-                                            
+
                                             if (mounted) {
                                               setDialogState(() {
                                                 availableConnectors =
                                                     response.connectors;
                                                 isScanning = false;
-                                                if (availableConnectors.isEmpty) {
+                                                if (availableConnectors
+                                                    .isEmpty) {
                                                   errorMessage =
                                                       '该目录中未发现有效的连接器。\n请确保所选目录包含 connector.toml 文件，或选择包含连接器子目录的父目录。';
                                                 }
@@ -1118,8 +1122,6 @@ class _ConnectorManagementScreenState
     }
   }
 
-
-
   Future<void> _installMarketConnector(ConnectorDefinition connector) async {
     try {
       // 显示安装中状态
@@ -1159,8 +1161,4 @@ class _ConnectorManagementScreenState
       }
     }
   }
-
-
-
-
 }

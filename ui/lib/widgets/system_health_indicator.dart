@@ -355,7 +355,6 @@ class _SystemHealthIndicatorState extends ConsumerState<SystemHealthIndicator>
   }
 
   Widget _buildSystemStats(BuildContext context, Map<String, dynamic> stats) {
-
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceAround,
       children: [

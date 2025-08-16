@@ -341,8 +341,9 @@ class _SmartErrorDisplayState extends State<SmartErrorDisplay>
   _ErrorTheme _getErrorTheme(UIError error, bool isDark) {
     if (error.isCritical) {
       return _ErrorTheme(
-        backgroundColor:
-            isDark ? Colors.red.shade900.withValues(alpha: 0.8) : Colors.red.shade50,
+        backgroundColor: isDark
+            ? Colors.red.shade900.withValues(alpha: 0.8)
+            : Colors.red.shade50,
         iconColor: Colors.red,
         icon: Icons.error,
         textColor: isDark ? Colors.red.shade100 : Colors.red.shade800,

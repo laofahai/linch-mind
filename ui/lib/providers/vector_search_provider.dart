@@ -12,10 +12,10 @@ part 'vector_search_provider.g.dart';
 
 /// 搜索模式枚举
 enum SearchMode {
-  simple,      // 简单搜索
-  advanced,    // 高级搜索
-  similarity,  // 相似性搜索
-  clustering,  // 聚类分析
+  simple, // 简单搜索
+  advanced, // 高级搜索
+  similarity, // 相似性搜索
+  clustering, // 聚类分析
 }
 
 /// 向量搜索状态
@@ -61,7 +61,7 @@ class VectorSearchState {
       suggestions: suggestions ?? this.suggestions,
       history: history ?? this.history,
       isLoading: isLoading ?? this.isLoading,
-      error: error,  // 始终重置error为传入值
+      error: error, // 始终重置error为传入值
       searchMode: searchMode ?? this.searchMode,
       currentQuery: currentQuery ?? this.currentQuery,
       metrics: metrics ?? this.metrics,
@@ -89,18 +89,18 @@ class VectorSearch extends _$VectorSearch {
   Future<void> search(VectorSearchQuery query) async {
     final searchStartTime = DateTime.now();
     final stopwatch = Stopwatch()..start();
-    
+
     state = state.copyWith(isLoading: true, error: null);
-    
+
     try {
       AppLogger.info('执行向量搜索: ${query.query}', module: 'VectorSearchProvider');
-      
+
       // 执行搜索
       final results = await _dataService.vectorSearch(query);
-      
+
       stopwatch.stop();
       final searchDuration = stopwatch.elapsedMilliseconds / 1000.0;
-      
+
       // 记录搜索历史
       final historyItem = SearchHistory(
         id: DateTime.now().millisecondsSinceEpoch.toString(),
@@ -109,12 +109,12 @@ class VectorSearch extends _$VectorSearch {
         resultsCount: results.length,
         searchTime: searchDuration,
       );
-      
+
       final newHistory = [historyItem, ...state.history];
       if (newHistory.length > _maxHistorySize) {
         newHistory.removeRange(_maxHistorySize, newHistory.length);
       }
-      
+
       state = state.copyWith(
         results: results,
         history: newHistory,
@@ -123,9 +123,9 @@ class VectorSearch extends _$VectorSearch {
         lastSearchTime: searchStartTime,
         isLoading: false,
       );
-      
-      AppLogger.info('向量搜索完成，找到 ${results.length} 个结果', 
-                     module: 'VectorSearchProvider');
+
+      AppLogger.info('向量搜索完成，找到 ${results.length} 个结果',
+          module: 'VectorSearchProvider');
     } catch (e) {
       AppLogger.error('向量搜索失败: $e', module: 'VectorSearchProvider');
       state = state.copyWith(
@@ -144,12 +144,13 @@ class VectorSearch extends _$VectorSearch {
 
     // 取消之前的定时器
     _suggestionDebounceTimer?.cancel();
-    
+
     // 设置新的防抖定时器
-    _suggestionDebounceTimer = Timer(const Duration(milliseconds: 500), () async {
+    _suggestionDebounceTimer =
+        Timer(const Duration(milliseconds: 500), () async {
       try {
         final suggestions = await _dataService.getSearchSuggestions(query);
-        
+
         state = state.copyWith(suggestions: suggestions);
       } catch (e) {
         AppLogger.error('获取搜索建议失败: $e', module: 'VectorSearchProvider');
@@ -259,20 +260,21 @@ class SimilarityAnalysis extends _$SimilarityAnalysis {
   /// 计算实体相似性
   Future<void> calculateSimilarity(String entityId, {int limit = 10}) async {
     state = state.copyWith(isLoading: true, error: null);
-    
+
     try {
       AppLogger.info('计算实体相似性: $entityId', module: 'SimilarityProvider');
-      
-      final similarities = await _dataService.calculateSimilarity(entityId, limit: limit);
-      
+
+      final similarities =
+          await _dataService.calculateSimilarity(entityId, limit: limit);
+
       state = state.copyWith(
         similarities: similarities,
         currentEntityId: entityId,
         isLoading: false,
       );
-      
-      AppLogger.info('相似性计算完成，找到 ${similarities.length} 个相似实体', 
-                     module: 'SimilarityProvider');
+
+      AppLogger.info('相似性计算完成，找到 ${similarities.length} 个相似实体',
+          module: 'SimilarityProvider');
     } catch (e) {
       AppLogger.error('相似性计算失败: $e', module: 'SimilarityProvider');
       state = state.copyWith(
@@ -336,19 +338,20 @@ class ClusteringAnalysis extends _$ClusteringAnalysis {
   Future<void> analyzeClusters({int? numClusters}) async {
     final clusters = numClusters ?? state.numClusters;
     state = state.copyWith(isLoading: true, error: null, numClusters: clusters);
-    
+
     try {
       AppLogger.info('执行聚类分析，聚类数: $clusters', module: 'ClusteringProvider');
-      
-      final results = await _dataService.getContentClusters(numClusters: clusters);
-      
+
+      final results =
+          await _dataService.getContentClusters(numClusters: clusters);
+
       state = state.copyWith(
         clusters: results,
         isLoading: false,
       );
-      
-      AppLogger.info('聚类分析完成，生成 ${results.length} 个聚类', 
-                     module: 'ClusteringProvider');
+
+      AppLogger.info('聚类分析完成，生成 ${results.length} 个聚类',
+          module: 'ClusteringProvider');
     } catch (e) {
       AppLogger.error('聚类分析失败: $e', module: 'ClusteringProvider');
       state = state.copyWith(
@@ -447,7 +450,7 @@ class AdvancedSearchParamsNotifier extends StateNotifier<AdvancedSearchParams> {
 }
 
 /// 高级搜索参数Provider实例
-final advancedSearchParamsNotifierProvider = 
+final advancedSearchParamsNotifierProvider =
     StateNotifierProvider<AdvancedSearchParamsNotifier, AdvancedSearchParams>(
   (ref) => AdvancedSearchParamsNotifier(),
 );

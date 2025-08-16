@@ -59,7 +59,7 @@ class _SearchExperienceWidgetState extends ConsumerState<SearchExperienceWidget>
         children: [
           // 标签栏
           _buildTabBar(),
-          
+
           // 内容区域
           Expanded(
             child: TabBarView(
@@ -78,21 +78,21 @@ class _SearchExperienceWidgetState extends ConsumerState<SearchExperienceWidget>
 
   Widget _buildTabBar() {
     final tabs = <Widget>[];
-    
+
     if (widget.showHistory) {
       tabs.add(const Tab(
         icon: Icon(Icons.history),
         text: '搜索历史',
       ));
     }
-    
+
     if (widget.showQuickActions) {
       tabs.add(const Tab(
         icon: Icon(Icons.flash_on),
         text: '快捷操作',
       ));
     }
-    
+
     if (widget.showMetrics) {
       tabs.add(const Tab(
         icon: Icon(Icons.analytics),
@@ -121,7 +121,7 @@ class _SearchExperienceWidgetState extends ConsumerState<SearchExperienceWidget>
 
   Widget _buildHistoryTab() {
     final searchState = ref.watch(vectorSearchProvider);
-    
+
     return Container(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -148,9 +148,9 @@ class _SearchExperienceWidgetState extends ConsumerState<SearchExperienceWidget>
                 ),
             ],
           ),
-          
+
           const SizedBox(height: 12),
-          
+
           // 历史记录列表
           Expanded(
             child: _buildHistoryList(searchState.history),
@@ -202,7 +202,8 @@ class _SearchExperienceWidgetState extends ConsumerState<SearchExperienceWidget>
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
             decoration: BoxDecoration(
-              color: _getResultCountColor(item.resultsCount).withValues(alpha: 0.2),
+              color: _getResultCountColor(item.resultsCount)
+                  .withValues(alpha: 0.2),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Text(
@@ -307,19 +308,19 @@ class _SearchExperienceWidgetState extends ConsumerState<SearchExperienceWidget>
               ),
             ],
           ),
-          
+
           const SizedBox(height: 16),
-          
+
           // 快速搜索模板
           _buildQuickSearchTemplates(),
-          
+
           const SizedBox(height: 16),
-          
+
           // 搜索技巧
           _buildSearchTips(),
-          
+
           const SizedBox(height: 16),
-          
+
           // 批量操作
           _buildBatchOperations(),
         ],
@@ -462,32 +463,32 @@ class _SearchExperienceWidgetState extends ConsumerState<SearchExperienceWidget>
         ),
         const SizedBox(height: 8),
         ...tips.map((tip) => Padding(
-          padding: const EdgeInsets.only(bottom: 4),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                margin: const EdgeInsets.only(top: 6),
-                width: 4,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: Theme.of(context).primaryColor,
-                  shape: BoxShape.circle,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  tip,
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Theme.of(context).textTheme.bodyMedium?.color,
+              padding: const EdgeInsets.only(bottom: 4),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    margin: const EdgeInsets.only(top: 6),
+                    width: 4,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).primaryColor,
+                      shape: BoxShape.circle,
+                    ),
                   ),
-                ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      tip,
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Theme.of(context).textTheme.bodyMedium?.color,
+                      ),
+                    ),
+                  ),
+                ],
               ),
-            ],
-          ),
-        )),
+            )),
       ],
     );
   }
@@ -529,7 +530,7 @@ class _SearchExperienceWidgetState extends ConsumerState<SearchExperienceWidget>
 
   Widget _buildMetricsTab() {
     final searchState = ref.watch(vectorSearchProvider);
-    
+
     return Container(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -557,9 +558,9 @@ class _SearchExperienceWidgetState extends ConsumerState<SearchExperienceWidget>
               ),
             ],
           ),
-          
+
           const SizedBox(height: 16),
-          
+
           // 指标内容
           Expanded(
             child: _buildMetricsContent(searchState.metrics),
@@ -604,14 +605,14 @@ class _SearchExperienceWidgetState extends ConsumerState<SearchExperienceWidget>
               color: Colors.purple,
             ),
           ]),
-          
+
           const SizedBox(height: 16),
-          
+
           // 索引信息
           _buildIndexInfo(metrics),
-          
+
           const SizedBox(height: 16),
-          
+
           // 搜索统计
           _buildSearchStats(ref.watch(vectorSearchProvider)),
         ],
@@ -702,8 +703,10 @@ class _SearchExperienceWidgetState extends ConsumerState<SearchExperienceWidget>
             ),
             const SizedBox(height: 12),
             _buildInfoRow('索引类型', metrics.indexType ?? '未知'),
-            _buildInfoRow('最后更新', _formatTimestamp(metrics.lastUpdated ?? DateTime.now())),
-            _buildInfoRow('存储效率', '${((metrics.totalVectors * metrics.dimension * 4) / 1024 / 1024 / metrics.memoryUsageMb * 100).toStringAsFixed(1)}%'),
+            _buildInfoRow('最后更新',
+                _formatTimestamp(metrics.lastUpdated ?? DateTime.now())),
+            _buildInfoRow('存储效率',
+                '${((metrics.totalVectors * metrics.dimension * 4) / 1024 / 1024 / metrics.memoryUsageMb * 100).toStringAsFixed(1)}%'),
           ],
         ),
       ),
@@ -751,9 +754,11 @@ class _SearchExperienceWidgetState extends ConsumerState<SearchExperienceWidget>
             _buildInfoRow('历史搜索', '${searchState.history.length}次'),
             _buildInfoRow('当前结果', '${searchState.results.length}条'),
             if (searchState.lastSearchDuration != null)
-              _buildInfoRow('上次搜索用时', '${searchState.lastSearchDuration!.toStringAsFixed(3)}s'),
+              _buildInfoRow('上次搜索用时',
+                  '${searchState.lastSearchDuration!.toStringAsFixed(3)}s'),
             if (searchState.lastSearchTime != null)
-              _buildInfoRow('最近搜索', _formatTimestamp(searchState.lastSearchTime!)),
+              _buildInfoRow(
+                  '最近搜索', _formatTimestamp(searchState.lastSearchTime!)),
           ],
         ),
       ),
@@ -845,7 +850,7 @@ class _SearchExperienceWidgetState extends ConsumerState<SearchExperienceWidget>
   String _formatTimestamp(DateTime timestamp) {
     final now = DateTime.now();
     final difference = now.difference(timestamp);
-    
+
     if (difference.inDays > 0) {
       return '${difference.inDays}天前';
     } else if (difference.inHours > 0) {

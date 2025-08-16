@@ -29,7 +29,8 @@ class _NetworkGraphWidgetState extends ConsumerState<NetworkGraphWidget> {
   }
 
   void _loadSimilarities() {
-    ref.read(similarityAnalysisProvider.notifier)
+    ref
+        .read(similarityAnalysisProvider.notifier)
         .calculateSimilarity(widget.entityId!);
   }
 
@@ -64,9 +65,9 @@ class _NetworkGraphWidgetState extends ConsumerState<NetworkGraphWidget> {
                   ),
               ],
             ),
-            
+
             const SizedBox(height: 16),
-            
+
             // 图谱内容
             Expanded(
               child: _buildGraphContent(similarityState, theme),
@@ -137,14 +138,15 @@ class _NetworkGraphWidgetState extends ConsumerState<NetworkGraphWidget> {
 
   Widget _buildRelationshipItem(SimilarityResult similarity, ThemeData theme) {
     final percentage = (similarity.similarity * 100).round();
-    
+
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
       child: ListTile(
         leading: Container(
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: _getSimilarityColor(similarity.similarity).withValues(alpha: 0.1),
+            color: _getSimilarityColor(similarity.similarity)
+                .withValues(alpha: 0.1),
             shape: BoxShape.circle,
           ),
           child: Icon(
@@ -166,7 +168,8 @@ class _NetworkGraphWidgetState extends ConsumerState<NetworkGraphWidget> {
         trailing: Container(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
           decoration: BoxDecoration(
-            color: _getSimilarityColor(similarity.similarity).withValues(alpha: 0.1),
+            color: _getSimilarityColor(similarity.similarity)
+                .withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(12),
           ),
           child: Text(

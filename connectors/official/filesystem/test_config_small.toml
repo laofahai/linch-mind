@@ -1,0 +1,39 @@
+[connector]
+name = "filesystem"
+type = "filesystem"
+version = "1.0.0"
+enabled = true
+
+[connector.config]
+# 限制扫描范围为用户文档目录，避免全盘扫描
+include_paths = ["/Users/laofahai/Documents"]
+exclude_paths = [
+    "/Users/laofahai/Documents/.git",
+    "/Users/laofahai/Documents/node_modules",
+    "/Users/laofahai/Documents/.idea"
+]
+
+# 限制最大文件数量为10000，避免过度扫描
+max_results = 10000
+batch_size = 1000
+
+# 只扫描文件，不扫描目录（减少数量）
+files_only = true
+directories_only = false
+
+# 增量扫描配置
+enable_incremental = true
+scan_interval_seconds = 60
+
+# 性能控制
+max_scan_threads = 4
+throttle_ms = 10
+
+[zero_scan]
+# 启用零扫描功能
+enabled = true
+provider = "macos"
+
+# 安全设置：限制mds CPU使用率
+max_mds_cpu_percent = 40.0
+batch_interval_ms = 200

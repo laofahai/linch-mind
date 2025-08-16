@@ -1,4 +1,5 @@
 #include "filesystem_connector.hpp"
+#include "zero_scan/zero_scan_interface.hpp"
 #include <iostream>
 #include <chrono>
 
@@ -50,9 +51,14 @@ bool FilesystemConnector::onStart() {
         return false;
     }
     
-    // 2. 然后设置零扫描索引（用于全盘快速搜索）
+    // 2. 设置现有的文件索引提供者
     if (!setupIndexProvider()) {
-        logWarn("⚠️ 零扫描索引设置失败，仅启用实时监控");
+        logWarn("⚠️ 文件索引提供者设置失败");
+    }
+    
+    // 3. 设置新的零扫描提供者（用于全盘快速搜索）
+    if (!setupZeroScanProvider()) {
+        logWarn("⚠️ 零扫描提供者设置失败，使用备选方案");
     }
     
     logInfo("✅ 文件系统连接器V2启动完成");
@@ -64,9 +70,22 @@ bool FilesystemConnector::onStart() {
 void FilesystemConnector::onStop() {
     logInfo("🛑 停止文件系统连接器V2");
     
-    // 停止零扫描索引提供者
+    // 停止零扫描提供者
+    if (m_zeroScanProvider) {
+        logInfo("🛑 停止零扫描提供者...");
+        m_zeroScanProvider->shutdown();
+        
+        // 显示零扫描统计
+        auto stats = m_zeroScanProvider->getStatistics();
+        logInfo("📊 零扫描统计:");
+        logInfo("   文件数量: " + std::to_string(stats.total_files));
+        logInfo("   扫描速度: " + std::to_string(stats.files_per_second) + " 文件/秒");
+        logInfo("   内存使用: " + std::to_string(stats.memory_usage_mb) + " MB");
+    }
+    
+    // 停止文件索引提供者
     if (m_indexProvider) {
-        logInfo("🛑 停止零扫描索引提供者...");
+        logInfo("🛑 停止文件索引提供者...");
         m_indexProvider->stop();
         
         // 显示性能统计
@@ -355,6 +374,183 @@ void FilesystemConnector::logPerformanceStats() {
         logInfo("   初始化状态: " + std::string(stats.is_initialized ? "完成" : "未完成"));
         logInfo("   监控状态: " + std::string(stats.is_watching ? "活跃" : "停止"));
     }
+}
+
+bool FilesystemConnector::setupZeroScanProvider() {
+    logInfo("⚡ 设置零扫描提供者...");
+    
+    // 创建零扫描提供者
+    m_zeroScanProvider = zero_scan::ZeroScanFactory::createProvider();
+    
+    if (!m_zeroScanProvider) {
+        logError("❌ 无法创建零扫描提供者");
+        return false;
+    }
+    
+    // 配置零扫描
+    zero_scan::ScanConfiguration scanConfig;
+    scanConfig.include_hidden = false;
+    scanConfig.include_system = false;
+    scanConfig.files_only = true;  // 只扫描文件，不包括目录
+    scanConfig.batch_size = 1000;
+    scanConfig.parallel_processing = true;
+    scanConfig.use_cache = true;
+    
+    // 添加排除模式
+    scanConfig.exclude_patterns = {
+        R"(^\..*)",           // 隐藏文件
+        R"(.*\.tmp$)",        // 临时文件
+        R"(.*\.log$)",        // 日志文件
+        R"(.*/\.git/.*)",     // Git目录
+        R"(.*/node_modules/.*)", // Node.js模块
+        R"(.*/\.DS_Store$)",  // macOS系统文件
+        R"(.*/\.Trash/.*)",   // 废纸篓
+    };
+    
+    // 初始化
+    if (!m_zeroScanProvider->initialize(scanConfig)) {
+        logError("❌ 零扫描提供者初始化失败");
+        return false;
+    }
+    
+    logInfo("✅ 零扫描提供者初始化成功: " + m_zeroScanProvider->getPlatformInfo());
+    
+    // 开始执行零扫描（异步）
+    std::thread([this]() {
+        logInfo("🚀 开始执行零扫描...");
+        
+        auto startTime = std::chrono::high_resolution_clock::now();
+        size_t fileCount = 0;
+        
+        bool success = m_zeroScanProvider->performZeroScan([this, &fileCount](const zero_scan::UnifiedFileRecord& record) {
+            onZeroScanFile(record);
+            fileCount++;
+        });
+        
+        auto endTime = std::chrono::high_resolution_clock::now();
+        auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime);
+        
+        if (success) {
+            auto stats = m_zeroScanProvider->getStatistics();
+            logInfo("🎉 零扫描完成！");
+            logInfo("   📁 文件数量: " + std::to_string(fileCount));
+            logInfo("   ⏱️  用时: " + std::to_string(duration.count()) + "ms");
+            logInfo("   📊 扫描速度: " + std::to_string(stats.files_per_second) + " 文件/秒");
+            
+            if (stats.files_per_second > 10000) {
+                logInfo("   🏆 达到 Everything 级别性能！");
+            }
+        } else {
+            logError("❌ 零扫描执行失败");
+        }
+    }).detach();
+    
+    // 订阅文件变更（用于实时更新）
+    if (!m_zeroScanProvider->subscribeToChanges([this](const zero_scan::FileChangeEvent& event) {
+        onZeroScanChange(event);
+    })) {
+        logWarn("⚠️ 零扫描变更监控订阅失败");
+    }
+    
+    return true;
+}
+
+void FilesystemConnector::onZeroScanFile(const zero_scan::UnifiedFileRecord& record) {
+    // 创建事件数据
+    json eventData = {
+        {"path", record.path},
+        {"name", record.name},
+        {"extension", record.extension},
+        {"size", record.size},
+        {"is_directory", record.is_directory}
+    };
+    
+    // 设置时间戳
+    auto timeT = std::chrono::system_clock::to_time_t(record.modified_time);
+    eventData["modified_time"] = timeT;
+    
+    if (record.created_time != std::chrono::system_clock::time_point{}) {
+        auto createTimeT = std::chrono::system_clock::to_time_t(record.created_time);
+        eventData["created_time"] = createTimeT;
+    }
+    
+    if (record.content_type.has_value()) {
+        eventData["content_type"] = record.content_type.value();
+    }
+    
+    // 创建连接器事件
+    ConnectorEvent event = ConnectorEvent::create(
+        getId(),
+        "file_indexed", 
+        std::move(eventData)
+    );
+    
+    // 添加元数据
+    event.metadata = {
+        {"scan_method", "zero_scan"},
+        {"platform", m_zeroScanProvider->getPlatformInfo()}
+    };
+    
+    // 发送事件
+    sendEvent(std::move(event));
+    
+    // 更新统计
+    m_totalIndexedFiles.fetch_add(1);
+}
+
+void FilesystemConnector::onZeroScanChange(const zero_scan::FileChangeEvent& event) {
+    // 确定事件类型
+    std::string eventType;
+    switch (event.type) {
+        case zero_scan::FileChangeType::CREATED:
+            eventType = "file_created";
+            break;
+        case zero_scan::FileChangeType::MODIFIED:
+            eventType = "file_modified";
+            break;
+        case zero_scan::FileChangeType::DELETED:
+            eventType = "file_deleted";
+            break;
+        case zero_scan::FileChangeType::RENAMED:
+            eventType = "file_renamed";
+            break;
+        case zero_scan::FileChangeType::MOVED:
+            eventType = "file_moved";
+            break;
+    }
+    
+    // 创建事件数据
+    json eventData = {
+        {"path", event.file.path},
+        {"name", event.file.name},
+        {"extension", event.file.extension},
+        {"size", event.file.size},
+        {"is_directory", event.file.is_directory}
+    };
+    
+    // 对于重命名和移动事件，添加旧路径
+    if (!event.old_path.empty()) {
+        eventData["old_path"] = event.old_path;
+    }
+    
+    // 创建连接器事件
+    ConnectorEvent connectorEvent = ConnectorEvent::create(
+        getId(),
+        std::move(eventType),
+        std::move(eventData)
+    );
+    
+    // 设置正确的时间戳
+    connectorEvent.timestamp = event.timestamp;
+    
+    // 添加元数据
+    connectorEvent.metadata = {
+        {"change_source", "zero_scan_monitor"},
+        {"platform", m_zeroScanProvider->getPlatformInfo()}
+    };
+    
+    // 发送事件
+    sendEvent(std::move(connectorEvent));
 }
 
 } // namespace linch_connector

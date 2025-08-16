@@ -18,7 +18,7 @@ class _VectorSearchScreenState extends ConsumerState<VectorSearchScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('智能语义搜索'),
@@ -32,7 +32,7 @@ class _VectorSearchScreenState extends ConsumerState<VectorSearchScreen> {
               // 搜索提交后的回调（可选）
             },
           ),
-          
+
           // 主要内容
           Expanded(
             child: Row(
@@ -53,10 +53,10 @@ class _VectorSearchScreenState extends ConsumerState<VectorSearchScreen> {
                     },
                   ),
                 ),
-                
+
                 // 分隔线
                 const VerticalDivider(width: 1),
-                
+
                 // 知识图谱区域
                 Expanded(
                   flex: 1,

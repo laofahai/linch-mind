@@ -8,10 +8,10 @@ import '../../providers/vector_search_provider.dart';
 
 /// 可视化模式
 enum VisualizationMode {
-  heatmap,    // 相似度热力图
-  network,    // 网络关系图
+  heatmap, // 相似度热力图
+  network, // 网络关系图
   clustering, // 聚类分析图
-  timeline,   // 时间轴相似性
+  timeline, // 时间轴相似性
 }
 
 /// 相似性可视化组件
@@ -70,7 +70,7 @@ class _SimilarityVisualizationWidgetState
       children: [
         // 控制面板
         if (widget.showControls) _buildControlPanel(),
-        
+
         // 可视化内容
         Expanded(
           child: AnimatedBuilder(
@@ -127,9 +127,9 @@ class _SimilarityVisualizationWidgetState
               ),
             ],
           ),
-          
+
           const SizedBox(height: 12),
-          
+
           // 参数控制
           Row(
             children: [
@@ -156,7 +156,7 @@ class _SimilarityVisualizationWidgetState
                   },
                 ),
               ),
-              
+
               // 标签显示开关
               Switch(
                 value: _showLabels,
@@ -218,11 +218,11 @@ class _SimilarityVisualizationWidgetState
 
   Widget _buildHeatmapView() {
     final similarityState = ref.watch(similarityAnalysisProvider);
-    
+
     if (similarityState.isLoading) {
       return _buildLoadingState('生成相似度热力图...');
     }
-    
+
     if (similarityState.results.isEmpty) {
       return _buildEmptyState('选择一个实体以查看相似度分析');
     }
@@ -255,9 +255,9 @@ class _SimilarityVisualizationWidgetState
               _buildHeatmapLegend(),
             ],
           ),
-          
+
           const SizedBox(height: 16),
-          
+
           // 热力图网格
           Expanded(
             child: _buildHeatmapGrid(results),
@@ -272,7 +272,7 @@ class _SimilarityVisualizationWidgetState
     final filteredResults = results
         .where((result) => result.similarity >= _similarityThreshold)
         .toList();
-    
+
     if (filteredResults.isEmpty) {
       return Center(
         child: Text(
@@ -284,7 +284,8 @@ class _SimilarityVisualizationWidgetState
 
     // 创建网格布局
     const crossAxisCount = 5;
-    final itemCount = (filteredResults.length / crossAxisCount).ceil() * crossAxisCount;
+    final itemCount =
+        (filteredResults.length / crossAxisCount).ceil() * crossAxisCount;
 
     return GridView.builder(
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
@@ -308,7 +309,8 @@ class _SimilarityVisualizationWidgetState
     final color = _getHeatmapColor(intensity);
 
     return Tooltip(
-      message: '${result.targetContent ?? result.targetId}\n相似度: ${(intensity * 100).toStringAsFixed(1)}%',
+      message:
+          '${result.targetContent ?? result.targetId}\n相似度: ${(intensity * 100).toStringAsFixed(1)}%',
       child: Container(
         decoration: BoxDecoration(
           color: color,
@@ -380,11 +382,11 @@ class _SimilarityVisualizationWidgetState
 
   Widget _buildNetworkView() {
     final similarityState = ref.watch(similarityAnalysisProvider);
-    
+
     if (similarityState.isLoading) {
       return _buildLoadingState('构建关系网络图...');
     }
-    
+
     if (similarityState.results.isEmpty) {
       return _buildEmptyState('选择一个实体以查看关系网络');
     }
@@ -415,9 +417,9 @@ class _SimilarityVisualizationWidgetState
               ),
             ],
           ),
-          
+
           const SizedBox(height: 16),
-          
+
           // 网络图画布
           Expanded(
             child: _buildNetworkCanvas(results),
@@ -438,7 +440,9 @@ class _SimilarityVisualizationWidgetState
       ),
       child: CustomPaint(
         painter: NetworkGraphPainter(
-          results: results.where((r) => r.similarity >= _similarityThreshold).toList(),
+          results: results
+              .where((r) => r.similarity >= _similarityThreshold)
+              .toList(),
           showLabels: _showLabels,
           theme: Theme.of(context),
         ),
@@ -449,11 +453,11 @@ class _SimilarityVisualizationWidgetState
 
   Widget _buildClusteringView() {
     final clusteringState = ref.watch(clusteringAnalysisProvider);
-    
+
     if (clusteringState.isLoading) {
       return _buildLoadingState('执行聚类分析...');
     }
-    
+
     if (clusteringState.clusters.isEmpty) {
       return _buildEmptyState('点击开始聚类分析');
     }
@@ -485,16 +489,18 @@ class _SimilarityVisualizationWidgetState
               const Spacer(),
               ElevatedButton.icon(
                 onPressed: () {
-                  ref.read(clusteringAnalysisProvider.notifier).analyzeClusters();
+                  ref
+                      .read(clusteringAnalysisProvider.notifier)
+                      .analyzeClusters();
                 },
                 icon: const Icon(Icons.refresh),
                 label: const Text('重新分析'),
               ),
             ],
           ),
-          
+
           const SizedBox(height: 16),
-          
+
           // 聚类图表
           Expanded(
             child: _buildClusterChart(clusters),
@@ -522,7 +528,7 @@ class _SimilarityVisualizationWidgetState
 
   Widget _buildClusterCard(ClusterResult cluster) {
     final color = _getClusterColor(cluster.clusterId);
-    
+
     return Card(
       elevation: 4,
       shape: RoundedRectangleBorder(
@@ -552,7 +558,9 @@ class _SimilarityVisualizationWidgetState
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      cluster.label.isNotEmpty ? cluster.label : '集群 ${cluster.clusterId}',
+                      cluster.label.isNotEmpty
+                          ? cluster.label
+                          : '集群 ${cluster.clusterId}',
                       style: const TextStyle(
                         fontWeight: FontWeight.w600,
                         fontSize: 14,
@@ -563,9 +571,9 @@ class _SimilarityVisualizationWidgetState
                   ),
                 ],
               ),
-              
+
               const SizedBox(height: 8),
-              
+
               // 统计信息
               Text(
                 '${cluster.entityIds.length} 个实体',
@@ -574,7 +582,7 @@ class _SimilarityVisualizationWidgetState
                   color: Theme.of(context).hintColor,
                 ),
               ),
-              
+
               if (cluster.coherence > 0)
                 Text(
                   '一致性: ${(cluster.coherence * 100).toStringAsFixed(1)}%',
@@ -583,9 +591,9 @@ class _SimilarityVisualizationWidgetState
                     color: Theme.of(context).hintColor,
                   ),
                 ),
-              
+
               const SizedBox(height: 8),
-              
+
               // 关键词
               if (cluster.keywords.isNotEmpty)
                 Expanded(
@@ -594,7 +602,8 @@ class _SimilarityVisualizationWidgetState
                     runSpacing: 4,
                     children: cluster.keywords.take(3).map((keyword) {
                       return Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 6, vertical: 2),
                         decoration: BoxDecoration(
                           color: color.withValues(alpha: 0.2),
                           borderRadius: BorderRadius.circular(8),
@@ -817,9 +826,8 @@ class NetworkGraphPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     if (results.isEmpty) return;
 
-    final paint = Paint()
-      ..style = PaintingStyle.fill;
-    
+    final paint = Paint()..style = PaintingStyle.fill;
+
     final linePaint = Paint()
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1;
@@ -840,7 +848,7 @@ class NetworkGraphPainter extends CustomPainter {
       // 绘制到中心的连线
       linePaint.color = _getConnectionColor(result.similarity);
       linePaint.strokeWidth = result.similarity * 3;
-      
+
       canvas.drawLine(center, nodePos, linePaint);
     }
 

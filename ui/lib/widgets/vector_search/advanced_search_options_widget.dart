@@ -133,16 +133,18 @@ class _AdvancedSearchOptionsWidgetState
       similarityThreshold: _similarityThreshold,
       searchTypes: List.from(_selectedEntityTypes),
       connectorFilters: List.from(_selectedTags),
-      dateRange: _dateFrom != null && _dateTo != null 
-          ? DateTimeRange(start: _dateFrom!, end: _dateTo!) 
+      dateRange: _dateFrom != null && _dateTo != null
+          ? DateTimeRange(start: _dateFrom!, end: _dateTo!)
           : null,
       useSemanticSearch: _enableSemanticBoost,
     );
-    ref.read(advancedSearchParamsNotifierProvider.notifier).updateParams(advancedParams);
+    ref
+        .read(advancedSearchParamsNotifierProvider.notifier)
+        .updateParams(advancedParams);
 
     // 执行搜索
     ref.read(vectorSearchProvider.notifier).search(searchQuery);
-    
+
     AppLogger.info('执行高级搜索: $query', module: 'AdvancedSearchOptions');
     widget.onSearch?.call();
   }
@@ -164,7 +166,7 @@ class _AdvancedSearchOptionsWidgetState
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(advancedSearchParamsNotifierProvider.notifier).reset();
     });
-    
+
     widget.onReset?.call();
   }
 
@@ -183,7 +185,7 @@ class _AdvancedSearchOptionsWidgetState
         children: [
           // 标题栏
           _buildHeaderBar(),
-          
+
           // 可展开内容
           AnimatedBuilder(
             animation: _expandAnimation,
@@ -206,12 +208,14 @@ class _AdvancedSearchOptionsWidgetState
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        border: widget.isExpanded ? Border(
-          bottom: BorderSide(
-            color: Theme.of(context).dividerColor,
-            width: 1,
-          ),
-        ) : null,
+        border: widget.isExpanded
+            ? Border(
+                bottom: BorderSide(
+                  color: Theme.of(context).dividerColor,
+                  width: 1,
+                ),
+              )
+            : null,
       ),
       child: Row(
         children: [
@@ -230,14 +234,14 @@ class _AdvancedSearchOptionsWidgetState
             ),
           ),
           const Spacer(),
-          
+
           // 预设按钮
           IconButton(
             icon: const Icon(Icons.bookmark, size: 20),
             tooltip: '搜索预设',
             onPressed: _showSearchPresets,
           ),
-          
+
           // 展开/收起按钮
           IconButton(
             icon: AnimatedRotation(
@@ -262,7 +266,7 @@ class _AdvancedSearchOptionsWidgetState
           // 搜索查询输入
           _buildQueryInput(),
           const SizedBox(height: 16),
-          
+
           // 搜索参数控制
           Row(
             children: [
@@ -272,23 +276,23 @@ class _AdvancedSearchOptionsWidgetState
             ],
           ),
           const SizedBox(height: 16),
-          
+
           // 实体类型筛选
           _buildEntityTypeFilters(),
           const SizedBox(height: 16),
-          
+
           // 标签筛选
           _buildTagFilters(),
           const SizedBox(height: 16),
-          
+
           // 时间范围筛选
           _buildDateRangeFilters(),
           const SizedBox(height: 16),
-          
+
           // 高级选项
           _buildAdvancedToggleOptions(),
           const SizedBox(height: 24),
-          
+
           // 操作按钮
           _buildActionButtons(),
         ],
@@ -416,7 +420,8 @@ class _AdvancedSearchOptionsWidgetState
                   }
                 });
               },
-              selectedColor: Theme.of(context).primaryColor.withValues(alpha: 0.2),
+              selectedColor:
+                  Theme.of(context).primaryColor.withValues(alpha: 0.2),
               checkmarkColor: Theme.of(context).primaryColor,
             );
           }).toList(),
@@ -454,7 +459,8 @@ class _AdvancedSearchOptionsWidgetState
                   }
                 });
               },
-              selectedColor: Theme.of(context).primaryColor.withValues(alpha: 0.2),
+              selectedColor:
+                  Theme.of(context).primaryColor.withValues(alpha: 0.2),
               checkmarkColor: Theme.of(context).primaryColor,
             );
           }).toList(),
@@ -480,9 +486,8 @@ class _AdvancedSearchOptionsWidgetState
             Expanded(
               child: OutlinedButton.icon(
                 icon: const Icon(Icons.date_range),
-                label: Text(_dateFrom != null
-                    ? _formatDate(_dateFrom!)
-                    : '开始日期'),
+                label:
+                    Text(_dateFrom != null ? _formatDate(_dateFrom!) : '开始日期'),
                 onPressed: () async {
                   final date = await showDatePicker(
                     context: context,
@@ -504,9 +509,7 @@ class _AdvancedSearchOptionsWidgetState
             Expanded(
               child: OutlinedButton.icon(
                 icon: const Icon(Icons.date_range),
-                label: Text(_dateTo != null
-                    ? _formatDate(_dateTo!)
-                    : '结束日期'),
+                label: Text(_dateTo != null ? _formatDate(_dateTo!) : '结束日期'),
                 onPressed: () async {
                   final date = await showDatePicker(
                     context: context,
@@ -635,27 +638,43 @@ class _AdvancedSearchOptionsWidgetState
   // 辅助方法
   String _getEntityTypeDisplayName(String type) {
     switch (type) {
-      case 'url': return 'URL链接';
-      case 'filePath': return '文件路径';
-      case 'email': return '邮箱地址';
-      case 'phone': return '电话号码';
-      case 'keyword': return '关键词';
-      case 'document': return '文档';
-      case 'image': return '图片';
-      case 'other': return '其他';
-      default: return type;
+      case 'url':
+        return 'URL链接';
+      case 'filePath':
+        return '文件路径';
+      case 'email':
+        return '邮箱地址';
+      case 'phone':
+        return '电话号码';
+      case 'keyword':
+        return '关键词';
+      case 'document':
+        return '文档';
+      case 'image':
+        return '图片';
+      case 'other':
+        return '其他';
+      default:
+        return type;
     }
   }
 
   String _getTagDisplayName(String tag) {
     switch (tag) {
-      case 'work': return '工作';
-      case 'personal': return '个人';
-      case 'important': return '重要';
-      case 'urgent': return '紧急';
-      case 'archived': return '已归档';
-      case 'favorite': return '收藏';
-      default: return tag;
+      case 'work':
+        return '工作';
+      case 'personal':
+        return '个人';
+      case 'important':
+        return '重要';
+      case 'urgent':
+        return '紧急';
+      case 'archived':
+        return '已归档';
+      case 'favorite':
+        return '收藏';
+      default:
+        return tag;
     }
   }
 
@@ -746,11 +765,11 @@ class _SearchPresetsSheet extends StatelessWidget {
           ),
           const SizedBox(height: 16),
           ..._presets.map((preset) => ListTile(
-            title: Text(preset.name),
-            subtitle: Text(preset.description),
-            leading: const Icon(Icons.bookmark_outline),
-            onTap: () => onPresetSelected(preset),
-          )),
+                title: Text(preset.name),
+                subtitle: Text(preset.description),
+                leading: const Icon(Icons.bookmark_outline),
+                onTap: () => onPresetSelected(preset),
+              )),
         ],
       ),
     );

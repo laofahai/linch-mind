@@ -34,7 +34,7 @@ class _SmartSearchWidgetState extends ConsumerState<SmartSearchWidget> {
     super.initState();
     _searchController = TextEditingController();
     _searchFocusNode = FocusNode();
-    
+
     _searchFocusNode.addListener(() {
       setState(() {
         _isSearchFocused = _searchFocusNode.hasFocus;
@@ -75,7 +75,8 @@ class _SmartSearchWidgetState extends ConsumerState<SmartSearchWidget> {
         Container(
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(12),
-            color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
+            color: theme.colorScheme.surfaceContainerHighest
+                .withValues(alpha: 0.3),
             border: _isSearchFocused
                 ? Border.all(color: theme.colorScheme.primary, width: 2)
                 : null,
@@ -166,7 +167,7 @@ class FilterChipsWidget extends ConsumerWidget {
           label: const Text('URL'),
           selected: selectedType == 'url',
           onSelected: (selected) {
-            ref.read(selectedEntityTypeProvider.notifier).state = 
+            ref.read(selectedEntityTypeProvider.notifier).state =
                 selected ? 'url' : null;
             _applyEntityTypeFilter(ref, selected ? 'url' : null);
           },
@@ -175,7 +176,7 @@ class FilterChipsWidget extends ConsumerWidget {
           label: const Text('文件路径'),
           selected: selectedType == 'file_path',
           onSelected: (selected) {
-            ref.read(selectedEntityTypeProvider.notifier).state = 
+            ref.read(selectedEntityTypeProvider.notifier).state =
                 selected ? 'file_path' : null;
             _applyEntityTypeFilter(ref, selected ? 'file_path' : null);
           },
@@ -184,7 +185,7 @@ class FilterChipsWidget extends ConsumerWidget {
           label: const Text('邮箱'),
           selected: selectedType == 'email',
           onSelected: (selected) {
-            ref.read(selectedEntityTypeProvider.notifier).state = 
+            ref.read(selectedEntityTypeProvider.notifier).state =
                 selected ? 'email' : null;
             _applyEntityTypeFilter(ref, selected ? 'email' : null);
           },
@@ -193,12 +194,12 @@ class FilterChipsWidget extends ConsumerWidget {
           label: const Text('关键词'),
           selected: selectedType == 'keyword',
           onSelected: (selected) {
-            ref.read(selectedEntityTypeProvider.notifier).state = 
+            ref.read(selectedEntityTypeProvider.notifier).state =
                 selected ? 'keyword' : null;
             _applyEntityTypeFilter(ref, selected ? 'keyword' : null);
           },
         ),
-        
+
         // 时间筛选
         ActionChip(
           label: const Text('今天'),
@@ -208,7 +209,7 @@ class FilterChipsWidget extends ConsumerWidget {
           label: const Text('本周'),
           onPressed: () => _applyTimeFilter(ref, 'week'),
         ),
-        
+
         // 更多筛选选项
         ActionChip(
           avatar: const Icon(Icons.tune, size: 16),
@@ -221,9 +222,9 @@ class FilterChipsWidget extends ConsumerWidget {
 
   void _applyEntityTypeFilter(WidgetRef ref, String? type) {
     ref.read(entityListProvider.notifier).loadEntities(
-      type: type,
-      refresh: true,
-    );
+          type: type,
+          refresh: true,
+        );
   }
 
   void _applyTimeFilter(WidgetRef ref, String timeRange) {
@@ -362,7 +363,8 @@ class SearchSuggestionsSheet extends ConsumerWidget {
     );
   }
 
-  Widget _buildSuggestionChip(BuildContext context, WidgetRef ref, String label, IconData icon) {
+  Widget _buildSuggestionChip(
+      BuildContext context, WidgetRef ref, String label, IconData icon) {
     return ActionChip(
       avatar: Icon(icon, size: 16),
       label: Text(label),
@@ -398,7 +400,8 @@ class AdvancedFiltersDialog extends ConsumerStatefulWidget {
   const AdvancedFiltersDialog({super.key});
 
   @override
-  ConsumerState<AdvancedFiltersDialog> createState() => _AdvancedFiltersDialogState();
+  ConsumerState<AdvancedFiltersDialog> createState() =>
+      _AdvancedFiltersDialogState();
 }
 
 class _AdvancedFiltersDialogState extends ConsumerState<AdvancedFiltersDialog> {
@@ -506,7 +509,8 @@ class _AdvancedFiltersDialogState extends ConsumerState<AdvancedFiltersDialog> {
             Wrap(
               spacing: 8,
               runSpacing: 8,
-              children: ['url', 'file_path', 'email', 'phone', 'keyword'].map((type) {
+              children:
+                  ['url', 'file_path', 'email', 'phone', 'keyword'].map((type) {
                 return FilterChip(
                   label: Text(_getTypeLabel(type)),
                   selected: _selectedTypes.contains(type),
@@ -540,8 +544,11 @@ class _AdvancedFiltersDialogState extends ConsumerState<AdvancedFiltersDialog> {
                     runSpacing: 8,
                     children: _availableConnectors.map((connector) {
                       return FilterChip(
-                        label: Text(connector.displayName.isNotEmpty ? connector.displayName : connector.name),
-                        selected: _selectedConnectors.contains(connector.connectorId),
+                        label: Text(connector.displayName.isNotEmpty
+                            ? connector.displayName
+                            : connector.name),
+                        selected:
+                            _selectedConnectors.contains(connector.connectorId),
                         onSelected: (selected) {
                           setState(() {
                             if (selected) {
@@ -585,7 +592,8 @@ class _AdvancedFiltersDialogState extends ConsumerState<AdvancedFiltersDialog> {
   Future<void> _selectStartDate(BuildContext context) async {
     final date = await showDatePicker(
       context: context,
-      initialDate: _startDate ?? DateTime.now().subtract(const Duration(days: 30)),
+      initialDate:
+          _startDate ?? DateTime.now().subtract(const Duration(days: 30)),
       firstDate: DateTime(2020),
       lastDate: DateTime.now(),
     );
@@ -624,21 +632,26 @@ class _AdvancedFiltersDialogState extends ConsumerState<AdvancedFiltersDialog> {
     );
 
     ref.read(filterOptionsProvider.notifier).state = filterOptions;
-    
+
     // TODO: 应用筛选到数据加载
-    
+
     Navigator.of(context).pop();
   }
 
   String _getTypeLabel(String type) {
     switch (type) {
-      case 'url': return 'URL';
-      case 'file_path': return '文件路径';
-      case 'email': return '邮箱';
-      case 'phone': return '电话';
-      case 'keyword': return '关键词';
-      default: return type;
+      case 'url':
+        return 'URL';
+      case 'file_path':
+        return '文件路径';
+      case 'email':
+        return '邮箱';
+      case 'phone':
+        return '电话';
+      case 'keyword':
+        return '关键词';
+      default:
+        return type;
     }
   }
-
 }

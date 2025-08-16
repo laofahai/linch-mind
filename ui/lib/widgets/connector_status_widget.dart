@@ -64,7 +64,6 @@ class _ConnectorStatusWidgetState extends ConsumerState<ConnectorStatusWidget> {
     return connector?.enabled ?? true;
   }
 
-
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -85,68 +84,67 @@ class _ConnectorStatusWidgetState extends ConsumerState<ConnectorStatusWidget> {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-              // 连接器名称和状态指示器
-              Row(
-                children: [
-                  // 状态指示器
-                  Container(
-                    width: 10,
-                    height: 10,
-                    decoration: BoxDecoration(
-                      color: statusInfo.color,
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-
-                  // 连接器名称
-                  Expanded(
-                    child: Text(
-                      _connectorName,
-                      style: theme.textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.w600,
-                        fontSize: 13,
+                  // 连接器名称和状态指示器
+                  Row(
+                    children: [
+                      // 状态指示器
+                      Container(
+                        width: 10,
+                        height: 10,
+                        decoration: BoxDecoration(
+                          color: statusInfo.color,
+                          shape: BoxShape.circle,
+                        ),
                       ),
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
+                      const SizedBox(width: 8),
 
-                  // 操作按钮
-                  _buildActionButtons(statusInfo),
-                ],
-              ),
-
-              const SizedBox(height: 4),
-
-              // 状态描述
-              Row(
-                children: [
-                  Icon(statusInfo.icon,
-                      size: 12, color: statusInfo.color),
-                  const SizedBox(width: 4),
-                  Expanded(
-                    child: Text(
-                      statusInfo.description,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: statusInfo.color,
-                        fontWeight: FontWeight.w500,
-                        fontSize: 11,
+                      // 连接器名称
+                      Expanded(
+                        child: Text(
+                          _connectorName,
+                          style: theme.textTheme.titleSmall?.copyWith(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 13,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ),
-                    ),
+
+                      // 操作按钮
+                      _buildActionButtons(statusInfo),
+                    ],
                   ),
-                ],
-              ),
 
-              // Enabled开关
-              const SizedBox(height: 6),
-              _buildEnabledSwitch(context),
+                  const SizedBox(height: 4),
 
-              // 错误信息（如果有）
-              if (_connectorStatus == ConnectorState.error &&
-                  _lastError != null) ...[
-                const SizedBox(height: 4),
-                _buildCompactErrorInfo(context),
-              ],
+                  // 状态描述
+                  Row(
+                    children: [
+                      Icon(statusInfo.icon, size: 12, color: statusInfo.color),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: Text(
+                          statusInfo.description,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: statusInfo.color,
+                            fontWeight: FontWeight.w500,
+                            fontSize: 11,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  // Enabled开关
+                  const SizedBox(height: 6),
+                  _buildEnabledSwitch(context),
+
+                  // 错误信息（如果有）
+                  if (_connectorStatus == ConnectorState.error &&
+                      _lastError != null) ...[
+                    const SizedBox(height: 4),
+                    _buildCompactErrorInfo(context),
+                  ],
                 ],
               ),
             ),
@@ -204,7 +202,7 @@ class _ConnectorStatusWidgetState extends ConsumerState<ConnectorStatusWidget> {
 
   Widget _buildEnabledSwitch(BuildContext context) {
     final theme = Theme.of(context);
-    
+
     return Row(
       children: [
         Icon(
@@ -323,7 +321,6 @@ class _ConnectorStatusWidgetState extends ConsumerState<ConnectorStatusWidget> {
         );
     }
   }
-
 }
 
 class _StatusInfo {

@@ -76,6 +76,7 @@ struct ScanStatistics {
     uint64_t scan_duration_ms = 0;            // 扫描耗时
     uint64_t files_per_second = 0;            // 处理速度
     size_t memory_usage_mb = 0;               // 内存使用
+    double cpu_usage_percent = 0.0;           // CPU使用率
     
     // 方法信息
     std::string scan_method;                  // 使用的扫描方法

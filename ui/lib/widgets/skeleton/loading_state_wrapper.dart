@@ -39,14 +39,14 @@ class _LoadingStateWrapperState extends State<LoadingStateWrapper>
     _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
     );
-    
+
     _updateShowingContent();
   }
 
   @override
   void didUpdateWidget(LoadingStateWrapper oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.isLoading != widget.isLoading || 
+    if (oldWidget.isLoading != widget.isLoading ||
         oldWidget.error != widget.error) {
       _updateShowingContent();
     }
@@ -54,10 +54,10 @@ class _LoadingStateWrapperState extends State<LoadingStateWrapper>
 
   void _updateShowingContent() {
     final shouldShowContent = !widget.isLoading && widget.error == null;
-    
+
     if (_showingContent != shouldShowContent) {
       _showingContent = shouldShowContent;
-      
+
       if (_showingContent) {
         _controller.forward();
       } else {
@@ -81,7 +81,7 @@ class _LoadingStateWrapperState extends State<LoadingStateWrapper>
         child: widget.errorWidget!,
       );
     }
-    
+
     return AnimatedSwitcher(
       duration: widget.animationDuration,
       child: widget.isLoading || widget.error != null
@@ -112,7 +112,7 @@ class ErrorRecoveryWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    
+
     return Center(
       child: Card(
         child: Padding(
@@ -188,7 +188,7 @@ class _FadeTransitionWrapperState extends State<FadeTransitionWrapper>
     _animation = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
     );
-    
+
     if (widget.show) {
       _controller.forward();
     }
@@ -265,7 +265,7 @@ class _SlideTransitionWrapperState extends State<SlideTransitionWrapper>
     _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
     );
-    
+
     if (widget.show) {
       _controller.forward();
     }
@@ -345,7 +345,7 @@ class _ScaleTransitionWrapperState extends State<ScaleTransitionWrapper>
     _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
     );
-    
+
     if (widget.show) {
       _controller.forward();
     }

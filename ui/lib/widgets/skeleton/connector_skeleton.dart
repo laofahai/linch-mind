@@ -38,18 +38,18 @@ class ConnectorCardSkeleton extends StatelessWidget {
               ),
             ],
           ),
-          
+
           const SizedBox(height: 16),
-          
+
           // 连接器描述
           SkeletonText.multiLine(
             lines: 2,
             firstLineWidth: double.infinity,
             otherLinesWidth: 200,
           ),
-          
+
           const SizedBox(height: 12),
-          
+
           // 统计信息行
           Row(
             children: [
@@ -60,9 +60,9 @@ class ConnectorCardSkeleton extends StatelessWidget {
               _buildStatItem(),
             ],
           ),
-          
+
           const SizedBox(height: 16),
-          
+
           // 操作按钮行
           Row(
             children: [
@@ -174,15 +174,16 @@ class ConnectorManagementSkeleton extends StatelessWidget {
               ),
             ],
           ),
-          
+
           const SizedBox(height: 20),
-          
+
           // 状态概览卡片
           SkeletonCard(
             height: 120,
             child: Row(
-              children: List.generate(4, (index) => 
-                Expanded(
+              children: List.generate(
+                4,
+                (index) => Expanded(
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
@@ -201,9 +202,9 @@ class ConnectorManagementSkeleton extends StatelessWidget {
               ),
             ),
           ),
-          
+
           const SizedBox(height: 20),
-          
+
           // 连接器列表
           ...List.generate(5, (index) => const ConnectorCardSkeleton()),
         ],
@@ -225,10 +226,11 @@ class ConnectorConfigFormSkeleton extends StatelessWidget {
           // 表单标题
           const SkeletonText(width: 180, height: 20),
           const SizedBox(height: 16),
-          
+
           // 表单字段
-          ...List.generate(4, (index) => 
-            Padding(
+          ...List.generate(
+            4,
+            (index) => Padding(
               padding: const EdgeInsets.only(bottom: 20),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -247,9 +249,9 @@ class ConnectorConfigFormSkeleton extends StatelessWidget {
               ),
             ),
           ),
-          
+
           const SizedBox(height: 20),
-          
+
           // 按钮区域
           Row(
             children: [
@@ -302,7 +304,7 @@ class SystemStatusCardSkeleton extends StatelessWidget {
           const SizedBox(height: 4),
           const SkeletonText(width: 120, height: 12),
           const SizedBox(height: 16),
-          
+
           // 状态列表
           const ConnectorStatusListSkeleton(itemCount: 4),
         ],
@@ -323,9 +325,9 @@ class QuickStatsCardSkeleton extends StatelessWidget {
         children: [
           const SkeletonText(width: 80, height: 16),
           const SizedBox(height: 16),
-          
-          ...List.generate(3, (index) => 
-            Padding(
+          ...List.generate(
+            3,
+            (index) => Padding(
               padding: const EdgeInsets.only(bottom: 12),
               child: Row(
                 children: [

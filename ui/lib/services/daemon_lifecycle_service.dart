@@ -127,7 +127,7 @@ class DaemonLifecycleService {
           ? Directory.current.parent.path
           : Directory.current.path;
       final daemonDir = Directory(path.join(projectRoot, 'daemon'));
-      
+
       if (!daemonDir.existsSync()) {
         print('[DaemonLifecycle] 查找daemon目录失败: ${daemonDir.path}');
         print('[DaemonLifecycle] 当前目录: ${Directory.current.path}');

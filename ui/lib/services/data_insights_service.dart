@@ -38,10 +38,10 @@ class DataInsightsService {
 
       // 直接构建概览数据，无任何业务逻辑处理
       final overview = _buildOverviewFromCompleteApiData(data);
-      
+
       // 更新流
       _overviewController.add(overview);
-      
+
       return overview;
     } catch (e) {
       AppLogger.error('获取数据洞察概览失败: $e', module: 'DataInsightsService');
@@ -96,7 +96,8 @@ class DataInsightsService {
       final data = _ensureStringDynamicMap(response.data ?? {});
       final timelineList = data['timeline'] as List<dynamic>? ?? [];
 
-      final timeline = timelineList.map((item) => _parseTimelineItem(item)).toList();
+      final timeline =
+          timelineList.map((item) => _parseTimelineItem(item)).toList();
       _timelineController.add(timeline);
       return timeline;
     } catch (e) {
@@ -154,7 +155,9 @@ class DataInsightsService {
       final data = _ensureStringDynamicMap(response.data ?? {});
       final resultsList = data['results'] as List<dynamic>? ?? [];
 
-      return resultsList.map((result) => _parseVectorSearchResult(result)).toList();
+      return resultsList
+          .map((result) => _parseVectorSearchResult(result))
+          .toList();
     } catch (e) {
       AppLogger.error('向量搜索失败: $e', module: 'DataInsightsService');
       rethrow;
@@ -175,7 +178,9 @@ class DataInsightsService {
       final data = _ensureStringDynamicMap(response.data ?? {});
       final suggestionsList = data['suggestions'] as List<dynamic>? ?? [];
 
-      return suggestionsList.map((suggestion) => _parseSearchSuggestion(suggestion)).toList();
+      return suggestionsList
+          .map((suggestion) => _parseSearchSuggestion(suggestion))
+          .toList();
     } catch (e) {
       AppLogger.error('获取搜索建议失败: $e', module: 'DataInsightsService');
       return [];
@@ -183,7 +188,8 @@ class DataInsightsService {
   }
 
   /// 计算实体相似性
-  Future<List<SimilarityResult>> calculateSimilarity(String entityId, {int limit = 10}) async {
+  Future<List<SimilarityResult>> calculateSimilarity(String entityId,
+      {int limit = 10}) async {
     try {
       final request = IPCRequest(
         method: 'POST',
@@ -199,7 +205,9 @@ class DataInsightsService {
       final data = _ensureStringDynamicMap(response.data ?? {});
       final resultsList = data['similarities'] as List<dynamic>? ?? [];
 
-      return resultsList.map((result) => _parseSimilarityResult(result)).toList();
+      return resultsList
+          .map((result) => _parseSimilarityResult(result))
+          .toList();
     } catch (e) {
       AppLogger.error('计算相似性失败: $e', module: 'DataInsightsService');
       rethrow;
@@ -222,7 +230,9 @@ class DataInsightsService {
       final data = _ensureStringDynamicMap(response.data ?? {});
       final clustersList = data['clusters'] as List<dynamic>? ?? [];
 
-      return clustersList.map((cluster) => _parseClusterResult(cluster)).toList();
+      return clustersList
+          .map((cluster) => _parseClusterResult(cluster))
+          .toList();
     } catch (e) {
       AppLogger.error('获取聚类结果失败: $e', module: 'DataInsightsService');
       rethrow;
@@ -257,20 +267,26 @@ class DataInsightsService {
   // 数据转换方法 - 纯数据映射，无业务逻辑
 
   /// 从完整的API数据构建概览对象
-  DataInsightsOverview _buildOverviewFromCompleteApiData(Map<String, dynamic> data) {
+  DataInsightsOverview _buildOverviewFromCompleteApiData(
+      Map<String, dynamic> data) {
     final todayStatsData = data['todayStats'] as Map<String, dynamic>? ?? {};
-    final entityBreakdownData = data['entityBreakdown'] as Map<String, dynamic>? ?? {};
+    final entityBreakdownData =
+        data['entityBreakdown'] as Map<String, dynamic>? ?? {};
     final recentInsightsList = data['recentInsights'] as List<dynamic>? ?? [];
-    final trendingEntitiesList = data['trendingEntities'] as List<dynamic>? ?? [];
-    final recentActivitiesList = data['recentActivities'] as List<dynamic>? ?? [];
-    final connectorStatusesList = data['connectorStatuses'] as List<dynamic>? ?? [];
+    final trendingEntitiesList =
+        data['trendingEntities'] as List<dynamic>? ?? [];
+    final recentActivitiesList =
+        data['recentActivities'] as List<dynamic>? ?? [];
+    final connectorStatusesList =
+        data['connectorStatuses'] as List<dynamic>? ?? [];
 
     return DataInsightsOverview(
       todayStats: TodayStats(
         newEntities: todayStatsData['newEntities'] as int? ?? 0,
         activeConnectors: todayStatsData['activeConnectors'] as int? ?? 0,
         aiAnalysisCompleted: todayStatsData['aiAnalysisCompleted'] as int? ?? 0,
-        knowledgeConnections: todayStatsData['knowledgeConnections'] as int? ?? 0,
+        knowledgeConnections:
+            todayStatsData['knowledgeConnections'] as int? ?? 0,
       ),
       entityBreakdown: EntityBreakdown(
         url: entityBreakdownData['url'] as int? ?? 0,
@@ -280,11 +296,18 @@ class DataInsightsService {
         keyword: entityBreakdownData['keyword'] as int? ?? 0,
         other: entityBreakdownData['other'] as int? ?? 0,
       ),
-      recentInsights: recentInsightsList.map((item) => _parseAIInsight(item)).toList(),
-      trendingEntities: trendingEntitiesList.map((item) => _parseTrendingEntity(item)).toList(),
-      recentActivities: recentActivitiesList.map((item) => _parseTimelineItem(item)).toList(),
-      connectorStatuses: connectorStatusesList.map((item) => _parseConnectorStatus(item)).toList(),
-      lastUpdated: DateTime.tryParse(data['lastUpdated']?.toString() ?? '') ?? DateTime.now(),
+      recentInsights:
+          recentInsightsList.map((item) => _parseAIInsight(item)).toList(),
+      trendingEntities: trendingEntitiesList
+          .map((item) => _parseTrendingEntity(item))
+          .toList(),
+      recentActivities:
+          recentActivitiesList.map((item) => _parseTimelineItem(item)).toList(),
+      connectorStatuses: connectorStatusesList
+          .map((item) => _parseConnectorStatus(item))
+          .toList(),
+      lastUpdated: DateTime.tryParse(data['lastUpdated']?.toString() ?? '') ??
+          DateTime.now(),
     );
   }
 
@@ -296,7 +319,8 @@ class DataInsightsService {
       description: data['description']?.toString() ?? '',
       confidence: (data['confidence'] as num?)?.toDouble() ?? 0.0,
       entities: (data['entities'] as List<dynamic>?)?.cast<String>() ?? [],
-      detectedAt: DateTime.tryParse(data['detectedAt']?.toString() ?? '') ?? DateTime.now(),
+      detectedAt: DateTime.tryParse(data['detectedAt']?.toString() ?? '') ??
+          DateTime.now(),
       iconName: data['iconName']?.toString() ?? 'info',
       actionLabel: data['actionLabel']?.toString() ?? '',
     );
@@ -322,7 +346,7 @@ class DataInsightsService {
       status: data['status']?.toString() ?? '',
       enabled: data['enabled'] as bool? ?? false,
       dataCount: data['dataCount'] as int? ?? 0,
-      lastHeartbeat: data['lastHeartbeat'] != null 
+      lastHeartbeat: data['lastHeartbeat'] != null
           ? DateTime.tryParse(data['lastHeartbeat'].toString())
           : null,
     );
@@ -336,7 +360,8 @@ class DataInsightsService {
       id: item['id']?.toString() ?? '',
       title: item['type']?.toString() ?? '',
       description: item['description']?.toString() ?? '',
-      timestamp: DateTime.tryParse(item['timestamp']?.toString() ?? '') ?? DateTime.now(),
+      timestamp: DateTime.tryParse(item['timestamp']?.toString() ?? '') ??
+          DateTime.now(),
       type: item['type']?.toString() ?? 'system_activity',
       iconName: _getTimelineIcon(item['type']?.toString()),
       connectorId: item['source']?.toString(),
@@ -382,7 +407,8 @@ class DataInsightsService {
       entityId: data['entity_id']?.toString(),
       entityType: data['entity_type']?.toString(),
       timestamp: DateTime.tryParse(data['timestamp']?.toString() ?? ''),
-      highlightedTerms: (data['highlighted_terms'] as List<dynamic>?)?.cast<String>() ?? [],
+      highlightedTerms:
+          (data['highlighted_terms'] as List<dynamic>?)?.cast<String>() ?? [],
     );
   }
 
@@ -392,7 +418,8 @@ class DataInsightsService {
       text: data['text']?.toString() ?? '',
       confidence: (data['confidence'] as num?)?.toDouble() ?? 0.0,
       type: data['type']?.toString(),
-      matchedTerms: (data['matched_terms'] as List<dynamic>?)?.cast<String>() ?? [],
+      matchedTerms:
+          (data['matched_terms'] as List<dynamic>?)?.cast<String>() ?? [],
     );
   }
 

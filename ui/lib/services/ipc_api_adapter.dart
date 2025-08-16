@@ -32,7 +32,7 @@ class IPCApiAdapter {
     if (_isInitialized) return;
 
     final connected = await _ipcClient.connect();
-    
+
     if (!connected) {
       throw Exception('无法连接到daemon IPC服务，请确保daemon正在运行');
     }
@@ -52,7 +52,8 @@ class IPCApiAdapter {
     return await _errorHandler.safeAsync(
           () async {
             await _ensureInitialized();
-            final request = IPCRequest.get(path: path, queryParams: queryParameters);
+            final request =
+                IPCRequest.get(path: path, queryParams: queryParameters);
             final response = await _ipcClient.sendRequest(request);
 
             // 处理IPC错误
@@ -146,7 +147,8 @@ class IPCApiAdapter {
     return await _errorHandler.safeAsync(
           () async {
             await _ensureInitialized();
-            final request = IPCRequest.delete(path: path, queryParams: queryParameters);
+            final request =
+                IPCRequest.delete(path: path, queryParams: queryParameters);
             final response = await _ipcClient.sendRequest(request);
 
             // 处理IPC错误

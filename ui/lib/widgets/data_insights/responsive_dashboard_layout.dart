@@ -25,7 +25,8 @@ class ResponsiveDashboardLayout extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      constraints: maxWidth != null ? BoxConstraints(maxWidth: maxWidth!) : null,
+      constraints:
+          maxWidth != null ? BoxConstraints(maxWidth: maxWidth!) : null,
       padding: padding ?? _getDefaultPadding(context),
       child: LayoutBuilder(
         builder: (context, constraints) {
@@ -33,11 +34,11 @@ class ResponsiveDashboardLayout extends StatelessWidget {
           final isDesktop = screenWidth >= 1200;
           final isTablet = screenWidth >= 768 && screenWidth < 1200;
           final isMobile = screenWidth < 768;
-          
-          final availableHeight = constraints.maxHeight.isFinite 
-              ? constraints.maxHeight 
+
+          final availableHeight = constraints.maxHeight.isFinite
+              ? constraints.maxHeight
               : MediaQuery.of(context).size.height;
-          
+
           return SingleChildScrollView(
             child: ConstrainedBox(
               constraints: BoxConstraints(
@@ -60,7 +61,8 @@ class ResponsiveDashboardLayout extends StatelessWidget {
                       minHeight: 250,
                       maxHeight: (availableHeight * 0.6).clamp(250.0, 600.0),
                     ),
-                    child: _buildContentArea(context, isDesktop, isTablet, isMobile),
+                    child: _buildContentArea(
+                        context, isDesktop, isTablet, isMobile),
                   ),
 
                   // 底部内容（可选）
@@ -128,7 +130,7 @@ class ResponsiveDashboardLayout extends StatelessWidget {
 
   EdgeInsets _getDefaultPadding(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
-    
+
     if (screenWidth >= 1200) {
       return const EdgeInsets.all(32);
     } else if (screenWidth >= 768) {
@@ -163,7 +165,7 @@ class ResponsiveGrid extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
-    
+
     // 根据屏幕宽度自动调整列数
     int crossAxisCount;
     if (maxCrossAxisCount != null) {
@@ -190,25 +192,27 @@ class ResponsiveGrid extends StatelessWidget {
 
     // 计算每个子项的期望宽度
     final availableWidth = screenWidth - (padding?.horizontal ?? 32);
-    
+
     double itemWidth;
     if (maxCrossAxisExtent != null) {
       itemWidth = maxCrossAxisExtent!;
     } else {
       itemWidth = (availableWidth / crossAxisCount) - spacing;
     }
-    
+
     final itemHeight = itemWidth / (childAspectRatio ?? 1.0);
 
     return Wrap(
       spacing: spacing,
       runSpacing: runSpacing,
       alignment: WrapAlignment.start,
-      children: children.map((child) => SizedBox(
-        width: itemWidth.clamp(200.0, maxCrossAxisExtent ?? 400.0),
-        height: itemHeight.clamp(60.0, 150.0), // 限制高度范围
-        child: child,
-      )).toList(),
+      children: children
+          .map((child) => SizedBox(
+                width: itemWidth.clamp(200.0, maxCrossAxisExtent ?? 400.0),
+                height: itemHeight.clamp(60.0, 150.0), // 限制高度范围
+                child: child,
+              ))
+          .toList(),
     );
   }
 }
@@ -340,7 +344,7 @@ class _CollapsibleCardState extends State<CollapsibleCard>
               builder: (context, constraints) {
                 return Container(
                   constraints: BoxConstraints(
-                    maxHeight: constraints.maxHeight.isFinite 
+                    maxHeight: constraints.maxHeight.isFinite
                         ? constraints.maxHeight.clamp(0.0, double.infinity)
                         : 400.0,
                   ),
@@ -380,7 +384,9 @@ class QuickActionGroup extends StatelessWidget {
       return Wrap(
         spacing: spacing,
         runSpacing: spacing,
-        children: actions.map((action) => _buildActionButton(context, action)).toList(),
+        children: actions
+            .map((action) => _buildActionButton(context, action))
+            .toList(),
       );
     } else {
       return Column(

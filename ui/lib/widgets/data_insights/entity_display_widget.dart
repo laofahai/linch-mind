@@ -19,13 +19,14 @@ class EntityDisplayWidget extends ConsumerStatefulWidget {
   });
 
   @override
-  ConsumerState<EntityDisplayWidget> createState() => _EntityDisplayWidgetState();
+  ConsumerState<EntityDisplayWidget> createState() =>
+      _EntityDisplayWidgetState();
 }
 
 class _EntityDisplayWidgetState extends ConsumerState<EntityDisplayWidget>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
-  
+
   final List<String> _entityTypes = [
     'all',
     'url',
@@ -60,7 +61,7 @@ class _EntityDisplayWidgetState extends ConsumerState<EntityDisplayWidget>
       length: _entityTypes.length,
       vsync: this,
     );
-    
+
     // 设置初始选中的tab
     if (widget.selectedType != null) {
       final index = _entityTypes.indexOf(widget.selectedType!);
@@ -70,7 +71,7 @@ class _EntityDisplayWidgetState extends ConsumerState<EntityDisplayWidget>
     }
 
     _tabController.addListener(_onTabChanged);
-    
+
     // 初始加载数据
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadEntities();
@@ -91,9 +92,9 @@ class _EntityDisplayWidgetState extends ConsumerState<EntityDisplayWidget>
 
   void _loadEntities({String? type}) {
     ref.read(entityListProvider.notifier).loadEntities(
-      type: type,
-      refresh: true,
-    );
+          type: type,
+          refresh: true,
+        );
   }
 
   @override
@@ -113,19 +114,21 @@ class _EntityDisplayWidgetState extends ConsumerState<EntityDisplayWidget>
               child: TabBar(
                 controller: _tabController,
                 isScrollable: true,
-                tabs: _entityTypes.map((type) => Tab(
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(_typeIcons[type], size: 16),
-                      const SizedBox(width: 6),
-                      Text(_typeLabels[type] ?? type),
-                    ],
-                  ),
-                )).toList(),
+                tabs: _entityTypes
+                    .map((type) => Tab(
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(_typeIcons[type], size: 16),
+                              const SizedBox(width: 6),
+                              Text(_typeLabels[type] ?? type),
+                            ],
+                          ),
+                        ))
+                    .toList(),
               ),
             ),
-          
+
           const SizedBox(height: 16),
 
           // 实体列表
@@ -205,8 +208,8 @@ class _EntityDisplayWidgetState extends ConsumerState<EntityDisplayWidget>
             Text(
               '当前筛选条件下没有找到实体',
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
             ),
           ],
         ),
@@ -270,10 +273,11 @@ class EntityCard extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(width: 12),
-                  
+
                   // 类型标签
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
                       color: _getTypeColor(entity.type).withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(12),
@@ -286,9 +290,9 @@ class EntityCard extends StatelessWidget {
                       ),
                     ),
                   ),
-                  
+
                   const Spacer(),
-                  
+
                   // 访问次数
                   if (entity.accessCount > 0)
                     Text(
@@ -299,9 +303,9 @@ class EntityCard extends StatelessWidget {
                     ),
                 ],
               ),
-              
+
               const SizedBox(height: 12),
-              
+
               // 实体名称
               Text(
                 entity.name,
@@ -311,7 +315,7 @@ class EntityCard extends StatelessWidget {
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
               ),
-              
+
               // 描述
               if (entity.description != null) ...[
                 const SizedBox(height: 8),
@@ -324,9 +328,9 @@ class EntityCard extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                 ),
               ],
-              
+
               const SizedBox(height: 12),
-              
+
               // 底部信息
               Row(
                 children: [
@@ -343,33 +347,37 @@ class EntityCard extends StatelessWidget {
                       color: colorScheme.onSurfaceVariant,
                     ),
                   ),
-                  
+
                   const Spacer(),
-                  
+
                   // 操作按钮
                   _buildActionButtons(context),
                 ],
               ),
-              
+
               // 标签
               if (entity.tags.isNotEmpty) ...[
                 const SizedBox(height: 8),
                 Wrap(
                   spacing: 6,
                   runSpacing: 4,
-                  children: entity.tags.take(3).map((tag) => Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: colorScheme.outline.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      tag,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                  )).toList(),
+                  children: entity.tags
+                      .take(3)
+                      .map((tag) => Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: colorScheme.outline.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              tag,
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: colorScheme.onSurfaceVariant,
+                              ),
+                            ),
+                          ))
+                      .toList(),
                 ),
               ],
             ],
@@ -471,10 +479,10 @@ class EntityCard extends StatelessWidget {
 
   String _formatDateTime(DateTime? dateTime) {
     if (dateTime == null) return '未知时间';
-    
+
     final now = DateTime.now();
     final difference = now.difference(dateTime);
-    
+
     if (difference.inMinutes < 1) {
       return '刚刚';
     } else if (difference.inHours < 1) {
@@ -525,9 +533,9 @@ class EntityDetailDialog extends StatelessWidget {
                 ),
               ],
             ),
-            
+
             const SizedBox(height: 20),
-            
+
             // 实体信息
             _buildDetailItem('名称', entity.name),
             _buildDetailItem('类型', entity.type),
@@ -535,7 +543,7 @@ class EntityDetailDialog extends StatelessWidget {
               _buildDetailItem('描述', entity.description!),
             _buildDetailItem('创建时间', entity.createdAt?.toString() ?? '未知'),
             _buildDetailItem('访问次数', entity.accessCount.toString()),
-            
+
             // 标签
             if (entity.tags.isNotEmpty) ...[
               const SizedBox(height: 16),
@@ -549,15 +557,18 @@ class EntityDetailDialog extends StatelessWidget {
               Wrap(
                 spacing: 8,
                 runSpacing: 8,
-                children: entity.tags.map((tag) => Chip(
-                  label: Text(tag),
-                  backgroundColor: theme.colorScheme.surfaceContainerHighest,
-                )).toList(),
+                children: entity.tags
+                    .map((tag) => Chip(
+                          label: Text(tag),
+                          backgroundColor:
+                              theme.colorScheme.surfaceContainerHighest,
+                        ))
+                    .toList(),
               ),
             ],
-            
+
             const SizedBox(height: 24),
-            
+
             // 操作按钮
             Row(
               children: [

@@ -291,36 +291,37 @@ class _AppInitializationScreenState
     if (context.mounted) {
       showDialog(
         context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('系统状态'),
-        content: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _buildDebugItem('运行模式', status['mode']),
-              _buildDebugItem('Daemon运行', status['running'].toString()),
-              if (status['daemon_info'] != null) ...[
+        builder: (context) => AlertDialog(
+          title: const Text('系统状态'),
+          content: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _buildDebugItem('运行模式', status['mode']),
+                _buildDebugItem('Daemon运行', status['running'].toString()),
+                if (status['daemon_info'] != null) ...[
+                  _buildDebugItem(
+                      'Socket路径', status['daemon_info']['socket_path']),
+                  _buildDebugItem('通信方式', status['daemon_info']['socket_type']),
+                  _buildDebugItem(
+                      '进程ID', status['daemon_info']['pid'].toString()),
+                ],
                 _buildDebugItem(
-                    'Socket路径', status['daemon_info']['socket_path']),
-                _buildDebugItem('通信方式', status['daemon_info']['socket_type']),
+                    '开发进程', status['development_process_running'].toString()),
                 _buildDebugItem(
-                    '进程ID', status['daemon_info']['pid'].toString()),
+                    '健康检查', status['health_check_active'].toString()),
               ],
-              _buildDebugItem(
-                  '开发进程', status['development_process_running'].toString()),
-              _buildDebugItem('健康检查', status['health_check_active'].toString()),
-            ],
+            ),
           ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('关闭'),
+            ),
+          ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('关闭'),
-          ),
-        ],
-      ),
-    );
+      );
     }
   }
 

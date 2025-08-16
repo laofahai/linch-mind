@@ -26,7 +26,7 @@ class GenericEmptyState extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    
+
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(32),
@@ -43,7 +43,8 @@ class GenericEmptyState extends StatelessWidget {
                   width: 80,
                   height: 80,
                   decoration: BoxDecoration(
-                    color: (iconColor ?? colorScheme.primary).withValues(alpha: 0.1),
+                    color: (iconColor ?? colorScheme.primary)
+                        .withValues(alpha: 0.1),
                     shape: BoxShape.circle,
                   ),
                   child: Icon(
@@ -53,9 +54,9 @@ class GenericEmptyState extends StatelessWidget {
                   ),
                 ),
               ),
-            
+
             const SizedBox(height: 24),
-            
+
             // 标题
             FadeTransitionWrapper(
               child: Text(
@@ -67,9 +68,9 @@ class GenericEmptyState extends StatelessWidget {
                 textAlign: TextAlign.center,
               ),
             ),
-            
+
             const SizedBox(height: 12),
-            
+
             // 描述
             FadeTransitionWrapper(
               child: Text(
@@ -81,7 +82,7 @@ class GenericEmptyState extends StatelessWidget {
                 maxLines: 3,
               ),
             ),
-            
+
             if (actionLabel != null && onAction != null) ...[
               const SizedBox(height: 32),
               SlideTransitionWrapper(
@@ -143,7 +144,7 @@ class FirstTimeGuide extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    
+
     return Center(
       child: Card(
         margin: const EdgeInsets.all(24),
@@ -173,9 +174,9 @@ class FirstTimeGuide extends StatelessWidget {
                   ),
                 ),
               ),
-              
+
               const SizedBox(height: 24),
-              
+
               // 标题
               FadeTransitionWrapper(
                 child: Text(
@@ -186,16 +187,16 @@ class FirstTimeGuide extends StatelessWidget {
                   textAlign: TextAlign.center,
                 ),
               ),
-              
+
               const SizedBox(height: 16),
-              
+
               // 步骤说明
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: steps.asMap().entries.map((entry) {
                   final index = entry.key;
                   final step = entry.value;
-                  
+
                   return SlideTransitionWrapper(
                     duration: Duration(milliseconds: 300 + (index * 100)),
                     beginOffset: const Offset(-0.1, 0),
@@ -233,7 +234,7 @@ class FirstTimeGuide extends StatelessWidget {
                   );
                 }).toList(),
               ),
-              
+
               if (onGetStarted != null) ...[
                 const SizedBox(height: 32),
                 SlideTransitionWrapper(
@@ -243,7 +244,8 @@ class FirstTimeGuide extends StatelessWidget {
                     icon: const Icon(Icons.rocket_launch),
                     label: const Text('开始使用'),
                     style: FilledButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 24, vertical: 12),
                     ),
                   ),
                 ),

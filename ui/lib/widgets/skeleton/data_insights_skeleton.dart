@@ -27,10 +27,9 @@ class StatCardSkeleton extends StatelessWidget {
     return SkeletonCard(
       child: LayoutBuilder(
         builder: (context, constraints) {
-          final availableHeight = constraints.maxHeight.isFinite 
-              ? constraints.maxHeight 
-              : 120.0;
-          
+          final availableHeight =
+              constraints.maxHeight.isFinite ? constraints.maxHeight : 120.0;
+
           return SizedBox(
             height: availableHeight.clamp(80.0, 120.0),
             child: SingleChildScrollView(
@@ -81,10 +80,10 @@ class AIInsightsSkeleton extends StatelessWidget {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final maxHeight = constraints.maxHeight.isFinite 
+        final maxHeight = constraints.maxHeight.isFinite
             ? constraints.maxHeight.clamp(200.0, 350.0)
             : 300.0;
-            
+
         return SkeletonCard(
           height: maxHeight,
           child: Column(
@@ -154,11 +153,11 @@ class EntityBreakdownChartSkeleton extends StatelessWidget {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final availableHeight = constraints.maxHeight.isFinite 
+        final availableHeight = constraints.maxHeight.isFinite
             ? constraints.maxHeight.clamp(120.0, 300.0)
             : 200.0;
         final chartHeight = (availableHeight * 0.4).clamp(60.0, 120.0);
-        
+
         return SkeletonCard(
           height: availableHeight,
           child: Column(
@@ -171,8 +170,9 @@ class EntityBreakdownChartSkeleton extends StatelessWidget {
               SizedBox(
                 height: chartHeight,
                 child: Row(
-                  children: List.generate(6, (index) => 
-                    Expanded(
+                  children: List.generate(
+                    6,
+                    (index) => Expanded(
                       flex: [2, 3, 2, 4, 1, 2][index],
                       child: Container(
                         margin: const EdgeInsets.symmetric(horizontal: 1),
@@ -191,8 +191,9 @@ class EntityBreakdownChartSkeleton extends StatelessWidget {
                 child: Wrap(
                   spacing: 12,
                   runSpacing: 6,
-                  children: List.generate(6, (index) => 
-                    Row(
+                  children: List.generate(
+                    6,
+                    (index) => Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         SkeletonBox(
@@ -226,10 +227,10 @@ class TrendingEntitiesSkeleton extends StatelessWidget {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final maxHeight = constraints.maxHeight.isFinite 
+        final maxHeight = constraints.maxHeight.isFinite
             ? constraints.maxHeight.clamp(250.0, 450.0)
             : 400.0;
-            
+
         return SkeletonCard(
           height: maxHeight,
           child: Column(
@@ -252,7 +253,8 @@ class TrendingEntitiesSkeleton extends StatelessWidget {
               Expanded(
                 child: ListView.separated(
                   itemCount: 8,
-                  separatorBuilder: (context, index) => const SizedBox(height: 12),
+                  separatorBuilder: (context, index) =>
+                      const SizedBox(height: 12),
                   itemBuilder: (context, index) => const SkeletonListItem(
                     hasAvatar: true,
                     hasSubtitle: true,
@@ -275,10 +277,10 @@ class TimelineSkeleton extends StatelessWidget {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final maxHeight = constraints.maxHeight.isFinite 
+        final maxHeight = constraints.maxHeight.isFinite
             ? constraints.maxHeight.clamp(250.0, 450.0)
             : 400.0;
-            
+
         return SkeletonCard(
           height: maxHeight,
           child: Column(
@@ -289,7 +291,8 @@ class TimelineSkeleton extends StatelessWidget {
               Expanded(
                 child: ListView.separated(
                   itemCount: 6,
-                  separatorBuilder: (context, index) => const SizedBox(height: 16),
+                  separatorBuilder: (context, index) =>
+                      const SizedBox(height: 16),
                   itemBuilder: (context, index) => _buildTimelineItem(),
                 ),
               ),
@@ -354,7 +357,7 @@ class DataInsightsPageSkeleton extends StatelessWidget {
               // 统计概览
               const StatsOverviewSkeleton(),
               const SizedBox(height: 20),
-              
+
               // AI洞察和实体分布图表
               ConstrainedBox(
                 constraints: const BoxConstraints(
@@ -375,9 +378,9 @@ class DataInsightsPageSkeleton extends StatelessWidget {
                   ],
                 ),
               ),
-              
+
               const SizedBox(height: 20),
-              
+
               // 热门实体和时间线
               ConstrainedBox(
                 constraints: const BoxConstraints(

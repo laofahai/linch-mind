@@ -396,16 +396,17 @@ class FormBuilderService {
     Map<String, dynamic>? uiSchema,
   ) {
     final config = getFieldUIConfig(fieldPath, fieldSchema, uiSchema);
-    
+
     // 确保有合适的帮助文本
-    if (!config.containsKey('help_text') && !config.containsKey('description')) {
+    if (!config.containsKey('help_text') &&
+        !config.containsKey('description')) {
       final inferredWidget = inferWidgetType(config);
       final helpText = UITextConstants.helpTexts[inferredWidget];
       if (helpText != null) {
         config['help_text'] = helpText;
       }
     }
-    
+
     return config;
   }
 

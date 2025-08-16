@@ -21,7 +21,10 @@ void main() {
       // Should use green color for connected state
       final container = tester.widget<Container>(find.byType(Container).first);
       final decoration = container.decoration as BoxDecoration;
-      expect(decoration.color != null ? (decoration.color!.a * 255.0).round() & 0xff : 0,
+      expect(
+          decoration.color != null
+              ? (decoration.color!.a * 255.0).round() & 0xff
+              : 0,
           greaterThan(0)); // Should have some green color
     });
 

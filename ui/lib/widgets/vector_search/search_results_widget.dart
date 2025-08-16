@@ -6,17 +6,17 @@ import '../../providers/vector_search_provider.dart';
 
 /// 显示模式枚举
 enum DisplayMode {
-  list,     // 列表模式
-  grid,     // 网格模式
-  compact,  // 紧凑模式
+  list, // 列表模式
+  grid, // 网格模式
+  compact, // 紧凑模式
 }
 
 /// 排序方式枚举
 enum SortOrder {
-  similarity,    // 按相似度排序
-  timestamp,     // 按时间排序
-  relevance,     // 按相关性排序
-  entityType,    // 按实体类型排序
+  similarity, // 按相似度排序
+  timestamp, // 按时间排序
+  relevance, // 按相关性排序
+  entityType, // 按实体类型排序
 }
 
 /// 搜索结果展示组件
@@ -33,7 +33,8 @@ class SearchResultsWidget extends ConsumerStatefulWidget {
   });
 
   @override
-  ConsumerState<SearchResultsWidget> createState() => _SearchResultsWidgetState();
+  ConsumerState<SearchResultsWidget> createState() =>
+      _SearchResultsWidgetState();
 }
 
 class _SearchResultsWidgetState extends ConsumerState<SearchResultsWidget> {
@@ -55,13 +56,12 @@ class _SearchResultsWidgetState extends ConsumerState<SearchResultsWidget> {
         children: [
           // 控制栏
           _buildControlBar(searchState, theme),
-          
+
           // 筛选面板
-          if (_showFilters)
-            _buildFilterPanel(searchState, theme),
-          
+          if (_showFilters) _buildFilterPanel(searchState, theme),
+
           const SizedBox(height: 16),
-          
+
           // 结果展示
           Expanded(
             child: _buildResultsDisplay(searchState, theme),
@@ -74,7 +74,7 @@ class _SearchResultsWidgetState extends ConsumerState<SearchResultsWidget> {
   /// 构建控制栏
   Widget _buildControlBar(VectorSearchState searchState, ThemeData theme) {
     final filteredResults = _getFilteredResults(searchState.results);
-    
+
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(12),
@@ -101,7 +101,7 @@ class _SearchResultsWidgetState extends ConsumerState<SearchResultsWidget> {
                 ],
               ),
             ),
-            
+
             // 显示模式切换
             SegmentedButton<DisplayMode>(
               segments: const [
@@ -131,9 +131,9 @@ class _SearchResultsWidgetState extends ConsumerState<SearchResultsWidget> {
                 visualDensity: VisualDensity.compact,
               ),
             ),
-            
+
             const SizedBox(width: 12),
-            
+
             // 排序下拉菜单
             PopupMenuButton<SortOrder>(
               icon: Icon(Icons.sort, color: theme.primaryColor),
@@ -186,7 +186,7 @@ class _SearchResultsWidgetState extends ConsumerState<SearchResultsWidget> {
                 ),
               ],
             ),
-            
+
             // 筛选按钮
             IconButton(
               icon: Icon(
@@ -211,7 +211,8 @@ class _SearchResultsWidgetState extends ConsumerState<SearchResultsWidget> {
     final entityTypes = searchState.results
         .map((r) => r.entityType ?? '未知')
         .toSet()
-        .toList()..sort();
+        .toList()
+      ..sort();
 
     return Card(
       margin: const EdgeInsets.only(top: 8),
@@ -227,7 +228,7 @@ class _SearchResultsWidgetState extends ConsumerState<SearchResultsWidget> {
               ),
             ),
             const SizedBox(height: 12),
-            
+
             // 实体类型筛选
             if (entityTypes.isNotEmpty) ...[
               Text(
@@ -257,7 +258,7 @@ class _SearchResultsWidgetState extends ConsumerState<SearchResultsWidget> {
               ),
               const SizedBox(height: 16),
             ],
-            
+
             // 相似度阈值
             Row(
               children: [
@@ -280,7 +281,7 @@ class _SearchResultsWidgetState extends ConsumerState<SearchResultsWidget> {
                 ),
               ],
             ),
-            
+
             // 清除筛选按钮
             Row(
               mainAxisAlignment: MainAxisAlignment.end,
@@ -351,7 +352,8 @@ class _SearchResultsWidgetState extends ConsumerState<SearchResultsWidget> {
             ElevatedButton.icon(
               onPressed: () {
                 if (searchState.currentQuery != null) {
-                  ref.read(vectorSearchProvider.notifier)
+                  ref
+                      .read(vectorSearchProvider.notifier)
                       .search(searchState.currentQuery!);
                 }
               },
@@ -449,13 +451,13 @@ class _SearchResultsWidgetState extends ConsumerState<SearchResultsWidget> {
 
   /// 构建结果卡片
   Widget _buildResultCard(
-    VectorSearchResult result, 
+    VectorSearchResult result,
     ThemeData theme, {
     bool isCompact = false,
     bool isGrid = false,
   }) {
     return Card(
-      margin: isCompact 
+      margin: isCompact
           ? const EdgeInsets.symmetric(horizontal: 4, vertical: 2)
           : const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       elevation: isGrid ? 2 : 1,
@@ -464,7 +466,7 @@ class _SearchResultsWidgetState extends ConsumerState<SearchResultsWidget> {
         borderRadius: BorderRadius.circular(8),
         child: Padding(
           padding: EdgeInsets.all(isCompact ? 8 : 12),
-          child: isGrid 
+          child: isGrid
               ? _buildGridItemContent(result, theme)
               : _buildListItemContent(result, theme, isCompact),
         ),
@@ -474,8 +476,8 @@ class _SearchResultsWidgetState extends ConsumerState<SearchResultsWidget> {
 
   /// 构建列表项内容
   Widget _buildListItemContent(
-    VectorSearchResult result, 
-    ThemeData theme, 
+    VectorSearchResult result,
+    ThemeData theme,
     bool isCompact,
   ) {
     return Column(
@@ -487,12 +489,12 @@ class _SearchResultsWidgetState extends ConsumerState<SearchResultsWidget> {
             // 实体类型图标
             _buildEntityTypeIcon(result.entityType, theme),
             const SizedBox(width: 8),
-            
+
             // 相似度评分
             _buildSimilarityScore(result.similarity, theme),
-            
+
             const Spacer(),
-            
+
             // 时间戳
             if (result.timestamp != null)
               Text(
@@ -503,9 +505,9 @@ class _SearchResultsWidgetState extends ConsumerState<SearchResultsWidget> {
               ),
           ],
         ),
-        
+
         const SizedBox(height: 8),
-        
+
         // 内容文本
         Text(
           result.content,
@@ -513,7 +515,7 @@ class _SearchResultsWidgetState extends ConsumerState<SearchResultsWidget> {
           maxLines: isCompact ? 2 : 3,
           overflow: TextOverflow.ellipsis,
         ),
-        
+
         // 高亮词汇
         if (result.highlightedTerms.isNotEmpty && !isCompact) ...[
           const SizedBox(height: 8),
@@ -539,7 +541,7 @@ class _SearchResultsWidgetState extends ConsumerState<SearchResultsWidget> {
             }).toList(),
           ),
         ],
-        
+
         // 操作按钮
         if (!isCompact) ...[
           const SizedBox(height: 8),
@@ -574,9 +576,9 @@ class _SearchResultsWidgetState extends ConsumerState<SearchResultsWidget> {
             _buildSimilarityScore(result.similarity, theme),
           ],
         ),
-        
+
         const SizedBox(height: 12),
-        
+
         // 内容
         Expanded(
           child: Text(
@@ -586,7 +588,7 @@ class _SearchResultsWidgetState extends ConsumerState<SearchResultsWidget> {
             overflow: TextOverflow.ellipsis,
           ),
         ),
-        
+
         // 底部信息
         if (result.timestamp != null)
           Text(
@@ -603,7 +605,7 @@ class _SearchResultsWidgetState extends ConsumerState<SearchResultsWidget> {
   Widget _buildEntityTypeIcon(String? entityType, ThemeData theme) {
     IconData icon;
     Color color;
-    
+
     switch (entityType) {
       case 'url':
         icon = Icons.link;
@@ -629,7 +631,7 @@ class _SearchResultsWidgetState extends ConsumerState<SearchResultsWidget> {
         icon = Icons.article;
         color = theme.hintColor;
     }
-    
+
     return Container(
       padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
@@ -648,7 +650,7 @@ class _SearchResultsWidgetState extends ConsumerState<SearchResultsWidget> {
   Widget _buildSimilarityScore(double similarity, ThemeData theme) {
     final percentage = (similarity * 100).round();
     Color color;
-    
+
     if (percentage >= 80) {
       color = Colors.green;
     } else if (percentage >= 60) {
@@ -656,7 +658,7 @@ class _SearchResultsWidgetState extends ConsumerState<SearchResultsWidget> {
     } else {
       color = Colors.red;
     }
-    
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
@@ -675,7 +677,8 @@ class _SearchResultsWidgetState extends ConsumerState<SearchResultsWidget> {
   }
 
   /// 获取筛选后的结果
-  List<VectorSearchResult> _getFilteredResults(List<VectorSearchResult> results) {
+  List<VectorSearchResult> _getFilteredResults(
+      List<VectorSearchResult> results) {
     return results.where((result) {
       // 实体类型筛选
       if (_selectedEntityTypes.isNotEmpty) {
@@ -684,12 +687,12 @@ class _SearchResultsWidgetState extends ConsumerState<SearchResultsWidget> {
           return false;
         }
       }
-      
+
       // 相似度筛选
       if (result.similarity < _minSimilarity) {
         return false;
       }
-      
+
       return true;
     }).toList();
   }
@@ -697,7 +700,7 @@ class _SearchResultsWidgetState extends ConsumerState<SearchResultsWidget> {
   /// 获取排序后的结果
   List<VectorSearchResult> _getSortedResults(List<VectorSearchResult> results) {
     final sortedResults = List<VectorSearchResult>.from(results);
-    
+
     switch (_sortOrder) {
       case SortOrder.similarity:
         sortedResults.sort((a, b) => b.similarity.compareTo(a.similarity));
@@ -725,7 +728,7 @@ class _SearchResultsWidgetState extends ConsumerState<SearchResultsWidget> {
         });
         break;
     }
-    
+
     return sortedResults;
   }
 
@@ -733,7 +736,7 @@ class _SearchResultsWidgetState extends ConsumerState<SearchResultsWidget> {
   String _formatDateTime(DateTime dateTime) {
     final now = DateTime.now();
     final difference = now.difference(dateTime);
-    
+
     if (difference.inDays > 0) {
       return '${difference.inDays}天前';
     } else if (difference.inHours > 0) {

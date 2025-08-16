@@ -74,7 +74,7 @@ class DataInsightsNotifier extends StateNotifier<DataInsightsState> {
     try {
       AppLogger.info('刷新数据洞察', module: 'DataInsightsProvider');
       final overview = await _service.getOverview();
-      
+
       state = state.copyWith(
         overview: overview,
         isLoading: false,
@@ -156,7 +156,7 @@ class EntityListNotifier extends StateNotifier<EntityListState> {
 
     try {
       final entities = await _service.getEntities(type: type);
-      
+
       state = state.copyWith(
         entities: entities,
         isLoading: false,
@@ -177,7 +177,7 @@ class EntityListNotifier extends StateNotifier<EntityListState> {
 
     try {
       final entities = await _service.searchEntities(query);
-      
+
       state = state.copyWith(
         entities: entities,
         isLoading: false,
@@ -254,7 +254,7 @@ class TimelineNotifier extends StateNotifier<TimelineState> {
 
     try {
       final items = await _service.getTimeline();
-      
+
       state = state.copyWith(
         items: items,
         isLoading: false,

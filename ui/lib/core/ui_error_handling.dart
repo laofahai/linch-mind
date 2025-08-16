@@ -10,15 +10,15 @@ import 'dart:developer' as developer;
 enum UIErrorSeverity { low, medium, high, critical }
 
 /// UI错误分类
-enum UIErrorCategory { 
+enum UIErrorCategory {
   ipcCommunication,
-  dataProcessing, 
+  dataProcessing,
   uiRendering,
   serviceUnavailable,
 }
 
 /// UI错误处理装饰器
-/// 
+///
 /// 使用示例:
 /// ```dart
 /// @UIErrorHandler(
@@ -33,7 +33,7 @@ class UIErrorHandler {
   final UIErrorSeverity severity;
   final UIErrorCategory category;
   final String? userMessage;
-  
+
   const UIErrorHandler({
     required this.severity,
     required this.category,
@@ -52,7 +52,7 @@ Future<T> handleUIErrors<T>(
     return await operation();
   } catch (e, stackTrace) {
     final errorMsg = userMessage ?? '操作失败: $e';
-    
+
     // 简单日志记录
     developer.log(
       '❌ UI错误[${severity.name}][${category.name}]: $errorMsg',
@@ -60,7 +60,7 @@ Future<T> handleUIErrors<T>(
       error: e,
       stackTrace: stackTrace,
     );
-    
+
     // 重新抛出，让调用者决定如何处理
     rethrow;
   }
@@ -77,14 +77,14 @@ T handleUIErrorsSync<T>(
     return operation();
   } catch (e, stackTrace) {
     final errorMsg = userMessage ?? '操作失败: $e';
-    
+
     developer.log(
       '❌ UI错误[${severity.name}][${category.name}]: $errorMsg',
       name: 'UIErrorHandler',
       error: e,
       stackTrace: stackTrace,
     );
-    
+
     rethrow;
   }
 }

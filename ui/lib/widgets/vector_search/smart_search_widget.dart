@@ -92,20 +92,20 @@ class _SmartSearchWidgetState extends ConsumerState<SmartSearchWidget>
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                     side: BorderSide(
-                      color: _isExpanded 
-                          ? theme.primaryColor 
-                          : theme.dividerColor,
+                      color:
+                          _isExpanded ? theme.primaryColor : theme.dividerColor,
                       width: _isExpanded ? 2 : 1,
                     ),
                   ),
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                     child: Row(
                       children: [
                         // AI 图标指示器
                         _buildAIIndicator(searchState),
                         const SizedBox(width: 12),
-                        
+
                         // 搜索输入框
                         Expanded(
                           child: TextField(
@@ -124,19 +124,20 @@ class _SmartSearchWidgetState extends ConsumerState<SmartSearchWidget>
                             onSubmitted: (value) => _handleSearch(value.trim()),
                           ),
                         ),
-                        
+
                         // 搜索按钮
                         if (_controller.text.isNotEmpty) ...[
                           IconButton(
-                            icon: Icon(Icons.clear, 
-                                     color: theme.hintColor),
+                            icon: Icon(Icons.clear, color: theme.hintColor),
                             onPressed: () {
                               _controller.clear();
-                              ref.read(vectorSearchProvider.notifier).clearResults();
+                              ref
+                                  .read(vectorSearchProvider.notifier)
+                                  .clearResults();
                             },
                           ),
                         ],
-                        
+
                         // 搜索按钮
                         Container(
                           margin: const EdgeInsets.only(left: 8),
@@ -158,7 +159,7 @@ class _SmartSearchWidgetState extends ConsumerState<SmartSearchWidget>
                                 : () => _handleSearch(_controller.text.trim()),
                           ),
                         ),
-                        
+
                         // 高级搜索按钮
                         if (widget.onAdvancedSearch != null)
                           IconButton(
@@ -173,15 +174,15 @@ class _SmartSearchWidgetState extends ConsumerState<SmartSearchWidget>
               );
             },
           ),
-          
+
           // 搜索建议下拉列表
           if (_isExpanded && searchState.suggestions.isNotEmpty)
             _buildSuggestionsDropdown(searchState.suggestions, theme),
-          
+
           // 向量数据库状态指示器
           if (widget.showVectorStatus && searchState.metrics != null)
             _buildVectorStatusBar(searchState.metrics!, theme),
-          
+
           // 搜索模式指示器
           _buildSearchModeIndicator(searchState.searchMode, theme),
         ],
@@ -192,7 +193,7 @@ class _SmartSearchWidgetState extends ConsumerState<SmartSearchWidget>
   /// 构建AI指示器
   Widget _buildAIIndicator(VectorSearchState searchState) {
     final theme = Theme.of(context);
-    
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
@@ -222,7 +223,8 @@ class _SmartSearchWidgetState extends ConsumerState<SmartSearchWidget>
   }
 
   /// 构建搜索建议下拉列表
-  Widget _buildSuggestionsDropdown(List<SearchSuggestion> suggestions, ThemeData theme) {
+  Widget _buildSuggestionsDropdown(
+      List<SearchSuggestion> suggestions, ThemeData theme) {
     return Card(
       margin: const EdgeInsets.only(top: 4),
       elevation: 8,
@@ -247,7 +249,8 @@ class _SmartSearchWidgetState extends ConsumerState<SmartSearchWidget>
                   Expanded(
                     child: RichText(
                       text: TextSpan(
-                        style: TextStyle(color: theme.textTheme.bodyMedium?.color),
+                        style:
+                            TextStyle(color: theme.textTheme.bodyMedium?.color),
                         children: _buildHighlightedText(
                           suggestion.text,
                           suggestion.matchedTerms,
@@ -258,7 +261,8 @@ class _SmartSearchWidgetState extends ConsumerState<SmartSearchWidget>
                   ),
                   if (suggestion.confidence > 0.8)
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 6, vertical: 2),
                       decoration: BoxDecoration(
                         color: Colors.green.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(8),
@@ -329,7 +333,7 @@ class _SmartSearchWidgetState extends ConsumerState<SmartSearchWidget>
   /// 构建搜索模式指示器
   Widget _buildSearchModeIndicator(SearchMode mode, ThemeData theme) {
     final modeInfo = _getSearchModeInfo(mode);
-    
+
     return Container(
       margin: const EdgeInsets.only(top: 8),
       child: Row(
@@ -369,17 +373,17 @@ class _SmartSearchWidgetState extends ConsumerState<SmartSearchWidget>
   /// 处理搜索提交
   void _handleSearch(String query) {
     if (query.isEmpty) return;
-    
+
     _focusNode.unfocus();
-    
+
     final searchQuery = VectorSearchQuery(
       query: query,
       k: 20, // 默认返回20个结果
       threshold: 0.3, // 相似度阈值
     );
-    
+
     ref.read(vectorSearchProvider.notifier).search(searchQuery);
-    
+
     if (widget.onSearchSubmitted != null) {
       widget.onSearchSubmitted!(query);
     }
@@ -407,17 +411,17 @@ class _SmartSearchWidgetState extends ConsumerState<SmartSearchWidget>
 
   /// 构建高亮文本
   List<TextSpan> _buildHighlightedText(
-    String text, 
-    List<String> matchedTerms, 
+    String text,
+    List<String> matchedTerms,
     ThemeData theme,
   ) {
     if (matchedTerms.isEmpty) {
       return [TextSpan(text: text)];
     }
-    
+
     final spans = <TextSpan>[];
     var remaining = text;
-    
+
     for (final term in matchedTerms) {
       final index = remaining.toLowerCase().indexOf(term.toLowerCase());
       if (index != -1) {
@@ -434,11 +438,11 @@ class _SmartSearchWidgetState extends ConsumerState<SmartSearchWidget>
         remaining = remaining.substring(index + term.length);
       }
     }
-    
+
     if (remaining.isNotEmpty) {
       spans.add(TextSpan(text: remaining));
     }
-    
+
     return spans;
   }
 

@@ -5,12 +5,16 @@ class SkeletonTheme {
   static const Duration shimmerDuration = Duration(milliseconds: 1500);
   static const double borderRadius = 8.0;
   static const double smallBorderRadius = 4.0;
-  
-  static Color baseColor(BuildContext context) => 
-    Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.3);
-    
-  static Color highlightColor(BuildContext context) => 
-    Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.6);
+
+  static Color baseColor(BuildContext context) => Theme.of(context)
+      .colorScheme
+      .surfaceContainerHighest
+      .withValues(alpha: 0.3);
+
+  static Color highlightColor(BuildContext context) => Theme.of(context)
+      .colorScheme
+      .surfaceContainerHighest
+      .withValues(alpha: 0.6);
 }
 
 /// 基础骨架盒子组件
@@ -58,8 +62,8 @@ class _SkeletonBoxState extends State<SkeletonBox>
 
   @override
   Widget build(BuildContext context) {
-    final borderRadius = widget.borderRadius ?? 
-      BorderRadius.circular(SkeletonTheme.borderRadius);
+    final borderRadius = widget.borderRadius ??
+        BorderRadius.circular(SkeletonTheme.borderRadius);
 
     return AnimatedBuilder(
       animation: _animation,
@@ -121,7 +125,7 @@ class SkeletonText extends StatelessWidget {
         } else if (index > 0 && otherLinesWidth != null) {
           lineWidth = otherLinesWidth;
         }
-        
+
         return SkeletonText(
           width: lineWidth,
           height: height,
@@ -238,13 +242,16 @@ class SkeletonChart extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           Row(
-            children: List.generate(3, (index) => 
-              Expanded(
+            children: List.generate(
+              3,
+              (index) => Expanded(
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    SkeletonBox(width: 12, height: 12, 
-                      borderRadius: BorderRadius.circular(6)),
+                    SkeletonBox(
+                        width: 12,
+                        height: 12,
+                        borderRadius: BorderRadius.circular(6)),
                     const SizedBox(width: 6),
                     const Flexible(child: SkeletonText(height: 12)),
                   ],

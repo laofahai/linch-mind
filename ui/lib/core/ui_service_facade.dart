@@ -6,14 +6,14 @@ library;
 import 'service_container.dart';
 
 /// 全局服务获取函数 - 替代所有.instance调用
-/// 
+///
 /// 使用示例:
 /// ```dart
 /// // ❌ 旧方式
 /// final api = ConnectorLifecycleApiService.instance;
 /// final port = DaemonPortService.instance;
-/// 
-/// // ✅ 新方式  
+///
+/// // ✅ 新方式
 /// final api = getService<ConnectorLifecycleApiClient>();
 /// final port = getService<DaemonPortService>();
 /// ```

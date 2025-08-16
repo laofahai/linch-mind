@@ -223,8 +223,11 @@ final appErrorProvider = StateNotifierProvider<AppErrorNotifier, AppErrorState>(
 
 /// 用于监控和处理IPC连接状态的Provider
 final ipcConnectionProvider = StreamProvider<bool>((ref) {
-  return getService<IPCClient>().connectionStream
-      .map((status) => status == ConnectionStatus.connected || status == ConnectionStatus.authenticated)
+  return getService<IPCClient>()
+      .connectionStream
+      .map((status) =>
+          status == ConnectionStatus.connected ||
+          status == ConnectionStatus.authenticated)
       .handleError((error) {
     // IPC连接错误自动添加到错误管理器
     ref.read(appErrorProvider.notifier).handleException(

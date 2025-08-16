@@ -164,35 +164,66 @@ void MacOSFileIndexProvider::initializationWorker() {
 }
 
 bool MacOSFileIndexProvider::querySpotlightIndex() {
-    std::cout << "⚡ 启动 Everything 式零扫描索引..." << std::endl;
+    std::cout << "⚡ 启动 Spotlight 索引查询..." << std::endl;
     
-    // 使用真正的零扫描实现！
-    MacOSSpotlightZeroScan zeroScan;
-    
-    // 配置零扫描选项
-    zeroScan.setIncludeSystemFiles(false); // 排除系统文件
-    zeroScan.setMaxResults(0); // 无限制，像 Everything 一样！
+    // 暂时使用 mdfind 命令作为基础实现
+    // TODO: 替换为真正的零扫描实现
     
     std::vector<FileInfo> currentBatch;
     currentBatch.reserve(BATCH_SIZE);
     
-    // 执行零扫描
-    bool success = zeroScan.performInstantScan([this, &currentBatch](const SpotlightFileRecord& record) {
-        // 检查是否需要排除
-        if (shouldExcludePath(record.path)) {
-            return;
+    // 使用 mdfind 查询所有文件
+    const char* mdfindCommand = "mdfind 'kMDItemKind != \"Folder\"' 2>/dev/null";
+    FILE* pipe = popen(mdfindCommand, "r");
+    
+    if (!pipe) {
+        std::cerr << "❌ 无法执行 mdfind 命令" << std::endl;
+        return false;
+    }
+    
+    char buffer[4096];
+    size_t fileCount = 0;
+    auto startTime = std::chrono::high_resolution_clock::now();
+    
+    while (fgets(buffer, sizeof(buffer), pipe) != nullptr) {
+        std::string path = buffer;
+        // 移除换行符
+        if (!path.empty() && path.back() == '\n') {
+            path.pop_back();
         }
         
-        // 将 SpotlightFileRecord 转换为 FileInfo
+        // 检查是否需要排除
+        if (shouldExcludePath(path)) {
+            continue;
+        }
+        
+        // 创建 FileInfo
         FileInfo fileInfo;
-        fileInfo.path = record.path;
-        fileInfo.name = record.name;
-        fileInfo.extension = record.extension;
-        fileInfo.size = record.size;
-        fileInfo.is_directory = record.is_directory;
-        fileInfo.modified_time = std::chrono::system_clock::from_time_t(record.modified_time);
+        fileInfo.path = path;
+        fileInfo.name = std::filesystem::path(path).filename().string();
+        fileInfo.extension = std::filesystem::path(path).extension().string();
+        
+        // 获取文件信息
+        try {
+            auto file_status = std::filesystem::status(path);
+            if (std::filesystem::exists(file_status)) {
+                fileInfo.is_directory = std::filesystem::is_directory(file_status);
+                if (!fileInfo.is_directory) {
+                    fileInfo.size = std::filesystem::file_size(path);
+                }
+                auto file_time = std::filesystem::last_write_time(path);
+                auto sctp = std::chrono::time_point_cast<std::chrono::system_clock::duration>(
+                    file_time - std::filesystem::file_time_type::clock::now() + std::chrono::system_clock::now()
+                );
+                fileInfo.modified_time = sctp;
+            }
+        } catch (const std::exception&) {
+            // 忽略无法访问的文件
+            continue;
+        }
         
         currentBatch.push_back(std::move(fileInfo));
+        fileCount++;
         
         // 当批次足够大时发送
         if (currentBatch.size() >= BATCH_SIZE) {
@@ -208,7 +239,9 @@ bool MacOSFileIndexProvider::querySpotlightIndex() {
             currentBatch.clear();
             currentBatch.reserve(BATCH_SIZE);
         }
-    });
+    }
+    
+    pclose(pipe);
     
     // 发送剩余的文件
     if (!currentBatch.empty()) {
@@ -220,23 +253,24 @@ bool MacOSFileIndexProvider::querySpotlightIndex() {
         m_stats.indexed_files += currentBatch.size();
     }
     
-    if (success) {
-        auto stats = zeroScan.getStatistics();
-        {
-            std::lock_guard<std::mutex> lock(m_statsMutex);
-            m_stats.total_files = stats.total_files + stats.total_directories;
-        }
-        
-        std::cout << "🎉 零扫描完成！性能数据:" << std::endl;
-        std::cout << "   📊 扫描速度: " << stats.files_per_second << " 文件/秒" << std::endl;
-        std::cout << "   ⏱️  用时: " << stats.scan_duration_ms << "ms" << std::endl;
-        
-        if (stats.files_per_second > 10000) {
-            std::cout << "   🏆 达到 Everything 级别性能！" << std::endl;
-        }
+    auto endTime = std::chrono::high_resolution_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime);
+    
+    {
+        std::lock_guard<std::mutex> lock(m_statsMutex);
+        m_stats.total_files = fileCount;
     }
     
-    return success;
+    std::cout << "🎉 Spotlight 索引查询完成！" << std::endl;
+    std::cout << "   📁 文件数量: " << fileCount << std::endl;
+    std::cout << "   ⏱️  用时: " << duration.count() << "ms" << std::endl;
+    
+    if (duration.count() > 0) {
+        size_t filesPerSecond = (fileCount * 1000) / duration.count();
+        std::cout << "   📊 扫描速度: " << filesPerSecond << " 文件/秒" << std::endl;
+    }
+    
+    return true;
 }
 
 void MacOSFileIndexProvider::parseSpotlightOutput(const std::string& output) {

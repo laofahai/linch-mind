@@ -14,47 +14,48 @@ class StatsOverviewWidget extends ConsumerWidget {
     final dataInsightsState = ref.watch(dataInsightsProvider);
     final stats = dataInsightsState.overview?.todayStats ?? const TodayStats();
 
-    return RepaintBoundary( // 性能优化：避免不必要的重绘
+    return RepaintBoundary(
+      // 性能优化：避免不必要的重绘
       child: ResponsiveGrid(
         maxCrossAxisExtent: 280, // 减小最大宽度
         childAspectRatio: 3.2, // 调整宽高比，给内容更多垂直空间
         children: [
           StatCard(
-          title: '新增实体',
-          value: stats.newEntities.toString(),
-          subtitle: '今日采集',
-          icon: Icons.add_circle_outline,
-          color: Colors.blue,
-          trend: '+12%',
-          trendUp: true,
-        ),
-        StatCard(
-          title: '活跃连接器',
-          value: stats.activeConnectors.toString(),
-          subtitle: '正在运行',
-          icon: Icons.sensors,
-          color: Colors.green,
-          trend: '100%',
-          trendUp: true,
-        ),
-        StatCard(
-          title: 'AI分析',
-          value: stats.aiAnalysisCompleted.toString(),
-          subtitle: '已完成',
-          icon: Icons.psychology,
-          color: Colors.purple,
-          trend: '+8%',
-          trendUp: true,
-        ),
-        StatCard(
-          title: '知识连接',
-          value: stats.knowledgeConnections.toString(),
-          subtitle: '新建关联',
-          icon: Icons.account_tree,
-          color: Colors.orange,
-          trend: '+15%',
-          trendUp: true,
-        ),
+            title: '新增实体',
+            value: stats.newEntities.toString(),
+            subtitle: '今日采集',
+            icon: Icons.add_circle_outline,
+            color: Colors.blue,
+            trend: '+12%',
+            trendUp: true,
+          ),
+          StatCard(
+            title: '活跃连接器',
+            value: stats.activeConnectors.toString(),
+            subtitle: '正在运行',
+            icon: Icons.sensors,
+            color: Colors.green,
+            trend: '100%',
+            trendUp: true,
+          ),
+          StatCard(
+            title: 'AI分析',
+            value: stats.aiAnalysisCompleted.toString(),
+            subtitle: '已完成',
+            icon: Icons.psychology,
+            color: Colors.purple,
+            trend: '+8%',
+            trendUp: true,
+          ),
+          StatCard(
+            title: '知识连接',
+            value: stats.knowledgeConnections.toString(),
+            subtitle: '新建关联',
+            icon: Icons.account_tree,
+            color: Colors.orange,
+            trend: '+15%',
+            trendUp: true,
+          ),
         ],
       ),
     );
@@ -108,73 +109,75 @@ class StatCard extends StatelessWidget {
           child: LayoutBuilder(
             builder: (context, constraints) {
               // 动态计算可用高度，防止溢出
-              final availableHeight = constraints.maxHeight.isFinite 
-                  ? constraints.maxHeight 
+              final availableHeight = constraints.maxHeight.isFinite
+                  ? constraints.maxHeight
                   : 120.0; // 默认最小高度
-              
+
               return SizedBox(
                 height: availableHeight.clamp(80.0, 120.0), // 限制高度范围
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisSize: MainAxisSize.min,
                   children: [
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: color.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(8),
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: color.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Icon(
+                            icon,
+                            color: color,
+                            size: 20,
+                          ),
+                        ),
+                        const Spacer(),
+                        if (trend != null)
+                          TrendIndicator(
+                            trend: trend!,
+                            isUp: trendUp ?? true,
+                          ),
+                      ],
                     ),
-                    child: Icon(
-                      icon,
-                      color: color,
-                      size: 20,
-                    ),
-                  ),
-                  const Spacer(),
-                  if (trend != null)
-                    TrendIndicator(
-                      trend: trend!,
-                      isUp: trendUp ?? true,
-                    ),
-                ],
-              ),
-                  const SizedBox(height: 8), // 减少间距
-                  Flexible(
-                    child: Text(
-                      value,
-                      style: theme.textTheme.headlineSmall?.copyWith( // 使用更小的字体
-                        fontWeight: FontWeight.bold,
-                        color: colorScheme.onSurface,
+                    const SizedBox(height: 8), // 减少间距
+                    Flexible(
+                      child: Text(
+                        value,
+                        style: theme.textTheme.headlineSmall?.copyWith(
+                          // 使用更小的字体
+                          fontWeight: FontWeight.bold,
+                          color: colorScheme.onSurface,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
                     ),
-                  ),
-                  const SizedBox(height: 2),
-                  Flexible(
-                    child: Text(
-                      title,
-                      style: theme.textTheme.bodyMedium?.copyWith( // 调整字体大小
-                        color: colorScheme.onSurfaceVariant,
-                        fontWeight: FontWeight.w500,
+                    const SizedBox(height: 2),
+                    Flexible(
+                      child: Text(
+                        title,
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          // 调整字体大小
+                          color: colorScheme.onSurfaceVariant,
+                          fontWeight: FontWeight.w500,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
                     ),
-                  ),
-                  const SizedBox(height: 1),
-                  Flexible(
-                    child: Text(
-                      subtitle,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: colorScheme.onSurfaceVariant,
+                    const SizedBox(height: 1),
+                    Flexible(
+                      child: Text(
+                        subtitle,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: colorScheme.onSurfaceVariant,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
                     ),
-                  ),
                   ],
                 ),
               );
@@ -237,7 +240,8 @@ class EntityBreakdownChart extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final dataInsightsState = ref.watch(dataInsightsProvider);
-    final breakdown = dataInsightsState.overview?.entityBreakdown ?? const EntityBreakdown();
+    final breakdown =
+        dataInsightsState.overview?.entityBreakdown ?? const EntityBreakdown();
     final theme = Theme.of(context);
 
     final items = [
@@ -253,11 +257,11 @@ class EntityBreakdownChart extends ConsumerWidget {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        final availableHeight = constraints.maxHeight.isFinite 
+        final availableHeight = constraints.maxHeight.isFinite
             ? constraints.maxHeight.clamp(120.0, 300.0)
             : 200.0;
         final chartHeight = (availableHeight * 0.4).clamp(60.0, 120.0);
-        
+
         return Card(
           child: Padding(
             padding: const EdgeInsets.all(16), // 减少padding
@@ -269,7 +273,8 @@ class EntityBreakdownChart extends ConsumerWidget {
                 children: [
                   Text(
                     '实体类型分布',
-                    style: theme.textTheme.titleMedium?.copyWith( // 使用较小的标题
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      // 使用较小的标题
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -301,7 +306,9 @@ class EntityBreakdownChart extends ConsumerWidget {
                       child: Wrap(
                         spacing: 12,
                         runSpacing: 6,
-                        children: items.map((item) => _buildLegendItem(context, item)).toList(),
+                        children: items
+                            .map((item) => _buildLegendItem(context, item))
+                            .toList(),
                       ),
                     ),
                   ] else
@@ -327,7 +334,7 @@ class EntityBreakdownChart extends ConsumerWidget {
 
   Widget _buildLegendItem(BuildContext context, _ChartItem item) {
     final theme = Theme.of(context);
-    
+
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
