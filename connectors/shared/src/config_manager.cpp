@@ -120,6 +120,9 @@ bool ConfigManager::loadFromDaemon() {
                     m_config[key] = std::to_string(value.get<double>());
                 } else if (value.is_boolean()) {
                     m_config[key] = value.get<bool>() ? "true" : "false";
+                } else if (value.is_array()) {
+                    // 处理数组 - 将JSON数组转换为JSON字符串存储
+                    m_config[key] = value.dump();
                 } else if (value.is_object()) {
                     // 处理嵌套对象（如content_filters）
                     for (auto& [nested_key, nested_value] : value.items()) {
@@ -130,6 +133,9 @@ bool ConfigManager::loadFromDaemon() {
                             m_config[full_key] = std::to_string(nested_value.get<double>());
                         } else if (nested_value.is_boolean()) {
                             m_config[full_key] = nested_value.get<bool>() ? "true" : "false";
+                        } else if (nested_value.is_array()) {
+                            // 处理嵌套数组
+                            m_config[full_key] = nested_value.dump();
                         }
                     }
                 }

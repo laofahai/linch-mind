@@ -298,10 +298,14 @@ void LinuxInotifyMonitor::handleInotifyEvent(const inotify_event* event) {
     FileSystemEvent fsEvent(fullPath, eventType);
     fsEvent.isDirectory = (event->mask & IN_ISDIR) != 0;
     
-    // 获取文件信息
+    // 获取文件信息并应用大小过滤
     if (!fsEvent.isDirectory && fs::exists(fullPath)) {
         try {
-            fsEvent.fileSize = fs::file_size(fullPath);
+            size_t fileSize = fs::file_size(fullPath);
+            if (fileSize > watchInfo.config.maxFileSize) {
+                return; // 文件过大，跳过此事件
+            }
+            fsEvent.fileSize = fileSize;
         } catch (...) {
             // 忽略错误
         }
@@ -336,26 +340,16 @@ FileEventType LinuxInotifyMonitor::maskToEventType(uint32_t mask) {
 }
 
 void LinuxInotifyMonitor::addDirectoryRecursive(const std::string& dirPath, const MonitorConfig& config) {
-    // 先添加目录本身
+    // 仅添加根目录监控，使用懒惰加载策略
+    // 新子目录将在 IN_CREATE 事件中动态添加
     addWatch(dirPath, config);
     
-    // 递归添加子目录
-    try {
-        for (const auto& entry : fs::recursive_directory_iterator(dirPath)) {
-            if (entry.is_directory()) {
-                std::string subDir = entry.path().string();
-                
-                // 检查是否应该跳过这个目录
-                if (shouldIgnorePath(subDir, config)) {
-                    continue;
-                }
-                
-                addWatch(subDir, config);
-            }
-        }
-    } catch (const std::exception& e) {
-        std::cerr << "Error adding recursive watches: " << e.what() << std::endl;
-    }
+    // 注意：不再面向现有子目录做初始扫描
+    // 这避免了在添加大目录时的性能问题
+    // 当新子目录被创建时，将通过 handleEvent 中的逺辑自动添加监控
+    
+    std::cout << "🚀 优化：仅监控根目录 " << dirPath 
+              << "，子目录将懒惰加载" << std::endl;
 }
 
 void LinuxInotifyMonitor::removeDirectoryRecursive(const std::string& dirPath) {

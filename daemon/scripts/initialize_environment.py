@@ -307,30 +307,30 @@ class EnvironmentInitializer:
         if official_dir.exists():
             for connector_path in official_dir.iterdir():
                 if connector_path.is_dir():
-                    connector_json = connector_path / "connector.json"
-                    if connector_json.exists():
+                    connector_toml = connector_path / "connector.toml"
+                    if connector_toml.exists():
                         try:
                             await self._register_connector(
-                                connector_manager, connector_json
+                                connector_manager, connector_toml
                             )
                         except Exception as e:
                             logger.warning(f"注册连接器失败 {connector_path.name}: {e}")
 
-    async def _register_connector(self, connector_manager, connector_json_path: Path):
+    async def _register_connector(self, connector_manager, connector_toml_path: Path):
         """注册单个连接器"""
-        import json
+        import tomllib
 
-        with open(connector_json_path, "r", encoding="utf-8") as f:
-            connector_info = json.load(f)
+        with open(connector_toml_path, "rb") as f:
+            connector_info = tomllib.load(f)
 
         # 基础连接器信息
         connector_data = {
-            "connector_id": connector_info.get("id", connector_json_path.parent.name),
+            "connector_id": connector_info.get("id", connector_toml_path.parent.name),
             "name": connector_info.get("name", "未知连接器"),
             "version": connector_info.get("version", "1.0.0"),
             "description": connector_info.get("description", ""),
             "executable_path": str(
-                connector_json_path.parent
+                connector_toml_path.parent
                 / "bin"
                 / "release"
                 / connector_info.get(

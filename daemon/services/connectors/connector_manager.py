@@ -133,8 +133,8 @@ class ConnectorManager:
 
         Args:
             connector_id: 连接器ID
-            name: 显示名称（如果为None，将从connector.json读取）
-            description: 描述（如果为None，将从connector.json读取）
+            name: 显示名称（如果为None，将从connector.toml读取）
+            description: 描述（如果为None，将从connector.toml读取）
             enabled: 是否启用
         """
         try:
@@ -257,8 +257,17 @@ class ConnectorManager:
             # 4. 构建启动命令
             command = [str(connector_path)]
 
-            # 5. 启动进程
-            process = await self.process_manager.start_process(connector_id, command)
+            # 4.5. 准备环境变量 - 传递当前环境信息给C++连接器
+            from core.environment_manager import get_environment_manager
+            env_manager = get_environment_manager()
+            env_vars = {
+                "LINCH_MIND_MODE": env_manager.current_environment.value
+            }
+
+            # 5. 启动进程 - 使用改进的输出处理（/dev/null 而不是 PIPE）
+            process = await self.process_manager.start_process(
+                connector_id, command, env_vars=env_vars, capture_output=True
+            )
             if not process:
                 logger.error(f"启动进程失败: {connector_id}")
                 return False
@@ -358,7 +367,7 @@ class ConnectorManager:
     def scan_directory_for_connectors(
         self, connectors_dir: str
     ) -> List[Dict[str, Any]]:
-        """递归扫描目录中的所有connector.json文件"""
+        """递归扫描目录中的所有connector.toml文件"""
         try:
             pass
 
@@ -371,20 +380,22 @@ class ConnectorManager:
                 logger.warning(f"目录不存在: {base_path}")
                 return discovered
 
-            # 递归查找所有的 connector.json 文件
-            config_files = list(base_path.rglob("connector.json"))
-            logger.info(f"找到 {len(config_files)} 个 connector.json 文件")
+            # 递归查找所有的 connector.toml 文件
+            config_files = list(base_path.rglob("connector.toml"))
+            logger.info(f"找到 {len(config_files)} 个 connector.toml 文件")
 
             for config_file in config_files:
                 try:
                     connector_dir = config_file.parent
 
                     # 读取配置文件
-                    with open(config_file, "r", encoding="utf-8") as f:
-                        config = json.load(f)
+                    import tomllib
+                    with open(config_file, "rb") as f:
+                        config = tomllib.load(f)
 
                     # 从配置或目录名获取连接器ID
-                    connector_id = config.get("id", connector_dir.name)
+                    metadata = config.get("metadata", config)
+                    connector_id = metadata.get("id", connector_dir.name)
 
                     # 查找可执行文件
                     potential_names = [
@@ -431,10 +442,10 @@ class ConnectorManager:
                     discovered.append(
                         {
                             "connector_id": connector_id,
-                            "name": config.get("name", connector_id),
-                            "description": config.get("description", ""),
-                            "version": config.get("version", "unknown"),
-                            "type": config.get("type", "unknown"),
+                            "name": metadata.get("name", connector_id),
+                            "description": metadata.get("description", ""),
+                            "version": metadata.get("version", "unknown"),
+                            "type": metadata.get("type", "unknown"),
                             "path": executable_path if executable_path else "",
                             "config_path": str(config_file),
                             "is_registered": is_registered,
@@ -457,10 +468,10 @@ class ConnectorManager:
         try:
             path = Path(connector_path)
 
-            # 查找对应的connector.json
+            # 查找对应的connector.toml
             connector_dir = path.parent
             while connector_dir != connector_dir.parent:
-                config_file = connector_dir / "connector.json"
+                config_file = connector_dir / "connector.toml"
                 if config_file.exists():
                     break
                 connector_dir = connector_dir.parent
@@ -469,8 +480,9 @@ class ConnectorManager:
                 return False
 
             # 读取配置
-            with open(config_file) as f:
-                config = json.load(f)
+            import tomllib
+            with open(config_file, 'rb') as f:
+                config = tomllib.load(f)
 
             connector_id = config.get("id", connector_dir.name)
             name = config.get("name", connector_id)
@@ -494,80 +506,131 @@ class ConnectorManager:
             return False
 
     async def start_all_registered_connectors(self) -> None:
-        """启动所有已注册的连接器"""
+        """启动所有已注册的连接器 - 序列化启动防止竞态"""
         try:
-            with self.db_service.get_session() as session:
-                # 获取所有启用的连接器
-                enabled_connectors = (
-                    session.query(Connector).filter_by(enabled=True).all()
-                )
-
-            for connector in enabled_connectors:
-                if connector.status != "running":
-                    logger.info(
-                        f"启动连接器: {connector.name} ({connector.connector_id})"
+            # 🚀 使用启动锁防止多次同时调用
+            startup_semaphore = asyncio.Semaphore(1)
+            
+            async with startup_semaphore:
+                logger.info("🔌 开始序列化启动已注册的连接器...")
+                
+                # 首先收集所有需要启动的连接器信息
+                connectors_to_start = []
+                with self.db_service.get_session() as session:
+                    # 获取所有启用的连接器
+                    enabled_connectors = (
+                        session.query(Connector).filter_by(enabled=True).all()
                     )
-                    # 注意：这里我们直接调用start_connector，而不是创建异步任务
-                    # 因为start_connector已经是异步方法
-                    success = await self.start_connector(connector.connector_id)
-                    if not success:
-                        logger.error(f"启动连接器失败: {connector.connector_id}")
-                else:
-                    # 验证数据库显示"运行中"的连接器实际进程状态
-                    logger.info(f"验证连接器状态: {connector.name}")
+                    # 提取所需信息，避免session关闭后访问对象属性
+                    for connector in enabled_connectors:
+                        connectors_to_start.append({
+                            'connector_id': connector.connector_id,
+                            'name': connector.name,
+                            'status': connector.status
+                        })
 
-                    # 检查实际进程状态
-                    actual_pid = self.process_manager.get_running_pid(
-                        connector.connector_id
-                    )
-                    if actual_pid:
-                        # 进程确实存在，同步到ProcessManager内存
-                        if (
-                            connector.connector_id
-                            not in self.process_manager.running_processes
-                        ):
-                            try:
-                                # 同步现有进程到内存状态
-                                self.process_manager.running_processes[
-                                    connector.connector_id
-                                ] = {
-                                    "pid": actual_pid,
-                                    "process": None,  # 无法恢复subprocess对象
-                                    "command": None,
-                                    "working_dir": None,
-                                    "start_time": None,
-                                    "note": "recovered_on_startup",
-                                }
+                # 在session关闭后处理连接器启动（序列化处理）
+                successful_starts = 0
+                failed_starts = 0
+                
+                for connector_info in connectors_to_start:
+                    if connector_info['status'] != "running":
+                        logger.info(
+                            f"🚀 启动连接器: {connector_info['name']} ({connector_info['connector_id']})"
+                        )
+                        
+                        try:
+                            # 序列化启动，每个连接器之间间隔500ms避免资源竞争
+                            success = await self.start_connector(connector_info['connector_id'])
+                            
+                            if success:
+                                successful_starts += 1
+                                logger.info(f"✅ 连接器启动成功: {connector_info['connector_id']}")
+                                # 启动间隔
+                                await asyncio.sleep(0.5)
+                            else:
+                                failed_starts += 1
+                                logger.error(f"❌ 启动连接器失败: {connector_info['connector_id']}")
+                                
+                        except Exception as e:
+                            failed_starts += 1
+                            logger.error(f"❌ 启动连接器异常 {connector_info['connector_id']}: {e}")
+                    else:
+                        # 验证数据库显示"运行中"的连接器实际进程状态
+                        logger.info(f"🔍 验证连接器状态: {connector_info['name']}")
+
+                        # 检查实际进程状态
+                        actual_pid = self.process_manager.get_running_pid(
+                            connector_info['connector_id']
+                        )
+                        if actual_pid:
+                            # 进程确实存在，同步到ProcessManager内存
+                            if (
+                                connector_info['connector_id']
+                                not in self.process_manager.running_processes
+                            ):
+                                try:
+                                    # 同步现有进程到内存状态
+                                    self.process_manager.running_processes[
+                                        connector_info['connector_id']
+                                    ] = {
+                                        "pid": actual_pid,
+                                        "process": None,  # 无法恢复subprocess对象
+                                        "command": None,
+                                        "working_dir": None,
+                                        "start_time": datetime.now().isoformat(),
+                                        "note": "recovered_on_startup",
+                                        "startup_protected": False,  # 已存在进程不需要保护
+                                    }
+                                    logger.info(
+                                        f"🔄 连接器已在运行，已同步到内存: {connector_info['name']} (PID: {actual_pid})"
+                                    )
+                                except Exception as e:
+                                    logger.error(
+                                        f"❌ 同步连接器状态到内存失败 {connector_info['connector_id']}: {e}"
+                                    )
+                            else:
                                 logger.info(
-                                    f"连接器已在运行，已同步到内存: {connector.name} (PID: {actual_pid})"
-                                )
-                            except Exception as e:
-                                logger.error(
-                                    f"同步连接器状态到内存失败 {connector.connector_id}: {e}"
+                                    f"✅ 连接器已在运行: {connector_info['name']} (PID: {actual_pid})"
                                 )
                         else:
-                            logger.info(
-                                f"连接器已在运行: {connector.name} (PID: {actual_pid})"
+                            # 数据库显示运行但进程不存在，修正数据库状态
+                            logger.warning(
+                                f"⚠️  连接器 {connector_info['name']} 数据库显示运行但进程不存在，修正状态"
                             )
-                    else:
-                        # 数据库显示运行但进程不存在，修正数据库状态
-                        logger.warning(
-                            f"连接器 {connector.name} 数据库显示运行但进程不存在，修正状态"
-                        )
-                        with self.db_service.get_session() as session:
-                            connector_in_db = (
-                                session.query(Connector)
-                                .filter_by(connector_id=connector.connector_id)
-                                .first()
-                            )
-                            if connector_in_db:
-                                connector_in_db.status = "stopped"
-                                connector_in_db.process_id = None
-                                connector_in_db.updated_at = datetime.now(timezone.utc)
-                                session.commit()
-                                logger.info(
-                                    f"已修正连接器 {connector.name} 数据库状态为 stopped"
+                            with self.db_service.get_session() as session:
+                                connector_in_db = (
+                                    session.query(Connector)
+                                    .filter_by(connector_id=connector_info['connector_id'])
+                                    .first()
                                 )
+                                if connector_in_db:
+                                    connector_in_db.status = "stopped"
+                                    connector_in_db.process_id = None
+                                    connector_in_db.updated_at = datetime.now(timezone.utc)
+                                    session.commit()
+                                    logger.info(
+                                        f"✅ 已修正连接器 {connector_info['name']} 数据库状态为 stopped"
+                                    )
+                
+                # 输出启动总结
+                total_connectors = len(connectors_to_start)
+                logger.info(f"🎉 连接器启动序列完成: {successful_starts}个成功, {failed_starts}个失败, 总计{total_connectors}个")
+                
+                # 获取最终运行状态
+                final_connectors = self.get_all_connectors()
+                running_count = len([c for c in final_connectors if c["status"] == "running"])
+                
+                if running_count > 0:
+                    for connector in final_connectors:
+                        if connector["status"] == "running":
+                            logger.info(
+                                f"  ✅ {connector['name']} (PID: {connector['process_id']})"
+                            )
+                        else:
+                            logger.warning(f"  ❌ {connector['name']} - {connector['status']}")
+                else:
+                    logger.warning("⚠️  没有连接器成功启动")
 
         except Exception as e:
             logger.error(f"启动所有连接器失败: {e}")
@@ -650,94 +713,11 @@ class ConnectorManager:
     def _resolve_connector_executable_path(
         self, connector_id: str, connector_config: Dict[str, Any]
     ) -> Optional[str]:
-        """解析连接器的可执行文件路径
-
-        根据connector.json中的entry配置和平台信息，确定可执行文件的实际路径
-        修复路径未设置导致的启动失败问题
-        """
-        try:
-            import platform
-
-            # 确定当前平台
-            system = platform.system().lower()
-            platform_map = {"darwin": "macos", "linux": "linux", "windows": "windows"}
-            current_platform = platform_map.get(system, system)
-
-            # 从配置中获取entry信息
-            entry_config = connector_config.get("entry", {})
-
-            # 查找连接器根目录 - 支持多种路径
-            possible_base_dirs = [
-                Path("connectors"),
-                Path("../connectors"),
-                Path(__file__).parent.parent.parent.parent
-                / "connectors",  # 从daemon/services/connectors向上找
-            ]
-
-            connector_base_dirs = []
-            for base in possible_base_dirs:
-                if base.exists():
-                    connector_base_dirs.extend(
-                        [base / "official" / connector_id, base / connector_id]
-                    )
-                    break
-
-            connector_dir = None
-            for base_dir in connector_base_dirs:
-                if base_dir.exists():
-                    connector_dir = base_dir
-                    break
-
-            if not connector_dir:
-                logger.error(f"找不到连接器目录: {connector_id}")
-                return None
-
-            # 1. 首先尝试production配置中的平台特定路径
-            if "production" in entry_config:
-                production_config = entry_config["production"]
-                if current_platform in production_config:
-                    rel_path = production_config[current_platform]
-                    executable_path = connector_dir / rel_path
-
-                    if executable_path.exists():
-                        logger.debug(f"使用production路径: {executable_path}")
-                        return str(executable_path.resolve())
-
-            # 2. 搜索常见的可执行文件名
-            potential_names = [
-                f"linch-mind-{connector_id}",
-                f"linch-mind-{connector_id}.exe",
-                connector_id,
-                f"{connector_id}.exe",
-            ]
-
-            # 搜索目录
-            search_dirs = [
-                connector_dir / "bin" / "release",
-                connector_dir / "bin" / "debug",
-                connector_dir / "bin",
-                connector_dir,
-            ]
-
-            for search_dir in search_dirs:
-                if not search_dir.exists():
-                    continue
-
-                for exe_name in potential_names:
-                    exe_path = search_dir / exe_name
-                    if exe_path.exists() and exe_path.is_file():
-                        logger.debug(f"找到可执行文件: {exe_path}")
-                        return str(exe_path.resolve())
-
-            logger.warning(f"未找到连接器 {connector_id} 的可执行文件")
-            logger.debug(f"搜索路径: {[str(d) for d in search_dirs]}")
-            logger.debug(f"搜索文件名: {potential_names}")
-
-            return None
-
-        except Exception as e:
-            logger.error(f"解析连接器路径失败 {connector_id}: {e}")
-            return None
+        """解析连接器的可执行文件路径 - 使用专用解析器"""
+        from .connector_path_resolver import get_path_resolver
+        
+        path_resolver = get_path_resolver()
+        return path_resolver.resolve_executable_path(connector_id, connector_config)
 
     # ===== 健康检查支持方法 =====
 

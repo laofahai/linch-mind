@@ -7,7 +7,7 @@ NetworkX图数据库服务 - 知识图谱核心引擎
 import asyncio
 import logging
 import pickle
-from concurrent.futures import ThreadPoolExecutor
+from services.shared_executor_service import get_shared_executor_service, TaskType
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
@@ -91,7 +91,7 @@ class GraphService:
         )
 
         # 线程池用于计算密集型操作
-        self._executor = ThreadPoolExecutor(max_workers=max_workers)
+        self._executor = get_shared_executor_service()
 
     async def initialize(self) -> bool:
         """初始化图服务"""
@@ -752,6 +752,8 @@ class GraphService:
 
     def _get_cache(self, key: str) -> Any:
         """获取缓存值"""
+        if not self.enable_cache or key not in self._cache:
+            return None
         return self._cache.get(key)
 
     def _set_cache(self, key: str, value: Any):

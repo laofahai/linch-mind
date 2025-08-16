@@ -114,6 +114,12 @@ class LoggingConfig:
         # 获取根日志记录器
         root_logger = logging.getLogger()
         root_logger.setLevel(log_level)
+        
+        # 降低SQLAlchemy日志级别，避免过多的SQL查询日志
+        logging.getLogger("sqlalchemy.engine").setLevel(logging.WARNING)
+        logging.getLogger("sqlalchemy.pool").setLevel(logging.WARNING)
+        logging.getLogger("sqlalchemy.dialects").setLevel(logging.WARNING)
+        logging.getLogger("sqlalchemy.orm").setLevel(logging.WARNING)
 
         # 清除现有处理器
         for handler in root_logger.handlers[:]:

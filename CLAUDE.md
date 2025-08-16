@@ -10,6 +10,8 @@
 2. **依赖管理红线**：🚫 **严禁**使用pip/conda，必须使用Poetry管理
 3. **性能底线**：🚫 **严禁**接受IPC延迟>10ms的任何实现
 4. **架构污染**：🚫 **严禁**在IPC架构中混合HTTP组件
+5. **配置格式红线**：🚫 **严禁**使用YAML/JSON配置，必须使用TOML格式
+6. **环境变量红线**：🚫 **严禁**依赖环境变量，必须使用配置文件驱动
 
 ### ⚔️ Sub-agent咨询铁律（违反=项目风险）
 
@@ -101,6 +103,7 @@
 - **环境管理**: ✅ 完整环境隔离，支持dev/staging/prod环境一键切换+SQLCipher加密
 - **代码质量**: ✅ P0重构完成，ServiceFacade+错误处理标准化，架构现代化水平提升显著
 - **测试覆盖**: ✅ 核心组件测试覆盖率>80%，集成测试完整，性能基准完备
+- **配置管理**: ✅ 完整TOML配置文件系统，零环境变量依赖，用户友好的配置管理
 
 ### 下阶段计划
 - **AI服务集成**: 集成多种AI提供者API
@@ -317,6 +320,13 @@ def connector_operation():
 - **依赖管理**：必须使用DI容器，禁止@lru_cache等双套系统
 - **代码重复**：重复率必须<5%，超过立即重构
 
+#### 💀 配置管理铁律 (2025-08-16) 
+- **配置格式强制**：必须使用TOML格式，严禁YAML/JSON配置文件
+- **环境变量禁用**：严禁依赖环境变量，必须使用配置文件驱动
+- **配置文件位置**：必须使用~/.linch-mind/{env}/config/linch-mind.toml
+- **配置管理工具**：必须使用scripts/config_manager_cli.py管理配置
+- **IDE配置同步**：修改配置后必须同步更新IDE设置
+
 #### 💀 环境与部署铁律 (2025-08-11)
 - **环境隔离**：必须使用EnvironmentManager，禁止硬编码路径
 - **数据安全**：生产环境必须启用SQLCipher加密
@@ -333,7 +343,108 @@ def connector_operation():
 
 ---
 
-*版本: v12.0 | 创建时间: 2025-07-25 | 最后更新: 2025-08-11*
-*🚀 重大更新: 完整生产就绪状态 + 架构现代化完成 + 环境隔离系统完成*
-*📊 关键成果: 代码重复率<5% + 31个核心测试全通过 + IPC性能<1ms*
-*⚔️ 架构铁律: 现代化服务获取 + 标准化错误处理 + 环境隔离强制约束*
+## 🔧 配置管理系统
+
+### 📋 **强制要求：TOML配置文件系统**
+
+#### 🚫 **严格禁止**
+- ❌ 使用YAML配置文件 (如 config.yaml, settings.yml)
+- ❌ 使用JSON配置文件 (如 config.json, settings.json)
+- ❌ 依赖环境变量配置 (如 export OLLAMA_HOST=...)
+- ❌ 在代码中硬编码配置值
+
+#### ✅ **必须使用**
+- ✅ TOML格式配置文件：`~/.linch-mind/{env}/config/linch-mind.toml`
+- ✅ 配置管理CLI工具：`scripts/config_manager_cli.py`
+- ✅ 编程接口：`from config.user_config_manager import get_user_config`
+
+### 🏗️ **配置文件结构**
+```toml
+app_name = "Linch Mind"
+version = "0.1.0"
+debug = true
+
+[database]
+type = "sqlite"
+use_encryption = false
+sqlite_file = "linch_mind.db"
+
+[ollama]
+host = "http://localhost:11434"
+embedding_model = "nomic-embed-text:latest"
+llm_model = "qwen2.5:0.5b"
+value_threshold = 0.3
+
+[vector]
+provider = "faiss"
+vector_dimension = 384
+compressed_dimension = 256
+
+[ipc]
+auth_required = true
+max_connections = 100
+```
+
+### 🛠️ **配置管理操作**
+
+#### 初始化配置
+```bash
+poetry run python scripts/config_manager_cli.py init --format toml
+```
+
+#### 查看当前配置
+```bash
+poetry run python scripts/config_manager_cli.py show
+```
+
+#### 编辑配置项
+```bash
+poetry run python scripts/config_manager_cli.py edit ollama.llm_model "qwen2.5:1b"
+poetry run python scripts/config_manager_cli.py edit database.use_encryption true
+```
+
+#### 验证配置
+```bash
+poetry run python scripts/config_manager_cli.py validate
+```
+
+### 💻 **编程接口使用**
+```python
+# 获取配置
+from config.user_config_manager import get_user_config
+config = get_user_config()
+
+# 使用配置
+print(f"数据库类型: {config.database.type}")
+print(f"Ollama主机: {config.ollama.host}")
+print(f"向量维度: {config.vector.vector_dimension}")
+```
+
+### 🌍 **环境特定配置**
+- **开发环境**: `~/.linch-mind/development/config/linch-mind.toml`
+- **测试环境**: `~/.linch-mind/staging/config/linch-mind.toml`
+- **生产环境**: `~/.linch-mind/production/config/linch-mind.toml`
+
+### 💡 **IDE配置示例**
+
+**VS Code设置** (`.vscode/settings.json`):
+```json
+{
+  "python.defaultInterpreterPath": "./daemon/.venv/bin/python",
+  "terminal.integrated.env.osx": {
+    "PYTHONPATH": "${workspaceFolder}/daemon"
+  }
+}
+```
+
+**PyCharm设置**:
+1. Python解释器: `./daemon/.venv/bin/python`
+2. 工作目录: `./daemon`
+3. 环境变量: `PYTHONPATH=./daemon`
+
+---
+
+*版本: v13.0 | 创建时间: 2025-07-25 | 最后更新: 2025-08-16*
+*🚀 重大更新: 完整TOML配置文件系统 + 零环境变量依赖 + 用户友好配置管理*
+*📊 关键成果: 代码重复率<5% + 31个核心测试全通过 + IPC性能<1ms + TOML统一配置*
+*⚔️ 架构铁律: 强制TOML配置 + 禁用环境变量 + 标准化配置管理 + IDE配置同步*

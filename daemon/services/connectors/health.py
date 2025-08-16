@@ -91,7 +91,16 @@ class ConnectorHealthChecker:
         user_message="连接器健康状态检查失败",
     )
     async def _check_connector_health(self, connector_id: str):
-        """检查单个连接器健康状态 - 使用统一状态管理"""
+        """检查单个连接器健康状态 - 防止与启动机制竞态"""
+        
+        # 🚀 检查是否有启动锁存在（避免与启动过程冲突）
+        process_manager = self.connector_manager.process_manager
+        startup_lock_file = process_manager.lock_dir / f"{connector_id}.startup.lock"
+        
+        if startup_lock_file.exists():
+            logger.debug(f"⏳ 连接器 {connector_id} 正在启动中，跳过健康检查")
+            return
+        
         process_info = self.connector_manager.get_process_info(connector_id)
         if not process_info:
             logger.debug(f"连接器 {connector_id} 无进程信息")
@@ -101,6 +110,27 @@ class ConnectorHealthChecker:
         process_status = process_info.get("process_status", {})
         actual_status = process_status.get("status", "unknown")
         pid = process_info.get("pid")
+
+        # 🔒 特殊检查：如果进程刚启动（启动保护期），给予更多容忍时间
+        process_record = process_manager.running_processes.get(connector_id)
+        if process_record and process_record.get("startup_protected"):
+            import dateutil.parser
+            try:
+                start_time_str = process_record.get("start_time")
+                if start_time_str:
+                    start_time = dateutil.parser.isoparse(start_time_str.replace('Z', '+00:00'))
+                    elapsed_seconds = (datetime.now(start_time.tzinfo) - start_time).total_seconds()
+                    
+                    # 给新启动进程60秒的保护期
+                    if elapsed_seconds < 60:
+                        logger.debug(f"🛡️  连接器 {connector_id} 在启动保护期内 ({elapsed_seconds:.1f}s)，跳过健康检查")
+                        return
+                    else:
+                        # 移除启动保护标记
+                        process_record["startup_protected"] = False
+                        logger.debug(f"🔓 连接器 {connector_id} 退出启动保护期")
+            except Exception as e:
+                logger.debug(f"解析启动时间失败: {e}")
 
         # 根据实际进程状态判断健康状况
         if actual_status in ["not_running", "dead"]:
@@ -112,7 +142,25 @@ class ConnectorHealthChecker:
                 logger.warning(f"🔍 健康检查发现连接器 {connector_id} 没有运行进程")
             await self._handle_connector_failure(connector_id)
         elif actual_status == "running":
-            logger.debug(f"🔍 连接器 {connector_id} (PID: {pid}) 健康运行")
+            # 🔥 额外检查：确认进程不是CPU失控状态
+            if pid:
+                try:
+                    psutil_process = psutil.Process(pid)
+                    cpu_percent = psutil_process.cpu_percent(interval=0.1)
+                    
+                    # 如果CPU使用率超过95%，记录警告但不重启（避免误杀）
+                    if cpu_percent > 95.0:
+                        logger.warning(
+                            f"⚠️  连接器 {connector_id} (PID: {pid}) CPU使用率异常高: {cpu_percent:.1f}%"
+                        )
+                        # 可以考虑增加CPU风暴检测逻辑
+                    else:
+                        logger.debug(f"🔍 连接器 {connector_id} (PID: {pid}) 健康运行 (CPU: {cpu_percent:.1f}%)")
+                except psutil.NoSuchProcess:
+                    logger.warning(f"🔍 连接器 {connector_id} 进程已不存在")
+                    await self._handle_connector_failure(connector_id)
+            else:
+                logger.debug(f"🔍 连接器 {connector_id} 健康运行")
         elif actual_status == "error":
             logger.warning(f"🔍 健康检查发现连接器 {connector_id} 状态异常")
             await self._handle_connector_failure(connector_id)

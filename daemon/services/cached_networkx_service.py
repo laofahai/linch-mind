@@ -294,7 +294,7 @@ class CachedNetworkXService:
         cache_key = f"related_{entity_id}_{max_depth}_{min_strength}"
 
         # 检查缓存
-        cached_result = self.query_cache.get(cache_key)
+        cached_result = self.query_await cache_service.get(cache_key)
         if cached_result is not None:
             logger.debug(f"缓存命中: {cache_key}")
             return cached_result
@@ -306,7 +306,7 @@ class CachedNetworkXService:
             )
 
             # 缓存结果
-            self.query_cache.set(cache_key, result)
+            self.query_await cache_service.set(cache_key, result)
             return result
 
         except Exception as e:
@@ -384,7 +384,7 @@ class CachedNetworkXService:
             return {}
 
         cache_key = f"centrality_{entity_id}"
-        cached_result = self.metrics_cache.get(cache_key)
+        cached_result = self.metrics_await cache_service.get(cache_key)
         if cached_result is not None:
             return cached_result
 
@@ -412,7 +412,7 @@ class CachedNetworkXService:
                 centrality_metrics["clustering"] = 0.0
 
             # 缓存结果
-            self.metrics_cache.set(cache_key, centrality_metrics)
+            self.metrics_await cache_service.set(cache_key, centrality_metrics)
 
             return centrality_metrics
 
@@ -428,7 +428,7 @@ class CachedNetworkXService:
             return None
 
         cache_key = f"path_{source_id}_{target_id}"
-        cached_result = self.query_cache.get(cache_key)
+        cached_result = self.query_await cache_service.get(cache_key)
         if cached_result is not None:
             return cached_result
 
@@ -437,14 +437,14 @@ class CachedNetworkXService:
                 path = nx.shortest_path(self.knowledge_graph, source_id, target_id)
 
                 # 缓存结果
-                self.query_cache.set(cache_key, path)
+                self.query_await cache_service.set(cache_key, path)
                 return path
             else:
                 return None
 
         except nx.NetworkXNoPath:
             # 没有路径连接
-            self.query_cache.set(cache_key, None)
+            self.query_await cache_service.set(cache_key, None)
             return None
         except Exception as e:
             logger.error(f"路径查找失败: {e}")
@@ -458,7 +458,7 @@ class CachedNetworkXService:
             return []
 
         cache_key = f"type_{entity_type}_{limit}"
-        cached_result = self.query_cache.get(cache_key)
+        cached_result = self.query_await cache_service.get(cache_key)
         if cached_result is not None:
             return cached_result
 
@@ -488,7 +488,7 @@ class CachedNetworkXService:
             entities.sort(key=lambda x: x["access_count"], reverse=True)
 
             # 缓存结果
-            self.query_cache.set(cache_key, entities)
+            self.query_await cache_service.set(cache_key, entities)
 
             return entities
 
@@ -587,7 +587,7 @@ class CachedNetworkXService:
             return []
 
         cache_key = f"highly_connected_{top_k}"
-        cached_result = self.query_cache.get(cache_key)
+        cached_result = self.query_await cache_service.get(cache_key)
         if cached_result is not None:
             return cached_result
 
@@ -616,7 +616,7 @@ class CachedNetworkXService:
                     )
 
                 # 缓存结果
-                self.query_cache.set(cache_key, result)
+                self.query_await cache_service.set(cache_key, result)
                 return result
             else:
                 return []

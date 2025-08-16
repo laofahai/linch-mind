@@ -10,7 +10,7 @@ import os
 import platform
 import threading
 import time
-from concurrent.futures import ThreadPoolExecutor
+from services.shared_executor_service import get_shared_executor_service, TaskType
 from typing import Any, Dict, Optional, Set
 
 logger = logging.getLogger(__name__)

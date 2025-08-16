@@ -222,9 +222,10 @@ class ProcessManager:
         working_dir: Optional[str] = None,
         env_vars: Optional[Dict[str, str]] = None,
         capture_output: bool = True,
+        startup_timeout: int = 30,
     ) -> Optional[subprocess.Popen]:
         """
-        启动连接器进程 - 统一状态管理
+        启动连接器进程 - 原子级单例保护机制
 
         Args:
             connector_id: 连接器ID
@@ -236,70 +237,163 @@ class ProcessManager:
         Returns:
             启动的进程对象，失败返回None
         """
+        
+        # 🚀 修复关键问题：将imports移到方法开始处，避免异步执行时的导入问题
+        import fcntl
+        import asyncio
+        
+        # 1. 首先执行基础检查 - 在获取锁之前快速失败
+        if not command or not command[0]:
+            logger.error(f"❌ 启动命令为空: {connector_id}")
+            return None
+        
+        # 验证可执行文件存在
+        from pathlib import Path
+        if not Path(command[0]).exists():
+            logger.error(f"❌ 可执行文件不存在: {command[0]}")
+            return None
+        
+        # 创建启动锁文件（不同于运行状态锁文件）
+        startup_lock_file = self.lock_dir / f"{connector_id}.startup.lock"
+        startup_fd = None
+        
         try:
-            # 1. 检查进程是否已在运行（优先检查锁文件）
+            # 1. 获取启动锁（原子操作） - 添加详细日志
+            logger.info(f"🔄 尝试获取启动锁: {connector_id} -> {startup_lock_file}")
+            startup_fd = open(startup_lock_file, 'w')
+            try:
+                # 非阻塞获取独占锁，如果失败立即返回
+                fcntl.flock(startup_fd.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+                logger.info(f"✅ 获得启动锁: {connector_id}")
+            except (IOError, OSError) as e:
+                logger.warning(f"⚠️  启动锁竞争失败，另一个进程正在启动 {connector_id}: {e}")
+                startup_fd.close()
+                return None
+            
+            # 2. 在启动锁保护下，再次检查运行状态（双重检查模式）
             existing_pid = self.get_running_pid(connector_id)
-            if existing_pid and self._is_process_running(existing_pid):
-                logger.warning(
-                    f"连接器 {connector_id} 已经在运行 (PID: {existing_pid})"
-                )
-                # 如果内存中没有记录，同步状态
-                if connector_id not in self.running_processes:
-                    try:
-                        process = psutil.Process(existing_pid).as_dict()
-                        self.running_processes[connector_id] = {
-                            "pid": existing_pid,
-                            "process": None,  # 无法恢复subprocess对象
-                            "command": command,
-                            "working_dir": working_dir,
-                            "start_time": datetime.now().isoformat(),
-                        }
-                        logger.info(
-                            f"同步已存在进程到内存: {connector_id} (PID: {existing_pid})"
-                        )
-                    except Exception:
-                        pass
-                return None  # 已在运行
+            if existing_pid:
+                # 双重检查：锁文件存在，再确认进程是否真的在运行
+                if self._is_process_running(existing_pid):
+                    logger.warning(
+                        f"🔒 连接器 {connector_id} 已经在运行 (PID: {existing_pid})，跳过启动"
+                    )
+                    # 如果内存中没有记录，同步状态
+                    if connector_id not in self.running_processes:
+                        try:
+                            process = psutil.Process(existing_pid).as_dict()
+                            self.running_processes[connector_id] = {
+                                "pid": existing_pid,
+                                "process": None,  # 无法恢复subprocess对象
+                                "command": command,
+                                "working_dir": working_dir,
+                                "start_time": datetime.now().isoformat(),
+                            }
+                            logger.info(
+                                f"🔄 同步已存在进程到内存: {connector_id} (PID: {existing_pid})"
+                            )
+                        except Exception as e:
+                            logger.debug(f"同步进程状态失败: {e}")
+                    return None  # 已在运行
+                else:
+                    # 锁文件存在但进程已死，清理陈旧的锁文件
+                    logger.warning(f"🧹 发现陈旧的锁文件: {connector_id} (PID: {existing_pid})，正在清理...")
+                    lock_file = self.lock_dir / f"{connector_id}.lock"
+                    if lock_file.exists():
+                        lock_file.unlink()
+                        logger.info(f"✅ 已清理陈旧的锁文件: {connector_id}")
 
-            # 2. 清理可能存在的陈旧状态
+            # 3. 清理可能存在的陈旧状态
             self._cleanup_stale_state(connector_id)
 
-            # 3. 设置环境变量
+            # 4. 设置环境变量
             env = os.environ.copy()
             if env_vars:
                 env.update(env_vars)
 
-            # 4. 启动进程
-            process = subprocess.Popen(
-                command,
-                cwd=working_dir,
-                env=env,
-                stdout=subprocess.PIPE if capture_output else None,
-                stderr=subprocess.PIPE if capture_output else None,
-                start_new_session=True,  # 创建新的进程组
-            )
+            # 5. 启动进程 - 使用 /dev/null 避免 PIPE 缓冲区阻塞
+            if capture_output:
+                # 使用 /dev/null 重定向而不是 PIPE，避免缓冲区满导致进程阻塞
+                devnull = open(os.devnull, 'w')
+                process = subprocess.Popen(
+                    command,
+                    cwd=working_dir,
+                    env=env,
+                    stdout=devnull,
+                    stderr=devnull,
+                    start_new_session=True,  # 创建新的进程组
+                )
+                # 将 devnull 对象存储，以便后续关闭
+                process._devnull = devnull
+            else:
+                process = subprocess.Popen(
+                    command,
+                    cwd=working_dir,
+                    env=env,
+                    stdout=None,
+                    stderr=None,
+                    start_new_session=True,  # 创建新的进程组
+                )
 
-            # 5. 统一状态管理：同时更新内存和锁文件
+            # 6. 验证进程启动成功（等待短暂时间确保进程真的启动了）
+            await asyncio.sleep(0.2)  # 等待200ms确保进程稳定
+            
+            try:
+                # 检查进程是否还在运行
+                psutil_process = psutil.Process(process.pid)
+                if not psutil_process.is_running():
+                    logger.error(f"❌ 进程启动后立即退出: {connector_id}")
+                    return None
+            except psutil.NoSuchProcess:
+                logger.error(f"❌ 进程启动失败或立即退出: {connector_id}")
+                return None
+
+            # 7. 统一状态管理：同时更新内存和锁文件（原子操作）
             self.running_processes[connector_id] = {
                 "pid": process.pid,
                 "process": process,
                 "command": command,
                 "working_dir": working_dir,
                 "start_time": datetime.now().isoformat(),
+                "startup_protected": True,  # 标记为启动保护状态
             }
 
-            # 创建锁文件
+            # 创建运行状态锁文件 - 添加错误处理
             lock_file = self.lock_dir / f"{connector_id}.lock"
-            lock_file.write_text(str(process.pid))
+            try:
+                lock_file.write_text(str(process.pid))
+                logger.info(f"📝 创建运行状态锁文件: {lock_file} -> PID {process.pid}")
+            except Exception as lock_error:
+                logger.error(f"❌ 创建锁文件失败 {connector_id}: {lock_error}")
+                # 锁文件创建失败是严重问题，需要终止进程
+                try:
+                    process.terminate()
+                    logger.warning(f"🛑 因锁文件创建失败，已终止进程: {connector_id}")
+                except Exception:
+                    pass
+                return None
 
-            logger.info(f"连接器进程启动成功: {connector_id} (PID: {process.pid})")
+            logger.info(f"✅ 连接器进程启动成功: {connector_id} (PID: {process.pid})")
             return process
 
         except Exception as e:
-            logger.error(f"启动连接器进程失败 {connector_id}: {e}")
+            logger.error(f"❌ 启动连接器进程失败 {connector_id}: {e}")
             # 出错时清理状态
             self._cleanup_stale_state(connector_id)
             return None
+            
+        finally:
+            # 8. 清理启动锁（确保始终释放）
+            if startup_fd:
+                try:
+                    fcntl.flock(startup_fd.fileno(), fcntl.LOCK_UN)
+                    startup_fd.close()
+                    # 删除启动锁文件
+                    if startup_lock_file.exists():
+                        startup_lock_file.unlink()
+                    logger.debug(f"🔓 释放启动锁: {connector_id}")
+                except Exception as e:
+                    logger.warning(f"释放启动锁失败: {e}")
 
     async def stop_process(self, connector_id: str, timeout: int = 10) -> bool:
         """
@@ -464,6 +558,17 @@ class ProcessManager:
 
             # 清理内存记录
             if connector_id in self.running_processes:
+                process_info = self.running_processes[connector_id]
+                process = process_info.get("process")
+                
+                # 关闭 devnull 文件句柄（如果存在）
+                if process and hasattr(process, '_devnull'):
+                    try:
+                        process._devnull.close()
+                        logger.debug(f"关闭devnull文件句柄: {connector_id}")
+                    except Exception as e:
+                        logger.warning(f"关闭devnull文件句柄失败 {connector_id}: {e}")
+                
                 del self.running_processes[connector_id]
                 logger.debug(f"清理内存中的进程记录: {connector_id}")
                 cleaned = True

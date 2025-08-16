@@ -303,11 +303,12 @@ class RegistryDiscoveryService:
                     if not item.is_dir():
                         continue
 
-                    connector_json = item / "connector.json"
-                    if connector_json.exists():
+                    connector_toml = item / "connector.toml"
+                    if connector_toml.exists():
                         try:
-                            with open(connector_json, "r", encoding="utf-8") as f:
-                                connector_config = json.load(f)
+                            import tomllib
+                            with open(connector_toml, "rb") as f:
+                                connector_config = tomllib.load(f)
 
                             connector_id = connector_config.get("id", item.name)
 
@@ -321,13 +322,13 @@ class RegistryDiscoveryService:
                                 "author": connector_config.get("author", ""),
                                 "platforms": connector_config.get("platforms", {}),
                                 "local_path": str(item),
-                                "config_path": str(connector_json),
+                                "config_path": str(connector_toml),
                             }
 
                             logger.debug(f"发现本地连接器: {connector_id} at {item}")
 
                         except Exception as e:
-                            logger.warning(f"解析连接器配置失败 {connector_json}: {e}")
+                            logger.warning(f"解析连接器配置失败 {connector_toml}: {e}")
 
             registry_data = {
                 "schema_version": "1.0.0",

@@ -120,17 +120,10 @@ protected:
             }
         }
         
-        // 检查文件大小
-        if (fs::is_regular_file(fsPath)) {
-            try {
-                size_t fileSize = fs::file_size(fsPath);
-                if (fileSize > config.maxFileSize) {
-                    return true;
-                }
-            } catch (...) {
-                // 忽略无法获取大小的文件
-            }
-        }
+        // 优化：延迟文件大小检查，仅在真正需要时执行
+        // 这避免了对每个文件事件进行系统调用
+        // 文件大小将在处理事件时检查（如果需要）
+        // 这里不再进行预检查
         
         return false;
     }
@@ -146,42 +139,76 @@ protected:
 class EventDebouncer {
 public:
     EventDebouncer(std::chrono::milliseconds debounceTime = std::chrono::milliseconds(500))
-        : m_debounceTime(debounceTime) {}
+        : m_lastEventTime(std::chrono::system_clock::now().time_since_epoch().count()), m_debounceTime(debounceTime) {}
     
     void addEvent(const FileSystemEvent& event) {
-        std::lock_guard<std::mutex> lock(m_mutex);
+        // 使用原子操作减少锁竞争
         auto now = std::chrono::system_clock::now();
+        m_lastEventTime.store(now.time_since_epoch().count());
         
-        // 如果是同一文件的重复事件，合并或更新
-        auto it = m_pendingEvents.find(event.path);
-        if (it != m_pendingEvents.end()) {
-            // 更新事件类型优先级：DELETED > CREATED > MODIFIED
-            if (event.type == FileEventType::DELETED) {
-                it->second = event;
-            } else if (it->second.type != FileEventType::DELETED) {
-                it->second = event;
+        // 短锁：仅在修改数据结构时持有锁
+        {
+            std::lock_guard<std::mutex> lock(m_mutex);
+            
+            // 如果是同一文件的重复事件，合并或更新
+            auto it = m_pendingEvents.find(event.path);
+            if (it != m_pendingEvents.end()) {
+                // 更新事件类型优先级：DELETED > CREATED > MODIFIED
+                if (event.type == FileEventType::DELETED) {
+                    it->second = event;
+                } else if (it->second.type != FileEventType::DELETED) {
+                    it->second = event;
+                }
+            } else {
+                m_pendingEvents[event.path] = event;
             }
-        } else {
-            m_pendingEvents[event.path] = event;
-        }
-        
-        m_lastEventTime = now;
+        } // 锁自动释放
     }
     
     std::vector<FileSystemEvent> getEventsIfReady() {
-        std::lock_guard<std::mutex> lock(m_mutex);
+        // 无锁预检查：避免在未到时间时获取锁
         auto now = std::chrono::system_clock::now();
+        auto lastTime = std::chrono::system_clock::time_point(
+            std::chrono::system_clock::duration(m_lastEventTime.load()));
+        
+        if (now - lastTime < m_debounceTime) {
+            return {}; // 快速返回，无需锁
+        }
+        
+        std::lock_guard<std::mutex> lock(m_mutex);
         
         if (m_pendingEvents.empty()) {
             return {};
         }
         
-        // 检查是否已经过了去重时间
-        if (now - m_lastEventTime >= m_debounceTime) {
+        // 双重检查：再次验证时间（防止竞态条件）
+        lastTime = std::chrono::system_clock::time_point(
+            std::chrono::system_clock::duration(m_lastEventTime.load()));
+        if (now - lastTime >= m_debounceTime) {
             std::vector<FileSystemEvent> result;
             result.reserve(m_pendingEvents.size());
             
             for (auto& [path, event] : m_pendingEvents) {
+                // 🚀 性能优化: 延迟文件系统检查以减少CPU开销
+                // 仅在确实需要时才进行文件系统调用，大多数情况下使用事件提供的信息
+                try {
+                    std::filesystem::path fsPath(event.path);
+                    // 优化：使用单次stat调用获取所有信息
+                    std::error_code ec;
+                    auto fileStatus = std::filesystem::status(fsPath, ec);
+                    if (!ec) {
+                        event.isDirectory = std::filesystem::is_directory(fileStatus);
+                        if (!event.isDirectory) {
+                            // 仅对普通文件获取大小，避免对目录的额外系统调用
+                            auto fileSize = std::filesystem::file_size(fsPath, ec);
+                            event.fileSize = ec ? 0 : fileSize;
+                        }
+                    }
+                    // 如果文件不存在或发生错误，保持默认值（isDirectory=false, fileSize=0）
+                } catch (...) {
+                    // 忽略文件系统错误，使用默认值以避免处理中断
+                }
+                
                 result.push_back(std::move(event));
             }
             
@@ -207,7 +234,7 @@ public:
     
 private:
     std::unordered_map<std::string, FileSystemEvent> m_pendingEvents;
-    std::chrono::system_clock::time_point m_lastEventTime;
+    std::atomic<std::chrono::system_clock::rep> m_lastEventTime; // 原子时间戳
     std::chrono::milliseconds m_debounceTime;
-    std::mutex m_mutex;
+    mutable std::mutex m_mutex; // 保护pendingEvents的最小锁
 };

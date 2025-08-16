@@ -129,6 +129,16 @@ protected:
      */
     void logError(const std::string& message);
 
+    /**
+     * 记录警告日志
+     */
+    void logWarn(const std::string& message);
+
+    /**
+     * 获取连接器ID
+     */
+    const std::string& getId() const { return m_connectorId; }
+
 private:
     // 连接器信息
     std::string m_connectorId;

@@ -217,7 +217,8 @@ void BaseConnector::sendBatchEvents(const std::vector<ConnectorEvent>& events) {
         }
 
         json request_data = {
-            {"batch_events", batch_data}
+            {"connector_id", m_connectorId},
+            {"events", batch_data}
         };
 
         auto response = m_client->post("/events/submit_batch", request_data.dump());
@@ -263,6 +264,10 @@ void BaseConnector::logInfo(const std::string& message) {
 
 void BaseConnector::logError(const std::string& message) {
     std::cerr << "[" << m_connectorId << "] " << message << std::endl;
+}
+
+void BaseConnector::logWarn(const std::string& message) {
+    std::cout << "[" << m_connectorId << "] WARN: " << message << std::endl;
 }
 
 void BaseConnector::eventCallback(const ConnectorEvent& event) {

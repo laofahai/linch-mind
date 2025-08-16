@@ -56,11 +56,15 @@ class IPCSecurityConfig:
     def __post_init__(self):
         """初始化默认值"""
         if self.allowed_process_names is None:
-            # 从环境变量或使用默认配置
-            env_processes = os.getenv('LINCH_ALLOWED_PROCESSES')
-            if env_processes:
-                self.allowed_process_names = set(env_processes.split(','))
-            else:
+            # 尝试从用户配置获取，否则使用默认配置
+            try:
+                from .user_config_manager import get_user_config
+                user_config = get_user_config()
+                if user_config.security.allowed_processes:
+                    self.allowed_process_names = set(user_config.security.allowed_processes)
+                else:
+                    self.allowed_process_names = DEFAULT_ALLOWED_PROCESSES.copy()
+            except Exception:
                 self.allowed_process_names = DEFAULT_ALLOWED_PROCESSES.copy()
         
         if self.allowed_process_patterns is None:
@@ -88,15 +92,42 @@ class IPCSecurityManager:
 
     def _load_default_config(self) -> IPCSecurityConfig:
         """加载默认安全配置"""
-        # 根据环境变量调整配置
-        is_development = os.getenv("LINCH_DEVELOPMENT", "").lower() == "true"
-        is_debug = os.getenv("LINCH_DEBUG", "").lower() == "true"
-
-        config = IPCSecurityConfig()
-
-        if is_development:
-            # 开发模式：放宽一些安全限制
-            config.development_mode = True
+        # 尝试从用户配置和环境管理器获取配置
+        try:
+            from .user_config_manager import get_user_config
+            from core.environment_manager import get_environment_manager, Environment
+            
+            user_config = get_user_config()
+            env_manager = get_environment_manager()
+            
+            config = IPCSecurityConfig()
+            
+            # 根据环境设置安全配置
+            if env_manager.current_environment == Environment.DEVELOPMENT:
+                config.development_mode = True
+                config.debug_mode = user_config.debug
+            elif env_manager.current_environment == Environment.PRODUCTION:
+                config.development_mode = False
+                config.debug_mode = False
+            else:  # staging
+                config.development_mode = False
+                config.debug_mode = user_config.debug
+                
+            # 应用用户安全配置
+            if user_config.security.enable_access_control is not None:
+                config.enabled = user_config.security.enable_access_control
+                
+        except Exception:
+            # 回退到默认配置
+            config = IPCSecurityConfig()
+            
+            # 仍然支持环境变量作为后备
+            import os
+            is_development = os.getenv("LINCH_DEVELOPMENT", "").lower() == "true"
+            is_debug = os.getenv("LINCH_DEBUG", "").lower() == "true"
+            
+            if is_development:
+                config.development_mode = True
             config.require_authentication = False
             config.max_requests_per_minute = 300
             config.debug_mode = is_debug

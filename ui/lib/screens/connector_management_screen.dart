@@ -467,7 +467,7 @@ class _ConnectorManagementScreenState
             padding: const EdgeInsets.all(16),
             gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: crossAxisCount,
-              childAspectRatio: 3.0, // 调整为更适合的高宽比，避免溢出
+              childAspectRatio: 2.8, // 适度降低高宽比
               crossAxisSpacing: 12,
               mainAxisSpacing: 12,
             ),
@@ -588,6 +588,7 @@ class _ConnectorManagementScreenState
       onRefresh: () => _refreshConnectorStatus(connector),
       onRestart: () => _restartConnector(connector),
       onConfigure: () => _configureConnector(connector),
+      onEnabledChanged: (enabled) => _toggleConnectorEnabled(connector, enabled),
     );
   }
 
@@ -660,6 +661,42 @@ class _ConnectorManagementScreenState
           ),
         ),
       );
+    }
+  }
+
+  /// 切换连接器启用状态
+  Future<void> _toggleConnectorEnabled(ConnectorInfo connector, bool enabled) async {
+    try {
+      AppLogger.uiInfo('切换连接器启用状态: ${connector.connectorId} -> $enabled');
+
+      await _apiClient.toggleConnectorEnabled(connector.connectorId, enabled);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('已${enabled ? '启用' : '禁用'}连接器: ${connector.displayName}'),
+            backgroundColor: enabled ? Colors.green : Colors.orange,
+          ),
+        );
+      }
+
+      // 刷新状态
+      await _refreshConnectorStatus(connector);
+    } catch (e) {
+      ref.read(appErrorProvider.notifier).handleException(
+            e,
+            operation: '切换连接器启用状态: ${connector.connectorId}',
+            retryCallback: () => _toggleConnectorEnabled(connector, enabled),
+          );
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('切换连接器状态失败: ${connector.displayName}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
@@ -951,7 +988,7 @@ class _ConnectorManagementScreenState
                                                 isScanning = false;
                                                 if (availableConnectors.isEmpty) {
                                                   errorMessage =
-                                                      '该目录中未发现有效的连接器。\n请确保所选目录包含 connector.json 文件，或选择包含连接器子目录的父目录。';
+                                                      '该目录中未发现有效的连接器。\n请确保所选目录包含 connector.toml 文件，或选择包含连接器子目录的父目录。';
                                                 }
                                               });
                                             }

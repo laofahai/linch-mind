@@ -18,7 +18,7 @@ class ConnectorRegistryService:
 
     def __init__(self):
         self.config = get_core_config()
-        self._cache = {}
+        # 使用UnifiedCacheService替代内存缓存
         self._cache_expiry = None
         self._cache_duration = timedelta(hours=1)  # 缓存1小时
 

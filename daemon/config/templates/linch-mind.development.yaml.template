@@ -1,0 +1,34 @@
+# Linch Mind Development Environment Configuration
+# This file overrides base configuration for development environment
+
+debug: true
+
+# Development database settings
+database:
+  use_encryption: false
+  sqlite_file: "linch_mind_dev.db"
+
+# Development Ollama settings
+ollama:
+  value_threshold: 0.2  # Accept more content for testing
+  entity_threshold: 0.7
+
+# Development vector settings
+vector:
+  shard_size_limit: 10000  # Smaller shards for faster testing
+
+# Development security settings (relaxed)
+security:
+  encrypt_database: false
+  enable_audit_logging: false
+  require_authentication: false
+
+# Development performance settings
+performance:
+  max_workers: 2
+  auto_cleanup: false
+
+# Development logging settings
+logging:
+  level: debug
+  enable_console: true

@@ -392,18 +392,50 @@ def get_data_insights_service():
     return get_service(DataInsightsService)
 
 
-async def get_vector_service():
-    """获取向量服务"""
-    from services.storage.vector_service import VectorService
+async def get_unified_search_service():
+    """获取统一搜索服务 - 替代VectorService/GraphService等14个重复搜索实现"""
+    from services.unified_search_service import get_unified_search_service
+    
+    return await get_unified_search_service()
 
-    return get_service(VectorService)
+
+def get_unified_cache_service():
+    """获取统一缓存服务 - 替代6个重复缓存实现"""
+    from services.unified_cache_service import get_unified_cache_service
+    
+    return get_unified_cache_service()
+
+
+def get_shared_executor_service():
+    """获取共享执行器服务 - 替代6个重复ThreadPoolExecutor实现"""
+    from services.shared_executor_service import get_shared_executor_service
+    
+    return get_shared_executor_service()
+
+
+# 🔄 向后兼容的旧服务获取函数 - 逐步迁移到统一服务
+async def get_vector_service():
+    """获取向量服务 - 推荐使用get_unified_search_service()"""
+    # 首先尝试统一搜索服务，如果不可用再降级到原服务
+    try:
+        unified_search = await get_unified_search_service()
+        logger.warning("建议使用get_unified_search_service()替代get_vector_service()")
+        return unified_search
+    except Exception:
+        from services.storage.vector_service import VectorService
+        return get_service(VectorService)
 
 
 async def get_graph_service():
-    """获取图服务"""
-    from services.storage.graph_service import GraphService
-
-    return get_service(GraphService)
+    """获取图服务 - 推荐使用get_unified_search_service()"""
+    # 首先尝试统一搜索服务，如果不可用再降级到原服务
+    try:
+        unified_search = await get_unified_search_service()
+        logger.warning("建议使用get_unified_search_service()替代get_graph_service()")
+        return unified_search
+    except Exception:
+        from services.storage.graph_service import GraphService
+        return get_service(GraphService)
 
 
 async def get_embedding_service():

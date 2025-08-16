@@ -4,6 +4,7 @@
 
 #include "../native_monitor.hpp"
 #include <CoreServices/CoreServices.h>
+#include <dispatch/dispatch.h>
 #include <thread>
 #include <queue>
 #include <condition_variable>
@@ -24,8 +25,7 @@ public:
 private:
     // FSEvents相关
     FSEventStreamRef m_eventStream = nullptr;
-    CFRunLoopRef m_runLoop = nullptr;
-    std::thread m_eventThread;
+    dispatch_queue_t m_dispatchQueue = nullptr;  // 使用GCD队列替代RunLoop
     std::thread m_processThread;
     
     // 配置
@@ -39,6 +39,9 @@ private:
     
     // 事件去重器
     std::unique_ptr<EventDebouncer> m_debouncer;
+    
+    // 事件处理控制
+    std::atomic<bool> m_eventProcessingEnabled{true};
     
     // FSEvents回调
     static void fsEventsCallback(
@@ -57,6 +60,10 @@ private:
     void handleFSEvent(const std::string& path, FSEventStreamEventFlags flags);
     FileEventType flagsToEventType(FSEventStreamEventFlags flags);
     MonitorConfig* findConfigForPath(const std::string& path);
+    
+    // 性能优化方法
+    bool isQuickIgnorePath(const std::string& path) const;
+    void enableEventProcessing(bool enabled) { m_eventProcessingEnabled = enabled; }
 };
 
 #endif // __APPLE__

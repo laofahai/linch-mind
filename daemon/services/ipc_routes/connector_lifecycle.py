@@ -50,6 +50,10 @@ def _map_daemon_state_to_ui(status: str, enabled: bool) -> str:
     Returns:
         UI端对应的状态字符串
     """
+    # 如果连接器被禁用，状态应该显示为stopped（除非在stopping过程中）
+    if not enabled and status not in ['stopping']:
+        return 'stopped'
+    
     # 确保状态值在有效范围内
     valid_states = {'running', 'starting', 'stopping', 'stopped', 'error'}
     
@@ -219,7 +223,7 @@ def create_connector_lifecycle_router() -> IPCRouter:
 
             manager = get_connector_manager()
 
-            # 注册连接器（不需要路径，会从connector.json读取）
+            # 注册连接器（不需要路径，会从connector.toml读取）
             custom_description = config.get("description", "") if config else None
             success = await manager.register_connector(
                 connector_id=connector_id,
@@ -446,10 +450,13 @@ def create_connector_lifecycle_router() -> IPCRouter:
             )
 
         try:
+            # 获取连接器管理器
+            connector_manager = get_connector_manager()
+            
             from core.service_facade import get_database_service
 
             with get_database_service().get_session() as session:
-                from daemon.models.database_models import Connector
+                from models.database_models import Connector
 
                 connector = (
                     session.query(Connector)
@@ -459,8 +466,27 @@ def create_connector_lifecycle_router() -> IPCRouter:
                 if not connector:
                     return connector_not_found_response(connector_id)
 
+                # 更新enabled状态
                 connector.enabled = enabled
                 session.commit()
+                
+                # 根据enabled状态启动或停止连接器
+                if enabled:
+                    # 启用：如果连接器未运行，则启动它
+                    if connector.status != 'running':
+                        try:
+                            connector_manager.start_connector(connector_id)
+                            logger.info(f"连接器 {connector_id} 已启用并启动")
+                        except Exception as start_error:
+                            logger.warning(f"启用连接器 {connector_id} 时启动失败: {start_error}")
+                else:
+                    # 禁用：如果连接器正在运行，则停止它
+                    if connector.status == 'running':
+                        try:
+                            connector_manager.stop_connector(connector_id)
+                            logger.info(f"连接器 {connector_id} 已禁用并停止")
+                        except Exception as stop_error:
+                            logger.warning(f"禁用连接器 {connector_id} 时停止失败: {stop_error}")
 
                 return IPCResponse.success_response(
                     data={
@@ -503,7 +529,7 @@ def create_connector_lifecycle_router() -> IPCRouter:
             from core.service_facade import get_database_service
 
             with get_database_service().get_session() as session:
-                from daemon.models.database_models import Connector
+                from models.database_models import Connector
 
                 connector = (
                     session.query(Connector)
@@ -549,7 +575,7 @@ def create_connector_lifecycle_router() -> IPCRouter:
             from core.service_facade import get_database_service
 
             with get_database_service().get_session() as session:
-                from daemon.models.database_models import Connector
+                from models.database_models import Connector
 
                 connector = (
                     session.query(Connector)

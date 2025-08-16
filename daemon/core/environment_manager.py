@@ -363,6 +363,14 @@ class EnvironmentManager:
         """获取共享模型目录"""
         return self._shared_models_dir
 
+    def get_cache_dir(self) -> Path:
+        """获取缓存目录"""
+        return self.current_config.cache_dir
+
+    def get_data_dir(self) -> Path:
+        """获取数据目录"""
+        return self.current_config.data_dir
+
     def should_use_encryption(self) -> bool:
         """判断是否应该使用数据库加密"""
         return self.current_config.use_encryption

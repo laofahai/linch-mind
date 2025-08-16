@@ -1,7 +1,12 @@
 #!/usr/bin/env python3
 """
-存储编排器 - 统一三层存储架构接口
-协调SQLite + NetworkX + FAISS的数据访问
+存储编排器 - 统一存储架构接口
+
+重构说明 (2025-08-15):
+- 替代UnifiedStorageService作为主要存储接口
+- 协调SQLite + NetworkX + FAISS的数据访问  
+- 提供统一的CRUD + 搜索 + 关系管理API
+- 优化服务依赖和错误处理
 """
 
 import asyncio
@@ -210,10 +215,13 @@ class StorageOrchestrator:
                 query_embedding = await self.embedding_service.create_embedding(query)
                 if query_embedding:
                     # 执行向量搜索
-                    search_results = await self.vector_service.search(
-                        query_vector=query_embedding,
-                        limit=limit
-                    )
+                    if hasattr(self.vector_service, 'search_similar'):
+                        search_results = await self.vector_service.search_similar(
+                            query_embedding=query_embedding,
+                            limit=limit
+                        )
+                    else:
+                        search_results = []
                     
                     # 格式化结果
                     for result in search_results:
@@ -238,9 +246,9 @@ class StorageOrchestrator:
             await self.initialize()
             
         try:
-            if self.graph_service:
-                neighbors = await self.graph_service.find_neighbors(
-                    entity_id=start_entity_id,
+            if self.graph_service and hasattr(self.graph_service, 'get_neighbors'):
+                neighbors = await self.graph_service.get_neighbors(
+                    start_entity_id=start_entity_id,
                     depth=depth
                 )
                 return neighbors

@@ -439,6 +439,48 @@ class ConnectorLifecycleApiClient {
     ));
   }
 
+  /// 切换连接器启用状态
+  Future<OperationResponse> toggleConnectorEnabled(String connectorId, bool enabled) async {
+    try {
+      final responseData = await _ipcApi.put(
+        '/connector-lifecycle/connectors/$connectorId/enabled',
+        data: {'enabled': enabled},
+      );
+
+      // 处理嵌套响应结构
+      final success = responseData['success'] ?? false;
+      final data = responseData['data'] as Map<String, dynamic>? ?? {};
+      final error = responseData['error'];
+
+      if (!success || error != null) {
+        String errorMessage;
+        if (error is Map<String, dynamic>) {
+          errorMessage = error['message'] ?? 'Unknown error';
+        } else if (error is String) {
+          errorMessage = error;
+        } else {
+          errorMessage = 'Unknown error';
+        }
+        
+        throw ConnectorApiException(
+            'Failed to toggle connector enabled: $errorMessage');
+      }
+
+      return OperationResponse(
+        success: data['success'] ?? success,
+        message: data['message'] ?? 'Connector enabled status updated successfully',
+        connectorId: data['connector_id'] ?? connectorId,
+        state: ConnectorState.values.firstWhere(
+          (e) => e.name == (data['state'] ?? 'stopped'),
+          orElse: () => ConnectorState.stopped,
+        ),
+      );
+    } catch (e) {
+      throw ConnectorApiException(
+          'Failed to toggle connector enabled $connectorId: $e');
+    }
+  }
+
   /// 监听连接器事件流 (Server-Sent Events) - 简化版本
   /// TODO: 完整的SSE实现
   Stream<ConnectorEvent> watchConnectorEvents() async* {

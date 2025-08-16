@@ -2,6 +2,7 @@
 #include <memory>
 #include <thread>
 #include <chrono>
+#include <string>
 
 // 新的统一架构
 #include "filesystem_connector.hpp"
@@ -9,6 +10,33 @@
 using namespace linch_connector;
 
 int main(int argc, char* argv[]) {
+    // 处理命令行参数
+    if (argc > 1) {
+        std::string arg = argv[1];
+        
+        // 版本检查 - daemon健康检查使用
+        if (arg == "--version" || arg == "-v") {
+            std::cout << "linch-mind-filesystem-connector 1.0.0" << std::endl;
+            return 0;
+        }
+        
+        // 帮助信息
+        if (arg == "--help" || arg == "-h") {
+            std::cout << "Linch Mind Filesystem Connector" << std::endl;
+            std::cout << "Usage: " << argv[0] << " [options]" << std::endl;
+            std::cout << "Options:" << std::endl;
+            std::cout << "  --version, -v    显示版本信息" << std::endl;
+            std::cout << "  --help, -h       显示帮助信息" << std::endl;
+            return 0;
+        }
+        
+        // 未知参数警告但继续运行
+        if (arg.size() > 0 && arg[0] == '-') {
+            std::cerr << "⚠️ 未知参数: " << arg << std::endl;
+            std::cerr << "使用 --help 查看可用选项" << std::endl;
+        }
+    }
+    
     std::cout << "🚀 Starting Linch Mind Filesystem Connector (Unified Architecture)" << std::endl;
     
     // 创建文件系统连接器

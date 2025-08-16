@@ -208,7 +208,7 @@ async def test_unified_storage_performance():
     # 填充缓存
     with PerformanceTimer("缓存填充") as timer1:
         for i in range(1000):
-            cache.set(f"entity_{i}", {"id": f"entity_{i}", "data": f"test_data_{i}"})
+            await cache_service.set(f"entity_{i}", {"id": f"entity_{i}", "data": f"test_data_{i}"})
     
     cache_fill_time = timer1.elapsed_ms
     
@@ -216,7 +216,7 @@ async def test_unified_storage_performance():
     with PerformanceTimer("缓存读取") as timer2:
         hits = 0
         for i in range(1000):
-            result = cache.get(f"entity_{i}")
+            result = await cache_service.get(f"entity_{i}")
             if result:
                 hits += 1
     

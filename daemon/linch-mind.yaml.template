@@ -1,0 +1,89 @@
+# Linch Mind Configuration File
+# Environment: development
+# This file contains user-friendly configuration settings
+# Modify values as needed for your setup
+
+app_name: Linch Mind
+connectors:
+  auto_start: true
+  binary_directory: connectors/bin
+  config_directory: connectors
+  enabled_connectors: {}
+  health_check_interval: 30
+  log_level: info
+  max_restart_attempts: 3
+  restart_delay_seconds: 5
+  restart_on_failure: true
+database:
+  connection_timeout: 30
+  database: linch_mind
+  host: localhost
+  max_connections: 20
+  password: ''
+  port: 5432
+  sqlite_file: linch_mind.db
+  type: sqlite
+  use_encryption: true
+  username: ''
+debug: false
+ipc:
+  auth_required: true
+  buffer_size: 8192
+  connection_timeout: 30
+  enable_compression: false
+  max_connections: 100
+  pipe_name: ''
+  socket_path: ''
+  socket_permissions: '0600'
+logging:
+  backup_count: 5
+  component_levels: {}
+  enable_console: true
+  enable_file: true
+  format: '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+  level: info
+  log_file: linch-mind.log
+  max_file_size_mb: 10
+ollama:
+  cache_ttl_seconds: 3600
+  connection_timeout: 5
+  embedding_model: nomic-embed-text:latest
+  enable_cache: true
+  entity_threshold: 0.8
+  host: http://localhost:11434
+  llm_model: qwen2.5:0.5b
+  max_content_length: 10000
+  request_timeout: 30
+  value_threshold: 0.3
+performance:
+  auto_cleanup: true
+  cache_size_mb: 512
+  cache_ttl_seconds: 3600
+  cleanup_interval_hours: 24
+  enable_caching: true
+  max_concurrent_requests: 100
+  max_memory_gb: 2.0
+  max_storage_gb: 10.0
+  max_workers: 4
+security:
+  allowed_processes: []
+  audit_log_retention_days: 90
+  enable_access_control: true
+  enable_audit_logging: true
+  encrypt_database: true
+  encrypt_logs: false
+  encrypt_vectors: false
+  require_authentication: true
+  session_timeout_minutes: 60
+vector:
+  compressed_dimension: 256
+  compression_method: PQ
+  index_type: HNSW
+  max_memory_mb: 1024
+  max_search_results: 10
+  preload_hot_shards: true
+  provider: faiss
+  search_timeout: 5
+  shard_size_limit: 100000
+  vector_dimension: 384
+version: 0.1.0

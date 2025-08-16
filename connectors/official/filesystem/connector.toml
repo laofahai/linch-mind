@@ -76,24 +76,43 @@ windows = "bin/release/linch-mind-filesystem.exe"
 
 # 默认配置值
 [config_default_values]
-watch_directories = ["~/Documents", "~/Desktop"]
-recursive_depth = 5
-max_file_size = 50  # MB
-max_content_length = 50000
-batch_interval = 300  # 批量事件处理间隔(毫秒)
-debounce_time = 300   # 事件去重时间(毫秒)
+watch_directories = ["/tmp/linch_test"]
+recursive_depth = 3  # 减少递归深度，减少监控范围
+max_file_size = 10   # 减小文件大小限制到 10MB
+max_content_length = 10000  # 减小内容长度
+batch_interval = 6000  # 增加到 6 秒批量间隔，配合FSEvents 5秒延迟
+debounce_time = 5000   # 调整到 5 秒去重时间，与FSEvents同步
 include_extensions = [
     ".txt", ".md", ".pdf", ".doc", ".docx", 
     ".xls", ".xlsx", ".ppt", ".pptx"
 ]
 exclude_patterns = [
-    "^\\..*",       # 隐藏文件
-    ".*\\.tmp$",    # 临时文件
-    ".*\\.log$",    # 日志文件
-    "__pycache__",  # Python缓存
-    "node_modules"  # Node.js模块
+    "^\\..*",         # 隐藏文件
+    ".*\\.tmp$",      # 临时文件
+    ".*\\.log$",      # 日志文件
+    ".*\\.cache$",    # 缓存文件
+    ".*~$",          # 备份文件
+    ".*\\.swp$",      # Vim交换文件
+    ".*\\.bak$",      # 备份文件
+    "__pycache__",    # Python缓存
+    "node_modules",   # Node.js模块
+    "\\.git",          # Git目录
+    "\\.vscode",       # VS Code配置
+    "\\.idea",         # IntelliJ IDEA配置
+    "dist",           # 构建输出
+    "build",          # 构建目录
+    "\\.DS_Store",     # macOS系统文件
+    "Thumbs.db"       # Windows缩略图
 ]
 enable_content_indexing = true
+
+# 快速索引配置
+enable_fast_indexing = true        # 启用快速索引（类似Everything）
+fast_index_mode = "hybrid"         # 索引模式: fast_only, deep_only, hybrid
+fast_index_batch_size = 1000       # 批处理大小
+fast_index_batch_interval = 200    # 批处理间隔(毫秒)
+fast_index_memory_limit = 100      # 内存限制(MB)
+fast_index_progress_report = true  # 启用进度报告
 
 # 配置模式定义
 [config_schema]
@@ -107,7 +126,7 @@ title = "监控目录"
 description = "要监控的目录路径列表"
 type = "array"
 min_items = 1
-default = ["~/Documents", "~/Desktop"]
+default = ["/tmp/linch_test"]
 
 [config_schema.properties.watch_directories.items]
 type = "string"
@@ -117,16 +136,16 @@ title = "批量处理间隔 (毫秒)"
 description = "聚合文件事件的时间间隔，减少网络调用"
 type = "integer"
 minimum = 100
-maximum = 2000
-default = 300
+maximum = 10000
+default = 6000
 
 [config_schema.properties.debounce_time]
 title = "事件去重时间 (毫秒)"
 description = "同一文件的重复事件去重时间"
 type = "integer"
 minimum = 100
-maximum = 1000
-default = 300
+maximum = 10000
+default = 5000
 
 [config_schema.properties.recursive_depth]
 title = "递归深度"

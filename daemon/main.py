@@ -87,6 +87,7 @@ async def start_health_check_scheduler():
     """启动健康检查调度器"""
     from core.service_facade import get_service
     from services.connectors.health import ConnectorHealthChecker
+    from services.connectors.resource_monitor import ResourceProtectionMonitor
 
     try:
         # 🏥 使用ServiceFacade获取健康检查器
@@ -96,6 +97,12 @@ async def start_health_check_scheduler():
         await health_checker.start_monitoring()
 
         logger.info("✅ 连接器健康检查服务已启动")
+        
+        # 🛡️  启动系统资源保护监控
+        resource_monitor = get_service(ResourceProtectionMonitor)
+        await resource_monitor.start_monitoring()
+        
+        logger.info("✅ 系统资源保护监控已启动")
 
     except Exception as e:
         logger.error(f"❌ 启动健康检查服务失败: {e}")
@@ -192,7 +199,7 @@ def initialize_di_container():
     # 🔍 连接器发现服务
     def create_connector_discovery_service():
         from services.connectors.connector_discovery_service import ConnectorDiscoveryService
-        
+
         return ConnectorDiscoveryService()
 
     from services.connectors.connector_discovery_service import ConnectorDiscoveryService
@@ -244,6 +251,19 @@ def initialize_di_container():
         ConnectorHealthChecker, create_connector_health_checker
     )
     logger.debug("已注册: ConnectorHealthChecker")
+    
+    # 🛡️  系统资源保护监控服务
+    def create_resource_protection_monitor():
+        from services.connectors.resource_monitor import ResourceProtectionMonitor
+        
+        return ResourceProtectionMonitor()
+    
+    from services.connectors.resource_monitor import ResourceProtectionMonitor
+    
+    container.register_singleton(
+        ResourceProtectionMonitor, create_resource_protection_monitor
+    )
+    logger.debug("已注册: ResourceProtectionMonitor")
 
     # 🛠️ 系统配置服务
     def create_system_config_service():
@@ -259,13 +279,22 @@ def initialize_di_container():
     # 📊 数据洞察服务
     def create_data_insights_service():
         from services.api.data_insights_service import DataInsightsService
-        
+
         return DataInsightsService()
-    
+
     from services.api.data_insights_service import DataInsightsService
-    
+
     container.register_singleton(DataInsightsService, create_data_insights_service)
     logger.debug("已注册: DataInsightsService")
+
+    # 📝 内容分析服务
+    def create_content_analysis_service():
+        from services.content_analysis_service import ContentAnalysisService
+        return ContentAnalysisService()
+
+    from services.content_analysis_service import ContentAnalysisService
+    container.register_singleton(ContentAnalysisService, create_content_analysis_service)
+    logger.debug("已注册: ContentAnalysisService")
 
     # 🗄️ 存储服务
     def create_vector_service():

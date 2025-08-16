@@ -35,6 +35,10 @@ class ErrorCategory(Enum):
 
     IPC_COMMUNICATION = "ipc_communication"
     DATABASE_OPERATION = "database_operation"
+    STORAGE_OPERATION = "storage_operation"  # 新增存储操作类别
+    SEARCH_OPERATION = "search_operation"  # 新增搜索操作类别
+    EVENT_PROCESSING = "event_processing"  # 新增事件处理类别
+    MAINTENANCE_OPERATION = "maintenance_operation"  # 新增维护操作类别
     CONNECTOR_MANAGEMENT = "connector_management"
     CONNECTOR_DISCOVERY = "connector_discovery"  # 新增连接器发现类别
     FILE_SYSTEM = "file_system"
@@ -42,6 +46,7 @@ class ErrorCategory(Enum):
     SECURITY = "security"
     NETWORK = "network"
     SYSTEM_OPERATION = "system_operation"
+    AI_PROCESSING = "ai_processing"  # 新增AI处理类别
     UNKNOWN = "unknown"
 
 

@@ -2,6 +2,8 @@
 
 #include <string>
 #include <chrono>
+#include <sstream>
+#include <iomanip>
 #include <nlohmann/json.hpp>
 
 namespace linch_connector {
@@ -23,12 +25,20 @@ struct ConnectorEvent {
      * 将事件转换为daemon API格式的JSON
      */
     json toJson() const {
+        // 将时间戳转换为ISO 8601格式字符串 (daemon期望格式)
+        auto time_t = std::chrono::system_clock::to_time_t(timestamp);
+        auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+            timestamp.time_since_epoch()) % 1000;
+        
+        std::stringstream ss;
+        ss << std::put_time(std::gmtime(&time_t), "%Y-%m-%dT%H:%M:%S");
+        ss << '.' << std::setfill('0') << std::setw(3) << ms.count() << 'Z';
+        
         return json{
             {"connector_id", connectorId},
             {"event_type", eventType},
             {"event_data", eventData},
-            {"timestamp", std::chrono::duration_cast<std::chrono::milliseconds>(
-                timestamp.time_since_epoch()).count()},
+            {"timestamp", ss.str()},
             {"metadata", metadata}
         };
     }

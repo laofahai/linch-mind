@@ -6,6 +6,7 @@
 """
 
 import logging
+from contextlib import contextmanager
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Union
 
@@ -141,13 +142,13 @@ class UnifiedDatabaseService:
     def _build_engine_config(self) -> Dict[str, Any]:
         """构建引擎配置"""
         config = {
-            "echo": self.env_manager.is_debug_enabled(),
+            "echo": False,  # 禁用SQL日志输出，避免日志污染
             "pool_pre_ping": True,
             "pool_recycle": 3600,
         }
 
-        # 生产环境优化
-        if not self.env_manager.is_debug_enabled():
+        # 生产环境优化（SQLCipher不支持连接池参数）
+        if not self.env_manager.is_debug_enabled() and not self.use_encryption:
             config.update({
                 "pool_size": 20,
                 "max_overflow": 30,
@@ -240,11 +241,21 @@ class UnifiedDatabaseService:
             logger.error(f"数据库连接验证失败: {e}")
             raise
 
-    def get_session(self) -> Session:
-        """获取数据库会话"""
+    @contextmanager
+    def get_session(self):
+        """获取数据库会话（上下文管理器）"""
         if not self._session_local:
             raise RuntimeError("数据库服务未初始化")
-        return self._session_local()
+        
+        session = self._session_local()
+        try:
+            yield session
+            session.commit()
+        except Exception as e:
+            session.rollback()
+            raise
+        finally:
+            session.close()
 
     # === 连接器管理方法 (兼容原DatabaseService接口) ===
 
@@ -392,6 +403,16 @@ class UnifiedDatabaseService:
             logger.error(f"获取加密状态失败: {e}")
             return {"encrypted": self.use_encryption, "error": str(e)}
 
+    @property
+    def engine(self):
+        """获取数据库引擎（兼容性属性）"""
+        return self._engine
+
+    @property
+    def SessionLocal(self):
+        """获取SessionLocal（兼容性属性）"""
+        return self._session_local
+
     async def initialize(self):
         """异步初始化方法（兼容接口）"""
         # 主要初始化已在__init__中完成
@@ -451,6 +472,33 @@ class UnifiedDatabaseService:
         except Exception as e:
             logger.error(f"获取性能信息失败: {e}")
             return {}
+    
+    def get_environment_database_info(self) -> Dict[str, Any]:
+        """获取环境数据库信息
+        
+        Returns:
+            包含数据库配置信息的字典
+        """
+        import os
+        
+        # 获取数据库URL
+        database_url = self.db_config.sqlite_url
+        if not database_url:
+            database_url = self._build_database_url()
+        
+        # 检查数据库文件是否存在
+        database_exists = False
+        if database_url and not database_url.endswith(":memory:"):
+            db_path = database_url.replace("sqlite:///", "")
+            database_exists = os.path.exists(db_path)
+        
+        return {
+            "database_url": database_url,
+            "use_encryption": self.use_encryption,
+            "database_exists": database_exists,
+            "environment": self.env_manager.current_environment,
+            "config_root": str(self.env_manager.current_config.base_path),
+        }
 
 
 # 兼容性函数

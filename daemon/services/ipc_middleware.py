@@ -346,10 +346,10 @@ class ValidationMiddleware:
             if re.search(pattern, text):
                 return f"Dangerous pattern detected: matched {pattern[:30]}..."
 
-        # 检查大量危险字符
+        # 检查大量危险字符 - 调整为更合理的阈值
         dangerous_char_count = sum(1 for c in text if c in self.dangerous_chars)
-        if dangerous_char_count > 5:
-            return f"Too many dangerous characters: {dangerous_char_count} > 5"
+        if dangerous_char_count > 50:  # 提高阈值以适应正常的剪贴板内容
+            return f"Too many dangerous characters: {dangerous_char_count} > 50"
 
         return None
 

@@ -40,7 +40,7 @@ def create_connector_status_router() -> IPCRouter:
                 )
 
             data = request.data or {}
-            status = data.get("status", "unknown")
+            status = data.get("running_state", "unknown")
             message = data.get("message", "")
             data.get("metadata", {})
 

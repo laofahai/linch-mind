@@ -7,7 +7,7 @@ Embedding模型服务 - 文本向量化和语义理解
 import asyncio
 import json
 import logging
-from concurrent.futures import ThreadPoolExecutor
+from services.shared_executor_service import get_shared_executor_service, TaskType
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
@@ -48,7 +48,7 @@ class EmbeddingService:
 
         # 模型和线程池
         self.model = None
-        self._executor = ThreadPoolExecutor(max_workers=max_workers)
+        self._executor = get_shared_executor_service()
 
         # 缓存管理
         self._embedding_cache: Dict[str, np.ndarray] = {}

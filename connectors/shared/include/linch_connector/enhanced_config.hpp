@@ -27,6 +27,7 @@ public:
     std::vector<std::string> getStringArray(const std::string& key, 
                                            const std::vector<std::string>& defaultValue = {}) {
         std::string value = m_configManager.getConfigValue(key, "");
+        
         if (value.empty()) {
             return defaultValue;
         }
@@ -132,47 +133,49 @@ public:
     }
 
     /**
-     * 创建文件系统监控配置
+     * 简化的文件系统监控配置
+     * 🔧 配置简化：减少复杂配置选项，提供合理默认值
      */
     struct FileSystemConfig {
         std::vector<std::string> watchDirectories;
         std::set<std::string> includeExtensions;
         std::set<std::string> excludePatterns;
-        int maxFileSize;
-        int recursiveDepth;
-        int batchInterval;
-        int debounceTime;
-        int maxContentLength;
+        int maxFileSize;          // MB
+        int batchInterval;        // ms
         bool enableContentIndexing;
         bool recursive;
+        
+        // 简化的索引配置 - 移除过度配置
+        bool enableFastIndexing;
 
         void print() const {
-            std::cout << "📋 配置加载:" << std::endl;
+            std::cout << "📋 简化配置:" << std::endl;
             std::cout << "   监控目录: " << watchDirectories.size() << std::endl;
             std::cout << "   包含扩展名: " << includeExtensions.size() << std::endl;
             std::cout << "   排除模式: " << excludePatterns.size() << std::endl;
             std::cout << "   最大文件大小: " << maxFileSize << "MB" << std::endl;
-            std::cout << "   递归深度: " << recursiveDepth << std::endl;
             std::cout << "   批处理间隔: " << batchInterval << "ms" << std::endl;
-            std::cout << "   防抖时间: " << debounceTime << "ms" << std::endl;
+            std::cout << "   启用索引: " << (enableFastIndexing ? "是" : "否") << std::endl;
         }
     };
 
     FileSystemConfig getFileSystemConfig() {
         FileSystemConfig config;
         
-        config.watchDirectories = getExpandedPaths("watch_directories", {"~/Documents", "~/Desktop"});
+        // 🔧 简化配置：使用合理默认值，减少配置复杂度
+        config.watchDirectories = getExpandedPaths("watch_directories", {});
         config.includeExtensions = getStringSet("include_extensions", 
             {".txt", ".md", ".pdf", ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx"});
         config.excludePatterns = getStringSet("exclude_patterns",
-            {"^\\..*", ".*\\.tmp$", ".*\\.log$", "__pycache__", "node_modules"});
+            {"^\\..*", ".*\\.tmp$", ".*\\.log$", "__pycache__", "node_modules",
+             ".*\\.cache$", ".*~$", ".*\\.swp$", ".*\\.DS_Store$"});
         config.maxFileSize = getInt("max_file_size", 50);
-        config.recursiveDepth = getInt("recursive_depth", 5);
-        config.batchInterval = getInt("batch_interval", 300);
-        config.debounceTime = getInt("debounce_time", 300);
-        config.maxContentLength = getInt("max_content_length", 50000);
+        config.batchInterval = getInt("batch_interval", 1000);  // 默认1秒批处理
         config.enableContentIndexing = getBool("enable_content_indexing", true);
-        config.recursive = config.recursiveDepth > 1;
+        config.recursive = getBool("recursive", true);  // 简化为布尔值
+        
+        // 简化索引配置
+        config.enableFastIndexing = getBool("enable_fast_indexing", true);
         
         return config;
     }

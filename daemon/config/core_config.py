@@ -369,6 +369,24 @@ class CoreConfigManager:
     def _save_config(self, config: AppConfig, config_path: Path):
         """保存配置文件 - 支持 TOML 和 YAML"""
         config_dict = asdict(config)
+        
+        # 清理 None 值，TOML 不支持 None
+        def clean_none_values(d):
+            """递归清理字典中的 None 值"""
+            if not isinstance(d, dict):
+                return d
+            cleaned = {}
+            for k, v in d.items():
+                if v is not None:
+                    if isinstance(v, dict):
+                        cleaned[k] = clean_none_values(v)
+                    elif isinstance(v, list):
+                        cleaned[k] = [clean_none_values(item) if isinstance(item, dict) else item for item in v]
+                    else:
+                        cleaned[k] = v
+            return cleaned
+        
+        config_dict = clean_none_values(config_dict)
 
         try:
             # 确保配置目录存在
@@ -470,41 +488,49 @@ class CoreConfigManager:
             logger.debug(f"环境 {self.context.get_environment_name()} 启用调试模式")
 
     def _apply_env_overrides(self):
-        """应用环境变量覆盖 - 简化版本"""
+        """应用配置文件覆盖 - 用户配置优先"""
+        # 尝试从用户配置文件获取覆盖设置
+        try:
+            from .user_config_manager import get_user_config_manager
+            user_manager = get_user_config_manager()
+            user_config = user_manager.get_config()
+            
+            # 将用户配置映射到核心配置
+            if user_config.ipc.socket_path:
+                self.config.server.socket_path = user_config.ipc.socket_path
+            if user_config.ipc.pipe_name:
+                self.config.server.pipe_name = user_config.ipc.pipe_name
+            if user_config.debug is not None:
+                self.config.debug = user_config.debug
+                self.config.server.debug = user_config.debug
+            if user_config.logging.level:
+                self.config.server.log_level = user_config.logging.level
+            if user_config.ipc.max_connections > 0:
+                self.config.server.max_connections = user_config.ipc.max_connections
+            if user_config.ipc.connection_timeout > 0:
+                self.config.server.connection_timeout = user_config.ipc.connection_timeout
+            if user_config.ipc.auth_required is not None:
+                self.config.server.auth_required = user_config.ipc.auth_required
+                
+            logger.debug("Applied user config overrides to core config")
+            
+        except Exception as e:
+            logger.debug(f"No user config overrides available: {e}")
+            
+        # 仍然支持关键的环境变量作为后备（仅限测试和开发）
         import os
-
-        # IPC架构的环境变量映射
-        env_mappings = {
-            "LINCH_SOCKET_PATH": ("server.socket_path", str),
-            "LINCH_PIPE_NAME": ("server.pipe_name", str),
-            "LINCH_DEBUG": ("debug", lambda x: x.lower() in ("true", "1", "yes")),
-            "LINCH_LOG_LEVEL": ("server.log_level", str),
-            "LINCH_MAX_CONNECTIONS": ("server.max_connections", int),
-            "LINCH_CONNECTION_TIMEOUT": ("server.connection_timeout", int),
-            "LINCH_AUTH_REQUIRED": (
-                "server.auth_required",
-                lambda x: x.lower() in ("true", "1", "yes"),
-            ),
+        critical_env_vars = {
+            "LINCH_ENV": None,  # 环境变量由环境管理器处理
+            "PYTEST_CURRENT_TEST": None,  # 测试环境检测
+            "TESTING": None,  # 测试标志
         }
-
-        for env_var, (config_path, converter) in env_mappings.items():
-            env_value = os.environ.get(env_var)
-            if env_value is not None:
-                try:
-                    # 解析配置路径
-                    parts = config_path.split(".")
-                    obj = self.config
-
-                    # 导航到父对象
-                    for part in parts[:-1]:
-                        obj = getattr(obj, part)
-
-                    # 设置值
-                    converted_value = converter(env_value)
-                    setattr(obj, parts[-1], converted_value)
-                    logger.debug(f"Applied env override: {env_var}={converted_value}")
-                except Exception as e:
-                    logger.warning(f"Failed to apply env override {env_var}: {e}")
+        
+        # 只处理调试相关的环境变量作为后备
+        if os.getenv("LINCH_DEBUG"):
+            debug_value = os.getenv("LINCH_DEBUG").lower() in ("true", "1", "yes")
+            self.config.debug = debug_value
+            self.config.server.debug = debug_value
+            logger.debug(f"Applied debug override from LINCH_DEBUG: {debug_value}")
 
     def save_config(self):
         """保存当前配置"""

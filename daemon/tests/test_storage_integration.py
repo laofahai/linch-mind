@@ -10,7 +10,6 @@ from pathlib import Path
 import pytest
 
 from config.core_config import StorageConfig
-from services.storage.embedding_service import EmbeddingService
 from services.storage.storage_orchestrator import StorageOrchestrator
 
 
@@ -42,8 +41,8 @@ async def storage_orchestrator(temp_storage_config, database_service_fixture):
     # 直接创建服务实例用于测试
     try:
         from services.storage.embedding_service import EmbeddingService
-        from services.storage.graph_service import GraphService
-        from services.storage.vector_service import VectorService
+        from services.unified_search_service import UnifiedSearchService, SearchQuery, SearchType
+        from services.unified_search_service import UnifiedSearchService, SearchQuery, SearchType
 
         # 使用fixture提供的数据库服务
         orchestrator.db_service = database_service_fixture
@@ -189,9 +188,12 @@ class TestStorageIntegration:
         # 验证图中存在关系（如果图服务可用）
         if storage_orchestrator.graph_service:
             try:
-                neighbors = await storage_orchestrator.graph_service.find_neighbors(
-                    "entity_a", max_depth=1
-                )
+                neighbors = await storage_orchestrator.search_service.search(SearchQuery(
+                    query="",
+                    search_type=SearchType.GRAPH,
+                    start_entity_id="entity_a",
+                    max_depth=1
+                ))
                 assert "entity_b" in neighbors, "entity_b应该是entity_a的邻居"
             except Exception as e:
                 print(f"图服务验证跳过: {e}")

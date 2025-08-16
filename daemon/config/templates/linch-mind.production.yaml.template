@@ -1,0 +1,47 @@
+# Linch Mind Production Environment Configuration
+# This file overrides base configuration for production environment
+
+debug: false
+
+# Production database settings
+database:
+  use_encryption: true
+  sqlite_file: "linch_mind_prod.db"
+  max_connections: 50
+
+# Production Ollama settings
+ollama:
+  value_threshold: 0.35  # Stricter filtering
+  entity_threshold: 0.85
+  request_timeout: 45
+
+# Production vector settings
+vector:
+  shard_size_limit: 200000  # Larger shards for better performance
+  max_memory_mb: 2048
+
+# Production security settings (strict)
+security:
+  encrypt_database: true
+  encrypt_vectors: true
+  enable_access_control: true
+  enable_audit_logging: true
+  require_authentication: true
+  session_timeout_minutes: 30
+
+# Production performance settings
+performance:
+  max_workers: 8
+  max_concurrent_requests: 200
+  max_memory_gb: 4.0
+  max_storage_gb: 50.0
+  auto_cleanup: true
+  cleanup_interval_hours: 12
+
+# Production logging settings
+logging:
+  level: warning
+  enable_console: false
+  enable_file: true
+  max_file_size_mb: 50
+  backup_count: 10

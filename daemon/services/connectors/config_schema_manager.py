@@ -86,7 +86,7 @@ class ConfigSchemaManager:
             return None
 
     def _extract_schema_from_connector_config(self, connector_id: str) -> Optional[Dict[str, Any]]:
-        """从connector.json中提取schema"""
+        """从connector.toml中提取schema"""
         try:
             search_dirs = [
                 self.connectors_dir / "official" / connector_id,
@@ -102,7 +102,7 @@ class ConfigSchemaManager:
             config_ui_schema = connector_config.get("config_ui_schema", {})
 
             if config_schema:
-                logger.debug(f"从connector.json中提取schema: {connector_id}")
+                logger.debug(f"从connector.toml中提取schema: {connector_id}")
                 return {
                     "json_schema": config_schema,
                     "ui_schema": config_ui_schema,

@@ -20,9 +20,10 @@ if(WIN32)
     set(PLATFORM_LIBS)
     set(PLATFORM_COMPILE_DEFINITIONS WIN32_LEAN_AND_MEAN)
 elseif(APPLE)
-    # macOS需要CoreServices框架用于FSEvents
+    # macOS需要CoreServices框架用于FSEvents，Foundation用于快速扫描
     find_library(CORE_SERVICES_FRAMEWORK CoreServices)
-    set(PLATFORM_LIBS ${CORE_SERVICES_FRAMEWORK})
+    find_library(FOUNDATION_FRAMEWORK Foundation)
+    set(PLATFORM_LIBS ${CORE_SERVICES_FRAMEWORK} ${FOUNDATION_FRAMEWORK})
     set(PLATFORM_COMPILE_DEFINITIONS)
 else()
     # Linux需要pthread
@@ -30,27 +31,33 @@ else()
     set(PLATFORM_COMPILE_DEFINITIONS)
 endif()
 
-# Source files - 使用新的统一架构
+# Source files - 使用零扫描索引架构
 set(SOURCES
     src/main.cpp
     src/native_monitor.hpp
     src/monitor_factory.cpp
     src/filesystem_monitor_adapter.cpp
     src/filesystem_connector.cpp
+    src/file_index_provider.cpp
 )
 
 # 平台特定源文件
 if(APPLE)
     list(APPEND SOURCES
         src/platform/macos_fsevents_monitor.cpp
+        src/platform/macos_file_index_provider.cpp
+        src/platform/macos_spotlight_zero_scan.mm
+        src/platform/macos_zero_scan.cpp
     )
 elseif(UNIX)
     list(APPEND SOURCES
         src/platform/linux_inotify_monitor.cpp
+        src/platform/linux_file_index_provider.cpp
     )
 elseif(WIN32)
     list(APPEND SOURCES
         src/platform/windows_rdcw_monitor.cpp
+        src/platform/windows_file_index_provider.cpp
     )
 endif()
 

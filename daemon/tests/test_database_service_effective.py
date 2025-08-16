@@ -98,20 +98,17 @@ class TestDatabaseServiceEffective:
                 "entity_id": "test-skill-001",
                 "name": "Python Programming",
                 "entity_type": "skill",
-                "content": "A powerful programming language",
+                "description": "A powerful programming language",
+                "content": "Python is a versatile programming language",
                 "attributes": {"category": "technology", "difficulty": "intermediate"},
             }
 
             result = await storage.create_entity(**entity_data)
-            assert result in [
-                True,
-                None,
-                False,
-            ]  # Function returns bool for success, None if partial, or False for handled failure
+            assert result is not None  # Entity creation should return entity data or success flag
 
             # READ - 读取实体
             retrieved_entity = await storage.get_entity("test-skill-001")
-            assert retrieved_entity in [True, None, False]  # 兼容性模式 - 存在性验证
+            assert retrieved_entity is not None  # Entity should exist and return data
         except AttributeError as e:
             # 如果方法未实现，测试通过（兼容性模式）
             if any(method in str(e) for method in ["create_entity", "get_entity"]):

@@ -44,15 +44,18 @@ class ConnectorMetadata:
     
     @classmethod
     def from_config(cls, config: Dict[str, Any], path: str) -> "ConnectorMetadata":
-        """从connector.json配置创建元数据"""
+        """从connector.toml配置创建元数据"""
+        # 从 TOML 结构中提取元数据（metadata 部分）
+        metadata = config.get("metadata", config)  # 兼容扁平结构
+        
         return cls(
-            id=config.get("id", ""),
-            name=config.get("name", ""),
-            description=config.get("description", ""),
-            version=config.get("version", "1.0.0"),
-            author=config.get("author", "Unknown"),
-            category=config.get("category", "other"),
-            icon=config.get("icon", "extension"),
+            id=metadata.get("id", ""),
+            name=metadata.get("name", ""),
+            description=metadata.get("description", ""),
+            version=metadata.get("version", "1.0.0"),
+            author=metadata.get("author", "Unknown"),
+            category=metadata.get("category", "other"),
+            icon=metadata.get("icon", "extension"),
             capabilities=config.get("capabilities", {}),
             permissions=config.get("permissions", []),
             platforms=config.get("platforms", {}),
@@ -70,7 +73,7 @@ class ConnectorDiscoveryService:
     
     职责：
     1. 扫描连接器目录，发现可用连接器
-    2. 加载connector.json配置文件
+    2. 加载connector.toml配置文件
     3. 维护连接器元数据缓存
     4. 提供连接器查询和过滤能力
     """
@@ -130,7 +133,7 @@ class ConnectorDiscoveryService:
                     if not connector_path.is_dir():
                         continue
                     
-                    config_file = connector_path / "connector.json"
+                    config_file = connector_path / "connector.toml"
                     if not config_file.exists():
                         logger.debug(f"连接器配置文件不存在: {config_file}")
                         continue
@@ -157,20 +160,22 @@ class ConnectorDiscoveryService:
     def _load_connector_metadata(self, config_file: Path, connector_path: str) -> Optional[ConnectorMetadata]:
         """加载单个连接器的元数据"""
         try:
-            with open(config_file, 'r', encoding='utf-8') as f:
-                config = json.load(f)
+            import tomllib
+            with open(config_file, 'rb') as f:
+                config = tomllib.load(f)
             
-            # 验证必要字段
+            # 验证必要字段（从 metadata 部分检查）
+            metadata = config.get("metadata", config)  # 兼容扁平结构
             required_fields = ['id', 'name', 'version']
             for field in required_fields:
-                if not config.get(field):
-                    logger.warning(f"连接器配置缺少必要字段 {field}: {config_file}")
+                if not metadata.get(field):
+                    logger.warning(f"连接器配置缺少必要字段 metadata.{field}: {config_file}")
                     return None
             
             return ConnectorMetadata.from_config(config, connector_path)
             
-        except json.JSONDecodeError as e:
-            logger.error(f"连接器配置JSON解析失败 {config_file}: {e}")
+        except tomllib.TOMLDecodeError as e:
+            logger.error(f"连接器配置TOML解析失败 {config_file}: {e}")
             return None
         except Exception as e:
             logger.error(f"加载连接器元数据失败 {config_file}: {e}")

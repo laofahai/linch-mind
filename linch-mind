@@ -196,11 +196,26 @@ daemon_status() {
         echo -e "${GREEN}✅ Daemon运行中${NC}"
         echo -e "${BLUE}   PID: $DAEMON_PID${NC}"
 
-        # 从socket文件检查IPC状态
-        if [ -f "$HOME/.linch-mind/daemon.socket" ]; then
-            echo -e "${BLUE}   IPC: Unix Domain Socket 可用${NC}"
-            echo -e "${GREEN}   通信状态: IPC连接就绪${NC}"
-        else
+        # 从socket文件检查IPC状态 - 支持环境特定路径
+        SOCKET_PATHS=(
+            "$HOME/.linch-mind/daemon.socket"
+            "$HOME/.linch-mind/development/data/daemon.socket"
+            "$HOME/.linch-mind/production/data/daemon.socket"
+            "$HOME/.linch-mind/staging/data/daemon.socket"
+        )
+        
+        socket_found=false
+        for socket_path in "${SOCKET_PATHS[@]}"; do
+            if [ -S "$socket_path" ]; then
+                echo -e "${BLUE}   IPC: Unix Domain Socket 可用${NC}"
+                echo -e "${GREEN}   Socket路径: $socket_path${NC}"
+                echo -e "${GREEN}   通信状态: IPC连接就绪${NC}"
+                socket_found=true
+                break
+            fi
+        done
+        
+        if [ "$socket_found" = false ]; then
             echo -e "${YELLOW}   IPC信息未找到${NC}"
         fi
     else

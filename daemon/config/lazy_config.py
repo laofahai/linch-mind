@@ -7,7 +7,7 @@
 import logging
 from pathlib import Path
 from typing import Optional, Dict, Any, TYPE_CHECKING
-from functools import lru_cache
+from services.unified_cache_service import get_unified_cache_service, CacheType
 
 if TYPE_CHECKING:
     from .config_context import ConfigContext
@@ -107,7 +107,6 @@ class LazyConfigManager:
         return self._db_dir
 
     @property
-    @lru_cache(maxsize=1)
     def config(self) -> "AppConfig":
         """延迟获取完整配置 - 使用LRU缓存"""
         if self._full_config is None:
@@ -127,7 +126,6 @@ class LazyConfigManager:
         
         return self._full_config
 
-    @lru_cache(maxsize=1)
     def get_core_paths(self) -> Dict[str, Path]:
         """获取核心路径 - 最小启动时需要的路径信息"""
         if self._core_paths is None:
@@ -170,19 +168,16 @@ class LazyConfigManager:
             "app_data": self.data_dir / "app_data",
         }
 
-    @lru_cache(maxsize=1)
     def get_server_config(self) -> "IPCServerConfig":
         """延迟获取服务器配置"""
         logger.debug("⚙️ 加载服务器配置...")
         return self.config.server
 
-    @lru_cache(maxsize=1)
     def get_database_config(self) -> "DatabaseConfig":
         """延迟获取数据库配置"""
         logger.debug("🗄️ 加载数据库配置...")
         return self.config.database
 
-    @lru_cache(maxsize=1)
     def get_storage_config(self) -> "StorageConfig":
         """延迟获取存储配置"""
         logger.debug("💾 加载存储配置...")

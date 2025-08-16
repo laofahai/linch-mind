@@ -7,7 +7,7 @@ FAISS向量搜索服务 - 语义搜索和内容相似性计算
 import asyncio
 import logging
 import pickle
-from concurrent.futures import ThreadPoolExecutor
+from services.shared_executor_service import get_shared_executor_service, TaskType
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
@@ -85,7 +85,7 @@ class VectorService:
 
         # 性能优化
         self.max_workers = max_workers
-        self._executor = ThreadPoolExecutor(max_workers=max_workers)
+        self._executor = get_shared_executor_service()
 
         # 统计信息
         self._metrics = VectorMetrics(

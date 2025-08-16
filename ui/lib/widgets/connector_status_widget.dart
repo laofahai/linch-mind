@@ -9,12 +9,14 @@ class ConnectorStatusWidget extends ConsumerStatefulWidget {
   final VoidCallback? onRefresh;
   final VoidCallback? onRestart;
   final VoidCallback? onConfigure;
+  final Function(bool)? onEnabledChanged;
 
   const ConnectorStatusWidget({
     required this.connector,
     this.onRefresh,
     this.onRestart,
     this.onConfigure,
+    this.onEnabledChanged,
     super.key,
   });
 
@@ -53,32 +55,13 @@ class _ConnectorStatusWidgetState extends ConsumerState<ConnectorStatusWidget> {
     return connector?.lastError;
   }
 
-  // 适配器方法：获取运行时间
-  Duration? get _uptime {
+  // 适配器方法：获取enabled状态
+  bool get _enabled {
     final connector = widget.connector;
     if (connector is ConnectorInfo) {
-      // 使用 ConnectorInfo 的扩展方法获取 uptime
-      return connector.uptime;
+      return connector.enabled;
     }
-    return null;
-  }
-
-  // 适配器方法：获取数据计数
-  int? get _dataCount {
-    final connector = widget.connector;
-    if (connector is ConnectorInfo) {
-      return connector.dataCount;
-    }
-    return connector?.dataCount;
-  }
-
-  // 适配器方法：获取最后更新时间
-  DateTime? get _lastUpdate {
-    final connector = widget.connector;
-    if (connector is ConnectorInfo) {
-      return connector.updatedAt;
-    }
-    return connector?.lastUpdate;
+    return connector?.enabled ?? true;
   }
 
 
@@ -91,33 +74,40 @@ class _ConnectorStatusWidgetState extends ConsumerState<ConnectorStatusWidget> {
       elevation: 2,
       margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       child: Padding(
-        padding: const EdgeInsets.all(10),
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
+        padding: const EdgeInsets.all(8),
+        child: LayoutBuilder(
+          builder: (context, constraints) => SingleChildScrollView(
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                minHeight: constraints.maxHeight,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
               // 连接器名称和状态指示器
               Row(
                 children: [
                   // 状态指示器
                   Container(
-                    width: 12,
-                    height: 12,
+                    width: 10,
+                    height: 10,
                     decoration: BoxDecoration(
                       color: statusInfo.color,
                       shape: BoxShape.circle,
                     ),
                   ),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: 8),
 
                   // 连接器名称
                   Expanded(
                     child: Text(
                       _connectorName,
-                      style: theme.textTheme.titleMedium?.copyWith(
+                      style: theme.textTheme.titleSmall?.copyWith(
                         fontWeight: FontWeight.w600,
+                        fontSize: 13,
                       ),
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
 
@@ -126,13 +116,13 @@ class _ConnectorStatusWidgetState extends ConsumerState<ConnectorStatusWidget> {
                 ],
               ),
 
-              const SizedBox(height: 6),
+              const SizedBox(height: 4),
 
               // 状态描述
               Row(
                 children: [
                   Icon(statusInfo.icon,
-                      size: 14, color: statusInfo.color),
+                      size: 12, color: statusInfo.color),
                   const SizedBox(width: 4),
                   Expanded(
                     child: Text(
@@ -140,16 +130,16 @@ class _ConnectorStatusWidgetState extends ConsumerState<ConnectorStatusWidget> {
                       style: theme.textTheme.bodySmall?.copyWith(
                         color: statusInfo.color,
                         fontWeight: FontWeight.w500,
-                        fontSize: 12,
+                        fontSize: 11,
                       ),
                     ),
                   ),
                 ],
               ),
 
-              // 统计信息
+              // Enabled开关
               const SizedBox(height: 6),
-              _buildStatsRow(context),
+              _buildEnabledSwitch(context),
 
               // 错误信息（如果有）
               if (_connectorStatus == ConnectorState.error &&
@@ -157,7 +147,9 @@ class _ConnectorStatusWidgetState extends ConsumerState<ConnectorStatusWidget> {
                 const SizedBox(height: 4),
                 _buildCompactErrorInfo(context),
               ],
-            ],
+                ],
+              ),
+            ),
           ),
         ),
       ),
@@ -210,69 +202,31 @@ class _ConnectorStatusWidgetState extends ConsumerState<ConnectorStatusWidget> {
     );
   }
 
-  Widget _buildStatsRow(BuildContext context) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-      children: [
-        Expanded(
-          child: _buildStatItem(
-            context,
-            '运行时间',
-            _formatDuration(_uptime),
-            Icons.schedule,
-          ),
-        ),
-        Expanded(
-          child: _buildStatItem(
-            context,
-            '数据条目',
-            _dataCount?.toString() ?? '0',
-            Icons.data_usage,
-          ),
-        ),
-        Expanded(
-          child: _buildStatItem(
-            context,
-            '最后更新',
-            _formatLastUpdate(_lastUpdate),
-            Icons.update,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildStatItem(
-    BuildContext context,
-    String label,
-    String value,
-    IconData icon,
-  ) {
+  Widget _buildEnabledSwitch(BuildContext context) {
     final theme = Theme.of(context);
-
-    return Column(
-      mainAxisSize: MainAxisSize.min,
+    
+    return Row(
       children: [
-        Icon(icon, size: 12, color: theme.colorScheme.onSurfaceVariant),
-        const SizedBox(height: 2),
-        Text(
-          value,
-          style: theme.textTheme.bodySmall?.copyWith(
-            fontWeight: FontWeight.w600,
-            color: theme.colorScheme.onSurface,
-            fontSize: 10,
-          ),
-          overflow: TextOverflow.ellipsis,
-          maxLines: 1,
+        Icon(
+          Icons.power_settings_new,
+          size: 14,
+          color: theme.colorScheme.primary,
         ),
-        Text(
-          label,
-          style: theme.textTheme.bodySmall?.copyWith(
-            fontSize: 8,
-            color: theme.colorScheme.onSurfaceVariant,
+        const SizedBox(width: 6),
+        Expanded(
+          child: Text(
+            '启用连接器',
+            style: theme.textTheme.bodySmall?.copyWith(
+              fontWeight: FontWeight.w500,
+              fontSize: 11,
+            ),
+            overflow: TextOverflow.ellipsis,
           ),
-          overflow: TextOverflow.ellipsis,
-          maxLines: 1,
+        ),
+        Switch(
+          value: _enabled,
+          onChanged: widget.onEnabledChanged,
+          materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
         ),
       ],
     );
@@ -370,36 +324,6 @@ class _ConnectorStatusWidgetState extends ConsumerState<ConnectorStatusWidget> {
     }
   }
 
-  String _formatDuration(Duration? duration) {
-    if (duration == null) return '0s';
-
-    if (duration.inDays > 0) {
-      return '${duration.inDays}d ${duration.inHours % 24}h';
-    } else if (duration.inHours > 0) {
-      return '${duration.inHours}h ${duration.inMinutes % 60}m';
-    } else if (duration.inMinutes > 0) {
-      return '${duration.inMinutes}m ${duration.inSeconds % 60}s';
-    } else {
-      return '${duration.inSeconds}s';
-    }
-  }
-
-  String _formatLastUpdate(DateTime? lastUpdate) {
-    if (lastUpdate == null) return '从未';
-
-    final now = DateTime.now();
-    final diff = now.difference(lastUpdate);
-
-    if (diff.inDays > 0) {
-      return '${diff.inDays}天前';
-    } else if (diff.inHours > 0) {
-      return '${diff.inHours}小时前';
-    } else if (diff.inMinutes > 0) {
-      return '${diff.inMinutes}分钟前';
-    } else {
-      return '刚刚';
-    }
-  }
 }
 
 class _StatusInfo {
