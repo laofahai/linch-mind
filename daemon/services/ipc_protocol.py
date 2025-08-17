@@ -4,11 +4,92 @@
 """
 
 import json
+import logging
+import re
 import uuid
 from dataclasses import asdict, dataclass
 from datetime import datetime
 from enum import Enum
 from typing import Any, Dict, Optional, Union
+
+logger = logging.getLogger(__name__)
+
+
+def _clean_json_string(json_str: str) -> str:
+    """
+    清理JSON字符串中的控制字符和非法字符
+    """
+    if not json_str:
+        return json_str
+    
+    # 移除控制字符（保留常见的空白字符）
+    cleaned = ""
+    for char in json_str:
+        char_code = ord(char)
+        if char_code < 32:
+            if char in ['\t', '\n', '\r']:
+                cleaned += ' '  # 将tab、换行、回车替换为空格
+            # 其他控制字符直接移除
+        elif char_code == 127 or (128 <= char_code <= 159):
+            # 删除DEL字符和扩展控制字符
+            pass
+        else:
+            cleaned += char
+    
+    # 修复常见的JSON格式问题
+    # 移除重复的空格
+    cleaned = re.sub(r'\s+', ' ', cleaned)
+    
+    return cleaned.strip()
+
+
+def _clean_string_value(value: str) -> str:
+    """
+    清理字符串值中的控制字符
+    """
+    if not isinstance(value, str):
+        return value
+    
+    # 移除控制字符（保留常见的空白字符）
+    cleaned = ""
+    for char in value:
+        char_code = ord(char)
+        if char_code < 32:
+            if char in ['\t', '\n', '\r']:
+                cleaned += ' '  # 将tab、换行、回车替换为空格
+            # 其他控制字符直接移除
+        elif char_code == 127 or (128 <= char_code <= 159):
+            # 删除DEL字符和扩展控制字符
+            pass
+        else:
+            cleaned += char
+    
+    return cleaned
+
+
+def _validate_json_structure(data: Any) -> Any:
+    """
+    验证和清理JSON数据结构
+    """
+    if isinstance(data, dict):
+        cleaned_data = {}
+        for key, value in data.items():
+            # 清理键名
+            if isinstance(key, str):
+                clean_key = _clean_string_value(key)
+            else:
+                clean_key = str(key)
+            
+            # 递归清理值
+            clean_value = _validate_json_structure(value)
+            cleaned_data[clean_key] = clean_value
+        return cleaned_data
+    elif isinstance(data, list):
+        return [_validate_json_structure(item) for item in data]
+    elif isinstance(data, str):
+        return _clean_string_value(data)
+    else:
+        return data
 
 
 class IPCErrorCode(Enum):
@@ -70,8 +151,22 @@ class IPCMessage:
     @classmethod
     def from_json(cls, json_str: str) -> "IPCMessage":
         """从JSON字符串反序列化"""
-        data = json.loads(json_str)
-        return cls(**data)
+        try:
+            data = json.loads(json_str)
+            return cls(**data)
+        except json.JSONDecodeError as e:
+            logger.error(f"JSON解析失败: {e}")
+            logger.error(f"原始JSON字符串: {repr(json_str)}")
+            # 尝试清理和修复JSON字符串
+            cleaned_str = _clean_json_string(json_str)
+            if cleaned_str != json_str:
+                logger.info("尝试使用清理后的JSON字符串重新解析")
+                try:
+                    data = json.loads(cleaned_str)
+                    return cls(**data)
+                except json.JSONDecodeError:
+                    logger.error("清理后的JSON字符串仍然解析失败")
+            raise
 
 
 @dataclass
@@ -218,7 +313,25 @@ class IPCResponse:
     @classmethod
     def from_json(cls, json_str: str) -> "IPCResponse":
         """从JSON字符串创建响应"""
-        return cls.from_dict(json.loads(json_str))
+        try:
+            data = json.loads(json_str)
+            # 验证和清理数据结构
+            cleaned_data = _validate_json_structure(data)
+            return cls.from_dict(cleaned_data)
+        except json.JSONDecodeError as e:
+            logger.error(f"IPCResponse JSON解析失败: {e}")
+            logger.error(f"原始JSON字符串: {repr(json_str)}")
+            # 尝试清理和修复JSON字符串
+            cleaned_str = _clean_json_string(json_str)
+            if cleaned_str != json_str:
+                logger.info("尝试使用清理后的JSON字符串重新解析")
+                try:
+                    data = json.loads(cleaned_str)
+                    cleaned_data = _validate_json_structure(data)
+                    return cls.from_dict(cleaned_data)
+                except json.JSONDecodeError:
+                    logger.error("清理后的JSON字符串仍然解析失败")
+            raise
 
     @classmethod
     def from_processed_error(
@@ -322,7 +435,25 @@ class IPCRequest:
     @classmethod
     def from_json(cls, json_str: str) -> "IPCRequest":
         """从JSON字符串创建请求"""
-        return cls.from_dict(json.loads(json_str))
+        try:
+            data = json.loads(json_str)
+            # 验证和清理数据结构
+            cleaned_data = _validate_json_structure(data)
+            return cls.from_dict(cleaned_data)
+        except json.JSONDecodeError as e:
+            logger.error(f"IPCRequest JSON解析失败: {e}")
+            logger.error(f"原始JSON字符串: {repr(json_str)}")
+            # 尝试清理和修复JSON字符串
+            cleaned_str = _clean_json_string(json_str)
+            if cleaned_str != json_str:
+                logger.info("尝试使用清理后的JSON字符串重新解析")
+                try:
+                    data = json.loads(cleaned_str)
+                    cleaned_data = _validate_json_structure(data)
+                    return cls.from_dict(cleaned_data)
+                except json.JSONDecodeError:
+                    logger.error("清理后的JSON字符串仍然解析失败")
+            raise
 
 
 # 常用的响应工厂函数

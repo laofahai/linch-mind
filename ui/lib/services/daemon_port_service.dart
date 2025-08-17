@@ -56,40 +56,60 @@ class DaemonPortService {
     }
 
     try {
-      final socketFile = await _getSocketFile();
-      print('[DaemonPortService] Socket file path: ${socketFile?.path}');
-      if (socketFile == null || !await socketFile.exists()) {
-        print('[DaemonPortService] Socket文件不存在');
-        return null;
+      // 多次尝试读取socket文件，因为daemon可能正在重启
+      for (int attempt = 0; attempt < 3; attempt++) {
+        final socketFile = await _getSocketFile();
+        print('[DaemonPortService] Socket file path: ${socketFile?.path} (attempt ${attempt + 1})');
+        if (socketFile == null || !await socketFile.exists()) {
+          if (attempt < 2) {
+            print('[DaemonPortService] Socket文件不存在，等待daemon写入...');
+            await Future.delayed(Duration(milliseconds: 500));
+            continue;
+          }
+          print('[DaemonPortService] Socket文件不存在');
+          return null;
+        }
+
+        // 读取并解析socket文件
+        final daemonInfo = await _readSocketFile(socketFile);
+        print('[DaemonPortService] Parsed daemon info: $daemonInfo');
+        if (daemonInfo == null) {
+          if (attempt < 2) {
+            // 文件可能刚被daemon重写，稍等后重试
+            print('[DaemonPortService] Socket信息无效，可能daemon正在重启，稍后重试...');
+            await Future.delayed(Duration(milliseconds: 500));
+            continue;
+          }
+          return null;
+        }
+
+        // 测试连接性并更新缓存
+        final isAccessible = await _testDaemonConnection(daemonInfo);
+        print(
+            '[DaemonPortService] Connection test result: isAccessible=$isAccessible');
+        final accessibleDaemonInfo = DaemonInfo(
+          pid: daemonInfo.pid,
+          startedAt: daemonInfo.startedAt,
+          socketPath: daemonInfo.socketPath,
+          socketType: daemonInfo.socketType,
+          isAccessible: isAccessible,
+        );
+
+        if (isAccessible) {
+          _cachedDaemonInfo = accessibleDaemonInfo;
+          print('[DaemonPortService] 发现可访问的IPC daemon (PID: ${daemonInfo.pid})');
+          return accessibleDaemonInfo;
+        } else if (attempt < 2) {
+          print('[DaemonPortService] IPC daemon (PID: ${daemonInfo.pid}) 不可访问，可能正在启动中...');
+          await Future.delayed(Duration(milliseconds: 500));
+          continue;
+        } else {
+          print('[DaemonPortService] IPC daemon (PID: ${daemonInfo.pid}) 不可访问');
+          return accessibleDaemonInfo;
+        }
       }
-
-      // 读取并解析socket文件
-      final daemonInfo = await _readSocketFile(socketFile);
-      print('[DaemonPortService] Parsed daemon info: $daemonInfo');
-      if (daemonInfo == null) {
-        return null;
-      }
-
-      // 测试连接性并更新缓存
-      final isAccessible = await _testDaemonConnection(daemonInfo);
-      print(
-          '[DaemonPortService] Connection test result: isAccessible=$isAccessible');
-      final accessibleDaemonInfo = DaemonInfo(
-        pid: daemonInfo.pid,
-        startedAt: daemonInfo.startedAt,
-        socketPath: daemonInfo.socketPath,
-        socketType: daemonInfo.socketType,
-        isAccessible: isAccessible,
-      );
-
-      if (isAccessible) {
-        _cachedDaemonInfo = accessibleDaemonInfo;
-        print('[DaemonPortService] 发现可访问的IPC daemon (PID: ${daemonInfo.pid})');
-      } else {
-        print('[DaemonPortService] IPC daemon (PID: ${daemonInfo.pid}) 不可访问');
-      }
-
-      return accessibleDaemonInfo;
+      // 不应该到达这里，但为了安全返回null
+      return null;
     } catch (e) {
       print('[DaemonPortService] 发现daemon时出错: $e');
       return null;
@@ -141,8 +161,9 @@ class DaemonPortService {
 
       // 验证进程是否仍在运行
       if (!await _verifyDaemonProcess(pid)) {
-        print('[DaemonPortService] Daemon进程 $pid 未运行，清理无效的socket文件');
-        await socketFile.delete();
+        print('[DaemonPortService] Daemon进程 $pid 未运行，socket信息可能已过期');
+        // 不要删除文件，daemon可能已经重启并写入了新的信息
+        // 返回null让调用者知道需要重新发现
         return null;
       }
 

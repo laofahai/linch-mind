@@ -181,7 +181,45 @@ class IPCServer:
 
                 # 读取完整消息
                 message_data = await reader.readexactly(message_length)
-                message_str = message_data.decode("utf-8")
+                
+                # 增强的UTF-8解码，具备错误恢复能力
+                try:
+                    message_str = message_data.decode("utf-8")
+                except UnicodeDecodeError as decode_error:
+                    # 尝试使用错误恢复策略
+                    logger.warning(f"IPC消息UTF-8解码失败: {decode_error}")
+                    logger.debug(f"问题数据位置: {decode_error.start}-{decode_error.end}")
+                    
+                    # 策略1: 尝试使用错误替换模式解码
+                    try:
+                        message_str = message_data.decode("utf-8", errors="replace")
+                        logger.info("✅ 使用错误替换模式成功解码消息")
+                    except Exception as recovery_error:
+                        # 策略2: 尝试Latin-1解码后重新编码为UTF-8
+                        try:
+                            temp_str = message_data.decode("latin-1")
+                            message_str = temp_str.encode("latin-1").decode("utf-8", errors="replace")
+                            logger.info("✅ 使用Latin-1转换成功解码消息")
+                        except Exception as final_error:
+                            # 最终失败，记录详细信息并跳过
+                            logger.error(f"所有解码策略失败: {final_error}")
+                            logger.debug(f"问题字节: {message_data[max(0, decode_error.start-5):decode_error.end+5]}")
+                            
+                            # 发送明确的编码错误响应
+                            from .ipc_protocol import IPCErrorCode, IPCResponse
+                            decode_error_response = IPCResponse.error_response(
+                                IPCErrorCode.INVALID_REQUEST,
+                                "Message contains invalid UTF-8 encoding - all recovery strategies failed",
+                                {
+                                    "decode_error": str(decode_error), 
+                                    "error_position": f"{decode_error.start}-{decode_error.end}",
+                                    "message_length": message_length,
+                                    "recovery_attempted": ["utf-8-replace", "latin-1-conversion"],
+                                    "suggestion": "请检查连接器发送的数据编码"
+                                }
+                            )
+                            await self._send_response(writer, decode_error_response.to_dict())
+                            continue
 
                 # 解析IPC消息
                 try:
@@ -340,8 +378,15 @@ class IPCServer:
 
         except asyncio.IncompleteReadError:
             logger.debug(f"IPC客户端断开连接: {client_addr}")
+        except UnicodeDecodeError as e:
+            logger.error(f"IPC连接UTF-8解码错误，可能是二进制数据污染: {e}")
+            # 记录详细信息用于调试
+            logger.debug(f"解码错误详情: position={e.start}-{e.end}, object={e.object[:100] if len(e.object) > 100 else e.object}")
         except Exception as e:
             logger.error(f"IPC连接处理出错: {e}")
+            # 记录异常类型和详细堆栈信息用于调试
+            import traceback
+            logger.debug(f"连接异常详细信息: {traceback.format_exc()}")
         finally:
             # 清理连接
             self.clients.discard(writer)

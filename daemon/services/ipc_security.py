@@ -145,46 +145,60 @@ class RateLimiter:
         self.client_requests: Dict[int, deque] = defaultdict(deque)
         self.client_burst_count: Dict[int, int] = defaultdict(int)
         self.burst_reset_time: Dict[int, float] = defaultdict(float)
-        # 添加路径级别的限流豁免
-        self.exempt_paths = {
-            "/connector-config/",  # 配置相关路径需要更高的限制
-            "/webview-config/",
-            "/connector-lifecycle/",
+        # 智能限流策略 - 根据路径和客户端类型差异化限制
+        self.path_limits = {
+            "/events/submit": {"burst": 1000, "per_minute": 5000},  # 单事件提交适度限制
+            "/events/submit_batch": {"burst": 50, "per_minute": 200},  # 批量提交严格限制  
+            "/connector-config/": {"burst": 100, "per_minute": 300},
+            "/webview-config/": {"burst": 100, "per_minute": 300},
+            "/connector-lifecycle/": {"burst": 200, "per_minute": 600},
+        }
+        # 连接器可信度分级限制 - 基于连接器类型而非具体ID
+        # 注意: 将来应该从连接器元数据或配置文件动态获取
+        self.connector_trust_levels = {
+            # 使用通用分类，而非具体连接器ID
+            "local_system": {"multiplier": 2.0, "trusted": True},    # 本地系统连接器可信度高
+            "user_interaction": {"multiplier": 1.5, "trusted": True}, # 用户交互连接器中等可信
+            "network": {"multiplier": 1.0, "trusted": False},        # 网络连接器需谨慎
+            "unknown": {"multiplier": 0.5, "trusted": False},        # 未知连接器严格限制
         }
         # 记录客户端行为模式
         self.client_patterns: Dict[int, str] = {}
 
     def is_allowed(self, client_pid: int, path: Optional[str] = None) -> bool:
-        """检查请求是否被允许，支持路径级别的豁免"""
+        """智能限流检查 - 根据路径和客户端类型动态调整限制"""
         now = time.time()
 
-        # 检查是否是豁免路径
-        is_exempt = False
+        # 获取路径专用限制
+        path_config = None
         if path:
-            for exempt_path in self.exempt_paths:
-                if path.startswith(exempt_path):
-                    is_exempt = True
+            for configured_path, config in self.path_limits.items():
+                if path.startswith(configured_path):
+                    path_config = config
                     break
 
-        # 豁免路径使用更宽松的限制
-        burst_limit = self.max_burst * 3 if is_exempt else self.max_burst
-        minute_limit = (
-            self.max_requests_per_minute * 3
-            if is_exempt
-            else self.max_requests_per_minute
-        )
+        # 使用路径专用限制或默认限制
+        burst_limit = path_config["burst"] if path_config else self.max_burst
+        minute_limit = path_config["per_minute"] if path_config else self.max_requests_per_minute
 
-        # 检查突发限制 - 使用更短的重置时间窗口
-        reset_interval = 5 if is_exempt else 10  # 豁免路径使用更短的重置时间
+        # 根据客户端类型调整限制 (TODO: 需要识别连接器类型)
+        # 当前使用默认行为，未来可基于进程名或其他方式识别连接器类型
+
+        # 检查突发限制 - 智能重置时间窗口
+        reset_interval = 3 if path_config else 10  # 配置路径使用更短重置时间
         if now - self.burst_reset_time[client_pid] > reset_interval:
             self.client_burst_count[client_pid] = 0
             self.burst_reset_time[client_pid] = now
 
         if self.client_burst_count[client_pid] >= burst_limit:
-            # 只在非豁免路径时记录警告
-            if not is_exempt:
+            # 智能日志记录 - 区分路径类型
+            if path_config:
                 logger.debug(
-                    f"IPC客户端 {client_pid} 触发突发限制 (已发送 {self.client_burst_count[client_pid]} 请求, 路径: {path})"
+                    f"IPC客户端 {client_pid} 触发路径限制 [{path}]: {self.client_burst_count[client_pid]}/{burst_limit}"
+                )
+            else:
+                logger.warning(
+                    f"IPC客户端 {client_pid} 触发通用突发限制: {self.client_burst_count[client_pid]}/{burst_limit}, 路径: {path}"
                 )
             return False
 
@@ -196,8 +210,11 @@ class RateLimiter:
             client_queue.popleft()
 
         if len(client_queue) >= minute_limit:
-            if not is_exempt:
-                logger.warning(f"IPC客户端 {client_pid} 触发频率限制 (路径: {path})")
+            # 智能日志记录 - 区分路径类型
+            if path_config:
+                logger.debug(f"IPC客户端 {client_pid} 触发路径频率限制 [{path}]: {len(client_queue)}/{minute_limit}")
+            else:
+                logger.warning(f"IPC客户端 {client_pid} 触发通用频率限制: {len(client_queue)}/{minute_limit}, 路径: {path}")
             return False
 
         # 记录请求
@@ -308,7 +325,7 @@ class IPCSecurityManager:
             logger.error(f"IPC请求验证失败: 连接 {connection_id} 未认证")
             return False
 
-        # 检查频率限制 - 传递路径参数以支持豁免
+        # 检查频率限制 - 传递路径参数以支持智能限流
         if not self.rate_limiter.is_allowed(context.client_pid, path):
             self._log_security_event(
                 {

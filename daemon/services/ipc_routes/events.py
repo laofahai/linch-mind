@@ -10,6 +10,7 @@ from datetime import datetime
 from ..ipc_protocol import IPCRequest, IPCResponse
 from ..ipc_router import IPCRouter
 from .generic_event_storage import get_generic_event_storage
+from .event_validator import get_event_validator, ValidationSeverity
 
 logger = logging.getLogger(__name__)
 
@@ -42,16 +43,38 @@ def create_events_router() -> IPCRouter:
             # 验证必需字段（通用字段）
             required_fields = ["connector_id", "event_type", "event_data", "timestamp"]
             for field in required_fields:
-                if field not in data:
+                if field not in data or data[field] is None:
                     return IPCResponse.error_response(
-                        "INVALID_REQUEST", f"Missing required field: {field}"
+                        "INVALID_REQUEST", f"Missing or null required field: {field}"
                     )
-
+            
             connector_id = data["connector_id"]
-            event_type = data["event_type"]
+            event_type = data["event_type"] 
             event_data = data["event_data"]
             timestamp = data["timestamp"]
             metadata = data.get("metadata", {})
+            
+            # 🛡️ 深度验证机制：使用专用验证器
+            validator = get_event_validator()
+            validation_result = validator.validate_event(
+                connector_id, event_type, event_data, timestamp, metadata
+            )
+            
+            if not validation_result.is_valid:
+                if validation_result.severity == ValidationSeverity.ERROR:
+                    return IPCResponse.error_response(
+                        validation_result.error_code, 
+                        f"{validation_result.message}. Suggestions: {'; '.join(validation_result.suggestions)}"
+                    )
+                elif validation_result.severity == ValidationSeverity.WARNING:
+                    logger.warning(f"事件验证警告: {validation_result.message} - {connector_id}/{event_type}")
+                # CRITICAL级别的错误也拒绝处理
+                elif validation_result.severity == ValidationSeverity.CRITICAL:
+                    logger.error(f"严重验证错误: {validation_result.message} - {connector_id}/{event_type}")
+                    return IPCResponse.error_response(
+                        validation_result.error_code,
+                        f"Critical validation error: {validation_result.message}"
+                    )
 
             logger.info(
                 f"📡 Processing generic event from {connector_id}: {event_type}"

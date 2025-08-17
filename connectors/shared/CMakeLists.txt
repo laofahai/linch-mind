@@ -29,6 +29,7 @@ set(SOURCES
     src/utils.cpp
     src/connector_status.cpp
     src/base_connector.cpp
+    src/file_filter.cpp
 )
 
 # 创建静态库

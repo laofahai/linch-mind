@@ -93,6 +93,9 @@ class OllamaService:
             memory_usage_mb=0.0,
             last_updated=datetime.utcnow(),
         )
+        
+        # 服务可用性状态
+        self._is_available = False
 
     async def initialize(self) -> bool:
         """初始化Ollama服务"""
@@ -115,11 +118,15 @@ class OllamaService:
             # 预热模型
             await self._warmup_models()
             
+            # 标记服务为可用
+            self._is_available = True
+            
             logger.info(f"Ollama服务初始化完成 - LLM: {self.llm_model}, Embedding: {self.embedding_model}")
             return True
             
         except Exception as e:
             logger.error(f"Ollama服务初始化失败: {e}")
+            self._is_available = False
             return False
 
     async def close(self):
@@ -127,10 +134,32 @@ class OllamaService:
         try:
             if self._session:
                 await self._session.close()
+            self._is_available = False
             logger.info("Ollama服务已关闭")
         except Exception as e:
             logger.error(f"关闭Ollama服务失败: {e}")
+            self._is_available = False
 
+    def is_available(self) -> bool:
+        """检查Ollama服务是否可用"""
+        return self._is_available
+    
+    async def health_check(self) -> bool:
+        """健康检查并更新可用性状态"""
+        try:
+            if not self._session:
+                self._is_available = False
+                return False
+            
+            # 检查连接状态
+            is_healthy = await self._check_ollama_connection()
+            self._is_available = is_healthy
+            return is_healthy
+        except Exception as e:
+            logger.error(f"健康检查失败: {e}")
+            self._is_available = False
+            return False
+    
     # === 连接和健康检查 ===
 
     async def _check_ollama_connection(self) -> bool:

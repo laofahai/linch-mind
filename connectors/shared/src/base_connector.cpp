@@ -186,7 +186,18 @@ void BaseConnector::setBatchConfig(std::chrono::milliseconds interval, size_t ma
 
 void BaseConnector::sendEvent(const ConnectorEvent& event) {
     try {
-        auto response = m_client->post("/events/submit", event.toJson().dump());
+        // 🛡️ 防护机制：检查事件有效性
+        if (!event.isValid()) {
+            logInfo("🚫 跳过无效事件 (connectorId: '" + event.connectorId + 
+                   "', eventType: '" + event.eventType + "')");
+            return;
+        }
+        
+        // 使用安全的JSON序列化
+        auto jsonData = event.toJson();
+        std::string safeJsonStr = utils::safeJsonDump(jsonData);
+        
+        auto response = m_client->post("/events/submit", safeJsonStr);
         
         if (response.success) {
             std::lock_guard<std::mutex> lock(m_statsMutex);
@@ -217,11 +228,13 @@ void BaseConnector::sendBatchEvents(const std::vector<ConnectorEvent>& events) {
         }
 
         json request_data = {
-            {"connector_id", m_connectorId},
+            {"connector_id", utils::cleanString(m_connectorId)},
             {"events", batch_data}
         };
 
-        auto response = m_client->post("/events/submit_batch", request_data.dump());
+        // 使用安全的JSON序列化
+        std::string safeJsonStr = utils::safeJsonDump(request_data);
+        auto response = m_client->post("/events/submit_batch", safeJsonStr);
         
         if (response.success) {
             std::lock_guard<std::mutex> lock(m_statsMutex);

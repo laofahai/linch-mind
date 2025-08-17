@@ -76,7 +76,7 @@ windows = "bin/release/linch-mind-filesystem.exe"
 
 # 默认配置值
 [config_default_values]
-watch_directories = ["/tmp/linch_test"]
+watch_directories = ["/Users/laofahai/Documents/linch_test"]  # 根本修复：避开嘈杂的/tmp目录
 recursive_depth = 3  # 减少递归深度，减少监控范围
 max_file_size = 10   # 减小文件大小限制到 10MB
 max_content_length = 10000  # 减小内容长度

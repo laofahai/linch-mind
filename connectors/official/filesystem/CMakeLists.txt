@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-project(linch-mind-filesystem VERSION 0.2.0)
+project(linch-mind-filesystem VERSION 0.3.0)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -20,46 +20,34 @@ if(WIN32)
     set(PLATFORM_LIBS)
     set(PLATFORM_COMPILE_DEFINITIONS WIN32_LEAN_AND_MEAN)
 elseif(APPLE)
-    # macOS需要CoreServices框架用于FSEvents，Foundation用于快速扫描
-    find_library(CORE_SERVICES_FRAMEWORK CoreServices)
+    # macOS只需要基础框架
     find_library(FOUNDATION_FRAMEWORK Foundation)
-    set(PLATFORM_LIBS ${CORE_SERVICES_FRAMEWORK} ${FOUNDATION_FRAMEWORK})
+    set(PLATFORM_LIBS ${FOUNDATION_FRAMEWORK})
     set(PLATFORM_COMPILE_DEFINITIONS)
 else()
-    # Linux需要pthread
+    # Linux基础库
     set(PLATFORM_LIBS pthread)
     set(PLATFORM_COMPILE_DEFINITIONS)
 endif()
 
-# Source files - 使用零扫描索引架构 + 进度管理
+# 简化的源文件列表 - 只保留核心功能
 set(SOURCES
     src/main.cpp
-    src/native_monitor.hpp
-    src/monitor_factory.cpp
-    src/filesystem_monitor_adapter.cpp
     src/filesystem_connector.cpp
-    src/file_index_provider.cpp
-    src/zero_scan/zero_scan_factory.cpp
-    src/progress/scan_progress_manager.cpp
+    src/file_index_query.cpp
 )
 
-# 平台特定源文件
+# 平台特定的文件索引查询器
 if(APPLE)
     list(APPEND SOURCES
-        src/platform/macos_fsevents_monitor.cpp
-        src/platform/macos_file_index_provider.cpp
-        src/zero_scan/platform/macos/macos_zero_scan_provider.mm
+        src/macos_mdquery_provider.cpp
     )
 elseif(UNIX)
-    list(APPEND SOURCES
-        src/platform/linux_inotify_monitor.cpp
-        src/platform/linux_file_index_provider.cpp
-    )
+    # TODO: 添加Linux locate提供者
+    # list(APPEND SOURCES src/linux_locate_provider.cpp)
 elseif(WIN32)
-    list(APPEND SOURCES
-        src/platform/windows_rdcw_monitor.cpp
-        src/platform/windows_file_index_provider.cpp
-    )
+    # TODO: 添加Windows文件搜索提供者
+    # list(APPEND SOURCES src/windows_search_provider.cpp)
 endif()
 
 # Create executable
@@ -68,9 +56,6 @@ add_executable(linch-mind-filesystem ${SOURCES})
 # Include directories
 target_include_directories(linch-mind-filesystem PRIVATE
     src
-    src/platform
-    src/zero_scan
-    src/progress
     ../../shared/include  # shared库头文件
 )
 
@@ -91,13 +76,11 @@ endif()
 
 # Release build optimizations
 if(CMAKE_BUILD_TYPE STREQUAL "Release")
-    # Maximum optimization
     target_compile_options(linch-mind-filesystem PRIVATE
         -O3 -DNDEBUG
         -ffunction-sections -fdata-sections
     )
     
-    # Link-time optimization and dead code elimination
     if(UNIX AND NOT APPLE)
         target_link_options(linch-mind-filesystem PRIVATE
             -Wl,--gc-sections
@@ -127,7 +110,7 @@ install(TARGETS linch-mind-filesystem
 message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
 message(STATUS "Platform libs: ${PLATFORM_LIBS}")
 message(STATUS "Using shared library: linch_connector_shared")
-message(STATUS "Architecture: Native Event-Driven (v0.2.0)")
+message(STATUS "Architecture: Simplified Index Query (v0.3.0)")
 
 # Create build info
 configure_file(

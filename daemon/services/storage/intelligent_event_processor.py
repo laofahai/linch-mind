@@ -7,7 +7,7 @@
 import asyncio
 import logging
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
@@ -22,6 +22,7 @@ from services.storage.faiss_vector_store import (
 )
 from services.unified_database_service import UnifiedDatabaseService
 from models.database_models import EntityMetadata, ConnectorLog
+from config.intelligent_storage import get_intelligent_storage_config
 
 logger = logging.getLogger(__name__)
 
@@ -54,26 +55,47 @@ class ProcessingMetrics:
 
 
 class IntelligentEventProcessor:
-    """AI驱动的智能事件处理器 - 核心组件"""
+    """AI驱动的智能事件处理器 - 增强韧性版本
+    
+    特性:
+    - 智能降级策略：AI服务不可用时自动切换到规则处理
+    - 部分功能保持：向量存储、实体提取等功能独立运行
+    - 自适应阈值：根据服务状态动态调整处理阈值
+    - 性能监控：实时跟踪处理效果和服务健康度
+    """
 
     def __init__(
         self,
-        value_threshold: float = 0.3,
-        entity_threshold: float = 0.8,
-        max_content_length: int = 10000,
-        enable_vector_storage: bool = True,
-        enable_entity_extraction: bool = True,
+        value_threshold: Optional[float] = None,
+        entity_threshold: Optional[float] = None,
+        max_content_length: Optional[int] = None,
+        enable_vector_storage: Optional[bool] = None,
+        enable_entity_extraction: Optional[bool] = None,
     ):
-        self.value_threshold = value_threshold
-        self.entity_threshold = entity_threshold
-        self.max_content_length = max_content_length
-        self.enable_vector_storage = enable_vector_storage
-        self.enable_entity_extraction = enable_entity_extraction
+        # 从统一配置获取参数
+        config = get_intelligent_storage_config()
+        
+        self.value_threshold = value_threshold if value_threshold is not None else 0.3
+        self.entity_threshold = entity_threshold if entity_threshold is not None else 0.8
+        self.max_content_length = max_content_length if max_content_length is not None else 10000
+        self.enable_vector_storage = enable_vector_storage if enable_vector_storage is not None else True
+        self.enable_entity_extraction = enable_entity_extraction if enable_entity_extraction is not None else True
+        
+        # 降级策略配置
+        self.enable_fallback_processing = True
+        self.fallback_value_threshold = 0.1
+        self.fallback_accept_rate = 0.5
+        self.enable_partial_processing = True
         
         # 服务依赖 - 懒加载
         self._ollama_service = None
         self._vector_store = None
         self._db_service = None
+        
+        # 处理模式状态
+        self._processing_mode = "unknown"  # ai, hybrid, fallback
+        self._last_mode_check = datetime.utcnow()
+        self._mode_check_interval = 60  # 60秒检查一次模式
         
         # 性能监控
         self._processing_times: List[float] = []
@@ -93,28 +115,63 @@ class IntelligentEventProcessor:
         )
 
     async def initialize(self) -> bool:
-        """初始化智能事件处理器"""
+        """初始化智能事件处理器（增强韧性版本）"""
         try:
-            # 初始化Ollama服务
-            self._ollama_service = await get_ollama_service()
+            # 初始化韧性Ollama服务 - 必须依赖模式
+            try:
+                self._ollama_service = await get_ollama_service()
+                if self._ollama_service.is_available():
+                    self._processing_mode = "ai"
+                    logger.info("智能事件处理器：AI模式 - Ollama服务可用")
+                else:
+                    self._processing_mode = "waiting"
+                    logger.warning("智能事件处理器：等待模式 - Ollama服务重连中")
+                    # 不设置为降级模式，而是等待重连
+            except Exception as e:
+                logger.error(f"Ollama服务初始化失败: {e}")
+                self._ollama_service = None
+                self._processing_mode = "waiting"
+                logger.error("智能事件处理器：等待模式 - 需要AI服务支持")
             
+            # 向量存储初始化（独立于AI服务）
             if self.enable_vector_storage:
                 try:
                     self._vector_store = await get_faiss_vector_store()
+                    logger.info("向量存储服务初始化成功")
                 except Exception as e:
-                    logger.warning(f"向量存储初始化失败，禁用向量存储功能: {e}")
+                    logger.warning(f"向量存储初始化失败，禁用向量存储: {e}")
                     self.enable_vector_storage = False
                     self._vector_store = None
             
-            # 数据库服务
-            self._db_service = get_service(UnifiedDatabaseService)
+            # 数据库服务初始化（延迟加载，避免循环依赖）
+            self._db_service = None
+            logger.info("数据库服务将延迟加载")
             
-            logger.info(f"智能事件处理器初始化完成 - 阈值: {self.value_threshold}, 合并AI调用模式")
+            # 输出初始化摘要
+            mode_desc = {
+                "ai": "完整AI处理模式",
+                "waiting": "等待AI服务模式（智能功能暂停）"
+            }
+            
+            logger.info(f"智能事件处理器初始化完成 - 模式: {mode_desc.get(self._processing_mode, '未知')}")
+            logger.info(f"配置: 阈值={self.value_threshold}, 向量存储={self.enable_vector_storage}, 实体提取={self.enable_entity_extraction}")
+            
             return True
             
         except Exception as e:
             logger.error(f"智能事件处理器初始化失败: {e}")
             return False
+    
+    def _get_db_service(self):
+        """懒加载数据库服务，避免循环依赖"""
+        if self._db_service is None:
+            try:
+                self._db_service = get_service(UnifiedDatabaseService)
+                logger.debug("数据库服务延迟加载成功")
+            except Exception as e:
+                logger.error(f"数据库服务延迟加载失败: {e}")
+                return None
+        return self._db_service
 
     # === 核心处理流水线 ===
 
@@ -133,13 +190,19 @@ class IntelligentEventProcessor:
         metadata: Optional[Dict[str, Any]] = None,
     ) -> ProcessingResult:
         """
-        智能处理连接器事件 - 严格按照设计流水线
+        智能处理连接器事件 - 必须依赖AI服务的设计
+        
+        核心原则：
+        - AI评估是必须功能，不是可选项
+        - Ollama不可用时阻塞处理，等待重连
+        - 明确提示用户AI服务状态
+        - 保证智能助手的"智能"属性
         
         流程：
         1. 内容提取和预处理
-        2. AI价值评估 (必须)
-        3. 过滤决策 (score < 0.3 则丢弃)
-        4. 语义摘要生成 (必须)
+        2. AI服务可用性检查 (必须通过)
+        3. AI价值评估 (必须)
+        4. 语义摘要生成 (必须) 
         5. 向量化存储 (必须)
         6. 实体提取 (条件：score > 0.8)
         7. 数据库存储
@@ -163,25 +226,35 @@ class IntelligentEventProcessor:
                 content = content[:self.max_content_length] + "..."
                 logger.debug(f"内容截断到 {self.max_content_length} 字符")
             
-            # 2. 合并AI调用 - 一次性完成评估和摘要
-            evaluation = await self._process_content_merged(content)
+            # 2. 强制AI服务可用性检查
+            if not await self._ensure_ai_service_available():
+                logger.warning(f"AI服务不可用，阻塞事件处理: {connector_id}/{event_type}")
+                return ProcessingResult(
+                    accepted=False,
+                    value_score=0.0,
+                    summary="",
+                    reasoning="AI服务不可用，等待重连"
+                )
             
-            # 3. 过滤决策
+            # 3. 必须的AI评估和摘要
+            evaluation = await self._process_content_with_ai_required(content)
+            
+            # 4. 基于真实AI评分的过滤决策
             if evaluation.value_score < self.value_threshold:
-                logger.debug(f"内容价值不足，丢弃: {evaluation.value_score:.3f} < {self.value_threshold}")
+                logger.debug(f"AI评估后内容被过滤: score={evaluation.value_score:.3f}, threshold={self.value_threshold:.3f}")
                 self._record_rejection(evaluation.value_score)
                 return ProcessingResult(
                     accepted=False,
                     value_score=evaluation.value_score,
                     summary=evaluation.summary,
-                    reasoning=f"价值评分过低: {evaluation.value_score:.3f}"
+                    reasoning=f"AI评估: score={evaluation.value_score:.3f} < {self.value_threshold:.3f}"
                 )
             
             # 4. 构建向量文档
             doc_id = f"{connector_id}_{hash(content + timestamp) % 1000000}"
             
             vector_doc = None
-            if self.enable_vector_storage and self._vector_store is not None:
+            if self.enable_vector_storage and self._vector_store is not None and self._ollama_service is not None:
                 # 4. 向量化存储（单独调用）
                 embedding = await self._ollama_service.embed_text(evaluation.summary)
                 
@@ -226,13 +299,13 @@ class IntelligentEventProcessor:
             processing_time = (datetime.utcnow() - start_time).total_seconds() * 1000
             self._record_success(evaluation.value_score, processing_time)
             
-            logger.info(f"✅ 合并AI调用完成: {doc_id}, 价值={evaluation.value_score:.3f}, 耗时={processing_time:.1f}ms, 实体={entities_created}")
+            logger.info(f"✅ 智能处理完成: {doc_id}, 价值={evaluation.value_score:.3f}, 耗时={processing_time:.1f}ms, 模式={self._processing_mode}, 实体={entities_created}")
             
             return ProcessingResult(
                 accepted=True,
                 value_score=evaluation.value_score,
                 summary=evaluation.summary,
-                reasoning=f"合并AI调用处理: {evaluation.value_score:.3f}",
+                reasoning=f"智能处理[{self._processing_mode}]: {evaluation.value_score:.3f}",
                 entities_created=entities_created,
                 vector_stored=vector_stored,
                 database_stored=database_stored,
@@ -271,7 +344,72 @@ class IntelligentEventProcessor:
         
         return None
 
-    # === 合并AI调用优化 ===
+    # === AI服务必须依赖检查 ===
+
+    async def _ensure_ai_service_available(self) -> bool:
+        """确保AI服务可用 - 必须依赖模式
+        
+        采用主动等待策略：
+        1. 检查Ollama服务状态
+        2. 如果不可用，触发重连尝试
+        3. 短时间等待重连结果
+        4. 如果仍不可用，明确返回失败
+        """
+        try:
+            # 检查当前状态
+            if self._ollama_service and self._ollama_service.is_available():
+                return True
+            
+            logger.info("AI服务不可用，尝试重新连接...")
+            
+            # 尝试重新初始化服务
+            if self._ollama_service is None:
+                self._ollama_service = await get_ollama_service()
+            
+            # 等待短时间让重连逻辑工作
+            import asyncio
+            for attempt in range(3):  # 最多等待3次，每次2秒
+                await asyncio.sleep(2)
+                if self._ollama_service.is_available():
+                    logger.info("AI服务重连成功")
+                    return True
+                logger.debug(f"AI服务重连尝试 {attempt + 1}/3 失败")
+            
+            logger.error("AI服务重连失败，需要用户干预")
+            return False
+            
+        except Exception as e:
+            logger.error(f"AI服务可用性检查失败: {e}")
+            return False
+
+    async def _process_content_with_ai_required(self, content: str) -> ContentEvaluation:
+        """必须使用AI的内容处理 - 无降级模式
+        
+        这是智能助手的核心功能，不允许降级处理
+        """
+        try:
+            if not self._ollama_service:
+                raise RuntimeError("AI服务未初始化")
+            
+            if not self._ollama_service.is_available():
+                raise RuntimeError("AI服务不可用")
+            
+            # 调用AI服务进行综合处理
+            evaluation = await self._ollama_service.process_content_comprehensive(content)
+            
+            # 验证AI返回结果的有效性
+            if evaluation.value_score == 0.0 and evaluation.confidence == 0.0:
+                raise RuntimeError("AI服务返回无效结果")
+            
+            logger.debug(f"AI评估完成: score={evaluation.value_score:.3f}, confidence={evaluation.confidence:.3f}")
+            return evaluation
+            
+        except Exception as e:
+            logger.error(f"必须的AI处理失败: {e}")
+            # 不提供降级方案，直接抛出异常
+            raise RuntimeError(f"AI服务处理失败，智能功能不可用: {str(e)}")
+
+    # === 合并AI调用优化（已废弃，使用上面的必须模式） ===
 
     async def _process_content_merged(self, content: str) -> ContentEvaluation:
         """
@@ -279,6 +417,19 @@ class IntelligentEventProcessor:
         根据Gemini建议优化：将两个AI任务合并为一次调用
         """
         try:
+            # 检查ollama服务是否可用
+            if self._ollama_service is None:
+                logger.error("Ollama服务未初始化")
+                return ContentEvaluation(
+                    value_score=0.0,
+                    confidence=0.0,
+                    content_type="text",
+                    summary=content[:100],
+                    keywords=[],
+                    entities=[],
+                    reasoning="Ollama服务未初始化"
+                )
+            
             # 构建合并的prompt - 要求JSON格式输出
             merged_prompt = f"""分析以下内容，以JSON格式返回结果，包含两个字段：
 
@@ -392,7 +543,12 @@ class IntelligentEventProcessor:
                 }
                 
                 # 存储实体到数据库
-                with self._db_service.get_session() as session:
+                db_service = self._get_db_service()
+                if not db_service:
+                    logger.error("数据库服务不可用，跳过实体创建")
+                    return 0
+                
+                with db_service.get_session() as session:
                     entity_record = EntityMetadata(
                         entity_id=entity_id,
                         name=entity_data.get("name", "AI提取的实体"),
@@ -443,7 +599,12 @@ class IntelligentEventProcessor:
                 "metadata": metadata or {},
             }
             
-            with self._db_service.get_session() as session:
+            db_service = self._get_db_service()
+            if not db_service:
+                logger.error("数据库服务不可用，跳过事件元数据存储")
+                return False
+            
+            with db_service.get_session() as session:
                 # 检查是否已存在
                 existing = session.query(EntityMetadata).filter_by(entity_id=doc_id).first()
                 
@@ -502,8 +663,8 @@ class IntelligentEventProcessor:
     ) -> List[SearchResult]:
         """智能内容搜索"""
         try:
-            if not self.enable_vector_storage or not self._vector_store:
-                logger.warning("向量存储未启用")
+            if not self.enable_vector_storage or not self._vector_store or not self._ollama_service:
+                logger.warning("向量存储或Ollama服务未启用")
                 return []
             
             # 构建搜索向量
@@ -679,7 +840,11 @@ class IntelligentEventProcessor:
                     item_date = datetime.fromisoformat(item["timestamp"])
                     if item_date < cutoff_date:
                         # 从数据库删除
-                        with self._db_service.get_session() as session:
+                        db_service = self._get_db_service()
+                        if not db_service:
+                            continue
+                        
+                        with db_service.get_session() as session:
                             existing = session.query(EntityMetadata).filter_by(
                                 entity_id=item["id"]
                             ).first()

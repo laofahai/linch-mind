@@ -238,12 +238,15 @@ class DataInsightsService:
                         description = f"智能识别: {', '.join(details)}"
                         activity_type = "智能分析"
                     
+                    # 从数据库中动态获取数据源，而不是硬编码连接器名称
+                    data_source = entity.properties.get('source_type', 'unknown') if entity.properties else 'unknown'
+                    
                     timeline.append({
                         'id': entity.entity_id,
                         'type': activity_type,
                         'description': description,
                         'timestamp': entity.created_at.isoformat(),
-                        'source': 'clipboard_connector',
+                        'source': data_source,
                         'metadata': {
                             'category': content_analysis.get('content_category', 'unknown'),
                             'entities_count': sum([

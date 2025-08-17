@@ -1,8 +1,14 @@
 """
-通用事件存储接口 - 与连接器类型完全无关
-提供连接器无关的事件存储和处理机制，集成内容分析功能和快速索引
+通用事件存储接口 - 真正的连接器无关架构
+
+重构说明 (2025-08-16):
+- 移除了FastIndexStorageService的文件系统特定逻辑
+- 使用UniversalIndexService支持所有连接器类型的快速搜索
+- 保持Everything级别搜索性能，但扩展到任意连接器
+- 集成智能AI处理和语义理解功能
 """
 
+import json
 import logging
 from datetime import datetime
 from typing import Any, Dict, List, Optional
@@ -10,7 +16,7 @@ from typing import Any, Dict, List, Optional
 from core.service_facade import get_service
 from models.database_models import ConnectorLog, EntityMetadata
 from services.unified_database_service import UnifiedDatabaseService
-from services.fast_index_storage_service import FastIndexStorageService
+from services.storage.universal_index_service import get_universal_index_service
 from services.storage.intelligent_event_processor import get_intelligent_event_processor
 
 logger = logging.getLogger(__name__)
@@ -18,14 +24,19 @@ logger = logging.getLogger(__name__)
 
 class GenericEventStorage:
     """
-    通用事件存储 - 与连接器类型完全无关
+    通用事件存储 - 真正的连接器无关架构
 
-    所有连接器使用相同的存储接口，不关心具体的事件内容或格式
+    核心功能：
+    1. 通用索引：支持所有连接器的快速搜索 (文件、URL、邮箱等)
+    2. AI处理：智能内容分析和语义理解
+    3. 传统存储：兜底的数据持久化机制
+    
+    所有连接器使用完全相同的接口，无任何特定逻辑
     """
 
     def __init__(self):
         self._db_service = None
-        self._fast_index_service = None
+        self._universal_index_service = None
         self._intelligent_processor = None
 
     @property
@@ -40,16 +51,15 @@ class GenericEventStorage:
         return self._db_service
     
     @property
-    def fast_index_service(self):
-        """懒加载快速索引服务"""
-        if self._fast_index_service is None:
+    def universal_index_service(self):
+        """懒加载通用索引服务"""
+        if self._universal_index_service is None:
             try:
-                self._fast_index_service = FastIndexStorageService()
-                self._fast_index_service.initialize()
+                self._universal_index_service = get_universal_index_service()
             except Exception as e:
-                logger.warning(f"Fast index service not available: {str(e)}")
+                logger.warning(f"Universal index service not available: {str(e)}")
                 return None
-        return self._fast_index_service
+        return self._universal_index_service
     
     @property
     def intelligent_processor(self):
@@ -63,6 +73,145 @@ class GenericEventStorage:
                 logger.warning(f"Intelligent processor not available: {str(e)}")
                 return None
         return self._intelligent_processor
+    
+    def _should_use_intelligent_processing(
+        self, 
+        connector_id: str, 
+        event_type: str, 
+        event_data: Dict[str, Any]
+    ) -> bool:
+        """
+        判断事件是否应该使用智能处理器
+        
+        原则：
+        1. 基于事件内容特征，而非事件类型枚举
+        2. 检查事件是否包含值得AI分析的文本内容
+        3. 使用启发式规则，避免强耦合连接器
+        """
+        
+        # 策略1: 检查事件数据结构特征
+        if self._is_structured_metadata_event(event_data):
+            # 结构化元数据事件（如文件索引）通常不需要AI分析
+            return self._has_rich_text_content(event_data)
+        
+        # 策略2: 检查是否包含有意义的文本内容
+        if self._has_meaningful_text_content(event_data):
+            return True
+        
+        # 策略3: 基于事件类型的启发式规则
+        return self._apply_heuristic_rules(connector_id, event_type, event_data)
+    
+    def _is_structured_metadata_event(self, event_data: Dict[str, Any]) -> bool:
+        """
+        检查是否为结构化元数据事件
+        
+        特征：
+        - 包含路径、大小、时间戳等结构化字段
+        - 主要用于索引和搜索，而非内容分析
+        """
+        # 元数据字段模式
+        metadata_field_patterns = {
+            "path", "size", "modified_time", "created_time", 
+            "extension", "is_directory", "url", "email", 
+            "phone", "contact_id", "file_id", "item_id"
+        }
+        
+        # 安全检查：确保event_data不为None且为字典类型
+        if event_data is None or not isinstance(event_data, dict):
+            return False
+        
+        # 如果事件数据主要包含元数据字段，则认为是元数据事件
+        data_fields = set(event_data.keys())
+        metadata_fields = data_fields.intersection(metadata_field_patterns)
+        
+        # 如果元数据字段占比超过60%，认为是元数据事件
+        if len(data_fields) > 0:
+            metadata_ratio = len(metadata_fields) / len(data_fields)
+            return metadata_ratio > 0.6
+        
+        return False
+    
+    def _apply_heuristic_rules(
+        self, 
+        connector_id: str, 
+        event_type: str, 
+        event_data: Dict[str, Any]
+    ) -> bool:
+        """
+        应用启发式规则
+        
+        基于事件类型名称的语义判断，避免硬编码连接器类型
+        """
+        # 明确的索引相关事件类型
+        index_keywords = {"indexed", "scan", "progress", "metadata", "catalog"}
+        event_type_lower = event_type.lower()
+        
+        for keyword in index_keywords:
+            if keyword in event_type_lower:
+                return False  # 索引型事件，不需要AI处理
+        
+        # 明确的内容相关事件类型
+        content_keywords = {"content", "text", "message", "document", "note"}
+        
+        for keyword in content_keywords:
+            if keyword in event_type_lower:
+                return True  # 内容型事件，需要AI处理
+        
+        # 默认：如果无法判断，检查是否有文本内容
+        return self._has_minimal_text_content(event_data)
+    
+    def _has_minimal_text_content(self, event_data: Dict[str, Any]) -> bool:
+        """检查是否包含最基本的文本内容（降低阈值）"""
+        # 安全检查：确保event_data不为None且为字典类型
+        if event_data is None or not isinstance(event_data, dict):
+            return False
+            
+        content_fields = ["content", "text", "data", "message", "body", "value"]
+        
+        for field in content_fields:
+            if field in event_data:
+                content = event_data[field]
+                if isinstance(content, str) and len(content.strip()) > 5:  # 降低阈值
+                    return True
+        
+        return False
+    
+    def _has_rich_text_content(self, event_data: Dict[str, Any]) -> bool:
+        """检查索引型事件是否包含丰富的文本内容值得AI分析"""
+        # 安全检查：确保event_data不为None且为字典类型
+        if event_data is None or not isinstance(event_data, dict):
+            return False
+            
+        content_fields = ["content", "text", "description", "summary", "body"]
+        
+        for field in content_fields:
+            if field in event_data:
+                content = event_data[field]
+                if isinstance(content, str) and len(content.strip()) > 50:  # 较高的文本长度阈值
+                    return True
+        return False
+    
+    def _has_meaningful_text_content(self, event_data: Dict[str, Any]) -> bool:
+        """检查事件是否包含有意义的文本内容"""
+        # 安全检查：确保event_data不为None且为字典类型
+        if event_data is None or not isinstance(event_data, dict):
+            return False
+            
+        content_fields = ["content", "text", "data", "message", "body", "value"]
+        
+        for field in content_fields:
+            if field in event_data:
+                content = event_data[field]
+                if isinstance(content, str) and len(content.strip()) > 10:
+                    return True
+        
+        # 检查单字段文本事件
+        if isinstance(event_data, dict) and len(event_data) == 1:
+            value = list(event_data.values())[0]
+            if isinstance(value, str) and len(value.strip()) > 10:
+                return True
+        
+        return False
     
     async def _ensure_intelligent_processor(self):
         """确保智能处理器已初始化"""
@@ -97,31 +246,35 @@ class GenericEventStorage:
             bool: 存储是否成功
         """
         try:
-            # 处理快速索引事件（优先处理，不经过AI）
-            if event_type == "file_indexed" and event_data.get("source") == "fast_indexer":
-                await self._handle_fast_index_event(event_data)
-                return True
+            # 使用通用索引处理所有连接器事件（保持快速搜索能力）
+            await self._handle_universal_index_event(
+                connector_id, event_type, event_data, timestamp, metadata
+            )
 
-            # 尝试使用智能处理器（AI驱动）
-            processor = await self._ensure_intelligent_processor()
-            if processor:
-                try:
-                    result = await processor.process_connector_event(
-                        connector_id, event_type, event_data, timestamp, metadata
-                    )
-                    
-                    if result.accepted:
-                        logger.info(f"🚀 优化处理成功: {connector_id}/{event_type}, 价值={result.value_score:.3f}, 耗时={result.processing_time_ms:.1f}ms")
-                        return True
-                    else:
-                        logger.debug(f"🗑️  优化过滤拒绝: {connector_id}/{event_type}, 原因={result.reasoning}")
-                        return True  # 拒绝也是成功的处理结果
+            # 判断是否应该进行智能处理（基于事件类型和内容）
+            if self._should_use_intelligent_processing(connector_id, event_type, event_data):
+                # 尝试使用智能处理器（AI驱动）
+                processor = await self._ensure_intelligent_processor()
+                if processor:
+                    try:
+                        result = await processor.process_connector_event(
+                            connector_id, event_type, event_data, timestamp, metadata
+                        )
                         
-                except Exception as e:
-                    logger.warning(f"智能处理失败，回退到传统方式: {e}")
-                    # 继续执行传统处理方式
+                        if result.accepted:
+                            logger.info(f"🚀 优化处理成功: {connector_id}/{event_type}, 价值={result.value_score:.3f}, 耗时={result.processing_time_ms:.1f}ms")
+                            return True
+                        else:
+                            logger.debug(f"🗑️  优化过滤拒绝: {connector_id}/{event_type}, 原因={result.reasoning}")
+                            return True  # 拒绝也是成功的处理结果
+                            
+                    except Exception as e:
+                        logger.warning(f"智能处理失败，回退到传统方式: {e}")
+                        # 继续执行传统处理方式
+                else:
+                    logger.debug("智能处理器不可用，使用传统方式")
             else:
-                logger.debug("智能处理器不可用，使用传统方式")
+                logger.debug(f"事件类型不适合智能处理: {connector_id}/{event_type}, 直接使用传统方式")
 
             # 回退到传统处理方式
             return await self._store_generic_event_traditional(
@@ -148,8 +301,18 @@ class GenericEventStorage:
                 logger.error("Database service is not available")
                 return False
 
-            # 生成通用实体ID（不依赖事件内容）
-            entity_id = f"{connector_id}_{hash(str(event_data) + str(timestamp)) % 1000000}"
+            # 🛡️ 增强的实体ID生成 - 防止空值导致的哈希冲突
+            import hashlib
+            
+            # 确保关键字段不为空，使用默认值防止哈希冲突
+            safe_connector_id = connector_id or "unknown_connector"
+            safe_event_type = event_type or "unknown_event"
+            safe_event_data = event_data if event_data is not None else {"empty": True}
+            
+            # 添加时间戳确保唯一性（对于相同内容的事件）
+            content_key = f"{safe_connector_id}:{safe_event_type}:{json.dumps(safe_event_data, sort_keys=True)}:{timestamp}"
+            content_hash = hashlib.sha256(content_key.encode()).hexdigest()[:16]
+            entity_id = f"{safe_connector_id}_{safe_event_type}_{content_hash}"
 
             # 尝试进行传统内容分析
             content_analysis = await self._analyze_event_content(event_data, event_type)
@@ -173,12 +336,19 @@ class GenericEventStorage:
                 )
 
                 if existing:
-                    # 更新现有记录
-                    existing.properties = entity_properties
-                    existing.updated_at = datetime.utcnow()
+                    # 发现重复事件，只更新访问计数和时间戳
                     existing.access_count += 1
                     existing.last_accessed = datetime.utcnow()
-                    logger.debug(f"Updated existing event: {entity_id}")
+                    
+                    # 检查是否需要更新时间戳（允许小范围时间差异）
+                    existing_timestamp = existing.properties.get('timestamp', '')
+                    if timestamp != existing_timestamp:
+                        # 保留最新的时间戳
+                        existing.properties['timestamp'] = timestamp
+                        existing.properties['last_seen'] = datetime.utcnow().isoformat()
+                        existing.updated_at = datetime.utcnow()
+                    
+                    logger.debug(f"Duplicate event detected, updated access count: {entity_id}")
                 else:
                     # 创建新记录 - 使用通用命名
                     entity_record = EntityMetadata(
@@ -200,7 +370,7 @@ class GenericEventStorage:
                     details={
                         "event_type": event_type,
                         "event_size": len(str(event_data)),
-                        "metadata_keys": list((metadata or {}).keys()),
+                        "metadata_keys": list(metadata.keys()) if metadata is not None and isinstance(metadata, dict) else [],
                         "timestamp": timestamp,
                         "processing_mode": "traditional",
                     },
@@ -230,12 +400,7 @@ class GenericEventStorage:
             内容分析结果
         """
         try:
-            # 尝试导入内容分析服务
-            from core.service_facade import get_content_analysis_service
-
-            analysis_service = get_content_analysis_service()
-
-            # 尝试从事件数据中提取文本内容
+            # 简化内容分析，避免循环导入
             content = self._extract_content_from_event(event_data)
             if not content:
                 return None
@@ -243,21 +408,28 @@ class GenericEventStorage:
             # 确定内容类型
             content_type = self._determine_content_type(event_data, event_type)
 
-            # 执行内容分析
-            analysis_result = analysis_service.analyze_content(content, content_type)
+            # 基础内容分析（不依赖外部服务）
+            analysis_result = {
+                "content_length": len(content),
+                "content_type": content_type,
+                "word_count": len(content.split()) if content else 0,
+                "analyzed_at": datetime.utcnow().isoformat(),
+                "analysis_method": "basic_local"
+            }
 
-            logger.debug(f"内容分析完成: {len(content)} 字符, 类型: {content_type}")
+            logger.debug(f"基础内容分析完成: {len(content)} 字符, 类型: {content_type}")
             return analysis_result
 
-        except ImportError:
-            logger.warning("内容分析服务不可用")
-            return None
         except Exception as e:
             logger.error(f"内容分析失败: {e}")
             return None
 
     def _extract_content_from_event(self, event_data: Dict[str, Any]) -> Optional[str]:
         """从事件数据中提取文本内容"""
+        # 安全检查：确保event_data不为None且为字典类型
+        if event_data is None or not isinstance(event_data, dict):
+            return None
+            
         # 常见的内容字段名
         content_fields = ["content", "text", "data", "message", "body", "value"]
 
@@ -296,97 +468,145 @@ class GenericEventStorage:
                     return "file_path"
             return "text"
 
-        # 基于事件数据推断
-        content_type_field = event_data.get("content_type", event_data.get("type"))
-        if content_type_field:
-            return str(content_type_field)
+        # 基于事件数据推断（安全检查）
+        if event_data is not None and isinstance(event_data, dict):
+            content_type_field = event_data.get("content_type", event_data.get("type"))
+            if content_type_field:
+                return str(content_type_field)
 
         return "text"
     
-    async def _handle_fast_index_event(self, event_data: Dict[str, Any]) -> bool:
+    async def _handle_universal_index_event(
+        self,
+        connector_id: str,
+        event_type: str,
+        event_data: Dict[str, Any],
+        timestamp: str,
+        metadata: Optional[Dict[str, Any]]
+    ) -> bool:
         """
-        处理快速索引事件
+        处理通用索引事件 - 支持所有连接器类型
         
         Args:
-            event_data: 快速索引事件数据
+            connector_id: 连接器ID
+            event_type: 事件类型
+            event_data: 事件数据
+            timestamp: 时间戳
+            metadata: 元数据
             
         Returns:
             bool: 处理是否成功
         """
         try:
-            if self.fast_index_service is None:
-                logger.warning("快速索引服务不可用，跳过快速索引处理")
+            if self.universal_index_service is None:
+                logger.warning("通用索引服务不可用，跳过索引处理")
                 return False
             
-            # 提取快速索引所需的字段
-            required_fields = ['path', 'name']
-            if not all(field in event_data for field in required_fields):
-                logger.warning(f"快速索引事件缺少必需字段: {required_fields}")
-                return False
-            
-            # 构建快速索引条目
+            # 构建通用索引条目 - 安全处理None值
             index_entry = {
-                'path': event_data.get('path'),
-                'name': event_data.get('name'),
-                'size': event_data.get('size', 0),
-                'is_directory': event_data.get('is_directory', False),
-                'extension': event_data.get('extension', ''),
-                'last_modified': event_data.get('last_modified'),
-                'priority': event_data.get('priority', 2)
+                'connector_id': connector_id,
+                'event_type': event_type,
+                'event_data': event_data if event_data is not None and isinstance(event_data, dict) else {},
+                'timestamp': timestamp,
+                'metadata': metadata if metadata is not None and isinstance(metadata, dict) else {}
             }
             
             # 批量存储（这里是单个条目，但使用批量接口以保持一致性）
-            success = await self.fast_index_service.store_fast_index_batch([index_entry])
+            success = await self.universal_index_service.index_content_batch([index_entry])
             
             if success:
-                logger.debug(f"✅ 快速索引条目已存储: {event_data.get('path')}")
+                logger.debug(f"✅ 通用索引条目已存储: {connector_id}/{event_type}")
             else:
-                logger.warning(f"❌ 快速索引条目存储失败: {event_data.get('path')}")
+                logger.warning(f"❌ 通用索引条目存储失败: {connector_id}/{event_type}")
             
             return success
             
         except Exception as e:
-            logger.error(f"❌ 处理快速索引事件失败: {e}")
+            logger.error(f"❌ 处理通用索引事件失败: {e}")
             return False
     
-    def search_fast_index(
+    def search_universal_index(
         self,
         query: str,
         limit: int = 100,
+        content_types: List[str] = None,
+        connector_ids: List[str] = None,
         **kwargs
     ) -> List[Dict[str, Any]]:
         """
-        快速索引搜索接口
+        通用索引搜索接口 - 支持所有连接器类型
         
         Args:
             query: 搜索查询
             limit: 结果限制
+            content_types: 内容类型过滤 (如 ["file_path", "url"])
+            connector_ids: 连接器过滤 (如 ["filesystem", "clipboard"])
             **kwargs: 其他搜索参数
             
         Returns:
             搜索结果列表
         """
         try:
-            if self.fast_index_service is None:
-                logger.warning("快速索引服务不可用")
+            if self.universal_index_service is None:
+                logger.warning("通用索引服务不可用")
                 return []
             
-            return self.fast_index_service.search_files(query, limit, **kwargs)
+            # 导入SearchQuery和ContentType
+            from services.storage.universal_index_service import SearchQuery, ContentType
+            
+            # 转换内容类型
+            content_type_enums = []
+            if content_types:
+                for ct in content_types:
+                    try:
+                        content_type_enums.append(ContentType(ct))
+                    except ValueError:
+                        logger.warning(f"未知内容类型: {ct}")
+            
+            # 构建搜索查询
+            search_query = SearchQuery(
+                text=query,
+                content_types=content_type_enums,
+                connector_ids=connector_ids or [],
+                limit=limit,
+                **kwargs
+            )
+            
+            # 执行搜索
+            search_results = self.universal_index_service.search(search_query)
+            
+            # 转换为字典格式
+            results = []
+            for result in search_results:
+                results.append({
+                    'id': result.entry.id,
+                    'connector_id': result.entry.connector_id,
+                    'content_type': result.entry.content_type.value,
+                    'primary_key': result.entry.primary_key,
+                    'display_name': result.entry.display_name,
+                    'searchable_text': result.entry.searchable_text,
+                    'score': result.score,
+                    'structured_data': result.entry.structured_data,
+                    'metadata': result.entry.metadata,
+                    'last_modified': result.entry.last_modified.isoformat() if result.entry.last_modified else None
+                })
+            
+            return results
             
         except Exception as e:
-            logger.error(f"❌ 快速索引搜索失败: {e}")
+            logger.error(f"❌ 通用索引搜索失败: {e}")
             return []
     
-    def get_fast_index_stats(self) -> Dict[str, Any]:
-        """获取快速索引统计信息"""
+    def get_universal_index_stats(self) -> Dict[str, Any]:
+        """获取通用索引统计信息"""
         try:
-            if self.fast_index_service is None:
+            if self.universal_index_service is None:
                 return {}
             
-            return self.fast_index_service.get_stats()
+            return self.universal_index_service.get_stats()
             
         except Exception as e:
-            logger.error(f"❌ 获取快速索引统计失败: {e}")
+            logger.error(f"❌ 获取通用索引统计失败: {e}")
             return {}
 
     # === 智能搜索接口 ===

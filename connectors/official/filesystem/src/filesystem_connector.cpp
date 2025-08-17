@@ -1,556 +1,212 @@
 #include "filesystem_connector.hpp"
-#include "zero_scan/zero_scan_interface.hpp"
+#include <linch_connector/utils.hpp>
 #include <iostream>
 #include <chrono>
+#include <thread>
+#include <nlohmann/json.hpp>
+
+using json = nlohmann::json;
 
 namespace linch_connector {
 
 FilesystemConnector::FilesystemConnector() 
-    : BaseConnector("filesystem", "文件系统连接器 (零扫描)")
-    , m_startTime(std::chrono::steady_clock::now())
+    : BaseConnector("filesystem", "简化文件系统连接器")
 {
-    logInfo("🚀 文件系统连接器初始化 - 零扫描架构");
+    std::cout << "🚀 简化文件系统连接器初始化" << std::endl;
 }
 
 std::unique_ptr<IConnectorMonitor> FilesystemConnector::createMonitor() {
-    auto adapter = std::make_unique<FilesystemMonitorAdapter>();
-    m_fsAdapter = adapter.get(); // 保存指针以便访问特定功能
-    return std::move(adapter);
+    // 暂时使用空监控器，专注于定时全量扫描
+    return std::make_unique<NullMonitor>();
 }
 
 bool FilesystemConnector::loadConnectorConfig() {
-    EnhancedConfig enhancedConfig(getConfigManager());
-    m_config = enhancedConfig.getFileSystemConfig();
-    
-    logConfig();
+    // 简化配置 - 只需要基本连接器配置
+    logInfo("📋 加载简化配置");
     return true;
 }
 
 bool FilesystemConnector::onInitialize() {
-    logInfo("📁 文件系统连接器V2初始化完成");
+    logInfo("🔧 初始化文件索引查询器");
     
-    // 显示平台信息
-    if (FileIndexProviderFactory::isZeroScanSupported()) {
-        logInfo("✅ 当前平台支持零扫描索引: " + FileIndexProviderFactory::getPlatformName());
-    } else {
-        logWarn("⚠️ 当前平台零扫描索引支持有限");
+    // 创建平台特定的文件索引查询器
+    m_indexQuery = createFileIndexQuery();
+    if (!m_indexQuery) {
+        logError("❌ 无法创建文件索引查询器 - 平台不支持");
+        return false;
     }
     
+    if (!m_indexQuery->isAvailable()) {
+        logError("❌ 文件索引查询器不可用");
+        return false;
+    }
+    
+    logInfo("✅ 文件索引查询器初始化成功: " + m_indexQuery->getProviderName());
     return true;
 }
 
 bool FilesystemConnector::onStart() {
-    logInfo("🚀 启动文件系统连接器V2...");
+    logInfo("🚀 启动简化文件系统连接器");
     
-    // 设置批处理配置
-    setBatchConfig(std::chrono::milliseconds(m_config.batchInterval), 50);
-    
-    // 1. 首先设置实时监控（用于用户指定目录）
-    if (!setupRealtimeMonitoring()) {
-        setError("Failed to setup realtime monitoring");
+    if (!m_indexQuery) {
+        logError("❌ 文件索引查询器未初始化");
         return false;
     }
     
-    // 2. 设置现有的文件索引提供者
-    if (!setupIndexProvider()) {
-        logWarn("⚠️ 文件索引提供者设置失败");
-    }
+    // 启动时执行一次文件查询
+    performFileQuery();
     
-    // 3. 设置新的零扫描提供者（用于全盘快速搜索）
-    if (!setupZeroScanProvider()) {
-        logWarn("⚠️ 零扫描提供者设置失败，使用备选方案");
-    }
+    // 启动定时扫描
+    startPeriodicScanning();
     
-    logInfo("✅ 文件系统连接器V2启动完成");
-    logInfo("📊 批处理间隔: " + std::to_string(m_config.batchInterval) + "ms");
-    
+    logInfo("✅ 文件系统连接器启动成功");
     return true;
 }
 
 void FilesystemConnector::onStop() {
-    logInfo("🛑 停止文件系统连接器V2");
+    logInfo("🛑 停止文件系统连接器");
     
-    // 停止零扫描提供者
-    if (m_zeroScanProvider) {
-        logInfo("🛑 停止零扫描提供者...");
-        m_zeroScanProvider->shutdown();
-        
-        // 显示零扫描统计
-        auto stats = m_zeroScanProvider->getStatistics();
-        logInfo("📊 零扫描统计:");
-        logInfo("   文件数量: " + std::to_string(stats.total_files));
-        logInfo("   扫描速度: " + std::to_string(stats.files_per_second) + " 文件/秒");
-        logInfo("   内存使用: " + std::to_string(stats.memory_usage_mb) + " MB");
-    }
+    // 停止定时扫描
+    stopPeriodicScanning();
     
-    // 停止文件索引提供者
-    if (m_indexProvider) {
-        logInfo("🛑 停止文件索引提供者...");
-        m_indexProvider->stop();
-        
-        // 显示性能统计
-        logPerformanceStats();
-    }
-    
-    // 显示最终统计
-    if (m_fsAdapter) {
-        auto paths = m_fsAdapter->getMonitoredPaths();
-        logInfo("📊 实时监控了 " + std::to_string(paths.size()) + " 个路径");
-    }
-    
-    logInfo("📊 总索引文件数: " + std::to_string(m_totalIndexedFiles.load()));
+    m_indexQuery.reset();
 }
 
-bool FilesystemConnector::setupRealtimeMonitoring() {
-    if (!m_fsAdapter) {
-        logError("文件系统适配器未初始化");
-        return false;
+void FilesystemConnector::performFileQuery() {
+    if (!m_indexQuery) {
+        logError("❌ 文件索引查询器未初始化");
+        return;
     }
     
-    logInfo("⚡ 设置实时文件监控...");
-    
-    int successCount = 0;
-    int totalCount = static_cast<int>(m_config.watchDirectories.size());
-    
-    // 设置实时监控路径（通常是用户指定的重要目录）
-    for (const std::string& path : m_config.watchDirectories) {
-        MonitorConfig monitorConfig;
-        monitorConfig.name = "realtime_" + std::to_string(successCount);
-        monitorConfig.set("path", path);
-        monitorConfig.set("recursive", m_config.recursive);
-        monitorConfig.set("max_file_size", m_config.maxFileSize);
-        
-        // 设置包含的扩展名
-        json includeExts = json::array();
-        for (const auto& ext : m_config.includeExtensions) {
-            includeExts.push_back(ext);
-        }
-        monitorConfig.set("include_extensions", includeExts);
-        
-        // 设置排除模式
-        json excludePatterns = json::array();
-        for (const auto& pattern : m_config.excludePatterns) {
-            excludePatterns.push_back(pattern);
-        }
-        monitorConfig.set("exclude_patterns", excludePatterns);
-        
-        if (m_fsAdapter->addPath(monitorConfig)) {
-            logInfo("✅ 实时监控: " + path);
-            successCount++;
-        } else {
-            logError("❌ 实时监控失败: " + path);
-        }
-    }
-    
-    if (successCount > 0) {
-        m_realtimeActive = true;
-        logInfo("⚡ 实时监控设置完成: " + std::to_string(successCount) + "/" + 
-                std::to_string(totalCount) + " 个路径");
-        return true;
-    } else {
-        logWarn("⚠️ 没有成功设置任何实时监控路径");
-        return false;
-    }
-}
-
-bool FilesystemConnector::setupIndexProvider() {
-    try {
-        logInfo("🔍 初始化零扫描索引提供者...");
-        
-        // 创建平台特定的索引提供者
-        m_indexProvider = FileIndexProviderFactory::createProvider();
-        if (!m_indexProvider) {
-            logError("❌ 无法创建索引提供者");
-            return false;
-        }
-        
-        // 检查可用性
-        if (!m_indexProvider->isAvailable()) {
-            logWarn("⚠️ 索引提供者不可用: " + m_indexProvider->getPlatformInfo());
-            return false;
-        }
-        
-        logInfo("📋 平台信息: " + m_indexProvider->getPlatformInfo());
-        
-        // 设置回调函数
-        m_indexProvider->setInitialBatchCallback(
-            [this](const std::vector<FileInfo>& files) {
-                onInitialBatch(files);
-            });
-        
-        m_indexProvider->setFileEventCallback(
-            [this](const FileEvent& event) {
-                onFileEvent(event);
-            });
-        
-        m_indexProvider->setProgressCallback(
-            [this](uint64_t indexed, uint64_t total) {
-                onIndexProgress(indexed, total);
-            });
-        
-        // 设置监控目录（通常是用户主目录或全盘）
-        std::vector<std::string> indexDirectories;
-        const char* homeDir = getenv("HOME");
-        if (homeDir) {
-            indexDirectories.push_back(std::string(homeDir));
-        }
-        m_indexProvider->setWatchDirectories(indexDirectories);
-        
-        // 设置排除模式 (转换set到vector)
-        std::vector<std::string> excludePatterns(m_config.excludePatterns.begin(), m_config.excludePatterns.end());
-        m_indexProvider->setExcludePatterns(excludePatterns);
-        
-        // 启动初始化
-        if (!m_indexProvider->initialize()) {
-            logError("❌ 索引提供者初始化失败");
-            return false;
-        }
-        
-        // 启动变更监控
-        if (!m_indexProvider->watchChanges()) {
-            logWarn("⚠️ 索引变更监控启动失败");
-            return false;
-        }
-        
-        logInfo("✅ 零扫描索引提供者启动成功");
-        return true;
-        
-    } catch (const std::exception& e) {
-        logError("❌ 设置索引提供者失败: " + std::string(e.what()));
-        m_indexProvider.reset();
-        return false;
-    }
-}
-
-void FilesystemConnector::onInitialBatch(const std::vector<FileInfo>& files) {
-    if (files.empty()) return;
+    logInfo("🔍 开始查询文档文件...");
+    auto startTime = std::chrono::steady_clock::now();
     
     try {
-        logInfo("📦 收到初始索引批次: " + std::to_string(files.size()) + " 个文件");
+        // 查询所有文档文件
+        std::vector<FileRecord> records = m_indexQuery->queryDocuments();
         
-        // 转换为连接器事件并批量发送
-        sendFileInfoBatch(files);
-        
-        // 更新统计
-        m_totalIndexedFiles += files.size();
-        
-    } catch (const std::exception& e) {
-        logError("❌ 处理初始批次失败: " + std::string(e.what()));
-    }
-}
-
-void FilesystemConnector::onFileEvent(const FileEvent& event) {
-    try {
-        // 转换文件事件为连接器事件
-        ConnectorEvent connectorEvent = convertFileEventToEvent(event);
-        
-        // 发送单个事件
-        sendEvent(std::move(connectorEvent));
-        
-        logInfo("📄 索引变更事件: " + event.path + " (" + 
-                (event.type == FileEventType::CREATED ? "创建" :
-                 event.type == FileEventType::MODIFIED ? "修改" :
-                 event.type == FileEventType::DELETED ? "删除" : "其他") + ")");
-        
-    } catch (const std::exception& e) {
-        logError("❌ 处理文件事件失败: " + std::string(e.what()));
-    }
-}
-
-void FilesystemConnector::onIndexProgress(uint64_t indexed, uint64_t total) {
-    // 每隔一定数量报告进度
-    static uint64_t lastReported = 0;
-    if (indexed - lastReported >= 10000 || (total > 0 && indexed == total)) {
-        lastReported = indexed;
-        
-        if (total > 0) {
-            double progress = static_cast<double>(indexed) / total * 100.0;
-            logInfo("📊 索引进度: " + std::to_string(indexed) + "/" + 
-                   std::to_string(total) + " (" + 
-                   std::to_string(static_cast<int>(progress)) + "%)");
-        } else {
-            logInfo("📊 已索引: " + std::to_string(indexed) + " 个文件");
-        }
-    }
-}
-
-void FilesystemConnector::sendFileInfoBatch(const std::vector<FileInfo>& files) {
-    std::vector<ConnectorEvent> events;
-    events.reserve(files.size());
-    
-    for (const auto& fileInfo : files) {
-        ConnectorEvent event = convertFileInfoToEvent(fileInfo, "file_indexed");
-        events.emplace_back(std::move(event));
-    }
-    
-    // 批量发送事件
-    sendBatchEvents(events);
-}
-
-ConnectorEvent FilesystemConnector::convertFileInfoToEvent(const FileInfo& fileInfo, const std::string& eventType) {
-    nlohmann::json eventData;
-    eventData["path"] = fileInfo.path;
-    eventData["name"] = fileInfo.name;
-    eventData["extension"] = fileInfo.extension;
-    eventData["size"] = fileInfo.size;
-    eventData["is_directory"] = fileInfo.is_directory;
-    eventData["source"] = "index_provider";
-    
-    // 添加时间戳
-    auto timeT = std::chrono::system_clock::to_time_t(fileInfo.modified_time);
-    eventData["modified_time"] = timeT;
-    
-    return ConnectorEvent::create(getId(), eventType, std::move(eventData));
-}
-
-ConnectorEvent FilesystemConnector::convertFileEventToEvent(const FileEvent& fileEvent) {
-    std::string eventType;
-    switch (fileEvent.type) {
-        case FileEventType::CREATED:  eventType = "file_created"; break;
-        case FileEventType::MODIFIED: eventType = "file_modified"; break;
-        case FileEventType::DELETED:  eventType = "file_deleted"; break;
-        case FileEventType::RENAMED:  eventType = "file_renamed"; break;
-        case FileEventType::MOVED:    eventType = "file_moved"; break;
-        default: eventType = "file_changed"; break;
-    }
-    
-    nlohmann::json eventData;
-    eventData["path"] = fileEvent.path;
-    eventData["source"] = "index_provider_realtime";
-    
-    if (!fileEvent.old_path.empty()) {
-        eventData["old_path"] = fileEvent.old_path;
-    }
-    
-    // 对于创建和修改事件，包含文件信息
-    if (fileEvent.type == FileEventType::CREATED || fileEvent.type == FileEventType::MODIFIED) {
-        eventData["name"] = fileEvent.file_info.name;
-        eventData["extension"] = fileEvent.file_info.extension;
-        eventData["size"] = fileEvent.file_info.size;
-        eventData["is_directory"] = fileEvent.file_info.is_directory;
-        
-        auto timeT = std::chrono::system_clock::to_time_t(fileEvent.file_info.modified_time);
-        eventData["modified_time"] = timeT;
-    }
-    
-    auto eventTimeT = std::chrono::system_clock::to_time_t(fileEvent.timestamp);
-    eventData["event_time"] = eventTimeT;
-    
-    return ConnectorEvent::create(getId(), eventType, std::move(eventData));
-}
-
-void FilesystemConnector::logConfig() {
-    logInfo("📋 文件系统连接器V2配置:");
-    logInfo("   实时监控目录: " + std::to_string(m_config.watchDirectories.size()) + " 个");
-    for (const auto& dir : m_config.watchDirectories) {
-        logInfo("     - " + dir);
-    }
-    logInfo("   包含扩展名: " + std::to_string(m_config.includeExtensions.size()) + " 个");
-    logInfo("   排除模式: " + std::to_string(m_config.excludePatterns.size()) + " 个");
-    logInfo("   最大文件大小: " + std::to_string(m_config.maxFileSize) + "MB");
-    logInfo("   递归监控: " + std::string(m_config.recursive ? "是" : "否"));
-    logInfo("   批处理间隔: " + std::to_string(m_config.batchInterval) + "ms");
-    logInfo("   零扫描索引: " + std::string(FileIndexProviderFactory::isZeroScanSupported() ? "支持" : "有限"));
-}
-
-void FilesystemConnector::logPerformanceStats() {
-    auto endTime = std::chrono::steady_clock::now();
-    auto duration = std::chrono::duration_cast<std::chrono::seconds>(endTime - m_startTime);
-    
-    uint64_t totalFiles = m_totalIndexedFiles.load();
-    
-    logInfo("📊 性能统计:");
-    logInfo("   运行时间: " + std::to_string(duration.count()) + " 秒");
-    logInfo("   索引文件数: " + std::to_string(totalFiles) + " 个");
-    
-    if (duration.count() > 0) {
-        double filesPerSecond = static_cast<double>(totalFiles) / duration.count();
-        logInfo("   平均索引速度: " + std::to_string(static_cast<int>(filesPerSecond)) + " 文件/秒");
-    }
-    
-    if (m_indexProvider) {
-        IndexStats stats = m_indexProvider->getStats();
-        logInfo("   内存使用: " + std::to_string(stats.memory_usage_mb) + " MB");
-        logInfo("   初始化状态: " + std::string(stats.is_initialized ? "完成" : "未完成"));
-        logInfo("   监控状态: " + std::string(stats.is_watching ? "活跃" : "停止"));
-    }
-}
-
-bool FilesystemConnector::setupZeroScanProvider() {
-    logInfo("⚡ 设置零扫描提供者...");
-    
-    // 创建零扫描提供者
-    m_zeroScanProvider = zero_scan::ZeroScanFactory::createProvider();
-    
-    if (!m_zeroScanProvider) {
-        logError("❌ 无法创建零扫描提供者");
-        return false;
-    }
-    
-    // 配置零扫描
-    zero_scan::ScanConfiguration scanConfig;
-    scanConfig.include_hidden = false;
-    scanConfig.include_system = false;
-    scanConfig.files_only = true;  // 只扫描文件，不包括目录
-    scanConfig.batch_size = 1000;
-    scanConfig.parallel_processing = true;
-    scanConfig.use_cache = true;
-    
-    // 添加排除模式
-    scanConfig.exclude_patterns = {
-        R"(^\..*)",           // 隐藏文件
-        R"(.*\.tmp$)",        // 临时文件
-        R"(.*\.log$)",        // 日志文件
-        R"(.*/\.git/.*)",     // Git目录
-        R"(.*/node_modules/.*)", // Node.js模块
-        R"(.*/\.DS_Store$)",  // macOS系统文件
-        R"(.*/\.Trash/.*)",   // 废纸篓
-    };
-    
-    // 初始化
-    if (!m_zeroScanProvider->initialize(scanConfig)) {
-        logError("❌ 零扫描提供者初始化失败");
-        return false;
-    }
-    
-    logInfo("✅ 零扫描提供者初始化成功: " + m_zeroScanProvider->getPlatformInfo());
-    
-    // 开始执行零扫描（异步）
-    std::thread([this]() {
-        logInfo("🚀 开始执行零扫描...");
-        
-        auto startTime = std::chrono::high_resolution_clock::now();
-        size_t fileCount = 0;
-        
-        bool success = m_zeroScanProvider->performZeroScan([this, &fileCount](const zero_scan::UnifiedFileRecord& record) {
-            onZeroScanFile(record);
-            fileCount++;
-        });
-        
-        auto endTime = std::chrono::high_resolution_clock::now();
+        auto endTime = std::chrono::steady_clock::now();
         auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime);
         
-        if (success) {
-            auto stats = m_zeroScanProvider->getStatistics();
-            logInfo("🎉 零扫描完成！");
-            logInfo("   📁 文件数量: " + std::to_string(fileCount));
-            logInfo("   ⏱️  用时: " + std::to_string(duration.count()) + "ms");
-            logInfo("   📊 扫描速度: " + std::to_string(stats.files_per_second) + " 文件/秒");
-            
-            if (stats.files_per_second > 10000) {
-                logInfo("   🏆 达到 Everything 级别性能！");
-            }
-        } else {
-            logError("❌ 零扫描执行失败");
+        logInfo("📊 查询完成，找到 " + std::to_string(records.size()) + " 个文件，耗时 " + std::to_string(duration.count()) + "ms");
+        
+        // 发送文件记录给daemon
+        if (!records.empty()) {
+            sendFileRecords(records);
         }
-    }).detach();
-    
-    // 订阅文件变更（用于实时更新）
-    if (!m_zeroScanProvider->subscribeToChanges([this](const zero_scan::FileChangeEvent& event) {
-        onZeroScanChange(event);
-    })) {
-        logWarn("⚠️ 零扫描变更监控订阅失败");
     }
-    
-    return true;
+    catch (const std::exception& e) {
+        logError("❌ 文件查询失败: " + std::string(e.what()));
+    }
 }
 
-void FilesystemConnector::onZeroScanFile(const zero_scan::UnifiedFileRecord& record) {
-    // 创建事件数据
+ConnectorEvent FilesystemConnector::convertFileRecordToEvent(const FileRecord& record) {
     json eventData = {
         {"path", record.path},
         {"name", record.name},
         {"extension", record.extension},
         {"size", record.size},
-        {"is_directory", record.is_directory}
+        {"modified_time", record.modified_time}
     };
     
-    // 设置时间戳
-    auto timeT = std::chrono::system_clock::to_time_t(record.modified_time);
-    eventData["modified_time"] = timeT;
-    
-    if (record.created_time != std::chrono::system_clock::time_point{}) {
-        auto createTimeT = std::chrono::system_clock::to_time_t(record.created_time);
-        eventData["created_time"] = createTimeT;
-    }
-    
-    if (record.content_type.has_value()) {
-        eventData["content_type"] = record.content_type.value();
-    }
-    
-    // 创建连接器事件
-    ConnectorEvent event = ConnectorEvent::create(
-        getId(),
-        "file_indexed", 
-        std::move(eventData)
-    );
-    
-    // 添加元数据
-    event.metadata = {
-        {"scan_method", "zero_scan"},
-        {"platform", m_zeroScanProvider->getPlatformInfo()}
-    };
-    
-    // 发送事件
-    sendEvent(std::move(event));
-    
-    // 更新统计
-    m_totalIndexedFiles.fetch_add(1);
+    return ConnectorEvent::create("filesystem", "file_discovered", std::move(eventData));
 }
 
-void FilesystemConnector::onZeroScanChange(const zero_scan::FileChangeEvent& event) {
-    // 确定事件类型
-    std::string eventType;
-    switch (event.type) {
-        case zero_scan::FileChangeType::CREATED:
-            eventType = "file_created";
-            break;
-        case zero_scan::FileChangeType::MODIFIED:
-            eventType = "file_modified";
-            break;
-        case zero_scan::FileChangeType::DELETED:
-            eventType = "file_deleted";
-            break;
-        case zero_scan::FileChangeType::RENAMED:
-            eventType = "file_renamed";
-            break;
-        case zero_scan::FileChangeType::MOVED:
-            eventType = "file_moved";
-            break;
+void FilesystemConnector::sendFileRecords(const std::vector<FileRecord>& records) {
+    if (records.empty()) {
+        return;
     }
     
-    // 创建事件数据
-    json eventData = {
-        {"path", event.file.path},
-        {"name", event.file.name},
-        {"extension", event.file.extension},
-        {"size", event.file.size},
-        {"is_directory", event.file.is_directory}
-    };
+    logInfo("📤 准备批量发送 " + std::to_string(records.size()) + " 个文件记录给daemon");
     
-    // 对于重命名和移动事件，添加旧路径
-    if (!event.old_path.empty()) {
-        eventData["old_path"] = event.old_path;
+    // 批量发送，每批1000个文件
+    const size_t BATCH_SIZE = 1000;
+    size_t sent = 0;
+    
+    for (size_t i = 0; i < records.size(); i += BATCH_SIZE) {
+        size_t end = std::min(i + BATCH_SIZE, records.size());
+        size_t batchSize = end - i;
+        
+        // 创建批量事件数据
+        json batchData = {
+            {"event_type", "file_batch"},
+            {"batch_id", i / BATCH_SIZE + 1},
+            {"total_batches", (records.size() + BATCH_SIZE - 1) / BATCH_SIZE},
+            {"files", json::array()}
+        };
+        
+        // 添加当前批次的文件
+        for (size_t j = i; j < end; ++j) {
+            const auto& record = records[j];
+            batchData["files"].push_back({
+                {"path", record.path},
+                {"name", record.name},
+                {"extension", record.extension},
+                {"size", record.size},
+                {"modified_time", record.modified_time}
+            });
+        }
+        
+        // 发送批量事件
+        ConnectorEvent batchEvent = ConnectorEvent::create("filesystem", "file_batch_discovered", std::move(batchData));
+        sendEvent(batchEvent);
+        
+        sent += batchSize;
+        logInfo("📊 已发送 " + std::to_string(sent) + "/" + std::to_string(records.size()) + " 个文件 (批次 " + std::to_string(i / BATCH_SIZE + 1) + ")");
+        
+        // 批次间短暂延迟，避免压垮daemon
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
     
-    // 创建连接器事件
-    ConnectorEvent connectorEvent = ConnectorEvent::create(
-        getId(),
-        std::move(eventType),
-        std::move(eventData)
-    );
-    
-    // 设置正确的时间戳
-    connectorEvent.timestamp = event.timestamp;
-    
-    // 添加元数据
-    connectorEvent.metadata = {
-        {"change_source", "zero_scan_monitor"},
-        {"platform", m_zeroScanProvider->getPlatformInfo()}
+    // 发送汇总信息
+    json summaryData = {
+        {"event_type", "file_indexing_complete"},
+        {"total_files", records.size()},
+        {"total_batches", (records.size() + BATCH_SIZE - 1) / BATCH_SIZE},
+        {"indexing_timestamp", std::chrono::duration_cast<std::chrono::milliseconds>(
+            std::chrono::system_clock::now().time_since_epoch()).count()}
     };
     
-    // 发送事件
-    sendEvent(std::move(connectorEvent));
+    ConnectorEvent summaryEvent = ConnectorEvent::create("filesystem", "indexing_summary", std::move(summaryData));
+    sendEvent(summaryEvent);
+    
+    logInfo("✅ 文件记录批量发送完成，汇总信息已发送");
+}
+
+void FilesystemConnector::startPeriodicScanning() {
+    m_shouldStopScanning = false;
+    
+    m_scanThread = std::make_unique<std::thread>([this]() {
+        logInfo("🔄 定时扫描线程启动，每30分钟执行一次全量扫描");
+        
+        while (!m_shouldStopScanning) {
+            // 等待30分钟，但每秒检查一次停止信号
+            for (int i = 0; i < 1800 && !m_shouldStopScanning; ++i) {
+                std::this_thread::sleep_for(std::chrono::seconds(1));
+            }
+            
+            if (!m_shouldStopScanning) {
+                logInfo("🔄 执行定时全量扫描...");
+                performFileQuery();
+            }
+        }
+        
+        logInfo("✅ 定时扫描线程已退出");
+    });
+}
+
+void FilesystemConnector::stopPeriodicScanning() {
+    if (m_scanThread) {
+        logInfo("🛑 停止定时扫描...");
+        m_shouldStopScanning = true;
+        
+        if (m_scanThread->joinable()) {
+            m_scanThread->join();
+        }
+        
+        m_scanThread.reset();
+        logInfo("✅ 定时扫描已停止");
+    }
 }
 
 } // namespace linch_connector

@@ -8,6 +8,7 @@ import 'package:rxdart/rxdart.dart';
 import '../models/ipc_protocol.dart';
 import '../utils/app_logger.dart';
 import '../utils/enhanced_error_handler.dart';
+import 'daemon_port_service.dart';
 
 /// 连接状态枚举
 enum ConnectionStatus {
@@ -127,6 +128,14 @@ class IPCClient {
     print(
         '[DEBUG] IPC V2连接最终失败，已尝试 $maxRetries 次。_isConnected=$_isConnected, _isAuthenticated=$_isAuthenticated');
 
+    // 连接失败时清理DaemonPortService的缓存
+    try {
+      DaemonPortService.instance.clearCache();
+      developer.log('连接失败，已清理DaemonPortService缓存', name: 'IPCClient', level: 800);
+    } catch (e) {
+      developer.log('清理DaemonPortService缓存失败: $e', name: 'IPCClient', level: 1000);
+    }
+
     _updateConnectionStatus(ConnectionStatus.failed);
 
     // 如果启用自动重连，开始重连流程
@@ -193,7 +202,14 @@ class IPCClient {
 
   /// 连接Unix Domain Socket
   Future<bool> _connectUnixSocket() async {
-    String socketPath = _socketPath ?? await _discoverSocketPath();
+    // 始终重新发现socket路径，以支持daemon重启后的新路径
+    String socketPath = await _discoverSocketPath();
+    
+    // 如果没有发现新路径，尝试使用缓存的路径
+    if (socketPath.isEmpty && _socketPath != null) {
+      socketPath = _socketPath!;
+      developer.log('使用缓存的socket路径: $socketPath', name: 'IPCClient', level: 800);
+    }
 
     if (socketPath.isEmpty) {
       developer.log('无法找到socket路径', name: 'IPCClient', level: 1000);

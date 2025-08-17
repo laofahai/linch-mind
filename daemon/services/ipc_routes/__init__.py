@@ -37,6 +37,7 @@ def register_all_routes(app):
     from .events import create_events_router
     from .health import create_health_router
     from .system_config import create_system_config_router
+    from .universal_search import create_universal_search_router  # 🆕 通用搜索路由
     from .webview_config import create_webview_config_router
 
     # 按优先级顺序注册路由
@@ -45,6 +46,7 @@ def register_all_routes(app):
     app.include_router(create_environment_router())  # 🆕 环境管理路由
     app.include_router(create_data_insights_router())  # 🆕 数据洞察路由
     app.include_router(create_events_router())  # 事件处理路由
+    app.include_router(create_universal_search_router())  # 🆕 通用搜索路由
     app.include_router(create_connector_lifecycle_router())
     app.include_router(create_connector_config_router())
     app.include_router(create_connector_status_router())  # 🆕 连接器状态路由
@@ -64,6 +66,7 @@ from .environment import create_environment_router  # 🆕 环境管理路由
 from .events import create_events_router
 from .health import create_health_router
 from .system_config import create_system_config_router
+from .universal_search import create_universal_search_router  # 🆕 通用搜索路由
 from .webview_config import create_webview_config_router
 
 __all__ = [
@@ -73,6 +76,7 @@ __all__ = [
     "create_environment_router",  # 🆕 环境管理路由
     "create_data_insights_router",  # 🆕 数据洞察路由
     "create_events_router",
+    "create_universal_search_router",  # 🆕 通用搜索路由
     "create_connector_lifecycle_router",
     "create_connector_config_router",
     "create_connector_status_router",  # 🆕 连接器状态路由

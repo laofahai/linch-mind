@@ -9,6 +9,7 @@
 #include <thread>
 #include <mutex>
 #include <condition_variable>
+#include <future>  // 🚀 异步处理支持
 
 namespace linch_connector {
 namespace zero_scan {
@@ -99,11 +100,10 @@ private:
     bool initializeSystemMonitoring();
     bool initializeFSEvents();
     bool executeMDQuery(std::function<void(const UnifiedFileRecord&)> callback);
-    bool executeBatchQuery(const std::string& queryString, 
-                          std::function<void(const UnifiedFileRecord&)> callback,
-                          size_t maxResults);
+    // 🧪 极简mdfind测试方法
+    bool executeSimpleMDFind(std::function<void(const UnifiedFileRecord&)> callback);
     bool checkSystemLoad() const;
-    void processMDQueryResults(void* mdquery);  // 废弃的方法
+    // 已删除：processMDQueryResults - 废弃的方法
     
     // FSEvents 处理
     void startFSEventsRunLoop();
@@ -117,8 +117,12 @@ private:
     );
     void handleFSEvent(const std::string& path, uint32_t flags);
     
+    // 已删除：executeAsyncChunkedProcessing - 过度复杂
+    
+    
     // 辅助方法
-    UnifiedFileRecord createRecordFromMDItem(void* mditem);
+    // 🔍 轻量级记录创建方法
+    UnifiedFileRecord createMinimalIndexRecord(const std::string& file_path);
     FileChangeType determineChangeType(uint32_t flags);
     bool shouldIncludeFile(const std::string& path) const;
     std::string getQueryString() const;

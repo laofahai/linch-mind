@@ -72,6 +72,17 @@ struct ConnectorEvent {
         , metadata(json::object()) {}
     
     /**
+     * 检查事件是否有效（防护机制）
+     */
+    bool isValid() const {
+        return !connectorId.empty() && 
+               !eventType.empty() && 
+               !eventData.is_null() &&
+               connectorId.find_first_not_of(" \t\n\r") != std::string::npos &&
+               eventType.find_first_not_of(" \t\n\r") != std::string::npos;
+    }
+    
+    /**
      * 创建事件 - 零拷贝版本
      */
     static ConnectorEvent create(std::string connectorId, 

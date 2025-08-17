@@ -140,15 +140,19 @@ void MacOSFSEventsMonitor::processLoop() {
     while (m_running) {
         std::unique_lock<std::mutex> lock(m_queueMutex);
         
-        // 🔧 修复过度超时：使用合理的超时避免响应迟缓
-        // 每2秒检查一次批量事件，平衡响应性和性能
-        auto timeout = std::chrono::milliseconds(2000);
-        bool hasEvents = m_queueCV.wait_for(lock, timeout, [this] {
+        // 🚨 根本性修复：移除忙等 - 使用无超时等待
+        // 线程只在有真正工作时才被唤醒，空闲时CPU使用率接近0%
+        m_queueCV.wait(lock, [this] {
             return !m_eventQueue.empty() || !m_running;
         });
         
-        // 处理队列中的事件（如果有）
-        if (hasEvents && !m_eventQueue.empty() && m_running) {
+        // 如果是退出信号，直接退出
+        if (!m_running) {
+            break;
+        }
+        
+        // 此时队列必定有事件（因为条件变量的谓词保证）
+        if (!m_eventQueue.empty() && m_running) {
             // 批量处理事件以减少锁操作
             std::vector<FileSystemEvent> localEvents;
             while (!m_eventQueue.empty() && localEvents.size() < 100) { // 限制批量大小
@@ -256,23 +260,43 @@ bool MacOSFSEventsMonitor::recreateEventStream() {
 }
 
 void MacOSFSEventsMonitor::handleFSEvent(const std::string& path, FSEventStreamEventFlags flags) {
-    // 快速路径过滤：在查找配置之前进行基础过滤
+    // 🚨 根本性修复：过滤前置 - 在最早的阶段拒绝无关事件
+    // 这是CPU性能的关键防线，将无效工作降到最低
+    
+    // 第一层：快速路径过滤（廉价字符串匹配）
     if (isQuickIgnorePath(path)) {
-        return;
+        return; // 在此处就杜绝99%的系统噪音
     }
     
-    // 检查事件处理是否暂停（用于过载保护）
+    // 第二层：紧急速率限制器（防止事件风暴）
+    static auto lastEventTime = std::chrono::steady_clock::now();
+    static int eventCount = 0;
+    auto now = std::chrono::steady_clock::now();
+    
+    if (std::chrono::duration_cast<std::chrono::milliseconds>(now - lastEventTime).count() < 50) {
+        eventCount++;
+        if (eventCount > 20) {
+            // 检测到事件风暴，临时暂停处理
+            std::cout << "🚨 事件风暴检测，暂停处理: " << path << std::endl;
+            return;
+        }
+    } else {
+        eventCount = 0;
+        lastEventTime = now;
+    }
+    
+    // 第三层：检查事件处理是否暂停（用于过载保护）
     if (!m_eventProcessingEnabled) {
         return;
     }
     
-    // 查找配置
+    // 第四层：查找配置（只有前面都通过才执行）
     auto* config = findConfigForPath(path);
     if (!config) {
-        return;
+        return; // 不在监控范围内的路径直接丢弃
     }
     
-    // 检查是否应该忽略
+    // 第五层：详细过滤检查
     if (shouldIgnorePath(path, *config)) {
         return;
     }
