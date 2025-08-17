@@ -141,7 +141,7 @@ public:
         }
     }
 
-    void addHeader(const std::string& key, const std::string& value) {
+    void addHeader(const std::string& /* key */, const std::string& /* value */) {
         // IPC client does not use headers, this is a no-op.
     }
 

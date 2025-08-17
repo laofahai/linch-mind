@@ -17,9 +17,8 @@ struct DaemonInfo {
 };
 
 /**
- * Daemon发现服务 - 统一的daemon发现机制
- * 优先读取~/.linch-mind/daemon.socket文件（IPC模式）
- * 回退到~/.linch-mind/daemon.port文件（HTTP模式，向后兼容）
+ * Daemon发现服务 - 纯IPC架构的daemon发现机制
+ * 读取~/.linch-mind/{env}/daemon.socket.info文件（纯IPC模式）
  */
 class DaemonDiscovery {
 public:

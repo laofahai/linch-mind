@@ -1,0 +1,189 @@
+# Linch Mind - 用户情境感知连接器配置
+# 高性能用户情境感知连接器，实时监控用户活动、设备状态和工作模式
+
+[metadata]
+id = "user_context"
+name = "用户情境感知连接器"
+version = "1.0.0"
+author = "Linch Mind Team"
+description = "事件驱动的用户情境感知连接器，监控前台应用、设备状态、工作模式等用户相关数据"
+homepage = "https://github.com/linch-mind/connectors/user_context"
+license = "MIT"
+category = "user_activity"
+icon = "person"
+
+# JSON Schema 引用
+schema = "../../connector.schema.json"
+
+[build]
+build_command = "./build.sh"
+pre_build = "echo 'Preparing Objective-C++ build environment'"
+post_build = "echo 'User context build completed, event-driven monitoring ready'"
+
+[capabilities]
+hot_reload = true
+max_instances = 1
+supports_multiple_instances = false
+
+# 权限要求
+permissions = [
+    "accessibility:read",
+    "system:monitor",
+    "network:status",
+    "power:status",
+    "network:daemon-api"
+]
+
+# 平台支持
+[platforms.linux]
+min_version = "ubuntu-20.04"
+
+[platforms.macos]
+min_version = "10.15"
+
+[platforms.windows]
+min_version = "10"
+
+# 入口点配置
+[entry.development]
+command = "bash"
+working_dir = "."
+args = [
+    "-c",
+    """# Smart build and run
+exe_name='linch-mind-user-context'
+[[ '$OSTYPE' == 'msys' || '$OSTYPE' == 'win32' ]] && exe_name='$exe_name.exe'
+
+# Check if build is needed
+if [[ ! -f "bin/release/$exe_name" && ! -f "bin/debug/$exe_name" ]] || [[ src/main.cpp -nt "bin/release/$exe_name" ]] || [[ src/main.cpp -nt "bin/debug/$exe_name" ]]; then
+  echo '🔨 Building connector...'
+  ./build.sh > /dev/null 2>&1 || { echo 'Build failed'; exit 1; }
+fi
+
+# Run the newest build
+if [[ -f "bin/debug/$exe_name" ]]; then
+  exec "./bin/debug/$exe_name"
+elif [[ -f "bin/release/$exe_name" ]]; then
+  exec "./bin/release/$exe_name"
+else
+  echo '❌ No executable found after build'
+  exit 1
+fi"""
+]
+
+[entry.production]
+linux = "bin/release/linch-mind-user-context"
+macos = "bin/release/linch-mind-user-context"
+windows = "bin/release/linch-mind-user-context.exe"
+
+# 默认配置值
+[config_default_values]
+enable_app_monitoring = true       # 启用前台应用监控
+enable_device_state_monitoring = true  # 启用设备状态监控
+load_sampling_interval_minutes = 10    # 系统负载采样间隔（分钟）
+activity_summary_interval_hours = 2    # 活动摘要生成间隔（小时）
+top_process_count = 5              # TOP进程数量
+enable_network_monitoring = true   # 启用网络状态监控
+enable_power_monitoring = true     # 启用电源状态监控
+privacy_mode = "balanced"          # 隐私模式: minimal, balanced, detailed
+
+# 配置模式定义
+[config_schema]
+description = "用户情境感知连接器的配置选项"
+title = "用户情境感知连接器配置"
+type = "object"
+config_schema_source = "static"
+
+[config_schema.properties.enable_app_monitoring]
+title = "启用应用监控"
+description = "监控前台应用切换和窗口焦点变化"
+type = "boolean"
+default = true
+
+[config_schema.properties.enable_device_state_monitoring]
+title = "启用设备状态监控"
+description = "监控设备电源、网络、睡眠/唤醒状态"
+type = "boolean"
+default = true
+
+[config_schema.properties.load_sampling_interval_minutes]
+title = "负载采样间隔 (分钟)"
+description = "系统负载信息采样的时间间隔"
+type = "integer"
+minimum = 1
+maximum = 60
+default = 10
+
+[config_schema.properties.activity_summary_interval_hours]
+title = "活动摘要间隔 (小时)"
+description = "生成用户活动摘要的时间间隔"
+type = "integer"
+minimum = 1
+maximum = 24
+default = 2
+
+[config_schema.properties.top_process_count]
+title = "TOP进程数量"
+description = "收集的资源占用最高的进程数量"
+type = "integer"
+minimum = 3
+maximum = 10
+default = 5
+
+[config_schema.properties.privacy_mode]
+title = "隐私模式"
+description = "数据收集的隐私级别"
+type = "string"
+enum = ["minimal", "balanced", "detailed"]
+default = "balanced"
+
+# 必需配置字段
+config_schema.required = []
+
+# UI配置模式
+[config_ui_schema]
+ui_layout = "sections"
+
+# UI节段配置
+[config_ui_schema.ui_sections.monitoring_config]
+ui_title = "监控设置"
+ui_icon = "monitor"
+ui_description = "配置用户情境感知的监控选项"
+ui_collapsible = false
+
+[config_ui_schema.ui_sections.monitoring_config.ui_fields.enable_app_monitoring]
+ui_widget = "switch"
+ui_help = "监控前台应用和窗口变化，用于理解用户当前活动"
+
+[config_ui_schema.ui_sections.monitoring_config.ui_fields.enable_device_state_monitoring]
+ui_widget = "switch"
+ui_help = "监控设备状态变化，包括电源、网络等"
+
+[config_ui_schema.ui_sections.monitoring_config.ui_fields.privacy_mode]
+ui_widget = "select"
+ui_help = "控制数据收集的详细程度，保护用户隐私"
+
+[config_ui_schema.ui_sections.performance_config]
+ui_title = "性能配置"
+ui_icon = "speed"
+ui_description = "配置采样间隔和性能相关参数"
+ui_collapsed = false
+ui_collapsible = true
+
+[config_ui_schema.ui_sections.performance_config.ui_fields.load_sampling_interval_minutes]
+ui_widget = "slider"
+ui_step = 1
+ui_unit = "分钟"
+ui_help = "较小值提供更及时的系统状态，但消耗更多资源"
+
+[config_ui_schema.ui_sections.performance_config.ui_fields.activity_summary_interval_hours]
+ui_widget = "slider"
+ui_step = 1
+ui_unit = "小时"
+ui_help = "定期生成用户活动模式摘要"
+
+[config_ui_schema.ui_sections.performance_config.ui_fields.top_process_count]
+ui_widget = "slider"
+ui_step = 1
+ui_unit = "个"
+ui_help = "收集资源占用最高的进程数量，用于活动分析"

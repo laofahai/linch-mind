@@ -50,13 +50,6 @@ public:
         return homeDir + "/.linch-mind/" + environment + "/daemon.socket.info";
     }
     
-    std::string getPortFilePath() {
-        auto homeDir = getHomeDirectory();
-        if (homeDir.empty()) {
-            return "";
-        }
-        return homeDir + "/.linch-mind/daemon.port";
-    }
     
     std::optional<DaemonInfo> readSocketFile() {
         auto socketFilePath = getSocketFilePath();
@@ -67,7 +60,7 @@ public:
         
         std::filesystem::path socketFile(socketFilePath);
         if (!std::filesystem::exists(socketFile)) {
-            // socket文件不存在，这不是错误，可能使用HTTP模式
+            // socket文件不存在，daemon未启动
             return std::nullopt;
         }
         
@@ -106,68 +99,6 @@ public:
         }
     }
     
-    std::optional<DaemonInfo> readPortFile() {
-        auto portFilePath = getPortFilePath();
-        if (portFilePath.empty()) {
-            std::cerr << "[DaemonDiscovery] 无法获取用户主目录" << std::endl;
-            return std::nullopt;
-        }
-        
-        std::filesystem::path portFile(portFilePath);
-        if (!std::filesystem::exists(portFile)) {
-            std::cerr << "[DaemonDiscovery] 端口文件不存在: " << portFilePath << std::endl;
-            return std::nullopt;
-        }
-        
-        // 检查文件权限（Unix系统）
-#ifndef _WIN32
-        struct stat fileStat;
-        if (stat(portFilePath.c_str(), &fileStat) == 0) {
-            // 检查是否只有owner有读写权限
-            if ((fileStat.st_mode & 0x3F) != 0) {
-                std::cerr << "[DaemonDiscovery] 端口文件权限不安全，忽略" << std::endl;
-                return std::nullopt;
-            }
-        }
-#endif
-        
-        try {
-            std::ifstream file(portFilePath);
-            if (!file.is_open()) {
-                std::cerr << "[DaemonDiscovery] 无法打开端口文件: " << portFilePath << std::endl;
-                return std::nullopt;
-            }
-            
-            std::string content;
-            std::getline(file, content);
-            file.close();
-            
-            // 解析格式: port:pid
-            auto colonPos = content.find(':');
-            if (colonPos == std::string::npos) {
-                std::cerr << "[DaemonDiscovery] 端口文件格式无效，期望 \"port:pid\"" << std::endl;
-                return std::nullopt;
-            }
-            
-            std::string portStr = content.substr(0, colonPos);
-            std::string pidStr = content.substr(colonPos + 1);
-            
-            int port = std::stoi(portStr);
-            int pid = std::stoi(pidStr);
-            
-            DaemonInfo daemonInfo;
-            daemonInfo.pid = pid;
-            // HTTP模式已经不再支持，返回nullopt
-            std::cerr << "[DaemonDiscovery] HTTP mode is no longer supported" << std::endl;
-            return std::nullopt;
-            
-            return daemonInfo;
-            
-        } catch (const std::exception& e) {
-            std::cerr << "[DaemonDiscovery] 解析端口文件失败: " << e.what() << std::endl;
-            return std::nullopt;
-        }
-    }
     
     std::optional<DaemonInfo> parseSocketFileContent(const std::string& content) {
         // 简单的JSON解析实现（生产环境中应该使用更健壮的JSON库）

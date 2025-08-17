@@ -5,6 +5,7 @@
 #include "config_manager.hpp"
 #include "connector_status.hpp"
 #include "daemon_discovery.hpp"
+#include "chunk_manager.hpp"
 #include <memory>
 #include <vector>
 #include <functional>
@@ -105,6 +106,23 @@ protected:
     void sendBatchEvents(const std::vector<ConnectorEvent>& events);
 
     /**
+     * 发送大型JSON数据（自动分片传输）
+     * @param endpoint IPC端点
+     * @param jsonData 大型JSON数据
+     * @return 传输是否成功
+     */
+    bool sendLargeJsonData(const std::string& endpoint, const nlohmann::json& jsonData);
+
+    /**
+     * 发送分片数据
+     * @param chunks 分片列表
+     * @param endpoint IPC端点
+     * @return 成功发送的分片数量
+     */
+    size_t sendChunkedData(const std::vector<ChunkManager::ChunkInfo>& chunks, 
+                          const std::string& endpoint);
+
+    /**
      * 获取配置管理器
      */
     ConfigManager& getConfigManager() { return *m_configManager; }
@@ -138,6 +156,23 @@ protected:
      * 获取连接器ID
      */
     const std::string& getId() const { return m_connectorId; }
+    
+    /**
+     * 启动优雅停止流程
+     * @param timeoutMs 停止超时时间（毫秒）
+     * @return 是否在超时前完成停止
+     */
+    bool gracefulShutdown(std::chrono::milliseconds timeoutMs = std::chrono::milliseconds(30000));
+    
+    /**
+     * 检查是否正在停止
+     */
+    bool isShuttingDown() const { return m_shuttingDown.load(); }
+    
+    /**
+     * 等待当前操作完成
+     */
+    void waitForCurrentOperations();
 
 private:
     // 连接器信息
@@ -149,10 +184,13 @@ private:
     std::unique_ptr<ConfigManager> m_configManager;
     std::unique_ptr<ConnectorStatusManager> m_statusManager;
     std::unique_ptr<IConnectorMonitor> m_monitor;
+    std::unique_ptr<ChunkManager> m_chunkManager;
 
     // 运行状态
     std::atomic<bool> m_running{false};
     std::atomic<bool> m_initialized{false};
+    std::atomic<bool> m_shuttingDown{false};
+    std::atomic<size_t> m_activeOperations{0};
 
     // 批处理配置
     std::chrono::milliseconds m_batchInterval{300};

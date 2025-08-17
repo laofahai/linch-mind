@@ -145,8 +145,9 @@ print_color $GREEN "🔧 Building..."
 NPROC=$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 4)
 make -j"$NPROC"
 
-# Determine output binary name
-BINARY_NAME="linch-mind-${CONNECTOR_NAME}"
+# Determine output binary name (convert underscores to hyphens for consistency)
+CONNECTOR_NAME_HYPHEN="${CONNECTOR_NAME//_/-}"
+BINARY_NAME="linch-mind-${CONNECTOR_NAME_HYPHEN}"
 if [[ "$OS" == "MINGW"* ]] || [[ "$OS" == "MSYS"* ]]; then
     BINARY_NAME="${BINARY_NAME}.exe"
 fi
@@ -168,15 +169,20 @@ fi
 if [ -f "$BUILD_DIR/$BINARY_NAME" ]; then
     cp "$BUILD_DIR/$BINARY_NAME" "$OUTPUT_DIR/"
     print_color $GREEN "✅ Binary created: $OUTPUT_DIR/$BINARY_NAME"
-else
+elif [ -f "$BUILD_DIR/linch-mind-${CONNECTOR_NAME_HYPHEN}" ]; then
     # Try alternative naming patterns
-    if [ -f "$BUILD_DIR/linch-mind-${CONNECTOR_NAME}" ]; then
-        cp "$BUILD_DIR/linch-mind-${CONNECTOR_NAME}" "$OUTPUT_DIR/$BINARY_NAME"
-        print_color $GREEN "✅ Binary created: $OUTPUT_DIR/$BINARY_NAME"
-    else
-        print_color $RED "❌ Binary not found after build"
-        exit 1
-    fi
+    cp "$BUILD_DIR/linch-mind-${CONNECTOR_NAME_HYPHEN}" "$OUTPUT_DIR/$BINARY_NAME"
+    print_color $GREEN "✅ Binary created: $OUTPUT_DIR/$BINARY_NAME"
+elif [ -f "$OUTPUT_DIR/$BINARY_NAME" ]; then
+    # Binary already exists in output directory (some CMakeLists.txt output directly)
+    print_color $GREEN "✅ Binary already created: $OUTPUT_DIR/$BINARY_NAME"
+else
+    print_color $RED "❌ Binary not found after build"
+    print_color $YELLOW "Searched in:"
+    print_color $YELLOW "  $BUILD_DIR/$BINARY_NAME"
+    print_color $YELLOW "  $BUILD_DIR/linch-mind-${CONNECTOR_NAME_HYPHEN}"
+    print_color $YELLOW "  $OUTPUT_DIR/$BINARY_NAME"
+    exit 1
 fi
 
 # Optional: Strip symbols for release builds

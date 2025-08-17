@@ -6,16 +6,11 @@
 
 ## 核心功能
 
-### 🔍 统一Daemon发现
-- 基于 `~/.linch-mind/daemon.port` 文件的服务发现
-- 自动PID验证和连接测试
-- 与UI中Dart实现的完全一致性
-
-### 🌐 HTTP客户端
-- 基于libcurl的轻量级封装
-- 支持GET/POST请求
-- JSON数据传输
-- 自动超时和错误处理
+### 🔍 统一Daemon发现（纯IPC架构）
+- 基于 `~/.linch-mind/{env}/daemon.socket.info` 文件的服务发现
+- 自动PID验证和IPC连接测试
+- 支持多环境隔离（development/staging/production）
+- Unix Socket/Named Pipe通信
 
 ### ⚙️ 配置管理
 - 从daemon动态加载配置
@@ -32,18 +27,18 @@
 
 ```
 linch_connector/
-├── daemon_discovery.hpp    # Daemon服务发现
-├── http_client.hpp         # HTTP客户端
+├── daemon_discovery.hpp    # Daemon服务发现（纯IPC）
+├── ipc_client.hpp          # IPC客户端
 ├── config_manager.hpp      # 配置管理
 └── utils.hpp              # 通用工具函数
 ```
 
-### Daemon发现流程
+### Daemon发现流程（纯IPC架构）
 
-1. **读取端口文件**: `~/.linch-mind/daemon.port` (格式: `port:pid`)
+1. **读取socket信息文件**: `~/.linch-mind/{env}/daemon.socket.info` (JSON格式)
 2. **安全检查**: 验证文件权限（Unix系统）
 3. **进程验证**: 检查daemon进程是否仍在运行
-4. **连接测试**: Socket连接测试验证可访问性
+4. **IPC连接测试**: Unix Socket连接测试验证可访问性
 5. **缓存机制**: 缓存有效的daemon信息
 
 ### 与UI一致性
@@ -92,22 +87,29 @@ int main() {
 ### 数据推送
 
 ```cpp
-#include <linch_connector/http_client.hpp>
+#include <linch_connector/daemon_discovery.hpp>
+#include <linch_connector/ipc_client.hpp>
 #include <linch_connector/utils.hpp>
 
-// 创建数据项
-std::string itemId = "my-connector_" + utils::generateUUID();
-std::string dataItem = utils::createDataItem(
-    itemId, 
-    "Hello, World!", 
-    "my-connector",
-    R"({"source": "example"})"
-);
+// 发现daemon并建立IPC连接
+DaemonDiscovery discovery;
+auto daemonInfo = discovery.discoverDaemon();
 
-// 推送到daemon
-HttpClient client;
-client.addHeader("Content-Type", "application/json");
-auto response = client.post(daemonUrl + "/api/v1/data/ingest", dataItem);
+if (daemonInfo) {
+    // 创建IPC客户端
+    IPCClient ipcClient;
+    if (ipcClient.connect(daemonInfo->socket_path)) {
+        // 发送事件到daemon
+        std::string eventData = utils::createDataItem(
+            "my-connector_" + utils::generateUUID(),
+            "Hello, World!",
+            "my-connector",
+            R"({"source": "example"})"
+        );
+        
+        auto response = ipcClient.send("connector_event", eventData);
+    }
+}
 ```
 
 ## 构建要求
@@ -116,12 +118,12 @@ auto response = client.post(daemonUrl + "/api/v1/data/ingest", dataItem);
 
 **macOS**:
 ```bash
-brew install nlohmann-json curl
+brew install nlohmann-json
 ```
 
 **Ubuntu/Debian**:
 ```bash
-sudo apt-get install nlohmann-json3-dev libcurl4-openssl-dev uuid-dev
+sudo apt-get install nlohmann-json3-dev uuid-dev
 ```
 
 **Windows**:

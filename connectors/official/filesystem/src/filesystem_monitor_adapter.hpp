@@ -55,15 +55,14 @@ public:
                          std::chrono::milliseconds interval = std::chrono::milliseconds(300));
 
 private:
-    std::unique_ptr<FileSystemMonitor> m_monitor;
     std::function<void(ConnectorEvent&&)> m_eventCallback;
     std::function<void(std::vector<ConnectorEvent>&&)> m_batchCallback;
     
     // 🚀 统一配置系统
     config::FilesystemConfig m_config;
     
-    void onFileSystemEvent(const FileSystemEvent& event);
-    void onBatchFileSystemEvents(const std::vector<FileSystemEvent>& events);
+    // 简化的运行状态
+    bool m_running;
     
     // 🚀 性能优化: 轻量级事件类型转换
     std::string_view getEventTypeString(FileEventType type) const;

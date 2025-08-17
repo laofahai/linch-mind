@@ -14,7 +14,6 @@
 #include <mutex>
 #include <condition_variable>
 #include <functional>
-#include "file_index_provider.hpp"
 
 namespace linch_connector {
 

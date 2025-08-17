@@ -18,7 +18,7 @@
 
 ### 🌐 跨平台支持
 - **Windows 10+**: Win32 Clipboard API + Named Pipe通信
-- **macOS 10.15+**: NSPasteboard + Unix Domain Socket通信  
+- **macOS 10.15+**: NSPasteboard + Unix Domain Socket通信
 - **Linux**: X11剪贴板 + Unix Domain Socket通信
 - **统一接口**: 所有平台使用相同的API和配置
 
@@ -65,15 +65,15 @@ graph TB
     E --> F[Windows Clipboard API]
     E --> G[macOS NSPasteboard]
     E --> H[Linux X11]
-    
+
     C --> I[UnifiedClient]
     I --> J[IPCClient]
     J --> K[Unix Socket]
     J --> L[Named Pipe]
-    
+
     C --> M[ConfigManager]
     M --> N[从Daemon加载配置]
-    
+
     C --> O[事件批处理]
     C --> P[心跳机制]
     C --> Q[统计信息]
@@ -298,7 +298,7 @@ nssm set LinchMindClipboard Start SERVICE_AUTO_START
 
 ```
 🛑 正在停止剪贴板连接器...
-📊 最终统计: 
+📊 最终统计:
    事件处理数量: 245
    批次发送数量: 23
    错误发生次数: 0
@@ -430,7 +430,7 @@ connectors/official/clipboard/
 │   ├── clipboard_monitor_adapter.* # 监控适配器
 │   └── platform/               # 平台特定实现
 │       ├── windows_clipboard.* # Windows实现
-│       ├── macos_clipboard.*   # macOS实现  
+│       ├── macos_clipboard.*   # macOS实现
 │       └── linux_clipboard.*   # Linux实现
 └── dist/                       # 共享库链接
     └── include/linch_connector/ # 统一架构头文件
@@ -451,13 +451,13 @@ protected:
     std::unique_ptr<IConnectorMonitor> createMonitor() override {
         return std::make_unique<ClipboardMonitorAdapter>();
     }
-    
+
     bool loadConnectorConfig() override {
         EnhancedConfig enhancedConfig(getConfigManager());
         m_config = enhancedConfig.getClipboardConfig();
         return true;
     }
-    
+
     // 可选的生命周期钩子
     bool onInitialize() override { /* 初始化逻辑 */ }
     bool onStart() override { /* 启动逻辑 */ }
@@ -484,12 +484,12 @@ struct ClipboardConfig {
 // 在clipboard_connector.cpp中实现
 bool ClipboardConnector::onStart() override {
     setBatchConfig(std::chrono::milliseconds(m_config.pollInterval), 20);
-    
+
     if (m_config.newFeatureEnabled) {
         // 初始化新功能
         initializeNewFeature();
     }
-    
+
     return true;
 }
 ```
@@ -516,7 +516,7 @@ public:
     bool startMonitoring() override;
     void stopMonitoring() override;
     std::string getCurrentContent() override;
-    
+
 private:
     // 平台特定成员
 };
@@ -583,7 +583,7 @@ git push origin feature/clipboard-enhancement
 
 核心指标:
 - 事件检测延迟: 3.2ms ± 1.1ms
-- IPC通信延迟: 0.8ms ± 0.3ms  
+- IPC通信延迟: 0.8ms ± 0.3ms
 - 事件处理延迟: 4.0ms ± 1.4ms
 - 内存使用: 8.2MB (稳定)
 - CPU使用率: 0.1% (平均)

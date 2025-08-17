@@ -30,7 +30,26 @@ set(SOURCES
     src/connector_status.cpp
     src/base_connector.cpp
     src/file_filter.cpp
+    src/chunk_manager.cpp
+    src/file_index_provider.cpp
 )
+
+# 平台特定源文件
+if(APPLE)
+    list(APPEND SOURCES
+        src/platform/macos_file_index_provider.cpp
+    )
+elseif(UNIX)
+    # Linux 平台特定文件 (待实现)
+    # list(APPEND SOURCES
+    #     src/platform/linux_file_index_provider.cpp
+    # )
+elseif(WIN32)
+    # Windows 平台特定文件 (待实现)
+    # list(APPEND SOURCES
+    #     src/platform/windows_file_index_provider.cpp
+    # )
+endif()
 
 # 创建静态库
 add_library(linch_connector_shared STATIC ${SOURCES})

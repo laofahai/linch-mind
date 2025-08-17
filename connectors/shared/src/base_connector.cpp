@@ -18,6 +18,14 @@ BaseConnector::BaseConnector(const std::string& connectorId, const std::string& 
     , m_statusManager(std::make_unique<ConnectorStatusManager>(connectorId, displayName))
 {
     setupSignalHandlers();
+    
+    // 初始化分片管理器（根据CLAUDE.md中的IPC性能要求配置）
+    ChunkManager::ChunkConfig chunkConfig;
+    chunkConfig.maxChunkSize = 32 * 1024;  // 32KB - 确保IPC延迟<10ms
+    chunkConfig.maxRetries = 3;
+    chunkConfig.retryDelay = std::chrono::milliseconds(50);
+    chunkConfig.minChunkSize = 1024;       // 1KB最小分片
+    m_chunkManager = std::make_unique<ChunkManager>(chunkConfig);
 }
 
 BaseConnector::~BaseConnector() {
@@ -185,11 +193,21 @@ void BaseConnector::setBatchConfig(std::chrono::milliseconds interval, size_t ma
 }
 
 void BaseConnector::sendEvent(const ConnectorEvent& event) {
+    // 检查是否正在停止
+    if (m_shuttingDown.load()) {
+        logWarn("⚠️ 连接器正在停止，跳过事件发送");
+        return;
+    }
+    
+    // 增加活跃操作计数
+    m_activeOperations.fetch_add(1);
+    
     try {
         // 🛡️ 防护机制：检查事件有效性
         if (!event.isValid()) {
             logInfo("🚫 跳过无效事件 (connectorId: '" + event.connectorId + 
                    "', eventType: '" + event.eventType + "')");
+            m_activeOperations.fetch_sub(1);
             return;
         }
         
@@ -214,12 +232,24 @@ void BaseConnector::sendEvent(const ConnectorEvent& event) {
         std::lock_guard<std::mutex> lock(m_statsMutex);
         m_errorsOccurred++;
     }
+    
+    // 减少活跃操作计数
+    m_activeOperations.fetch_sub(1);
 }
 
 void BaseConnector::sendBatchEvents(const std::vector<ConnectorEvent>& events) {
     if (events.empty()) {
         return;
     }
+    
+    // 检查是否正在停止
+    if (m_shuttingDown.load()) {
+        logWarn("⚠️ 连接器正在停止，跳过批量事件发送");
+        return;
+    }
+    
+    // 增加活跃操作计数
+    m_activeOperations.fetch_add(1);
 
     try {
         json batch_data = json::array();
@@ -232,22 +262,44 @@ void BaseConnector::sendBatchEvents(const std::vector<ConnectorEvent>& events) {
             {"events", batch_data}
         };
 
-        // 使用安全的JSON序列化
+        // 检查批量数据大小，如果过大则使用分片传输
         std::string safeJsonStr = utils::safeJsonDump(request_data);
-        auto response = m_client->post("/events/submit_batch", safeJsonStr);
         
-        if (response.success) {
-            std::lock_guard<std::mutex> lock(m_statsMutex);
-            m_eventsSent += events.size();
-            m_batchesSent++;
-            logInfo("✅ 已发送批量事件: " + std::to_string(events.size()) + " 个");
-        } else {
-            logError("❌ 发送批量事件失败: " + response.error_message);
+        // 如果批量数据超过64KB，使用分片传输
+        if (safeJsonStr.size() > 64 * 1024) {
+            logInfo("📦 批量数据较大 (" + std::to_string(safeJsonStr.size()) + " 字节)，使用分片传输");
             
-            // 如果批量发送失败，尝试逐个发送
-            logInfo("🔄 正在逐个重试发送事件...");
-            for (const auto& event : events) {
-                sendEvent(event);
+            bool chunkSuccess = sendLargeJsonData("/events/submit_batch", request_data);
+            if (chunkSuccess) {
+                std::lock_guard<std::mutex> lock(m_statsMutex);
+                m_eventsSent += events.size();
+                m_batchesSent++;
+                logInfo("✅ 已通过分片发送批量事件: " + std::to_string(events.size()) + " 个");
+            } else {
+                logError("❌ 分片发送批量事件失败");
+                // 降级到逐个发送
+                logInfo("🔄 降级为逐个发送事件...");
+                for (const auto& event : events) {
+                    sendEvent(event);
+                }
+            }
+        } else {
+            // 正常发送
+            auto response = m_client->post("/events/submit_batch", safeJsonStr);
+            
+            if (response.success) {
+                std::lock_guard<std::mutex> lock(m_statsMutex);
+                m_eventsSent += events.size();
+                m_batchesSent++;
+                logInfo("✅ 已发送批量事件: " + std::to_string(events.size()) + " 个");
+            } else {
+                logError("❌ 发送批量事件失败: " + response.error_message);
+                
+                // 如果批量发送失败，尝试逐个发送
+                logInfo("🔄 正在逐个重试发送事件...");
+                for (const auto& event : events) {
+                    sendEvent(event);
+                }
             }
         }
     } catch (const std::exception& e) {
@@ -255,6 +307,9 @@ void BaseConnector::sendBatchEvents(const std::vector<ConnectorEvent>& events) {
         std::lock_guard<std::mutex> lock(m_statsMutex);
         m_errorsOccurred++;
     }
+    
+    // 减少活跃操作计数
+    m_activeOperations.fetch_sub(1);
 }
 
 void BaseConnector::setError(const std::string& error, const std::string& details) {
@@ -363,8 +418,208 @@ void BaseConnector::setupSignalHandlers() {
 }
 
 void BaseConnector::signalHandler(int signum) {
-    std::cout << "\n📡 收到信号 " << signum << "，正在停止连接器..." << std::endl;
+    std::cout << "\n📡 收到信号 " << signum << "，启动优雅停止..." << std::endl;
     s_shouldStop.store(true);
+    
+    // 注意：在信号处理器中只能做最小的操作
+    // 实际的优雅停止逻辑在主线程中执行
+}
+
+bool BaseConnector::sendLargeJsonData(const std::string& endpoint, const nlohmann::json& jsonData) {
+    try {
+        auto start = std::chrono::steady_clock::now();
+        
+        // 尝试直接发送（如果数据不大）
+        std::string jsonString = utils::safeJsonDump(jsonData);
+        
+        // 如果小于16KB，直接发送
+        if (jsonString.size() <= 16 * 1024) {
+            auto response = m_client->post(endpoint, jsonString);
+            if (response.success) {
+                logInfo("✅ 直接发送JSON数据成功 (" + std::to_string(jsonString.size()) + " 字节)");
+                return true;
+            }
+        }
+        
+        // 大数据使用分片传输
+        logInfo("📦 数据较大 (" + std::to_string(jsonString.size()) + " 字节)，启用分片传输");
+        
+        auto chunks = m_chunkManager->chunkifyJson(jsonData);
+        if (chunks.empty()) {
+            logError("❌ 分片失败");
+            return false;
+        }
+        
+        size_t successCount = sendChunkedData(chunks, endpoint + "_chunked");
+        
+        auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(
+            std::chrono::steady_clock::now() - start);
+        
+        bool success = (successCount == chunks.size());
+        logInfo("📊 分片传输完成: " + std::to_string(successCount) + "/" + 
+                std::to_string(chunks.size()) + " 分片，耗时 " + 
+                std::to_string(duration.count()) + "ms");
+        
+        return success;
+        
+    } catch (const std::exception& e) {
+        logError("❌ 大数据传输异常: " + std::string(e.what()));
+        return false;
+    }
+}
+
+size_t BaseConnector::sendChunkedData(const std::vector<ChunkManager::ChunkInfo>& chunks, 
+                                      const std::string& endpoint) {
+    size_t successCount = 0;
+    const auto& config = m_chunkManager->getConfig();
+    
+    for (const auto& chunk : chunks) {
+        bool chunkSuccess = false;
+        
+        // 重试机制
+        for (size_t retry = 0; retry <= config.maxRetries; ++retry) {
+            try {
+                nlohmann::json chunkMessage = m_chunkManager->createChunkMessage(chunk);
+                std::string chunkJsonStr = utils::safeJsonDump(chunkMessage);
+                
+                auto response = m_client->post(endpoint, chunkJsonStr);
+                
+                if (response.success) {
+                    chunkSuccess = true;
+                    break;
+                } else {
+                    logWarn("⚠️ 分片 " + std::to_string(chunk.chunkIndex) + "/" + 
+                           std::to_string(chunk.totalChunks) + " 发送失败 (尝试 " + 
+                           std::to_string(retry + 1) + "/" + std::to_string(config.maxRetries + 1) + 
+                           "): " + response.error_message);
+                    
+                    // 根据错误类型调整分片大小
+                    if (retry == config.maxRetries) {
+                        m_chunkManager->adaptChunkSize(response.error_code);
+                    }
+                }
+            } catch (const std::exception& e) {
+                logError("❌ 分片传输异常 (尝试 " + std::to_string(retry + 1) + "): " + 
+                        std::string(e.what()));
+            }
+            
+            // 重试延迟
+            if (retry < config.maxRetries) {
+                std::this_thread::sleep_for(config.retryDelay);
+            }
+        }
+        
+        if (chunkSuccess) {
+            successCount++;
+        } else {
+            logError("❌ 分片 " + std::to_string(chunk.chunkIndex) + 
+                    " 最终发送失败，会话ID: " + chunk.sessionId);
+        }
+    }
+    
+    return successCount;
+}
+
+bool BaseConnector::gracefulShutdown(std::chrono::milliseconds timeoutMs) {
+    logInfo("🛑 启动优雅停止流程...");
+    m_shuttingDown.store(true);
+    
+    auto shutdownStart = std::chrono::steady_clock::now();
+    
+    // 1. 停止接收新的任务
+    if (m_running.load()) {
+        logInfo("⏹️ 停止连接器主循环");
+        m_running.store(false);
+    }
+    
+    // 2. 等待当前操作完成
+    logInfo("⌛ 等待当前操作完成...");
+    waitForCurrentOperations();
+    
+    // 3. 停止批处理线程
+    if (m_batchThreadRunning.load()) {
+        logInfo("🔄 停止批处理线程");
+        m_batchThreadRunning.store(false);
+        if (m_batchThread.joinable()) {
+            m_batchThread.join();
+        }
+    }
+    
+    // 4. 发送剩余的批处理事件
+    {
+        std::lock_guard<std::mutex> lock(m_queueMutex);
+        if (!m_eventQueue.empty()) {
+            logInfo("📦 发送剩余的 " + std::to_string(m_eventQueue.size()) + " 个事件");
+            
+            std::vector<ConnectorEvent> remainingEvents;
+            while (!m_eventQueue.empty()) {
+                remainingEvents.push_back(m_eventQueue.front());
+                m_eventQueue.pop();
+            }
+            
+            if (!remainingEvents.empty()) {
+                sendBatchEvents(remainingEvents);
+            }
+        }
+    }
+    
+    // 5. 停止监控器
+    if (m_monitor) {
+        logInfo("👁️ 停止监控器");
+        m_monitor->stop();
+    }
+    
+    // 6. 停止心跳线程
+    if (m_heartbeatRunning.load()) {
+        logInfo("💗 停止心跳线程");
+        m_heartbeatRunning.store(false);
+        if (m_heartbeatThread.joinable()) {
+            m_heartbeatThread.join();
+        }
+    }
+    
+    // 7. 调用子类的停止逻辑
+    try {
+        onStop();
+    } catch (const std::exception& e) {
+        logError("⚠️ 停止过程中出现异常: " + std::string(e.what()));
+    }
+    
+    auto shutdownDuration = std::chrono::duration_cast<std::chrono::milliseconds>(
+        std::chrono::steady_clock::now() - shutdownStart);
+    
+    bool timedOut = shutdownDuration >= timeoutMs;
+    
+    if (timedOut) {
+        logWarn("⚠️ 优雅停止超时 (" + std::to_string(shutdownDuration.count()) + 
+                "ms > " + std::to_string(timeoutMs.count()) + "ms)");
+    } else {
+        logInfo("✅ 优雅停止完成，耗时 " + std::to_string(shutdownDuration.count()) + "ms");
+    }
+    
+    return !timedOut;
+}
+
+void BaseConnector::waitForCurrentOperations() {
+    auto startTime = std::chrono::steady_clock::now();
+    const auto maxWaitTime = std::chrono::seconds(10);
+    
+    while (m_activeOperations.load() > 0) {
+        auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(
+            std::chrono::steady_clock::now() - startTime);
+        
+        if (elapsed >= maxWaitTime) {
+            logWarn("⚠️ 等待操作完成超时，当前还有 " + 
+                   std::to_string(m_activeOperations.load()) + " 个操作未完成");
+            break;
+        }
+        
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    }
+    
+    if (m_activeOperations.load() == 0) {
+        logInfo("✅ 所有操作已完成");
+    }
 }
 
 } // namespace linch_connector
