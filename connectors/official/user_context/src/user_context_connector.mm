@@ -20,92 +20,6 @@ using json = nlohmann::json;
 
 namespace linch_connector {
 
-// ===============================
-// UserContextScheduler 实现
-// ===============================
-
-UserContextScheduler::UserContextScheduler() {
-    m_lastLoadSampling = std::chrono::steady_clock::now();
-    m_lastActivitySummary = std::chrono::steady_clock::now();
-}
-
-UserContextScheduler::~UserContextScheduler() {
-    stop();
-}
-
-void UserContextScheduler::start() {
-    if (m_schedulerThread) {
-        return; // 已经启动
-    }
-    
-    m_shouldStop = false;
-    m_schedulerThread = std::make_unique<std::thread>([this]() {
-        schedulerLoop();
-    });
-}
-
-void UserContextScheduler::stop() {
-    if (m_schedulerThread) {
-        m_shouldStop = true;
-        if (m_schedulerThread->joinable()) {
-            m_schedulerThread->join();
-        }
-        m_schedulerThread.reset();
-    }
-}
-
-void UserContextScheduler::triggerContextCollection(UserContextType type) {
-    if (m_contextCallback) {
-        m_contextCallback(type);
-    }
-}
-
-void UserContextScheduler::setLoadSamplingInterval(int minutes) {
-    m_loadSamplingIntervalMinutes = std::max(5, minutes); // 最少5分钟
-}
-
-void UserContextScheduler::setActivitySummaryInterval(int hours) {
-    m_activitySummaryIntervalHours = std::max(1, hours); // 最少1小时
-}
-
-void UserContextScheduler::setContextCallback(std::function<void(UserContextType)> callback) {
-    m_contextCallback = callback;
-}
-
-void UserContextScheduler::schedulerLoop() {
-    while (!m_shouldStop) {
-        // 每5分钟检查一次是否需要收集信息
-        std::this_thread::sleep_for(std::chrono::minutes(5));
-        
-        if (m_shouldStop) break;
-        
-        std::lock_guard<std::mutex> lock(m_schedulerMutex);
-        
-        // 检查系统负载采样
-        if (shouldSampleSystemLoad()) {
-            triggerContextCollection(UserContextType::SYSTEM_LOAD_UPDATE);
-            m_lastLoadSampling = std::chrono::steady_clock::now();
-        }
-        
-        // 检查活动摘要生成
-        if (shouldGenerateActivitySummary()) {
-            triggerContextCollection(UserContextType::USER_ACTIVITY_SUMMARY);
-            m_lastActivitySummary = std::chrono::steady_clock::now();
-        }
-    }
-}
-
-bool UserContextScheduler::shouldSampleSystemLoad() const {
-    auto now = std::chrono::steady_clock::now();
-    auto elapsed = std::chrono::duration_cast<std::chrono::minutes>(now - m_lastLoadSampling);
-    return elapsed.count() >= m_loadSamplingIntervalMinutes.load();
-}
-
-bool UserContextScheduler::shouldGenerateActivitySummary() const {
-    auto now = std::chrono::steady_clock::now();
-    auto elapsed = std::chrono::duration_cast<std::chrono::hours>(now - m_lastActivitySummary);
-    return elapsed.count() >= m_activitySummaryIntervalHours.load();
-}
 
 // ===============================
 // UserContextConnector 实现
@@ -191,24 +105,13 @@ bool UserContextConnector::loadConnectorConfig() {
 bool UserContextConnector::onInitialize() {
     logInfo("🔧 初始化用户情境感知系统");
     
-    // 创建调度器
-    m_scheduler = std::make_unique<UserContextScheduler>();
-    m_scheduler->setLoadSamplingInterval(m_loadSamplingIntervalMinutes);
-    m_scheduler->setActivitySummaryInterval(m_activitySummaryIntervalHours);
-    
-    // 设置回调函数
-    m_scheduler->setContextCallback([this](UserContextType type) {
-        handleUserContextCollection(type);
-    });
-    
     // 设置macOS通知监听
     if (m_enableAppMonitoring || m_enableDeviceStateMonitoring) {
         setupNotificationObservers();
     }
     
     logInfo("✅ 用户情境感知系统初始化成功");
-    logInfo("🧠 监控策略：事件驱动应用切换，负载采样每" + std::to_string(m_loadSamplingIntervalMinutes) + "分钟");
-    logInfo("📊 摘要策略：用户活动模式每" + std::to_string(m_activitySummaryIntervalHours) + "小时生成摘要");
+    logInfo("🧠 监控策略：事件驱动的实时用户情境感知");
     
     return true;
 }
@@ -222,22 +125,12 @@ bool UserContextConnector::onStart() {
     // 立即收集一次设备状态
     handleUserContextCollection(UserContextType::DEVICE_STATE_CHANGED);
     
-    // 立即收集一次系统负载
-    handleUserContextCollection(UserContextType::SYSTEM_LOAD_UPDATE);
-    
-    // 启动调度器
-    m_scheduler->start();
-    
     logInfo("✅ 用户情境感知连接器启动成功");
     return true;
 }
 
 void UserContextConnector::onStop() {
     logInfo("🛑 停止用户情境感知连接器");
-    
-    if (m_scheduler) {
-        m_scheduler->stop();
-    }
     
     // 清理macOS通知监听
     cleanupNotificationObservers();
@@ -266,23 +159,8 @@ void UserContextConnector::handleUserContextCollection(UserContextType type) {
                 logInfo("✅ 设备状态信息收集完成");
                 break;
             }
-            case UserContextType::SYSTEM_LOAD_UPDATE: {
-                logInfo("📊 收集智能负载信息...");
-                auto loadInfo = collectIntelligentLoad();
-                sendUserContextData(loadInfo, type);
-                logInfo("✅ 智能负载信息收集完成");
-                break;
-            }
-            case UserContextType::USER_ACTIVITY_SUMMARY: {
-                logInfo("📋 生成用户活动摘要...");
-                auto activitySummary = generateActivitySummary();
-                sendUserContextData(activitySummary, type);
-                logInfo("✅ 用户活动摘要生成完成");
-                break;
-            }
-            case UserContextType::WINDOW_FOCUS_CHANGED:
-            case UserContextType::NETWORK_STATE_CHANGED: {
-                // 这些事件由通知触发，此处处理状态更新
+            default: {
+                // 简化：其他事件统一处理为状态更新
                 logInfo("🔄 处理状态变化事件");
                 auto contextUpdate = collectActiveUserContext();
                 sendUserContextData(contextUpdate, type);
@@ -327,36 +205,6 @@ nlohmann::json UserContextConnector::collectDeviceState() {
     return deviceState;
 }
 
-nlohmann::json UserContextConnector::collectIntelligentLoad() {
-    json loadInfo = {
-        {"event_type", "intelligent_load"},
-        {"timestamp", std::chrono::duration_cast<std::chrono::milliseconds>(
-            std::chrono::system_clock::now().time_since_epoch()).count()},
-        {"system_load", collectSystemLoadLight()},
-        {"top_processes", collectTopProcessesLight()},
-        {"storage_space", collectStorageSpace()},
-        {"load_trend", "stable"}, // 简化的趋势分析
-        {"resource_pressure", "normal"} // 简化的资源压力评估
-    };
-    
-    return loadInfo;
-}
-
-nlohmann::json UserContextConnector::generateActivitySummary() {
-    json activitySummary = {
-        {"event_type", "activity_summary"},
-        {"timestamp", std::chrono::duration_cast<std::chrono::milliseconds>(
-            std::chrono::system_clock::now().time_since_epoch()).count()},
-        {"summary_period_hours", m_activitySummaryIntervalHours},
-        {"dominant_activity", activityPatternToString(m_currentActivityPattern)},
-        {"app_switches", 0}, // TODO: 统计应用切换次数
-        {"focused_apps", json::array()}, // TODO: 统计主要使用的应用
-        {"productivity_score", 75}, // 简化的生产力评分
-        {"recommendations", json::array()} // TODO: 基于模式的建议
-    };
-    
-    return activitySummary;
-}
 
 void UserContextConnector::sendUserContextData(const nlohmann::json& contextData, UserContextType type) {
     std::string eventType;
@@ -366,12 +214,6 @@ void UserContextConnector::sendUserContextData(const nlohmann::json& contextData
             break;
         case UserContextType::DEVICE_STATE_CHANGED:
             eventType = "user_device_state_changed";
-            break;
-        case UserContextType::SYSTEM_LOAD_UPDATE:
-            eventType = "user_system_load_update";
-            break;
-        case UserContextType::USER_ACTIVITY_SUMMARY:
-            eventType = "user_activity_summary";
             break;
         default:
             eventType = "user_context_update";
@@ -517,152 +359,6 @@ ActivityPattern UserContextConnector::analyzeActivityPattern() {
     return pattern;
 }
 
-nlohmann::json UserContextConnector::collectTopProcessesLight() {
-    json topProcesses = {
-        {"top_cpu_processes", json::array()},
-        {"top_memory_processes", json::array()},
-        {"process_count", 0}
-    };
-    
-    try {
-        // 轻量级版本：只获取前N个进程
-        std::string topCpuOutput = executeCommand("top -l 1 -o cpu -n " + std::to_string(m_topProcessCount) + 
-                                                  " -stats pid,command,cpu | tail -" + std::to_string(m_topProcessCount));
-        
-        if (!topCpuOutput.empty()) {
-            json topCpuProcesses = json::array();
-            std::istringstream stream(topCpuOutput);
-            std::string line;
-            int count = 0;
-            
-            while (std::getline(stream, line) && count < m_topProcessCount) {
-                if (!line.empty() && line.find("PID") == std::string::npos) {
-                    std::istringstream lineStream(line);
-                    std::string pid, command, cpuStr;
-                    
-                    if (lineStream >> pid && lineStream >> command && lineStream >> cpuStr) {
-                        try {
-                            double cpuPercent = std::stod(cpuStr);
-                            if (cpuPercent > 5.0) { // 只关注CPU使用率>5%的进程
-                                topCpuProcesses.push_back({
-                                    {"pid", std::stoi(pid)},
-                                    {"command", command},
-                                    {"cpu_percent", cpuPercent}
-                                });
-                                count++;
-                            }
-                        } catch (const std::exception&) {
-                            // 忽略解析错误
-                        }
-                    }
-                }
-            }
-            topProcesses["top_cpu_processes"] = topCpuProcesses;
-        }
-        
-        // 获取进程总数
-        std::string processCount = executeCommand("ps -e | wc -l");
-        if (!processCount.empty()) {
-            topProcesses["process_count"] = std::stoi(processCount) - 1; // 减去标题行
-        }
-        
-    } catch (const std::exception& e) {
-        logError("❌ TOP进程信息收集失败: " + std::string(e.what()));
-    }
-    
-    return topProcesses;
-}
-
-nlohmann::json UserContextConnector::collectSystemLoadLight() {
-    json loadInfo = {
-        {"load_average_1min", 0.0},
-        {"load_average_5min", 0.0},
-        {"cpu_usage_percent", 0.0},
-        {"memory_usage_percent", 0.0}
-    };
-    
-    try {
-        // 系统负载平均值
-        std::string uptimeOutput = executeCommand("uptime");
-        if (!uptimeOutput.empty()) {
-            size_t loadPos = uptimeOutput.find("load averages:");
-            if (loadPos != std::string::npos) {
-                std::string loadPart = uptimeOutput.substr(loadPos + 14);
-                std::istringstream loadStream(loadPart);
-                std::string load1, load5;
-                
-                if (loadStream >> load1 >> load5) {
-                    // 移除可能的逗号
-                    if (!load1.empty() && load1.back() == ',') load1.pop_back();
-                    if (!load5.empty() && load5.back() == ',') load5.pop_back();
-                    
-                    loadInfo["load_average_1min"] = std::stod(load1);
-                    loadInfo["load_average_5min"] = std::stod(load5);
-                }
-            }
-        }
-        
-        // 简化的CPU使用率获取
-        std::string topOutput = executeCommand("top -l 1 -n 0 | grep 'CPU usage' | head -1");
-        if (!topOutput.empty()) {
-            size_t userPos = topOutput.find("% user");
-            size_t sysPos = topOutput.find("% sys");
-            
-            if (userPos != std::string::npos && sysPos != std::string::npos) {
-                // 简化解析，只获取大概的CPU使用率
-                size_t startPos = topOutput.rfind(' ', userPos - 2);
-                if (startPos != std::string::npos) {
-                    std::string userPercent = topOutput.substr(startPos + 1, userPos - startPos - 1);
-                    loadInfo["cpu_usage_percent"] = std::stod(userPercent);
-                }
-            }
-        }
-        
-        // 简化的内存使用率获取
-        std::string vmStatOutput = executeCommand("vm_stat | head -5");
-        if (!vmStatOutput.empty()) {
-            // 简化处理，实际实现需要更精确的计算
-            loadInfo["memory_usage_percent"] = 60.0; // 占位值
-        }
-        
-    } catch (const std::exception& e) {
-        logError("❌ 系统负载信息收集失败: " + std::string(e.what()));
-    }
-    
-    return loadInfo;
-}
-
-nlohmann::json UserContextConnector::collectStorageSpace() {
-    json storageInfo = {
-        {"main_disk_usage_percent", 0.0},
-        {"available_gb", 0.0},
-        {"total_gb", 0.0}
-    };
-    
-    try {
-        std::string dfOutput = executeCommand("df -h / | tail -1");
-        if (!dfOutput.empty()) {
-            std::istringstream stream(dfOutput);
-            std::string filesystem, size, used, avail, usePercent, mountPoint;
-            
-            if (stream >> filesystem >> size >> used >> avail >> usePercent >> mountPoint) {
-                // 解析使用百分比
-                if (!usePercent.empty() && usePercent.back() == '%') {
-                    std::string percentStr = usePercent.substr(0, usePercent.length() - 1);
-                    storageInfo["main_disk_usage_percent"] = std::stod(percentStr);
-                }
-                
-                // 简化的容量解析（实际需要处理G、T等单位）
-                storageInfo["total_size_human"] = size;
-                storageInfo["available_size_human"] = avail;
-            }
-        }
-    } catch (const std::exception& e) {
-        logError("❌ 存储空间信息收集失败: " + std::string(e.what()));
-    }
-    
-    return storageInfo;
-}
 
 std::string UserContextConnector::executeCommand(const std::string& command) {
     std::string result;
@@ -697,26 +393,36 @@ std::string UserContextConnector::executeCommand(const std::string& command) {
 void UserContextConnector::setupNotificationObservers() {
     @try {
         if (m_enableAppMonitoring) {
-            // 监听应用激活事件
-            [m_notificationCenter addObserver:[[NSNotificationCenter alloc] init]
-                                     selector:@selector(handleAppActivation:)
-                                         name:NSWorkspaceDidActivateApplicationNotification
-                                       object:m_workspace];
+            // 监听应用激活事件 - 使用C++桥接方法
+            [[NSNotificationCenter defaultCenter] addObserverForName:NSWorkspaceDidActivateApplicationNotification
+                                                               object:m_workspace
+                                                                queue:[NSOperationQueue mainQueue]
+                                                           usingBlock:^(NSNotification* notification) {
+                NSRunningApplication* app = notification.userInfo[NSWorkspaceApplicationKey];
+                handleAppActivationNotification(app);
+            }];
             
             logInfo("✅ 应用切换监听已启用");
         }
         
         if (m_enableDeviceStateMonitoring) {
-            // 监听系统睡眠/唤醒事件
-            [m_notificationCenter addObserver:[[NSNotificationCenter alloc] init]
-                                     selector:@selector(handleSleepNotification:)
-                                         name:NSWorkspaceWillSleepNotification
-                                       object:m_workspace];
+            // 监听系统睡眠事件
+            [[NSNotificationCenter defaultCenter] addObserverForName:NSWorkspaceWillSleepNotification
+                                                               object:m_workspace
+                                                                queue:[NSOperationQueue mainQueue]
+                                                           usingBlock:^(NSNotification* notification) {
+                logInfo("🌙 系统即将睡眠");
+                handleDeviceStateNotification();
+            }];
             
-            [m_notificationCenter addObserver:[[NSNotificationCenter alloc] init]
-                                     selector:@selector(handleWakeNotification:)
-                                         name:NSWorkspaceDidWakeNotification
-                                       object:m_workspace];
+            // 监听系统唤醒事件
+            [[NSNotificationCenter defaultCenter] addObserverForName:NSWorkspaceDidWakeNotification
+                                                               object:m_workspace
+                                                                queue:[NSOperationQueue mainQueue]
+                                                           usingBlock:^(NSNotification* notification) {
+                logInfo("☀️ 系统已唤醒");
+                handleDeviceStateNotification();
+            }];
             
             logInfo("✅ 设备状态监听已启用");
         }
@@ -727,7 +433,16 @@ void UserContextConnector::setupNotificationObservers() {
 
 void UserContextConnector::cleanupNotificationObservers() {
     @try {
-        [m_notificationCenter removeObserver:[[NSNotificationCenter alloc] init]];
+        // 移除所有与NSWorkspace相关的观察者
+        [[NSNotificationCenter defaultCenter] removeObserver:nil 
+                                                         name:NSWorkspaceDidActivateApplicationNotification 
+                                                       object:m_workspace];
+        [[NSNotificationCenter defaultCenter] removeObserver:nil 
+                                                         name:NSWorkspaceWillSleepNotification 
+                                                       object:m_workspace];
+        [[NSNotificationCenter defaultCenter] removeObserver:nil 
+                                                         name:NSWorkspaceDidWakeNotification 
+                                                       object:m_workspace];
         logInfo("✅ 通知监听已清理");
     } @catch (NSException* exception) {
         logError("❌ 清理通知监听失败: " + std::string([[exception reason] UTF8String]));

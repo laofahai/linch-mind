@@ -69,78 +69,6 @@ enum class ActivityPattern {
     FOCUSED_DEEP     // 专注深度工作
 };
 
-/**
- * 用户情境感知调度器
- * 
- * 特性：
- * - 事件驱动的用户活动监控
- * - 轻量级系统负载采样
- * - 智能的用户行为模式识别
- * - 低资源占用(<1% CPU, <50MB内存)
- */
-class UserContextScheduler {
-public:
-    UserContextScheduler();
-    ~UserContextScheduler();
-    
-    /**
-     * 启动用户情境感知调度
-     */
-    void start();
-    
-    /**
-     * 停止用户情境感知调度
-     */
-    void stop();
-    
-    /**
-     * 立即触发情境感知收集
-     */
-    void triggerContextCollection(UserContextType type);
-    
-    /**
-     * 设置系统负载采样间隔（分钟）
-     */
-    void setLoadSamplingInterval(int minutes);
-    
-    /**
-     * 设置活动摘要生成间隔（小时）
-     */
-    void setActivitySummaryInterval(int hours);
-
-private:
-    std::unique_ptr<std::thread> m_schedulerThread;
-    std::atomic<bool> m_shouldStop{false};
-    std::atomic<int> m_loadSamplingIntervalMinutes{10}; // 默认10分钟
-    std::atomic<int> m_activitySummaryIntervalHours{2}; // 默认2小时
-    std::chrono::steady_clock::time_point m_lastLoadSampling;
-    std::chrono::steady_clock::time_point m_lastActivitySummary;
-    mutable std::mutex m_schedulerMutex;
-    
-    // 用户情境感知回调函数
-    std::function<void(UserContextType)> m_contextCallback;
-    
-    /**
-     * 调度器主循环
-     */
-    void schedulerLoop();
-    
-    /**
-     * 检查是否需要收集系统负载
-     */
-    bool shouldSampleSystemLoad() const;
-    
-    /**
-     * 检查是否需要生成活动摘要
-     */
-    bool shouldGenerateActivitySummary() const;
-    
-public:
-    /**
-     * 设置情境感知回调函数
-     */
-    void setContextCallback(std::function<void(UserContextType)> callback);
-};
 
 /**
  * 用户情境感知连接器
@@ -175,8 +103,6 @@ protected:
     void onStop() override;
 
 private:
-    // 用户情境感知调度器
-    std::unique_ptr<UserContextScheduler> m_scheduler;
     
     // 配置参数
     int m_loadSamplingIntervalMinutes = 10; // 系统负载采样间隔（默认10分钟）
@@ -219,15 +145,6 @@ private:
      */
     nlohmann::json collectDeviceState();
     
-    /**
-     * 收集智能负载信息
-     */
-    nlohmann::json collectIntelligentLoad();
-    
-    /**
-     * 生成用户活动摘要
-     */
-    nlohmann::json generateActivitySummary();
     
     /**
      * 发送用户情境数据到daemon
@@ -261,20 +178,6 @@ private:
      */
     ActivityPattern analyzeActivityPattern();
     
-    /**
-     * 收集TOP进程信息（轻量级版本）
-     */
-    nlohmann::json collectTopProcessesLight();
-    
-    /**
-     * 收集系统负载信息（轻量级版本）
-     */
-    nlohmann::json collectSystemLoadLight();
-    
-    /**
-     * 收集存储空间信息
-     */
-    nlohmann::json collectStorageSpace();
     
     /**
      * 执行系统命令并获取输出
