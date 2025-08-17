@@ -70,6 +70,9 @@ class EnvironmentInitializer:
             # 步骤2: 初始化数据库
             await self._initialize_database(force_reinit)
 
+            # 步骤2.5: 初始化Universal Index服务
+            await self._initialize_universal_index()
+
             # 步骤3: 设置模型文件 (可选)
             if not skip_models:
                 await self._setup_models()
@@ -203,6 +206,52 @@ class EnvironmentInitializer:
             )
             raise
 
+    async def _initialize_universal_index(self):
+        """初始化Universal Index服务"""
+        logger.info("🔍 初始化Universal Index服务...")
+
+        try:
+            from services.storage.universal_index_service import UniversalIndexService
+
+            container = get_container()
+
+            # 注册Universal Index服务 (如果尚未注册)
+            if not container.is_registered(UniversalIndexService):
+                def create_universal_index_service():
+                    return UniversalIndexService()
+                container.register_singleton(UniversalIndexService, create_universal_index_service)
+
+            # 获取并初始化服务
+            universal_index = container.get_service(UniversalIndexService)
+            
+            # 初始化服务 (创建数据库和表结构)
+            success = universal_index.initialize()
+            
+            if success:
+                logger.info("  ✅ Universal Index服务初始化成功")
+                
+                # 获取统计信息
+                stats = universal_index.get_statistics()
+                logger.info(f"  📊 索引统计: {stats.get('total_items', 0)} 项")
+                
+                self.initialization_steps.append({
+                    "step": "universal_index_initialization",
+                    "status": "completed",
+                    "stats": stats
+                })
+            else:
+                raise Exception("Universal Index服务初始化失败")
+
+        except Exception as e:
+            logger.error(f"Universal Index初始化失败: {e}")
+            self.initialization_steps.append({
+                "step": "universal_index_initialization", 
+                "status": "failed", 
+                "error": str(e)
+            })
+            # 不抛出异常，Universal Index失败不应阻止整个初始化
+            logger.warning("Universal Index初始化失败，但继续其他初始化步骤")
+
     async def _setup_models(self):
         """设置AI模型文件"""
         logger.info("🤖 设置AI模型...")
@@ -238,55 +287,35 @@ class EnvironmentInitializer:
             )
 
     async def _setup_connectors(self):
-        """设置连接器"""
-        logger.info("🔌 设置连接器...")
+        """设置连接器基础环境"""
+        logger.info("🔌 设置连接器基础环境...")
 
         try:
-            # 获取连接器管理器
-            from services.connectors.connector_manager import ConnectorManager
+            # 仅验证连接器目录存在，不注册服务
+            project_root = Path(__file__).parent.parent.parent
+            connectors_dir = project_root / "connectors"
+            
+            if not connectors_dir.exists():
+                logger.warning(f"连接器目录不存在: {connectors_dir}")
+            
+            # 检查官方连接器目录
+            official_dir = connectors_dir / "official"
+            if official_dir.exists():
+                official_connectors = list(official_dir.glob("*/"))
+                logger.info(f"  📦 发现 {len(official_connectors)} 个官方连接器目录")
+            else:
+                logger.info("  📦 官方连接器目录不存在")
 
-            container = get_container()
+            self.initialization_steps.append({
+                "step": "connector_setup",
+                "status": "completed", 
+                "message": "连接器基础环境验证完成"
+            })
 
-            # 注册连接器管理器 (如果尚未注册)
-            if not container.is_registered(ConnectorManager):
-
-                def create_connector_manager():
-                    return ConnectorManager()
-
-                container.register_singleton(ConnectorManager, create_connector_manager)
-
-            connector_manager = container.get_service(ConnectorManager)
-
-            # 自动发现和注册连接器
-            await self._auto_discover_connectors(connector_manager)
-
-            # 获取连接器状态
-            connectors = connector_manager.list_connectors()
-
-            connector_info = {
-                "total_connectors": len(connectors),
-                "connectors": [
-                    {
-                        "name": c["name"],
-                        "status": c["status"],
-                        "type": c.get("type", "unknown"),
-                    }
-                    for c in connectors
-                ],
-            }
-
-            self.initialization_steps.append(
-                {
-                    "step": "connector_setup",
-                    "status": "completed",
-                    "connector_info": connector_info,
-                }
-            )
-
-            logger.info(f"🔌 连接器设置完成 - 发现 {len(connectors)} 个连接器")
+            logger.info("🔌 连接器基础环境设置完成")
 
         except Exception as e:
-            logger.error(f"连接器设置失败: {e}")
+            logger.error(f"连接器环境设置失败: {e}")
             self.initialization_steps.append(
                 {"step": "connector_setup", "status": "failed", "error": str(e)}
             )

@@ -59,7 +59,8 @@ class DaemonPortService {
       // 多次尝试读取socket文件，因为daemon可能正在重启
       for (int attempt = 0; attempt < 3; attempt++) {
         final socketFile = await _getSocketFile();
-        print('[DaemonPortService] Socket file path: ${socketFile?.path} (attempt ${attempt + 1})');
+        print(
+            '[DaemonPortService] Socket file path: ${socketFile?.path} (attempt ${attempt + 1})');
         if (socketFile == null || !await socketFile.exists()) {
           if (attempt < 2) {
             print('[DaemonPortService] Socket文件不存在，等待daemon写入...');
@@ -97,10 +98,12 @@ class DaemonPortService {
 
         if (isAccessible) {
           _cachedDaemonInfo = accessibleDaemonInfo;
-          print('[DaemonPortService] 发现可访问的IPC daemon (PID: ${daemonInfo.pid})');
+          print(
+              '[DaemonPortService] 发现可访问的IPC daemon (PID: ${daemonInfo.pid})');
           return accessibleDaemonInfo;
         } else if (attempt < 2) {
-          print('[DaemonPortService] IPC daemon (PID: ${daemonInfo.pid}) 不可访问，可能正在启动中...');
+          print(
+              '[DaemonPortService] IPC daemon (PID: ${daemonInfo.pid}) 不可访问，可能正在启动中...');
           await Future.delayed(Duration(milliseconds: 500));
           continue;
         } else {

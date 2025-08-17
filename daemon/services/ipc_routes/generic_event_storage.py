@@ -502,28 +502,120 @@ class GenericEventStorage:
                 logger.warning("通用索引服务不可用，跳过索引处理")
                 return False
             
-            # 构建通用索引条目 - 安全处理None值
-            index_entry = {
-                'connector_id': connector_id,
-                'event_type': event_type,
-                'event_data': event_data if event_data is not None and isinstance(event_data, dict) else {},
-                'timestamp': timestamp,
-                'metadata': metadata if metadata is not None and isinstance(metadata, dict) else {}
-            }
+            # 通用批量事件检测 - 不依赖具体事件类型或连接器
+            index_entries = []
             
-            # 批量存储（这里是单个条目，但使用批量接口以保持一致性）
-            success = await self.universal_index_service.index_content_batch([index_entry])
+            # 自动检测批量数据结构
+            batch_data = self._extract_batch_data(event_data)
             
-            if success:
-                logger.debug(f"✅ 通用索引条目已存储: {connector_id}/{event_type}")
+            if batch_data:
+                # 处理任何包含批量数据的事件（通用方式）
+                logger.info(f"检测到批量事件，包含 {len(batch_data)} 个条目")
+                
+                for item_data in batch_data:
+                    # 将每个条目作为独立的索引条目
+                    single_entry = {
+                        'connector_id': connector_id,
+                        'event_type': self._normalize_event_type(event_type),  # 通用事件类型标准化
+                        'event_data': item_data,  # 单个条目的数据
+                        'timestamp': timestamp,
+                        'metadata': metadata if metadata is not None and isinstance(metadata, dict) else {}
+                    }
+                    index_entries.append(single_entry)
+                    
             else:
-                logger.warning(f"❌ 通用索引条目存储失败: {connector_id}/{event_type}")
+                # 处理单个事件 - 安全处理None值
+                index_entry = {
+                    'connector_id': connector_id,
+                    'event_type': event_type,
+                    'event_data': event_data if event_data is not None and isinstance(event_data, dict) else {},
+                    'timestamp': timestamp,
+                    'metadata': metadata if metadata is not None and isinstance(metadata, dict) else {}
+                }
+                index_entries.append(index_entry)
             
-            return success
+            # 批量存储
+            if index_entries:
+                success = await self.universal_index_service.index_content_batch(index_entries)
+                
+                if success:
+                    logger.info(f"✅ 通用索引条目已存储: {connector_id}/{event_type}, 共 {len(index_entries)} 条")
+                else:
+                    logger.warning(f"❌ 通用索引条目存储失败: {connector_id}/{event_type}")
+                
+                return success
+            
+            return True
             
         except Exception as e:
             logger.error(f"❌ 处理通用索引事件失败: {e}")
             return False
+    
+    def _extract_batch_data(self, event_data: Dict[str, Any]) -> Optional[List[Dict[str, Any]]]:
+        """
+        通用批量数据提取 - 自动检测各种批量数据结构
+        
+        支持的批量格式：
+        - {"files": [...]}      # 文件批量
+        - {"items": [...]}      # 通用项目批量  
+        - {"entries": [...]}    # 条目批量
+        - {"data": [...]}       # 数据批量
+        - {"list": [...]}       # 列表批量
+        - {"batch": [...]}      # 明确的批量标识
+        """
+        if not isinstance(event_data, dict):
+            return None
+            
+        # 检查常见的批量数据字段名
+        batch_field_names = ["files", "items", "entries", "data", "list", "batch", "content", "records"]
+        
+        for field_name in batch_field_names:
+            if field_name in event_data:
+                field_value = event_data[field_name]
+                # 检查是否是包含字典的列表（批量数据的特征）
+                if isinstance(field_value, list) and len(field_value) > 0:
+                    # 进一步验证：至少一部分元素是字典类型
+                    dict_count = sum(1 for item in field_value if isinstance(item, dict))
+                    if dict_count > 0:  # 只要有字典元素就认为是批量数据
+                        logger.debug(f"检测到批量数据字段: {field_name}, 包含 {len(field_value)} 个条目, {dict_count} 个有效条目")
+                        return field_value
+        
+        return None
+    
+    def _normalize_event_type(self, event_type: str) -> str:
+        """
+        通用事件类型标准化 - 将批量事件类型转换为单项事件类型
+        
+        规则：
+        1. 移除 "_batch" 后缀
+        2. 将 "discovered" 转换为 "indexed"  
+        3. 保持其他事件类型不变
+        """
+        if not event_type:
+            return "unknown"
+            
+        # 标准化规则
+        normalized = event_type
+        
+        # 移除批量标识
+        if "_batch" in normalized:
+            normalized = normalized.replace("_batch", "")
+        
+        # 标准化动作词
+        action_mappings = {
+            "_discovered": "_indexed",
+            "_found": "_indexed", 
+            "_detected": "_indexed",
+            "_scanned": "_indexed"
+        }
+        
+        for old_action, new_action in action_mappings.items():
+            if normalized.endswith(old_action):
+                normalized = normalized.replace(old_action, new_action)
+                break
+        
+        logger.debug(f"事件类型标准化: {event_type} -> {normalized}")
+        return normalized
     
     def search_universal_index(
         self,

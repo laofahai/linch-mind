@@ -131,9 +131,11 @@ class IPCClient {
     // 连接失败时清理DaemonPortService的缓存
     try {
       DaemonPortService.instance.clearCache();
-      developer.log('连接失败，已清理DaemonPortService缓存', name: 'IPCClient', level: 800);
+      developer.log('连接失败，已清理DaemonPortService缓存',
+          name: 'IPCClient', level: 800);
     } catch (e) {
-      developer.log('清理DaemonPortService缓存失败: $e', name: 'IPCClient', level: 1000);
+      developer.log('清理DaemonPortService缓存失败: $e',
+          name: 'IPCClient', level: 1000);
     }
 
     _updateConnectionStatus(ConnectionStatus.failed);
@@ -204,11 +206,12 @@ class IPCClient {
   Future<bool> _connectUnixSocket() async {
     // 始终重新发现socket路径，以支持daemon重启后的新路径
     String socketPath = await _discoverSocketPath();
-    
+
     // 如果没有发现新路径，尝试使用缓存的路径
     if (socketPath.isEmpty && _socketPath != null) {
       socketPath = _socketPath!;
-      developer.log('使用缓存的socket路径: $socketPath', name: 'IPCClient', level: 800);
+      developer.log('使用缓存的socket路径: $socketPath',
+          name: 'IPCClient', level: 800);
     }
 
     if (socketPath.isEmpty) {

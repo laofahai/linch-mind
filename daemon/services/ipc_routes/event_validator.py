@@ -13,6 +13,7 @@ from enum import Enum
 
 class ValidationSeverity(Enum):
     """验证严重性级别"""
+    INFO = "info"        # 信息，正常处理
     WARNING = "warning"  # 警告，记录但继续处理
     ERROR = "error"      # 错误，拒绝处理
     CRITICAL = "critical"  # 严重错误，需要立即关注
@@ -47,7 +48,7 @@ class EventValidator:
     
     # 预定义的事件类型模式
     EVENT_TYPE_PATTERNS = {
-        r"^file_(created|modified|deleted|renamed|moved)$",
+        r"^file_(created|modified|deleted|renamed|moved|batch_discovered|indexed)$",
         r"^content_(changed|copied|pasted)$", 
         r"^url_(visited|bookmarked|shared)$",
         r"^email_(received|sent|deleted)$",
@@ -212,33 +213,42 @@ class EventValidator:
         event_data: Dict[str, Any], 
         metadata: Optional[Dict[str, Any]]
     ) -> ValidationResult:
-        """业务逻辑验证"""
+        """
+        业务逻辑验证 - 通用验证，不耦合具体连接器
         
-        # 文件系统连接器特定验证
-        if connector_id == "filesystem":
-            if "path" not in event_data:
-                return ValidationResult(
-                    is_valid=False,
-                    severity=ValidationSeverity.ERROR,
-                    error_code="MISSING_FILE_PATH",
-                    message="Filesystem events must include 'path' field",
-                    suggestions=["Add 'path' field to event_data"]
-                )
+        原则：
+        1. 不硬编码连接器特定字段要求
+        2. 只验证通用的数据结构完整性
+        3. 让连接器自己定义数据格式
+        """
         
-        # 剪贴板连接器特定验证
-        if connector_id == "clipboard":
-            if "content" not in event_data and "data" not in event_data:
-                return ValidationResult(
-                    is_valid=False,
-                    severity=ValidationSeverity.ERROR,
-                    error_code="MISSING_CLIPBOARD_CONTENT",
-                    message="Clipboard events must include 'content' or 'data' field",
-                    suggestions=["Add 'content' or 'data' field to event_data"]
-                )
+        # 通用验证：事件数据不应为空
+        if not event_data:
+            return ValidationResult(
+                is_valid=False,
+                severity=ValidationSeverity.WARNING,  # 只是警告，允许空事件
+                error_code="EMPTY_EVENT_DATA",
+                message="Event data is empty",
+                suggestions=["Consider adding meaningful data to the event"]
+            )
+        
+        # 通用验证：检查是否有内容字段（但不强制要求）
+        content_fields = ["content", "data", "value", "text", "files", "items", "path", "url"]
+        has_content = any(field in event_data for field in content_fields)
+        
+        if not has_content:
+            # 只是警告，不阻止事件
+            return ValidationResult(
+                is_valid=True,
+                severity=ValidationSeverity.INFO,
+                error_code="NO_COMMON_CONTENT_FIELD",
+                message="Event doesn't contain common content fields",
+                suggestions=[f"Consider using one of: {', '.join(content_fields)}"]
+            )
         
         return ValidationResult(
             is_valid=True,
-            severity=ValidationSeverity.WARNING,
+            severity=ValidationSeverity.INFO,
             error_code="BUSINESS_VALIDATION_PASSED",
             message="Business logic validation passed",
             suggestions=[]
