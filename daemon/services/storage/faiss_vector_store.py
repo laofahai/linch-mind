@@ -795,14 +795,14 @@ async def get_faiss_vector_store() -> FAISSVectorStore:
     global _faiss_vector_store
     if _faiss_vector_store is None:
         # 从配置获取向量维度和其他参数
-        from config.user_config_manager import get_user_config
-        config = get_user_config()
+        from core.service_facade import get_database_config_manager
+        config_manager = get_database_config_manager()
         
         _faiss_vector_store = FAISSVectorStore(
-            vector_dim=config.vector.vector_dimension,
-            compressed_dim=config.vector.compressed_dimension,
-            shard_size_limit=config.vector.shard_size_limit,
-            compression_method=config.vector.compression_method,
+            vector_dim=config_manager.get_config_value("vector", "vector_dimension", default=384),
+            compressed_dim=config_manager.get_config_value("vector", "compressed_dimension", default=256),
+            shard_size_limit=config_manager.get_config_value("vector", "shard_size_limit", default=100000),
+            compression_method=config_manager.get_config_value("vector", "compression_method", default="PQ"),
         )
         if not await _faiss_vector_store.initialize():
             raise RuntimeError("FAISS向量存储初始化失败")

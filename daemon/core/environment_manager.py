@@ -117,13 +117,20 @@ class EnvironmentManager:
             base_dir: 基础目录，默认为 ~/.linch-mind
         """
         self._lock = threading.RLock()
+        
+        # 使用Bootstrap配置获取环境信息，避免循环依赖
+        from config.bootstrap_config import get_bootstrap_config
+        bootstrap = get_bootstrap_config()
+        
         self._base_dir = base_dir or Path.home() / ".linch-mind"
-        self._current_env: Optional[Environment] = None
+        # 直接从Bootstrap配置获取环境
+        env_str = bootstrap.get_environment()
+        self._current_env = Environment.from_string(env_str)
+        
         self._env_configs: Dict[Environment, EnvironmentConfig] = {}
         self._shared_models_dir: Optional[Path] = None
 
-        # 初始化环境
-        self._detect_environment()
+        # 初始化环境配置
         self._initialize_environments()
 
         logger.info(

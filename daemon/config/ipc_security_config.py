@@ -58,8 +58,8 @@ class IPCSecurityConfig:
         if self.allowed_process_names is None:
             # 尝试从用户配置获取，否则使用默认配置
             try:
-                from .user_config_manager import get_user_config
-                user_config = get_user_config()
+                from .database_config_manager import get_unified_config
+                user_config = get_unified_config()
                 if user_config.security.allowed_processes:
                     self.allowed_process_names = set(user_config.security.allowed_processes)
                 else:
@@ -94,10 +94,10 @@ class IPCSecurityManager:
         """加载默认安全配置"""
         # 尝试从用户配置和环境管理器获取配置
         try:
-            from .user_config_manager import get_user_config
+            from .database_config_manager import get_unified_config
             from core.environment_manager import get_environment_manager, Environment
             
-            user_config = get_user_config()
+            user_config = get_unified_config()
             env_manager = get_environment_manager()
             
             config = IPCSecurityConfig()

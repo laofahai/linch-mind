@@ -111,6 +111,30 @@ async def start_health_check_scheduler():
         logger.error(f"详细错误信息: {traceback.format_exc()}")
 
 
+async def initialize_database_configs():
+    """初始化数据库配置系统"""
+    logger.info("🔧 初始化数据库配置系统...")
+    
+    try:
+        from core.service_facade import get_service
+        from config.database_config_manager import DatabaseConfigManager
+        
+        # 获取数据库配置管理器
+        config_manager = get_service(DatabaseConfigManager)
+        
+        # 初始化默认配置到数据库
+        success = await config_manager.initialize_default_configs()
+        
+        if success:
+            logger.info("✅ 数据库配置系统初始化成功")
+        else:
+            logger.warning("⚠️ 数据库配置系统初始化失败")
+            
+    except Exception as e:
+        logger.warning(f"⚠️ 数据库配置系统初始化失败: {e}")
+        logger.info("💡 系统将继续运行，配置功能可能受限")
+
+
 def initialize_di_container():
     """🏗️ 初始化依赖注入容器并注册所有核心服务"""
     from config.core_config import CoreConfigManager
@@ -151,17 +175,29 @@ def initialize_di_container():
         return UnifiedDatabaseService()
 
     container.register_singleton(UnifiedDatabaseService, create_unified_database_service)
-    logger.debug("已注册: DatabaseService")
+    logger.debug("已注册: UnifiedDatabaseService")
+    
+    # 🗂️ 数据库配置管理器
+    def create_database_config_manager():
+        from config.database_config_manager import DatabaseConfigManager
+        
+        # DatabaseConfigManager 通过 get_database_config_service 自动获取依赖
+        return DatabaseConfigManager()
+    
+    from config.database_config_manager import DatabaseConfigManager
+    container.register_singleton(DatabaseConfigManager, create_database_config_manager)
+    logger.debug("已注册: DatabaseConfigManager")
 
     # 🔧 连接器配置服务
     def create_connector_config_service():
-        from config.core_config import get_connector_config
+        from core.service_facade import get_database_config_manager
         from services.connectors.connector_config_service import ConnectorConfigService
 
-        connector_config = get_connector_config()
+        config_manager = get_database_config_manager()
+        connectors_dir_str = config_manager.get_config_value("connectors", "config_directory", default="connectors")
         # 将相对路径转换为项目根目录的绝对路径
         project_root = Path(__file__).parent.parent
-        connectors_dir = project_root / connector_config.config_dir
+        connectors_dir = project_root / connectors_dir_str
         return ConnectorConfigService(connectors_dir=connectors_dir)
 
     # 导入类型用于注册
@@ -211,13 +247,14 @@ def initialize_di_container():
 
     # 🔌 连接器管理服务
     def create_connector_manager():
-        from config.core_config import get_connector_config
+        from core.service_facade import get_database_config_manager
         from services.connectors.connector_manager import ConnectorManager
 
-        connector_config = get_connector_config()
+        config_manager = get_database_config_manager()
+        connectors_dir_str = config_manager.get_config_value("connectors", "config_directory", default="connectors")
         # 将相对路径转换为项目根目录的绝对路径
         project_root = Path(__file__).parent.parent
-        connectors_dir = project_root / connector_config.config_dir
+        connectors_dir = project_root / connectors_dir_str
 
         # 手动依赖注入，避免ServiceFacade循环问题
         db_service = container.get_service(UnifiedDatabaseService)
@@ -298,16 +335,19 @@ def initialize_di_container():
 
     # 🗄️ 存储服务
     def create_vector_service():
-        from config.core_config import get_storage_config
+        from core.service_facade import get_database_config_manager
         from services.storage.vector_service import VectorService
 
-        storage_config = get_storage_config()
+        config_manager = get_database_config_manager()
+        vector_dimension = config_manager.get_config_value("vector", "vector_dimension", default=384)
+        index_type = config_manager.get_config_value("vector", "index_type", default="HNSW")
+        max_workers = config_manager.get_config_value("performance", "max_workers", default=4)
         app_data_dir = core_paths["app_data"]
         return VectorService(
             data_dir=app_data_dir / "vectors",
-            dimension=storage_config.vector_dimension,
-            index_type=storage_config.vector_index_type,
-            max_workers=storage_config.vector_max_workers,
+            dimension=vector_dimension,
+            index_type=index_type,
+            max_workers=max_workers,
         )
 
     # 注册VectorService（如果需要）
@@ -424,6 +464,12 @@ async def ipc_lifespan():
         await start_health_check_scheduler()
     except Exception as e:
         logger.error(f"启动健康检查调度器失败: {e}")
+
+    # 初始化数据库配置系统
+    try:
+        await initialize_database_configs()
+    except Exception as e:
+        logger.error(f"初始化数据库配置失败: {e}")
 
     yield
 

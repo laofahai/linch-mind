@@ -35,7 +35,7 @@ class ConfigurationBridge:
         self.env_manager = get_environment_manager()
         
         # 延迟初始化各种配置管理器
-        self._user_config_manager = None
+        self._database_config_manager = None
         self._core_config_manager = None
         self._unified_config_manager = None
         self._intelligent_storage_manager = None
@@ -46,17 +46,23 @@ class ConfigurationBridge:
         logger.info("Configuration bridge initialized")
     
     @property
-    def user_config_manager(self):
-        """获取用户配置管理器（延迟加载）"""
-        if self._user_config_manager is None:
+    def database_config_manager(self):
+        """获取数据库配置管理器（延迟加载）"""
+        if self._database_config_manager is None:
             try:
-                from .user_config_manager import get_user_config_manager
-                self._user_config_manager = get_user_config_manager()
-                logger.debug("User config manager loaded")
+                from .database_config_manager import get_database_config_manager
+                self._database_config_manager = get_database_config_manager()
+                logger.debug("Database config manager loaded")
             except Exception as e:
-                logger.warning(f"Failed to load user config manager: {e}")
-                self._user_config_manager = None
-        return self._user_config_manager
+                logger.warning(f"Failed to load database config manager: {e}")
+                self._database_config_manager = None
+        return self._database_config_manager
+    
+    # 向后兼容别名
+    @property
+    def user_config_manager(self):
+        """获取用户配置管理器（向后兼容别名）"""
+        return self.database_config_manager
     
     @property
     def core_config_manager(self):

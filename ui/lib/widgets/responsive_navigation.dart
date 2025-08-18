@@ -14,19 +14,9 @@ class ResponsiveNavigation extends StatelessWidget {
 
   static const List<NavigationDestination> destinations = [
     NavigationDestination(
-      icon: Icon(Icons.psychology_outlined),
-      selectedIcon: Icon(Icons.psychology),
-      label: 'Mind',
-    ),
-    NavigationDestination(
-      icon: Icon(Icons.search_outlined),
-      selectedIcon: Icon(Icons.search),
-      label: '搜索',
-    ),
-    NavigationDestination(
-      icon: Icon(Icons.scatter_plot_outlined),
-      selectedIcon: Icon(Icons.scatter_plot),
-      label: '星云',
+      icon: Icon(Icons.home_outlined),
+      selectedIcon: Icon(Icons.home),
+      label: '首页',
     ),
     NavigationDestination(
       icon: Icon(Icons.extension_outlined),

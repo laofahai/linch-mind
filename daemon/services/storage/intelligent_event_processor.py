@@ -21,8 +21,9 @@ from services.storage.faiss_vector_store import (
     SearchResult
 )
 from services.unified_database_service import UnifiedDatabaseService
-from models.database_models import EntityMetadata, ConnectorLog
+from models.database_models import EntityMetadata, ConnectorLog, EventCorrelation
 from config.intelligent_storage import get_intelligent_storage_config
+from services.event_correlation.ai_driven_correlator import get_ai_correlator
 
 logger = logging.getLogger(__name__)
 
@@ -38,6 +39,10 @@ class ProcessingResult:
     vector_stored: bool = False
     database_stored: bool = False
     processing_time_ms: float = 0.0
+    # AI关联信息
+    ai_semantic_tags: List[Dict[str, Any]] = None
+    ai_correlations: List[Dict[str, Any]] = None
+    ai_insights_available: bool = False
 
 
 @dataclass
@@ -91,6 +96,7 @@ class IntelligentEventProcessor:
         self._ollama_service = None
         self._vector_store = None
         self._db_service = None
+        self._ai_correlator = None
         
         # 处理模式状态
         self._processing_mode = "unknown"  # ai, hybrid, fallback
@@ -172,6 +178,17 @@ class IntelligentEventProcessor:
                 logger.error(f"数据库服务延迟加载失败: {e}")
                 return None
         return self._db_service
+    
+    def _get_ai_correlator(self):
+        """懒加载AI关联器"""
+        if self._ai_correlator is None:
+            try:
+                self._ai_correlator = get_ai_correlator()
+                logger.debug("AI关联器延迟加载成功")
+            except Exception as e:
+                logger.error(f"AI关联器延迟加载失败: {e}")
+                return None
+        return self._ai_correlator
 
     # === 核心处理流水线 ===
 
@@ -238,6 +255,42 @@ class IntelligentEventProcessor:
             
             # 3. 必须的AI评估和摘要
             evaluation = await self._process_content_with_ai_required(content)
+            
+            # 3.5. AI关联分析 - 新增功能
+            ai_semantic_tags = []
+            ai_correlations = []
+            ai_insights_available = False
+            
+            ai_correlator = self._get_ai_correlator()
+            if ai_correlator:
+                try:
+                    # 构建完整事件数据供AI分析
+                    full_event_data = {
+                        'connector_id': connector_id,
+                        'event_type': event_type,
+                        'event_data': event_data,
+                        'timestamp': timestamp,
+                        'metadata': metadata or {},
+                        'content': content,
+                        'ai_evaluation': {
+                            'value_score': evaluation.value_score,
+                            'summary': evaluation.summary,
+                            'confidence': evaluation.confidence
+                        }
+                    }
+                    
+                    # AI关联分析
+                    correlation_result = await ai_correlator.process_event(full_event_data)
+                    
+                    if correlation_result.get('processing_success'):
+                        ai_semantic_tags = [tag.__dict__ for tag in correlation_result.get('semantic_tags', [])]
+                        ai_correlations = [corr.__dict__ for corr in correlation_result.get('correlations', [])]
+                        ai_insights_available = correlation_result.get('ai_insights', False)
+                        
+                        logger.debug(f"🔗 AI关联分析完成: {len(ai_semantic_tags)}个标签, {len(ai_correlations)}个关联")
+                    
+                except Exception as e:
+                    logger.warning(f"AI关联分析失败，继续处理: {e}")
             
             # 4. 基于真实AI评分的过滤决策
             if evaluation.value_score < self.value_threshold:
@@ -310,6 +363,9 @@ class IntelligentEventProcessor:
                 vector_stored=vector_stored,
                 database_stored=database_stored,
                 processing_time_ms=processing_time,
+                ai_semantic_tags=ai_semantic_tags,
+                ai_correlations=ai_correlations,
+                ai_insights_available=ai_insights_available,
             )
             
         except Exception as e:

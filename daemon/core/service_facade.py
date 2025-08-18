@@ -357,6 +357,15 @@ def get_unified_storage_service():
     return get_service(UnifiedStorageService)
 
 
+
+
+def get_database_config_manager():
+    """获取数据库配置管理器 - 替代用户配置管理器"""
+    from config.database_config_manager import DatabaseConfigManager
+
+    return get_service(DatabaseConfigManager)
+
+
 def get_system_config_service():
     """获取系统配置服务"""
     from services.system_config_service import SystemConfigService

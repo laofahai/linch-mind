@@ -34,6 +34,7 @@ def register_all_routes(app):
     from .connector_status import create_connector_status_router  # 🆕 连接器状态路由
     from .data_insights import create_data_insights_router  # 🆕 数据洞察路由
     from .environment import create_environment_router  # 🆕 环境管理路由
+    from .ai_correlation import create_ai_correlation_router  # 🆕 AI关联路由
     from .events import create_events_router
     from .health import create_health_router
     from .system_config import create_system_config_router
@@ -46,6 +47,7 @@ def register_all_routes(app):
     app.include_router(create_environment_router())  # 🆕 环境管理路由
     app.include_router(create_data_insights_router())  # 🆕 数据洞察路由
     app.include_router(create_events_router())  # 事件处理路由
+    app.include_router(create_ai_correlation_router())  # 🆕 AI关联路由
     app.include_router(create_universal_search_router())  # 🆕 通用搜索路由
     app.include_router(create_connector_lifecycle_router())
     app.include_router(create_connector_config_router())
@@ -63,6 +65,7 @@ from .connector_lifecycle import create_connector_lifecycle_router
 from .connector_status import create_connector_status_router  # 🆕 连接器状态路由
 from .data_insights import create_data_insights_router  # 🆕 数据洞察路由
 from .environment import create_environment_router  # 🆕 环境管理路由
+from .ai_correlation import create_ai_correlation_router  # 🆕 AI关联路由
 from .events import create_events_router
 from .health import create_health_router
 from .system_config import create_system_config_router
@@ -76,6 +79,7 @@ __all__ = [
     "create_environment_router",  # 🆕 环境管理路由
     "create_data_insights_router",  # 🆕 数据洞察路由
     "create_events_router",
+    "create_ai_correlation_router",  # 🆕 AI关联路由
     "create_universal_search_router",  # 🆕 通用搜索路由
     "create_connector_lifecycle_router",
     "create_connector_config_router",

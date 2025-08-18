@@ -73,6 +73,9 @@ class EnvironmentInitializer:
             # 步骤2.5: 初始化Universal Index服务
             await self._initialize_universal_index()
 
+            # 步骤2.6: 验证AI关联服务配置
+            await self._validate_ai_correlation_config()
+
             # 步骤3: 设置模型文件 (可选)
             if not skip_models:
                 await self._setup_models()
@@ -251,6 +254,82 @@ class EnvironmentInitializer:
             })
             # 不抛出异常，Universal Index失败不应阻止整个初始化
             logger.warning("Universal Index初始化失败，但继续其他初始化步骤")
+    
+    async def _validate_ai_correlation_config(self):
+        """验证AI关联服务配置 - 确保AI驱动的事件分析可用"""
+        logger.info("🤖 验证AI关联服务配置...")
+        
+        try:
+            # 验证Ollama配置
+            from config.database_config_manager import get_unified_config
+            config = get_unified_config()
+            
+            if config and hasattr(config, 'ollama') and config.ollama:
+                ollama_config = config.ollama
+                logger.info(f"  ✅ Ollama配置已找到: {ollama_config.host}")
+                logger.info(f"  📝 AI模型: {ollama_config.llm_model}")
+                
+                # 验证AI关联器服务
+                correlator_status = "unknown"
+                buffer_size = 0
+                try:
+                    from services.event_correlation.ai_driven_correlator import get_ai_correlator
+                    correlator = get_ai_correlator()
+                    buffer_size = correlator.max_buffer_size
+                    logger.info("  🔗 AI驱动关联器初始化成功")
+                    logger.info(f"  📊 事件缓冲区容量: {buffer_size}")
+                    correlator_status = "ready"
+                    
+                    # 验证AI服务连通性
+                    try:
+                        import aiohttp
+                        async with aiohttp.ClientSession() as session:
+                            async with session.get(f"{ollama_config.host}/api/tags", timeout=aiohttp.ClientTimeout(total=5)) as response:
+                                if response.status == 200:
+                                    logger.info("  🌐 Ollama服务连通性: ✅ 正常")
+                                else:
+                                    logger.warning(f"  🌐 Ollama服务响应异常: {response.status}")
+                    except Exception as conn_e:
+                        logger.warning(f"  🌐 Ollama服务连通性检查失败: {conn_e}")
+                        
+                except Exception as e:
+                    logger.warning(f"  ⚠️ AI关联器初始化警告: {e}")
+                    correlator_status = "error"
+                
+                self.initialization_steps.append({
+                    "step": "ai_correlation_config",
+                    "status": "completed",
+                    "ollama_host": ollama_config.host,
+                    "ai_model": ollama_config.llm_model,
+                    "ai_driven": True,
+                    "correlator_status": correlator_status,
+                    "buffer_capacity": buffer_size,
+                    "features": [
+                        "semantic_analysis",
+                        "pattern_discovery", 
+                        "behavior_insights",
+                        "learning_feedback",
+                        "conversational_ai"
+                    ]
+                })
+            else:
+                logger.warning("  ⚠️ Ollama配置未找到，AI关联功能将使用降级模式")
+                self.initialization_steps.append({
+                    "step": "ai_correlation_config",
+                    "status": "warning",
+                    "ai_driven": False,
+                    "fallback_mode": True
+                })
+            
+        except Exception as e:
+            logger.error(f"AI关联配置验证失败: {e}")
+            self.initialization_steps.append({
+                "step": "ai_correlation_config", 
+                "status": "failed", 
+                "error": str(e)
+            })
+            # 不抛出异常，配置失败不应阻止整个初始化
+            logger.warning("AI关联配置验证失败，但继续其他初始化步骤")
 
     async def _setup_models(self):
         """设置AI模型文件"""

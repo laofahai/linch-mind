@@ -463,7 +463,7 @@ class ConnectorManager:
             logger.error(f"扫描连接器目录失败: {e}")
             return []
 
-    def register_connector_from_path(self, connector_path: str) -> bool:
+    async def register_connector_from_path(self, connector_path: str) -> bool:
         """从路径注册连接器"""
         try:
             path = Path(connector_path)
@@ -484,19 +484,19 @@ class ConnectorManager:
             with open(config_file, 'rb') as f:
                 config = tomllib.load(f)
 
-            connector_id = config.get("id", connector_dir.name)
-            name = config.get("name", connector_id)
-            description = config.get("description", "")
-            config.get("version", "unknown")
+            # 从metadata部分读取配置
+            metadata = config.get("metadata", {})
+            connector_id = metadata.get("id", connector_dir.name)
+            name = metadata.get("name", connector_id)
+            description = metadata.get("description", "")
+            version = metadata.get("version", "unknown")
 
             # 注册连接器
-            asyncio.run(
-                self.register_connector(
-                    connector_id=connector_id,
-                    name=name,
-                    description=description,
-                    enabled=True,
-                )
+            await self.register_connector(
+                connector_id=connector_id,
+                name=name,
+                description=description,
+                enabled=True,
             )
 
             return True

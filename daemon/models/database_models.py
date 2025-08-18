@@ -15,6 +15,7 @@ from sqlalchemy import (
     Integer,
     String,
     Text,
+    UniqueConstraint,
 )
 from sqlalchemy.orm import declarative_base, relationship
 from sqlalchemy.sql import func
@@ -305,6 +306,271 @@ class ConnectorConfigHistory(Base):
         }
 
 
+# 用户配置模型类
+
+
+class SystemConfigEntry(Base):
+    """
+    系统配置条目模型 - 统一的数据库配置存储
+    替代大部分配置文件，支持环境隔离和动态配置
+    """
+
+    __tablename__ = "system_config_entries"
+
+    # 基本信息
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    
+    # 环境和作用域
+    environment = Column(String(50), default="default", nullable=False, index=True)  # development, staging, production, default
+    scope = Column(String(50), default="system", nullable=False, index=True)  # system, user, connector
+    
+    # 配置分类和键值
+    config_section = Column(String(100), nullable=False, index=True)  # database, ollama, vector, ipc, security等
+    config_key = Column(String(255), nullable=False, index=True)
+    config_value = Column(JSON, nullable=False)  # 支持各种数据类型
+    
+    # 配置元数据
+    config_type = Column(String(50), nullable=False)  # system_setting, user_preference, runtime_config, environment_config
+    value_type = Column(String(50), nullable=False)  # string, number, boolean, array, object
+    is_sensitive = Column(Boolean, default=False, nullable=False)  # 敏感信息标记
+    
+    # 描述和验证
+    description = Column(Text, nullable=True)
+    validation_rule = Column(JSON, nullable=True)  # 验证规则
+    default_value = Column(JSON, nullable=True)  # 默认值
+    
+    # 访问控制和行为
+    is_readonly = Column(Boolean, default=False, nullable=False)  # 只读配置
+    requires_restart = Column(Boolean, default=False, nullable=False)  # 是否需要重启生效
+    priority = Column(Integer, default=100, nullable=False)  # 配置优先级（数字越小优先级越高）
+    
+    # 配置来源和分组
+    source = Column(String(100), nullable=True)  # migration, user_input, system_init, import
+    config_group = Column(String(100), nullable=True)  # 配置分组，便于批量管理
+    tags = Column(JSON, nullable=True)  # 配置标签，便于搜索和过滤
+    
+    # 统计信息
+    access_count = Column(Integer, default=0, nullable=False)
+    last_accessed = Column(DateTime(timezone=True), nullable=True)
+    last_modified_by = Column(String(255), nullable=True)
+    
+    # 时间戳
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+    
+    # 唯一约束：作用域+配置段+配置键（环境隔离通过目录实现）
+    __table_args__ = (
+        UniqueConstraint('scope', 'config_section', 'config_key', name='uq_system_config'),
+    )
+    
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "id": self.id,
+            "environment": self.environment,
+            "scope": self.scope,
+            "config_section": self.config_section,
+            "config_key": self.config_key,
+            "config_value": self.config_value,
+            "config_type": self.config_type,
+            "value_type": self.value_type,
+            "is_sensitive": self.is_sensitive,
+            "description": self.description,
+            "validation_rule": self.validation_rule,
+            "default_value": self.default_value,
+            "is_readonly": self.is_readonly,
+            "requires_restart": self.requires_restart,
+            "priority": self.priority,
+            "source": self.source,
+            "config_group": self.config_group,
+            "tags": self.tags,
+            "access_count": self.access_count,
+            "last_accessed": self.last_accessed.isoformat() if self.last_accessed else None,
+            "last_modified_by": self.last_modified_by,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
+        }
+
+
+class SystemConfigHistory(Base):
+    """
+    系统配置变更历史记录模型
+    记录所有配置的变更历史，支持审计和回滚
+    """
+
+    __tablename__ = "system_config_history"
+
+    # 基本信息
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    
+    # 关联配置
+    config_entry_id = Column(Integer, ForeignKey("system_config_entries.id", ondelete="CASCADE"), nullable=False, index=True)
+    scope = Column(String(50), nullable=False)
+    config_section = Column(String(100), nullable=False)
+    config_key = Column(String(255), nullable=False)
+    
+    # 变更信息
+    old_value = Column(JSON, nullable=True)
+    new_value = Column(JSON, nullable=False)
+    change_type = Column(String(50), nullable=False)  # create, update, delete, reset, migrate
+    change_reason = Column(Text, nullable=True)
+    changed_by = Column(String(255), nullable=True)  # user, system, migration, import
+    
+    # 变更上下文
+    change_context = Column(JSON, nullable=True)  # 变更时的额外上下文信息
+    batch_id = Column(String(100), nullable=True)  # 批量操作ID
+    
+    # 验证信息
+    validation_status = Column(String(50), default="valid", nullable=False)  # valid, invalid, warning
+    validation_errors = Column(JSON, nullable=True)
+    
+    # 时间戳
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    
+    # 关系
+    config_entry = relationship("SystemConfigEntry", backref="history")
+    
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "id": self.id,
+            "config_entry_id": self.config_entry_id,
+            "scope": self.scope,
+            "config_section": self.config_section,
+            "config_key": self.config_key,
+            "old_value": self.old_value,
+            "new_value": self.new_value,
+            "change_type": self.change_type,
+            "change_reason": self.change_reason,
+            "changed_by": self.changed_by,
+            "change_context": self.change_context,
+            "batch_id": self.batch_id,
+            "validation_status": self.validation_status,
+            "validation_errors": self.validation_errors,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+        }
+
+
+# 保留原有的UserConfigEntry作为兼容层，但标记为已废弃
+class UserConfigEntry(Base):
+    """
+    [已废弃] 用户个性化配置条目模型
+    请使用 SystemConfigEntry 替代
+    保留此模型仅为兼容现有代码
+    """
+
+    __tablename__ = "user_config_entries"
+
+    # 基本信息
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(String(255), default="default", nullable=False, index=True)
+    
+    # 配置分类和键值
+    config_section = Column(String(100), nullable=False, index=True)
+    config_key = Column(String(255), nullable=False, index=True)
+    config_value = Column(JSON, nullable=False)
+    
+    # 配置元数据
+    config_type = Column(String(50), default="user_preference", nullable=False)
+    value_type = Column(String(50), nullable=False)
+    is_sensitive = Column(Boolean, default=False, nullable=False)
+    
+    # 描述和验证
+    description = Column(Text, nullable=True)
+    validation_rule = Column(JSON, nullable=True)
+    default_value = Column(JSON, nullable=True)
+    
+    # 访问控制
+    is_readonly = Column(Boolean, default=False, nullable=False)
+    requires_restart = Column(Boolean, default=False, nullable=False)
+    
+    # 统计信息
+    access_count = Column(Integer, default=0, nullable=False)
+    last_accessed = Column(DateTime(timezone=True), nullable=True)
+    last_modified_by = Column(String(255), nullable=True)
+    
+    # 时间戳
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+    
+    # 唯一约束：用户+配置段+配置键
+    __table_args__ = (
+        UniqueConstraint('user_id', 'config_section', 'config_key', name='uq_user_config'),
+    )
+    
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "id": self.id,
+            "user_id": self.user_id,
+            "config_section": self.config_section,
+            "config_key": self.config_key,
+            "config_value": self.config_value,
+            "config_type": self.config_type,
+            "value_type": self.value_type,
+            "is_sensitive": self.is_sensitive,
+            "description": self.description,
+            "validation_rule": self.validation_rule,
+            "default_value": self.default_value,
+            "is_readonly": self.is_readonly,
+            "requires_restart": self.requires_restart,
+            "access_count": self.access_count,
+            "last_accessed": self.last_accessed.isoformat() if self.last_accessed else None,
+            "last_modified_by": self.last_modified_by,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
+        }
+
+
+class UserConfigHistory(Base):
+    """
+    用户配置变更历史记录模型
+    记录用户配置的变更历史，用于审计和回滚
+    """
+
+    __tablename__ = "user_config_history"
+
+    # 基本信息
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    
+    # 关联配置
+    config_entry_id = Column(Integer, ForeignKey("user_config_entries.id", ondelete="CASCADE"), nullable=False, index=True)
+    user_id = Column(String(255), nullable=False, index=True)
+    config_section = Column(String(100), nullable=False)
+    config_key = Column(String(255), nullable=False)
+    
+    # 变更信息
+    old_value = Column(JSON, nullable=True)
+    new_value = Column(JSON, nullable=False)
+    change_type = Column(String(50), nullable=False)  # create, update, delete, reset
+    change_reason = Column(Text, nullable=True)
+    changed_by = Column(String(255), nullable=True)  # user, system, migration
+    
+    # 验证信息
+    validation_status = Column(String(50), default="valid", nullable=False)  # valid, invalid, warning
+    validation_errors = Column(JSON, nullable=True)
+    
+    # 时间戳
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    
+    # 关系
+    config_entry = relationship("UserConfigEntry", backref="history")
+    
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "id": self.id,
+            "config_entry_id": self.config_entry_id,
+            "user_id": self.user_id,
+            "config_section": self.config_section,
+            "config_key": self.config_key,
+            "old_value": self.old_value,
+            "new_value": self.new_value,
+            "change_type": self.change_type,
+            "change_reason": self.change_reason,
+            "changed_by": self.changed_by,
+            "validation_status": self.validation_status,
+            "validation_errors": self.validation_errors,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+        }
+
+
 # 数据模型类
 
 
@@ -481,6 +747,153 @@ class AIConversation(Base):
             "context": self.context,
             "mentioned_entities": self.mentioned_entities,
             "timestamp": self.timestamp.isoformat() if self.timestamp else None,
+        }
+
+
+class EventCorrelation(Base):
+    """事件关联记录模型"""
+    
+    __tablename__ = "event_correlations"
+    
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    
+    # 关联信息
+    pattern_name = Column(String(255), nullable=False, index=True)  # 关联模式名称
+    confidence_score = Column(Integer, nullable=False)  # 置信度分数(0-100)
+    time_window_seconds = Column(Integer, nullable=False)  # 时间窗口(秒)
+    
+    # 事件标识
+    primary_event_id = Column(String(255), nullable=False)  # 主要事件ID
+    related_event_ids = Column(JSON, nullable=False)  # 关联事件ID列表
+    
+    # 语义信息  
+    semantic_tags = Column(JSON, nullable=False)  # 涉及的语义标签
+    correlation_context = Column(JSON, nullable=True)  # 关联上下文信息
+    
+    # 统计信息
+    events_count = Column(Integer, default=1)  # 包含的事件数量
+    duration_seconds = Column(Integer, nullable=True)  # 总持续时间
+    
+    # 时间戳
+    started_at = Column(DateTime(timezone=True), nullable=False)  # 开始时间
+    ended_at = Column(DateTime(timezone=True), nullable=True)  # 结束时间
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "id": self.id,
+            "pattern_name": self.pattern_name,
+            "confidence_score": self.confidence_score,
+            "time_window_seconds": self.time_window_seconds,
+            "primary_event_id": self.primary_event_id,
+            "related_event_ids": self.related_event_ids,
+            "semantic_tags": self.semantic_tags,
+            "correlation_context": self.correlation_context,
+            "events_count": self.events_count,
+            "duration_seconds": self.duration_seconds,
+            "started_at": self.started_at.isoformat() if self.started_at else None,
+            "ended_at": self.ended_at.isoformat() if self.ended_at else None,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+        }
+
+
+class SemanticTagUsage(Base):
+    """语义标签使用统计模型"""
+    
+    __tablename__ = "semantic_tag_usage"
+    
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    
+    # 标签信息
+    tag_key = Column(String(255), nullable=False, index=True)  # 标签键
+    tag_name = Column(String(255), nullable=False)  # 标签名称
+    
+    # 统计信息
+    usage_count = Column(Integer, default=1)  # 使用次数
+    confidence_sum = Column(Integer, default=0)  # 置信度总和
+    avg_confidence = Column(Integer, default=0)  # 平均置信度
+    
+    # 关联信息
+    connector_ids = Column(JSON, nullable=True)  # 相关连接器ID列表
+    event_types = Column(JSON, nullable=True)  # 相关事件类型
+    
+    # 时间信息
+    date = Column(DateTime(timezone=True), nullable=False, index=True)  # 统计日期
+    last_used_at = Column(DateTime(timezone=True), nullable=False)  # 最后使用时间
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+    
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "id": self.id,
+            "tag_key": self.tag_key,
+            "tag_name": self.tag_name,
+            "usage_count": self.usage_count,
+            "confidence_sum": self.confidence_sum,
+            "avg_confidence": self.avg_confidence,
+            "connector_ids": self.connector_ids,
+            "event_types": self.event_types,
+            "date": self.date.isoformat() if self.date else None,
+            "last_used_at": self.last_used_at.isoformat() if self.last_used_at else None,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
+        }
+
+
+class CorrelationPattern(Base):
+    """关联模式定义模型"""
+    
+    __tablename__ = "correlation_patterns"
+    
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    
+    # 模式定义
+    pattern_name = Column(String(255), unique=True, nullable=False, index=True)
+    pattern_description = Column(Text, nullable=True)
+    
+    # 配置参数
+    time_window_seconds = Column(Integer, nullable=False, default=300)  # 时间窗口
+    confidence_threshold = Column(Integer, nullable=False, default=70)  # 置信度阈值(0-100)
+    min_events_count = Column(Integer, nullable=False, default=2)  # 最少事件数量
+    
+    # 语义约束
+    required_tags = Column(JSON, nullable=True)  # 必需的语义标签
+    optional_tags = Column(JSON, nullable=True)  # 可选的语义标签
+    excluded_tags = Column(JSON, nullable=True)  # 排除的语义标签
+    
+    # 模式规则
+    pattern_rules = Column(JSON, nullable=True)  # 自定义模式规则
+    
+    # 状态管理
+    enabled = Column(Boolean, default=True, nullable=False)  # 是否启用
+    priority = Column(Integer, default=5, nullable=False)  # 优先级(1-10)
+    
+    # 统计信息
+    match_count = Column(Integer, default=0)  # 匹配次数
+    last_matched_at = Column(DateTime(timezone=True), nullable=True)  # 最后匹配时间
+    
+    # 时间戳
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+    
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "id": self.id,
+            "pattern_name": self.pattern_name,
+            "pattern_description": self.pattern_description,
+            "time_window_seconds": self.time_window_seconds,
+            "confidence_threshold": self.confidence_threshold,
+            "min_events_count": self.min_events_count,
+            "required_tags": self.required_tags,
+            "optional_tags": self.optional_tags,
+            "excluded_tags": self.excluded_tags,
+            "pattern_rules": self.pattern_rules,
+            "enabled": self.enabled,
+            "priority": self.priority,
+            "match_count": self.match_count,
+            "last_matched_at": self.last_matched_at.isoformat() if self.last_matched_at else None,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
         }
 
 

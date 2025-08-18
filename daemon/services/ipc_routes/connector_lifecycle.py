@@ -630,11 +630,12 @@ def create_connector_lifecycle_router() -> IPCRouter:
             logger.info("发现本地连接器...")
             from pathlib import Path
 
-            from daemon.config.core_config import get_connector_config
+            from core.service_facade import get_database_config_manager
 
             manager = get_connector_manager()
-            connector_config = get_connector_config()
-            connectors_dir = Path(connector_config.config_dir)
+            config_manager = get_database_config_manager()
+            connectors_dir_str = config_manager.get_config_value("connectors", "config_directory", default="connectors")
+            connectors_dir = Path(connectors_dir_str)
             connectors = manager.scan_directory_for_connectors(str(connectors_dir))
 
             return IPCResponse.success_response(

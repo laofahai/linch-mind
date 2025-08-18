@@ -489,33 +489,42 @@ class CoreConfigManager:
 
     def _apply_env_overrides(self):
         """应用配置文件覆盖 - 用户配置优先"""
-        # 尝试从用户配置文件获取覆盖设置
+        # 尝试从数据库配置获取覆盖设置
         try:
-            from .user_config_manager import get_user_config_manager
-            user_manager = get_user_config_manager()
-            user_config = user_manager.get_config()
+            from .database_config_manager import get_database_config_manager
+            config_manager = get_database_config_manager()
             
-            # 将用户配置映射到核心配置
-            if user_config.ipc.socket_path:
-                self.config.server.socket_path = user_config.ipc.socket_path
-            if user_config.ipc.pipe_name:
-                self.config.server.pipe_name = user_config.ipc.pipe_name
-            if user_config.debug is not None:
-                self.config.debug = user_config.debug
-                self.config.server.debug = user_config.debug
-            if user_config.logging.level:
-                self.config.server.log_level = user_config.logging.level
-            if user_config.ipc.max_connections > 0:
-                self.config.server.max_connections = user_config.ipc.max_connections
-            if user_config.ipc.connection_timeout > 0:
-                self.config.server.connection_timeout = user_config.ipc.connection_timeout
-            if user_config.ipc.auth_required is not None:
-                self.config.server.auth_required = user_config.ipc.auth_required
+            # 检查数据库服务是否可用，如果不可用则跳过数据库配置覆盖
+            if config_manager.db_service is None:
+                logger.debug("数据库服务暂不可用，跳过数据库配置覆盖")
+                return
+            
+            # 尝试获取关键配置项
+            debug_config = config_manager.get_config_value('app', 'debug', None)
+            if debug_config is not None:
+                self.config.debug = debug_config
+                self.config.server.debug = debug_config
                 
-            logger.debug("Applied user config overrides to core config")
+            socket_path = config_manager.get_config_value('ipc', 'socket_path', None)
+            if socket_path:
+                self.config.server.socket_path = socket_path
+                
+            pipe_name = config_manager.get_config_value('ipc', 'pipe_name', None)
+            if pipe_name:
+                self.config.server.pipe_name = pipe_name
+                
+            max_connections = config_manager.get_config_value('ipc', 'max_connections', None)
+            if max_connections:
+                self.config.server.max_connections = max_connections
+                
+            auth_required = config_manager.get_config_value('ipc', 'auth_required', None)
+            if auth_required is not None:
+                self.config.server.auth_required = auth_required
+                
+            logger.debug("Applied database config overrides to core config")
             
         except Exception as e:
-            logger.debug(f"No user config overrides available: {e}")
+            logger.debug(f"No database config overrides available: {e}")
             
         # 仍然支持关键的环境变量作为后备（仅限测试和开发）
         import os

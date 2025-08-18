@@ -46,8 +46,8 @@ class IPCServer:
         for middleware in create_default_middlewares(debug=False):
             self.app.add_middleware(middleware)
 
-        # 注册所有路由
-        register_all_routes(self.app)
+        # 延迟路由注册到start()方法，避免循环依赖
+        self._routes_registered = False
 
         # 使用依赖注入获取安全管理器
         from core.container import get_container
@@ -69,6 +69,15 @@ class IPCServer:
 
     async def start(self):
         """启动IPC服务器"""
+        # 注册路由（如果还没有注册）
+        if not self._routes_registered:
+            try:
+                register_all_routes(self.app)
+                self._routes_registered = True
+                logger.info("IPC路由注册成功")
+            except Exception as e:
+                logger.warning(f"路由注册失败，部分功能可能不可用: {e}")
+        
         if platform.system() == "Windows":
             await self._start_named_pipe()
         else:
@@ -551,22 +560,21 @@ def get_ipc_server() -> IPCServer:
     """获取全局IPC服务器实例"""
     global _ipc_server
     if _ipc_server is None:
-        from config.dependencies import get_config_manager
+        # 使用Bootstrap配置，避免循环依赖
+        from config.bootstrap_config import get_bootstrap_config
+        from pathlib import Path
 
-        config_manager = get_config_manager()
+        bootstrap = get_bootstrap_config()
+        ipc_config = bootstrap.get_ipc_config()
 
-        # 🔧 使用配置文件中的socket_path，遵循环境隔离原则
-        configured_socket_path = config_manager.config.server.socket_path
-        if configured_socket_path:
-            # 展开波浪号路径
-            from pathlib import Path
-
-            socket_path = Path(configured_socket_path).expanduser()
-            logger.info(f"✅ 使用配置的socket路径: {socket_path}")
+        # 🔧 使用Bootstrap配置中的socket_path
+        if ipc_config.socket_path:
+            socket_path = Path(ipc_config.socket_path).expanduser()
+            logger.info(f"✅ 使用Bootstrap配置的socket路径: {socket_path}")
         else:
-            # 回退到默认路径（保持向后兼容）
-            socket_path = config_manager.get_paths()["data"] / "daemon.socket"
-            logger.warning(f"⚠️ 配置中未设置socket_path，使用默认路径: {socket_path}")
+            # 回退到默认路径
+            socket_path = bootstrap.get_data_dir() / "daemon.socket"
+            logger.warning(f"⚠️ Bootstrap配置中未设置socket_path，使用默认路径: {socket_path}")
 
         _ipc_server = IPCServer(socket_path=str(socket_path))
     return _ipc_server

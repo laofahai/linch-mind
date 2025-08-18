@@ -2,10 +2,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:window_manager/window_manager.dart';
+import 'screens/home_screen.dart';
 import 'screens/connector_management_screen.dart';
-import 'screens/data_insights_screen.dart';
-import 'screens/knowledge_nebula_screen.dart';
-import 'screens/vector_search_screen.dart';
 import 'screens/settings_screen.dart';
 import 'providers/app_providers.dart';
 import 'widgets/unified_app_bar.dart';
@@ -218,9 +216,7 @@ class _MainAppState extends ConsumerState<MainApp> {
   int _currentIndex = 0;
 
   final List<Widget> _pages = const [
-    DataInsightsScreen(),
-    VectorSearchScreen(),
-    KnowledgeNebulaScreen(),
+    HomeScreen(),
     ConnectorManagementScreen(),
     SettingsScreen(),
   ];

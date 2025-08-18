@@ -74,6 +74,7 @@ class GenericEventStorage:
                 return None
         return self._intelligent_processor
     
+    
     def _should_use_intelligent_processing(
         self, 
         connector_id: str, 
@@ -251,8 +252,8 @@ class GenericEventStorage:
                 connector_id, event_type, event_data, timestamp, metadata
             )
 
-            # 判断是否应该进行智能处理（基于事件类型和内容）
-            if self._should_use_intelligent_processing(connector_id, event_type, event_data):
+            # 直接使用AI智能处理 - 让AI来决定一切
+            if True:  # 所有事件都交给AI分析
                 # 尝试使用智能处理器（AI驱动）
                 processor = await self._ensure_intelligent_processor()
                 if processor:
@@ -262,10 +263,20 @@ class GenericEventStorage:
                         )
                         
                         if result.accepted:
-                            logger.info(f"🚀 优化处理成功: {connector_id}/{event_type}, 价值={result.value_score:.3f}, 耗时={result.processing_time_ms:.1f}ms")
+                            # 显示AI关联信息
+                            ai_info = []
+                            if result.ai_semantic_tags:
+                                ai_info.append(f"{len(result.ai_semantic_tags)}个AI标签")
+                            if result.ai_correlations:
+                                ai_info.append(f"{len(result.ai_correlations)}个AI关联")
+                            if result.ai_insights_available:
+                                ai_info.append("洞察可用")
+                            
+                            ai_summary = f" | AI: {', '.join(ai_info)}" if ai_info else ""
+                            logger.info(f"🚀 AI智能处理成功: {connector_id}/{event_type}, 价值={result.value_score:.3f}, 耗时={result.processing_time_ms:.1f}ms{ai_summary}")
                             return True
                         else:
-                            logger.debug(f"🗑️  优化过滤拒绝: {connector_id}/{event_type}, 原因={result.reasoning}")
+                            logger.debug(f"🗑️  AI智能过滤拒绝: {connector_id}/{event_type}, 原因={result.reasoning}")
                             return True  # 拒绝也是成功的处理结果
                             
                     except Exception as e:
@@ -274,7 +285,7 @@ class GenericEventStorage:
                 else:
                     logger.debug("智能处理器不可用，使用传统方式")
             else:
-                logger.debug(f"事件类型不适合智能处理: {connector_id}/{event_type}, 直接使用传统方式")
+                logger.debug("AI智能处理器不可用，使用传统方式")
 
             # 回退到传统处理方式
             return await self._store_generic_event_traditional(

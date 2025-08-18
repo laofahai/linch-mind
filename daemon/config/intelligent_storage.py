@@ -269,8 +269,8 @@ class IntelligentStorageConfigManager:
         """获取Ollama主机地址（从配置文件读取）"""
         # 尝试从用户配置获取，如果没有则使用智能存储配置
         try:
-            from .user_config_manager import get_user_config
-            user_config = get_user_config()
+            from .database_config_manager import get_unified_config
+            user_config = get_unified_config()
             return user_config.ollama.host
         except Exception:
             # 回退到智能存储配置
@@ -279,8 +279,8 @@ class IntelligentStorageConfigManager:
     def get_embedding_model(self) -> str:
         """获取嵌入模型名称（从配置文件读取）"""
         try:
-            from .user_config_manager import get_user_config
-            user_config = get_user_config()
+            from .database_config_manager import get_unified_config
+            user_config = get_unified_config()
             return user_config.ollama.embedding_model
         except Exception:
             return self.get_config().ollama.embedding_model
@@ -288,8 +288,8 @@ class IntelligentStorageConfigManager:
     def get_llm_model(self) -> str:
         """获取LLM模型名称（从配置文件读取）"""
         try:
-            from .user_config_manager import get_user_config
-            user_config = get_user_config()
+            from .database_config_manager import get_unified_config
+            user_config = get_unified_config()
             return user_config.ollama.llm_model
         except Exception:
             return self.get_config().ollama.llm_model
@@ -297,8 +297,8 @@ class IntelligentStorageConfigManager:
     def is_intelligent_processing_enabled(self) -> bool:
         """检查是否启用智能处理（从配置文件读取）"""
         try:
-            from .user_config_manager import get_user_config
-            user_config = get_user_config()
+            from .database_config_manager import get_unified_config
+            user_config = get_unified_config()
             return user_config.performance.enable_caching
         except Exception:
             return self.get_config().processing.enable_intelligent_processing
@@ -306,8 +306,8 @@ class IntelligentStorageConfigManager:
     def get_value_threshold(self) -> float:
         """获取价值阈值（从配置文件读取）"""
         try:
-            from .user_config_manager import get_user_config
-            user_config = get_user_config()
+            from .database_config_manager import get_unified_config
+            user_config = get_unified_config()
             return user_config.ollama.value_threshold
         except Exception:
             return self.get_config().ollama.value_threshold

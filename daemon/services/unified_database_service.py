@@ -14,7 +14,7 @@ from sqlalchemy import create_engine, text
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session, sessionmaker
 
-from config.core_config import get_database_config
+from config.bootstrap_config import get_bootstrap_config
 from models.database_models import Base, Connector
 
 logger = logging.getLogger(__name__)
@@ -28,16 +28,18 @@ class UnifiedDatabaseService:
     - 统一连接池管理
     - 环境感知配置
     - 单一API接口
+    - 使用Bootstrap配置避免循环依赖
     """
 
     def __init__(self, db_path: Optional[str] = None, force_encryption: Optional[bool] = None):
-        self.db_config = get_database_config()
+        # 使用Bootstrap配置，避免循环依赖
+        bootstrap = get_bootstrap_config()
+        self.db_config = bootstrap.get_database_config()
+        self.environment = bootstrap.get_environment()
+        self.data_dir = bootstrap.get_data_dir()
+        
         self._session_local = None
         self._engine = None
-
-        # 环境管理器
-        from core.environment_manager import get_environment_manager
-        self.env_manager = get_environment_manager()
 
         # 确定是否使用加密
         self.use_encryption = self._should_use_encryption(force_encryption)
@@ -50,8 +52,8 @@ class UnifiedDatabaseService:
         if force_encryption is not None:
             return force_encryption
         
-        # 根据环境自动决定
-        return self.env_manager.should_use_encryption()
+        # 根据环境自动决定（使用Bootstrap配置）
+        return self.environment == "production" or self.db_config.use_encryption
 
     def _initialize_database(self, db_path: Optional[str] = None):
         """初始化数据库连接"""
@@ -98,8 +100,10 @@ class UnifiedDatabaseService:
             else:
                 base_url = f"sqlite:///{db_path}"
         else:
-            # 使用环境管理器提供的URL
-            base_url = self.env_manager.get_database_url()
+            # 使用Bootstrap配置构建URL
+            db_file = self.data_dir / "database" / self.db_config.sqlite_file
+            db_file.parent.mkdir(parents=True, exist_ok=True)
+            base_url = f"sqlite:///{db_file}"
 
         # 如果使用加密，修改URL
         if self.use_encryption:
@@ -148,7 +152,8 @@ class UnifiedDatabaseService:
         }
 
         # 生产环境优化（SQLCipher不支持连接池参数）
-        if not self.env_manager.is_debug_enabled() and not self.use_encryption:
+        is_debug = (self.environment == "development")
+        if not is_debug and not self.use_encryption:
             config.update({
                 "pool_size": 20,
                 "max_overflow": 30,
@@ -357,7 +362,7 @@ class UnifiedDatabaseService:
                     "connectors_count": connectors_count,
                     "running_connectors_count": running_connectors_count,
                     "database_path": db_url,
-                    "environment": self.env_manager.current_environment.value,
+                    "environment": self.environment,
                     "encrypted": self.use_encryption,
                     "encryption_type": "SQLCipher" if self.use_encryption else "none",
                 }
@@ -496,8 +501,8 @@ class UnifiedDatabaseService:
             "database_url": database_url,
             "use_encryption": self.use_encryption,
             "database_exists": database_exists,
-            "environment": self.env_manager.current_environment,
-            "config_root": str(self.env_manager.current_config.base_path),
+            "environment": self.environment,
+            "config_root": str(self.data_dir.parent),
         }
 
 
