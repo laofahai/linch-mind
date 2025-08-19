@@ -1,0 +1,317 @@
+# Linch Mind - 系统信息连接器配置
+# 高性能系统信息连接器，实时监控系统资源和状态
+
+[metadata]
+id = "system_info"
+name = "系统信息连接器"
+version = "1.0.0"
+author = "Linch Mind Team"
+description = "事件驱动的系统信息连接器，监控CPU、内存、磁盘、网络等系统资源"
+homepage = "https://github.com/linch-mind/connectors/system_info"
+license = "MIT"
+category = "system"
+icon = "computer"
+
+# JSON Schema 引用
+schema = "../../connector.schema.json"
+
+[build]
+build_command = "./build.sh"
+pre_build = "echo 'Preparing C++ build environment'"
+post_build = "echo 'System info build completed'"
+
+[capabilities]
+hot_reload = true
+max_instances = 1
+supports_multiple_instances = false
+
+# 权限要求
+permissions = [
+    "system:read",
+    "network:status",
+    "network:daemon-api"
+]
+
+# 平台支持
+[platforms.linux]
+min_version = "ubuntu-20.04"
+
+[platforms.macos]
+min_version = "10.15"
+
+[platforms.windows]
+min_version = "10"
+
+# 入口点配置
+[entry.development]
+command = "bash"
+working_dir = "."
+args = [
+    "-c",
+    """# Smart build and run
+exe_name='linch-mind-system-info'
+[[ '$OSTYPE' == 'msys' || '$OSTYPE' == 'win32' ]] && exe_name='$exe_name.exe'
+
+# Check if build is needed
+if [[ ! -f "bin/release/$exe_name" && ! -f "bin/debug/$exe_name" ]] || [[ src/main.cpp -nt "bin/release/$exe_name" ]] || [[ src/main.cpp -nt "bin/debug/$exe_name" ]]; then
+  echo '🔨 Building connector...'
+  ./build.sh > /dev/null 2>&1 || { echo 'Build failed'; exit 1; }
+fi
+
+# Run the newest build
+if [[ -f "bin/debug/$exe_name" ]]; then
+  exec "./bin/debug/$exe_name"
+elif [[ -f "bin/release/$exe_name" ]]; then
+  exec "./bin/release/$exe_name"
+else
+  echo '❌ No executable found after build'
+  exit 1
+fi"""
+]
+
+[entry.production]
+linux = "bin/release/linch-mind-system-info"
+macos = "bin/release/linch-mind-system-info"
+windows = "bin/release/linch-mind-system-info.exe"
+
+# 默认配置值 - 完整系统资源监控
+[config_default_values]
+enable_cpu_monitoring = true       # 启用CPU监控
+enable_memory_monitoring = true    # 启用内存监控
+enable_disk_monitoring = true      # 启用磁盘监控
+enable_network_monitoring = true   # 启用网络监控
+enable_process_monitoring = true   # 启用进程监控
+enable_temperature_monitoring = true # 启用温度监控
+update_interval_seconds = 5        # 更新间隔（秒）
+cpu_threshold_percent = 80         # CPU使用率阈值
+memory_threshold_percent = 90      # 内存使用率阈值
+disk_threshold_percent = 95        # 磁盘使用率阈值
+network_threshold_mbps = 100       # 网络流量阈值（Mbps）
+temperature_threshold_celsius = 80 # 温度阈值（摄氏度）
+top_process_count = 10             # 监控的TOP进程数量
+enable_performance_alerts = true   # 启用性能告警
+historical_data_retention_days = 30 # 历史数据保留天数
+
+# 配置模式定义
+[config_schema]
+description = "系统信息连接器的配置选项"
+title = "系统信息连接器配置"
+type = "object"
+config_schema_source = "static"
+
+[config_schema.properties.enable_cpu_monitoring]
+title = "启用CPU监控"
+description = "监控CPU使用率和负载"
+type = "boolean"
+default = true
+
+[config_schema.properties.enable_memory_monitoring]
+title = "启用内存监控"
+description = "监控内存使用情况"
+type = "boolean"
+default = true
+
+[config_schema.properties.enable_disk_monitoring]
+title = "启用磁盘监控"
+description = "监控磁盘使用情况"
+type = "boolean"
+default = true
+
+[config_schema.properties.enable_network_monitoring]
+title = "启用网络监控"
+description = "监控网络接口状态和流量"
+type = "boolean"
+default = true
+
+[config_schema.properties.enable_process_monitoring]
+title = "启用进程监控"
+description = "监控系统进程和资源占用"
+type = "boolean"
+default = true
+
+[config_schema.properties.enable_temperature_monitoring]
+title = "启用温度监控"
+description = "监控系统温度状态"
+type = "boolean"
+default = true
+
+[config_schema.properties.update_interval_seconds]
+title = "更新间隔 (秒)"
+description = "系统信息更新的时间间隔"
+type = "integer"
+minimum = 1
+maximum = 60
+default = 5
+
+[config_schema.properties.cpu_threshold_percent]
+title = "CPU阈值 (%)"
+description = "CPU使用率告警阈值"
+type = "integer"
+minimum = 50
+maximum = 100
+default = 80
+
+[config_schema.properties.memory_threshold_percent]
+title = "内存阈值 (%)"
+description = "内存使用率告警阈值"
+type = "integer"
+minimum = 50
+maximum = 100
+default = 90
+
+[config_schema.properties.disk_threshold_percent]
+title = "磁盘阈值 (%)"
+description = "磁盘使用率告警阈值"
+type = "integer"
+minimum = 50
+maximum = 100
+default = 95
+
+[config_schema.properties.network_threshold_mbps]
+title = "网络流量阈值 (Mbps)"
+description = "网络流量告警阈值"
+type = "integer"
+minimum = 10
+maximum = 1000
+default = 100
+
+[config_schema.properties.temperature_threshold_celsius]
+title = "温度阈值 (°C)"
+description = "系统温度告警阈值"
+type = "integer"
+minimum = 60
+maximum = 100
+default = 80
+
+[config_schema.properties.top_process_count]
+title = "TOP进程数量"
+description = "监控的资源占用最高的进程数量"
+type = "integer"
+minimum = 5
+maximum = 20
+default = 10
+
+[config_schema.properties.enable_performance_alerts]
+title = "启用性能告警"
+description = "当系统资源超过阈值时发送告警"
+type = "boolean"
+default = true
+
+[config_schema.properties.historical_data_retention_days]
+title = "历史数据保留天数"
+description = "系统监控历史数据的保留期限"
+type = "integer"
+minimum = 7
+maximum = 365
+default = 30
+
+# 必需配置字段
+config_schema.required = []
+
+# UI配置模式
+[config_ui_schema]
+ui_layout = "sections"
+
+# UI节段配置
+[config_ui_schema.ui_sections.monitoring_config]
+ui_title = "监控设置"
+ui_icon = "monitor"
+ui_description = "配置系统监控选项"
+ui_collapsible = false
+
+[config_ui_schema.ui_sections.monitoring_config.ui_fields.enable_cpu_monitoring]
+ui_widget = "switch"
+ui_help = "监控CPU使用率和系统负载"
+
+[config_ui_schema.ui_sections.monitoring_config.ui_fields.enable_memory_monitoring]
+ui_widget = "switch"
+ui_help = "监控内存使用情况和交换空间"
+
+[config_ui_schema.ui_sections.monitoring_config.ui_fields.enable_disk_monitoring]
+ui_widget = "switch"
+ui_help = "监控磁盘使用情况和I/O"
+
+[config_ui_schema.ui_sections.monitoring_config.ui_fields.enable_network_monitoring]
+ui_widget = "switch"
+ui_help = "监控网络接口状态和流量"
+
+[config_ui_schema.ui_sections.monitoring_config.ui_fields.enable_process_monitoring]
+ui_widget = "switch"
+ui_help = "监控系统进程和资源占用情况"
+
+[config_ui_schema.ui_sections.monitoring_config.ui_fields.enable_temperature_monitoring]
+ui_widget = "switch"
+ui_help = "监控系统温度，预防过热"
+
+[config_ui_schema.ui_sections.performance_config]
+ui_title = "性能配置"
+ui_icon = "speed"
+ui_description = "配置更新频率和阈值"
+ui_collapsed = false
+ui_collapsible = true
+
+[config_ui_schema.ui_sections.performance_config.ui_fields.update_interval_seconds]
+ui_widget = "slider"
+ui_step = 1
+ui_unit = "秒"
+ui_help = "较小值提供更实时的数据，但消耗更多资源"
+
+[config_ui_schema.ui_sections.performance_config.ui_fields.top_process_count]
+ui_widget = "slider"
+ui_step = 1
+ui_unit = "个"
+ui_help = "监控资源占用最高的进程数量"
+
+[config_ui_schema.ui_sections.alerts_config]
+ui_title = "告警配置"
+ui_icon = "warning"
+ui_description = "配置系统资源告警阈值"
+ui_collapsed = true
+ui_collapsible = true
+
+[config_ui_schema.ui_sections.alerts_config.ui_fields.enable_performance_alerts]
+ui_widget = "switch"
+ui_help = "启用性能告警功能"
+
+[config_ui_schema.ui_sections.alerts_config.ui_fields.cpu_threshold_percent]
+ui_widget = "slider"
+ui_step = 5
+ui_unit = "%"
+ui_help = "超过此值时触发CPU使用率告警"
+
+[config_ui_schema.ui_sections.alerts_config.ui_fields.memory_threshold_percent]
+ui_widget = "slider"
+ui_step = 5
+ui_unit = "%"
+ui_help = "超过此值时触发内存使用率告警"
+
+[config_ui_schema.ui_sections.alerts_config.ui_fields.disk_threshold_percent]
+ui_widget = "slider"
+ui_step = 5
+ui_unit = "%"
+ui_help = "超过此值时触发磁盘使用率告警"
+
+[config_ui_schema.ui_sections.alerts_config.ui_fields.network_threshold_mbps]
+ui_widget = "slider"
+ui_step = 10
+ui_unit = "Mbps"
+ui_help = "超过此值时触发网络流量告警"
+
+[config_ui_schema.ui_sections.alerts_config.ui_fields.temperature_threshold_celsius]
+ui_widget = "slider"
+ui_step = 5
+ui_unit = "°C"
+ui_help = "超过此值时触发温度告警"
+
+[config_ui_schema.ui_sections.data_config]
+ui_title = "数据管理"
+ui_icon = "database"
+ui_description = "配置数据保留和管理策略"
+ui_collapsed = true
+ui_collapsible = true
+
+[config_ui_schema.ui_sections.data_config.ui_fields.historical_data_retention_days]
+ui_widget = "slider"
+ui_step = 7
+ui_unit = "天"
+ui_help = "历史监控数据的保留时间"

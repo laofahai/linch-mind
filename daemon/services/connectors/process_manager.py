@@ -294,7 +294,15 @@ class ProcessManager:
                             )
                         except Exception as e:
                             logger.debug(f"同步进程状态失败: {e}")
-                    return None  # 已在运行
+                    
+                    # 返回一个特殊的AlreadyRunningProcess对象，而不是None
+                    # 这样调用者可以区分"启动失败"和"已经在运行"
+                    class AlreadyRunningProcess:
+                        def __init__(self, pid):
+                            self.pid = pid
+                            self.already_running = True
+                    
+                    return AlreadyRunningProcess(existing_pid)
                 else:
                     # 锁文件存在但进程已死，清理陈旧的锁文件
                     logger.warning(f"🧹 发现陈旧的锁文件: {connector_id} (PID: {existing_pid})，正在清理...")

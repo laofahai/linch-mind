@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'dart:async';
 import '../utils/error_monitor.dart';
+import '../utils/notification_utils.dart';
 
 /// 错误监控显示组件
 /// 在调试模式下显示实时错误信息，帮助开发者快速定位问题
-class ErrorMonitorWidget extends StatefulWidget {
+class ErrorMonitorWidget extends ConsumerStatefulWidget {
   final Widget child;
   final bool showInRelease;
 
@@ -15,10 +17,10 @@ class ErrorMonitorWidget extends StatefulWidget {
   });
 
   @override
-  State<ErrorMonitorWidget> createState() => _ErrorMonitorWidgetState();
+  ConsumerState<ErrorMonitorWidget> createState() => _ErrorMonitorWidgetState();
 }
 
-class _ErrorMonitorWidgetState extends State<ErrorMonitorWidget> {
+class _ErrorMonitorWidgetState extends ConsumerState<ErrorMonitorWidget> {
   final ErrorMonitor _monitor = ErrorMonitor();
   StreamSubscription<ErrorReport>? _errorSubscription;
   final List<ErrorReport> _recentErrors = [];
@@ -375,11 +377,7 @@ class _ErrorMonitorWidgetState extends State<ErrorMonitorWidget> {
 
   void _exportErrorLog() {
     // TODO: 实现错误日志导出功能
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('错误日志导出功能待实现'),
-      ),
-    );
+    showInfoNotification(ref, '错误日志导出功能待实现');
   }
 }
 

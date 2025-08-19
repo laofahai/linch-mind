@@ -24,11 +24,16 @@ class ConnectorPathResolver:
         self.base_dirs = self._find_connector_base_directories()
         
         # 可能的可执行文件名模式
+        # 支持下划线转连字符的变体，以适配实际的二进制文件命名
         self.exe_patterns = [
             "linch-mind-{connector_id}",
             "linch-mind-{connector_id}.exe",
+            "linch-mind-{connector_id_dash}",  # 下划线转连字符版本
+            "linch-mind-{connector_id_dash}.exe",
             "{connector_id}",
             "{connector_id}.exe",
+            "{connector_id_dash}",  # 下划线转连字符版本
+            "{connector_id_dash}.exe",
         ]
         
         # 搜索目录（按优先级排序）
@@ -107,7 +112,12 @@ class ConnectorPathResolver:
                     
                     # 尝试每种文件名模式
                     for pattern in self.exe_patterns:
-                        exe_name = pattern.format(connector_id=connector_id)
+                        # 支持下划线转连字符的变体
+                        connector_id_dash = connector_id.replace('_', '-')
+                        exe_name = pattern.format(
+                            connector_id=connector_id,
+                            connector_id_dash=connector_id_dash
+                        )
                         exe_path = search_dir / exe_name
                         
                         if exe_path.exists() and exe_path.is_file():

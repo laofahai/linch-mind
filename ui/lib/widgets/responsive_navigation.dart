@@ -19,6 +19,11 @@ class ResponsiveNavigation extends StatelessWidget {
       label: '首页',
     ),
     NavigationDestination(
+      icon: Icon(Icons.auto_awesome_outlined),
+      selectedIcon: Icon(Icons.auto_awesome),
+      label: '星空宇宙',
+    ),
+    NavigationDestination(
       icon: Icon(Icons.extension_outlined),
       selectedIcon: Icon(Icons.extension),
       label: '连接器',

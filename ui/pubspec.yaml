@@ -44,6 +44,10 @@ dependencies:
   # Material Design
   material_color_utilities: ^0.11.1
 
+  # 星空可视化相关依赖
+  vector_math: ^2.1.4
+  flutter_force_directed_graph: ^1.0.6
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -59,6 +63,9 @@ dev_dependencies:
   
   # 测试工具
   mockito: ^5.4.0
+  
+  # 性能基准测试
+  benchmark_harness: ^2.2.2
 
 flutter:
   uses-material-design: true

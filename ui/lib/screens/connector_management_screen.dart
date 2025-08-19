@@ -9,7 +9,8 @@ import '../providers/app_error_provider.dart';
 import '../providers/daemon_providers.dart';
 import '../widgets/connector_status_widget.dart';
 import '../utils/app_logger.dart';
-import 'connector_config_screen.dart';
+import '../utils/notification_utils.dart';
+// import 'connector_config_screen.dart'; // 文件不存在，暂时注释
 
 /// 连接器管理主界面 - 工具箱+应用商店双重体验
 class ConnectorManagementScreen extends ConsumerStatefulWidget {
@@ -623,12 +624,7 @@ class _ConnectorManagementScreenState
       await _apiClient.startConnector(connector.connectorId);
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('已重启连接器: ${connector.displayName}'),
-            backgroundColor: Colors.green,
-          ),
-        );
+        showSuccessNotification(ref, '已重启连接器: ${connector.displayName}');
       }
 
       // 刷新状态
@@ -641,12 +637,7 @@ class _ConnectorManagementScreenState
           );
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('重启连接器失败: ${connector.displayName}'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        showErrorNotification(ref, '重启连接器失败: ${connector.displayName}');
       }
     }
   }
@@ -654,14 +645,8 @@ class _ConnectorManagementScreenState
   /// 配置连接器
   Future<void> _configureConnector(ConnectorInfo connector) async {
     if (mounted) {
-      Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (context) => ConnectorConfigScreen(
-            connectorId: connector.connectorId,
-            connectorName: connector.displayName,
-          ),
-        ),
-      );
+      // TODO: 实现连接器配置界面
+      showInfoNotification(ref, '连接器配置功能开发中...');
     }
   }
 
@@ -674,13 +659,12 @@ class _ConnectorManagementScreenState
       await _apiClient.toggleConnectorEnabled(connector.connectorId, enabled);
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content:
-                Text('已${enabled ? '启用' : '禁用'}连接器: ${connector.displayName}'),
-            backgroundColor: enabled ? Colors.green : Colors.orange,
-          ),
-        );
+        final message = '已${enabled ? '启用' : '禁用'}连接器: ${connector.displayName}';
+        if (enabled) {
+          showSuccessNotification(ref, message);
+        } else {
+          showWarningNotification(ref, message);
+        }
       }
 
       // 刷新状态
@@ -693,12 +677,7 @@ class _ConnectorManagementScreenState
           );
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('切换连接器状态失败: ${connector.displayName}'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        showErrorNotification(ref, '切换连接器状态失败: ${connector.displayName}');
       }
     }
   }
@@ -1103,21 +1082,14 @@ class _ConnectorManagementScreenState
 
       if (mounted) {
         Navigator.of(context).pop();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('成功创建连接器: ${type.displayName}')),
-        );
+        showSuccessNotification(ref, '成功创建连接器: ${type.displayName}');
         // 刷新已安装连接器列表和市场状态
         await _refreshInstalledConnectors();
         await _refreshMarketConnectors();
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('创建连接器失败: $e'),
-            backgroundColor: Theme.of(context).colorScheme.error,
-          ),
-        );
+        showErrorNotification(ref, '创建连接器失败: $e');
       }
     }
   }
@@ -1125,23 +1097,13 @@ class _ConnectorManagementScreenState
   Future<void> _installMarketConnector(ConnectorDefinition connector) async {
     try {
       // 显示安装中状态
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('正在安装 ${connector.displayName}...'),
-          duration: const Duration(seconds: 2),
-        ),
-      );
+      showInfoNotification(ref, '正在安装 ${connector.displayName}...');
 
       // 调用安装API
       await _apiClient.installFromRegistry(connector.connectorId);
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('${connector.displayName} 安装成功'),
-            backgroundColor: Colors.green,
-          ),
-        );
+        showSuccessNotification(ref, '${connector.displayName} 安装成功');
 
         // 刷新已安装连接器列表
         await _refreshInstalledConnectors();
@@ -1151,13 +1113,7 @@ class _ConnectorManagementScreenState
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('安装失败: $e'),
-            backgroundColor: Theme.of(context).colorScheme.error,
-            duration: const Duration(seconds: 4),
-          ),
-        );
+        showErrorNotification(ref, '安装失败: $e');
       }
     }
   }

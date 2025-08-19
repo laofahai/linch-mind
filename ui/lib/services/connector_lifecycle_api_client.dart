@@ -169,11 +169,18 @@ class ConnectorLifecycleApiClient {
       // 处理嵌套响应结构
       final success = responseData['success'] ?? false;
       final data = responseData['data'] as Map<String, dynamic>? ?? {};
-      final error = responseData['error'] as Map<String, dynamic>?;
+      final error = responseData['error'];
 
       if (!success || error != null) {
-        throw ConnectorApiException(
-            'Failed to start connector: ${error?['message'] ?? 'Unknown error'}');
+        String errorMessage;
+        if (error is Map<String, dynamic>) {
+          errorMessage = error['message'] ?? 'Unknown error';
+        } else if (error is String) {
+          errorMessage = error;
+        } else {
+          errorMessage = 'Unknown error';
+        }
+        throw ConnectorApiException('Failed to start connector: $errorMessage');
       }
 
       return OperationResponse(
@@ -203,11 +210,18 @@ class ConnectorLifecycleApiClient {
       // 处理嵌套响应结构
       final success = responseData['success'] ?? false;
       final data = responseData['data'] as Map<String, dynamic>? ?? {};
-      final error = responseData['error'] as Map<String, dynamic>?;
+      final error = responseData['error'];
 
       if (!success || error != null) {
-        throw ConnectorApiException(
-            'Failed to stop connector: ${error?['message'] ?? 'Unknown error'}');
+        String errorMessage;
+        if (error is Map<String, dynamic>) {
+          errorMessage = error['message'] ?? 'Unknown error';
+        } else if (error is String) {
+          errorMessage = error;
+        } else {
+          errorMessage = 'Unknown error';
+        }
+        throw ConnectorApiException('Failed to stop connector: $errorMessage');
       }
 
       return OperationResponse(
@@ -233,11 +247,18 @@ class ConnectorLifecycleApiClient {
       // 处理嵌套响应结构
       final success = responseData['success'] ?? false;
       final data = responseData['data'] as Map<String, dynamic>? ?? {};
-      final error = responseData['error'] as Map<String, dynamic>?;
+      final error = responseData['error'];
 
       if (!success || error != null) {
-        throw ConnectorApiException(
-            'Failed to restart connector: ${error?['message'] ?? 'Unknown error'}');
+        String errorMessage;
+        if (error is Map<String, dynamic>) {
+          errorMessage = error['message'] ?? 'Unknown error';
+        } else if (error is String) {
+          errorMessage = error;
+        } else {
+          errorMessage = 'Unknown error';
+        }
+        throw ConnectorApiException('Failed to restart connector: $errorMessage');
       }
 
       return OperationResponse(

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class StatusIndicator extends StatefulWidget {
+class StatusIndicator extends ConsumerStatefulWidget {
   final bool isConnected;
   final VoidCallback? onTap;
   final String? customMessage;
@@ -13,10 +14,10 @@ class StatusIndicator extends StatefulWidget {
   });
 
   @override
-  State<StatusIndicator> createState() => _StatusIndicatorState();
+  ConsumerState<StatusIndicator> createState() => _StatusIndicatorState();
 }
 
-class _StatusIndicatorState extends State<StatusIndicator>
+class _StatusIndicatorState extends ConsumerState<StatusIndicator>
     with SingleTickerProviderStateMixin {
   late AnimationController _animationController;
   late Animation<double> _pulseAnimation;
@@ -154,7 +155,7 @@ class StatusDot extends StatelessWidget {
 }
 
 // 响应式状态指示器
-class ResponsiveStatusIndicator extends StatelessWidget {
+class ResponsiveStatusIndicator extends ConsumerWidget {
   final bool isConnected;
   final VoidCallback? onTap;
   final String? customMessage;
@@ -167,14 +168,14 @@ class ResponsiveStatusIndicator extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return LayoutBuilder(
       builder: (context, constraints) {
         // 根据可用宽度决定显示模式
         if (constraints.maxWidth < 80) {
           // 超小屏幕：仅显示状态点
           return GestureDetector(
-            onTap: onTap ?? () => _showStatusSnackBar(context),
+            onTap: onTap,
             child: Tooltip(
               message:
                   customMessage ?? (isConnected ? 'Connected' : 'Disconnected'),
@@ -187,7 +188,7 @@ class ResponsiveStatusIndicator extends StatelessWidget {
         } else if (constraints.maxWidth < 120) {
           // 小屏幕：仅显示图标
           return GestureDetector(
-            onTap: onTap ?? () => _showStatusSnackBar(context),
+            onTap: onTap,
             child: Tooltip(
               message:
                   customMessage ?? (isConnected ? 'Connected' : 'Disconnected'),
@@ -218,30 +219,17 @@ class ResponsiveStatusIndicator extends StatelessWidget {
     );
   }
 
-  void _showStatusSnackBar(BuildContext context) {
-    final statusText =
-        customMessage ?? (isConnected ? 'Connected' : 'Disconnected');
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              isConnected ? Icons.cloud_done : Icons.cloud_off,
-              color: Colors.white,
-              size: 16,
-            ),
-            const SizedBox(width: 8),
-            Text('Status: $statusText'),
-          ],
-        ),
-        backgroundColor: isConnected ? Colors.green : Colors.red,
-        duration: const Duration(seconds: 2),
-        behavior: SnackBarBehavior.floating,
-        margin: const EdgeInsets.all(16),
-      ),
-    );
-  }
+  // 状态通知方法（如果需要的话）
+  // void _showStatusSnackBar(BuildContext context, WidgetRef ref) {
+  //   final statusText = customMessage ?? (isConnected ? '已连接' : '连接断开');
+  //   final message = '状态: $statusText';
+  //   
+  //   if (isConnected) {
+  //     showSuccessNotification(ref, message);
+  //   } else {
+  //     showErrorNotification(ref, message);
+  //   }
+  // }
 }
 
 // 详细状态卡片

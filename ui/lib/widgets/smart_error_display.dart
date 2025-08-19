@@ -2,12 +2,14 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/ui_error.dart';
 import '../utils/enhanced_error_handler.dart';
+import '../utils/notification_utils.dart';
 
 /// 智能错误显示组件 - 提供统一的错误展示和交互
-class SmartErrorDisplay extends StatefulWidget {
+class SmartErrorDisplay extends ConsumerStatefulWidget {
   final Widget child;
 
   const SmartErrorDisplay({
@@ -16,10 +18,10 @@ class SmartErrorDisplay extends StatefulWidget {
   });
 
   @override
-  State<SmartErrorDisplay> createState() => _SmartErrorDisplayState();
+  ConsumerState<SmartErrorDisplay> createState() => _SmartErrorDisplayState();
 }
 
-class _SmartErrorDisplayState extends State<SmartErrorDisplay>
+class _SmartErrorDisplayState extends ConsumerState<SmartErrorDisplay>
     with SingleTickerProviderStateMixin {
   final _errorHandler = EnhancedErrorHandler();
   StreamSubscription<UIError>? _errorSubscription;
@@ -245,12 +247,7 @@ class _SmartErrorDisplayState extends State<SmartErrorDisplay>
           text:
               'Error ID: ${error.errorId}\nCode: ${error.code}\nMessage: ${error.message}',
         ));
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('错误信息已复制'),
-            duration: Duration(seconds: 1),
-          ),
-        );
+        showSuccessNotification(ref, '错误信息已复制');
       },
       icon: Icon(
         Icons.copy,

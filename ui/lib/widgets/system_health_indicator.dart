@@ -4,6 +4,7 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import '../providers/app_error_provider.dart';
+import '../utils/notification_utils.dart';
 
 /// 系统健康度级别
 enum SystemHealthLevel {
@@ -329,12 +330,7 @@ class _SystemHealthIndicatorState extends ConsumerState<SystemHealthIndicator>
               onPressed: hasErrors
                   ? () {
                       ref.read(appErrorProvider.notifier).clearAllErrors();
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('已清除所有错误'),
-                          duration: Duration(seconds: 2),
-                        ),
-                      );
+                      showSuccessNotification(ref, '已清除所有错误');
                     }
                   : null,
               icon: Icon(

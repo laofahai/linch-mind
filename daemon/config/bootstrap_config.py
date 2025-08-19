@@ -77,7 +77,7 @@ class BootstrapConfigManager:
     def _load_bootstrap_config(self) -> BootstrapConfig:
         """加载Bootstrap配置"""
         # 1. 从环境变量获取环境
-        environment = os.getenv("ENVIRONMENT", "development")
+        environment = os.getenv("LINCH_MIND_ENVIRONMENT", "development")
         
         # 2. 构建配置路径
         home_dir = Path.home()
@@ -89,15 +89,14 @@ class BootstrapConfigManager:
             debug=(environment == "development")
         )
         
-        # 4. 设置数据库配置
+        # 4. 设置数据库配置（固化路径）
         config.database.use_encryption = (environment == "production")
-        
-        # 5. 设置IPC配置
         data_dir = home_dir / ".linch-mind" / environment / "data"
         data_dir.mkdir(parents=True, exist_ok=True)
+        config.database.sqlite_file = str(data_dir / "linch_mind.db")
         
-        if not config.ipc.socket_path:
-            config.ipc.socket_path = str(data_dir / "daemon.socket")
+        # 5. 设置IPC配置（固化路径）
+        config.ipc.socket_path = str(data_dir / "daemon.socket")
             
         logger.info(f"Bootstrap配置加载完成: environment={environment}, socket_path={config.ipc.socket_path}")
         

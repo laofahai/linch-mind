@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:window_manager/window_manager.dart';
 import '../providers/app_providers.dart';
 import '../providers/app_error_provider.dart';
+import '../utils/notification_utils.dart';
 import 'status_indicator.dart';
 import 'system_health_indicator.dart';
 
@@ -240,9 +241,7 @@ class _UnifiedAppBarState extends ConsumerState<UnifiedAppBar> {
                                     .read(appErrorProvider.notifier)
                                     .retryAllErrors();
                                 Navigator.pop(context);
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(content: Text('正在重试所有失败的操作')),
-                                );
+                                showInfoNotification(ref, '正在重试所有失败的操作');
                               }
                             : null,
                         icon: const Icon(Icons.refresh),
@@ -255,9 +254,7 @@ class _UnifiedAppBarState extends ConsumerState<UnifiedAppBar> {
                                     .read(appErrorProvider.notifier)
                                     .clearAllErrors();
                                 Navigator.pop(context);
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(content: Text('已清除所有错误')),
-                                );
+                                showSuccessNotification(ref, '已清除所有错误');
                               }
                             : null,
                         icon: const Icon(Icons.clear_all),

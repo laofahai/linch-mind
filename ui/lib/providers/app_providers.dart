@@ -8,6 +8,9 @@ import '../utils/app_logger.dart';
 import '../utils/error_monitor.dart';
 import '../core/ui_service_facade.dart';
 
+// 导出模式切换 provider
+export 'mode_switch_provider.dart';
+
 // 主题管理提供者
 final themeModeProvider =
     StateNotifierProvider<ThemeModeNotifier, ThemeMode>((ref) {

@@ -268,11 +268,36 @@ class ConnectorManager:
             process = await self.process_manager.start_process(
                 connector_id, command, env_vars=env_vars, capture_output=True
             )
-            if not process:
+            
+            # 检查返回值，处理三种情况：
+            # 1. process 是正常的 subprocess.Popen 对象 - 新启动成功
+            # 2. process 有 already_running 属性 - 进程已在运行
+            # 3. process 是 None - 真正的启动失败
+            
+            if process is None:
                 logger.error(f"启动进程失败: {connector_id}")
                 return False
-
-            # 6. 更新数据库状态
+            
+            # 检查是否是"已经在运行"的情况
+            if hasattr(process, 'already_running') and process.already_running:
+                logger.info(f"✅ 连接器已在运行，无需重复启动: {connector_id} (PID: {process.pid})")
+                # 更新数据库状态，确保状态同步
+                with self.db_service.get_session() as session:
+                    connector = (
+                        session.query(Connector)
+                        .filter_by(connector_id=connector_id)
+                        .first()
+                    )
+                    if connector:
+                        connector.status = "running"
+                        connector.process_id = process.pid
+                        connector.updated_at = datetime.now(timezone.utc)
+                        session.commit()
+                # 保存进程引用（即使是已存在的进程）
+                self.active_processes[connector_id] = process
+                return True  # 已在运行也视为成功
+            
+            # 6. 更新数据库状态（新启动的进程）
             with self.db_service.get_session() as session:
                 connector = (
                     session.query(Connector)

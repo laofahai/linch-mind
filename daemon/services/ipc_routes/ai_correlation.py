@@ -364,13 +364,43 @@ def get_ai_correlation_routes() -> Dict[str, Any]:
 
 def create_ai_correlation_router():
     """创建AI关联路由器"""
-    routes = get_ai_correlation_routes()
+    from services.ipc_router import IPCRouter, RoutePattern
     
-    class AICorrelationRouter:
-        def __init__(self, routes):
-            self.routes = routes
+    router = IPCRouter(prefix="/ai")
+    
+    # 注册AI关联路由
+    routes_mapping = get_ai_correlation_routes()
+    
+    # 将字典路由转换为IPC路由
+    for path, handler in routes_mapping.items():
+        # 根据路径确定HTTP方法
+        method = "POST"  # AI功能通常需要POST请求
+        if "get" in path.lower() or "list" in path.lower():
+            method = "GET"
+            
+        # 创建异步包装器以适配IPCRouter接口
+        def create_handler(handler_func):
+            async def ipc_handler(request):
+                from services.ipc_protocol import IPCResponse
+                try:
+                    # 调用原有的handler
+                    result = await handler_func(request.data or {})
+                    return IPCResponse(
+                        success=result.get("success", True),
+                        data=result,
+                        message=result.get("message", "AI关联操作完成")
+                    )
+                except Exception as e:
+                    return IPCResponse.error_response(
+                        "AI_CORRELATION_ERROR",
+                        f"AI关联操作失败: {e}",
+                        details={"error_type": type(e).__name__}
+                    )
+            return ipc_handler
         
-        def get_routes(self):
-            return self.routes
+        # 注册路由
+        pattern = RoutePattern(path, method)
+        router.routes.append((pattern, create_handler(handler)))
     
-    return AICorrelationRouter(routes)
+    logger.info(f"AI Correlation router created with {len(routes_mapping)} endpoints")
+    return router

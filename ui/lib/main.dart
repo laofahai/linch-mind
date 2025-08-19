@@ -6,10 +6,12 @@ import 'screens/home_screen.dart';
 import 'screens/connector_management_screen.dart';
 import 'screens/settings_screen.dart';
 import 'providers/app_providers.dart';
+// import 'providers/notification_provider.dart'; // 通知在overlay中处理
 import 'widgets/unified_app_bar.dart';
 import 'widgets/responsive_navigation.dart';
 import 'widgets/smart_error_display.dart';
 import 'widgets/system_health_indicator.dart';
+import 'widgets/notification_overlay.dart';
 import 'utils/app_logger.dart';
 import 'utils/enhanced_error_handler.dart';
 import 'config/app_constants.dart';
@@ -99,8 +101,10 @@ class LinchMindApp extends ConsumerWidget {
       theme: _buildLightTheme(),
       darkTheme: _buildDarkTheme(),
       themeMode: themeMode,
-      home: const SmartErrorDisplay(
-        child: AppInitializationWrapper(),
+      home: const NotificationOverlay(
+        child: SmartErrorDisplay(
+          child: AppInitializationWrapper(),
+        ),
       ),
     );
   }
@@ -213,7 +217,7 @@ class MainApp extends ConsumerStatefulWidget {
 }
 
 class _MainAppState extends ConsumerState<MainApp> {
-  int _currentIndex = 0;
+  int _currentIndex = 0; // 默认显示连接器管理页面
 
   final List<Widget> _pages = const [
     HomeScreen(),

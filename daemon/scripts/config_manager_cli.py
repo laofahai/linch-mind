@@ -1,14 +1,25 @@
 #!/usr/bin/env python3
 """
-配置管理CLI工具
-提供用户友好的配置文件管理功能
+配置管理CLI工具 - 三层配置架构管理
+支持Bootstrap配置、数据库配置和系统文件配置的统一管理
+
+配置架构说明:
+1. Bootstrap配置 - 系统启动的最小配置集
+   • 环境检测、基础路径、最小IPC和数据库配置
+   
+2. 数据库配置（主要） - 用户偏好和运行时配置
+   • AI模型配置、向量维度、性能参数、安全策略、用户界面偏好
+   • 支持实时更新、历史记录、环境隔离
+   
+3. 文件配置（简化） - 系统级和部署配置
+   • 部署环境设置、系统集成配置、构建相关配置
+   • 连接器目录、日志路径、进程限制等
 
 功能:
-- 生成配置模板
-- 验证配置文件
-- 配置格式转换
-- 环境配置管理
-- 配置比较和合并
+- 生成系统配置模板（TOML文件配置）
+- 数据库配置管理（用户偏好配置）
+- 配置验证和格式转换
+- 环境变量迁移到数据库配置
 """
 
 import argparse
@@ -29,8 +40,9 @@ from main import initialize_di_container
 
 
 def create_template_command(args):
-    """生成配置模板"""
-    print(f"🎯 生成配置模板: {args.format} 格式")
+    """生成系统配置模板（文件配置层）"""
+    print(f"🎯 生成系统配置模板: {args.format} 格式")
+    print("📌 注意：此模板为系统级配置，用户偏好请使用数据库配置管理")
     
     try:
         # 初始化DI容器
@@ -41,23 +53,71 @@ def create_template_command(args):
         if args.output:
             output_path = Path(args.output)
         else:
-            output_path = Path(f"linch-mind.{args.format}.template")
+            output_path = Path(f"linch-mind-system.{args.format}.template")
         
-        # 生成模板 - 暂时使用基本的配置信息
-        config = get_unified_config()
-        print(f"✅ 模板生成到: {output_path}")
-        print("📋 配置摘要:")
-        print(f"  应用名称: {config.app_name}")
-        print(f"  版本: {config.version}")
-        print(f"  数据库类型: {config.database.type}")
-        
-        print(f"✅ 配置模板已生成: {output_path}")
+        # 生成简化的系统级配置模板
+        if args.format == "toml":
+            system_config_content = """# Linch Mind System Configuration Template
+# 系统级配置 - 仅包含部署和基础设施配置
+# 用户偏好配置请使用数据库配置管理
+
+app_name = "Linch Mind"
+version = "0.1.0"
+debug = false
+
+# 数据库配置（系统级）
+[database]
+type = "sqlite"
+sqlite_file = "linch_mind.db"
+use_encryption = true
+max_connections = 20
+
+# IPC通信配置（系统级）
+[ipc]
+socket_path = ""
+auth_required = true
+max_connections = 100
+
+# 连接器配置（部署级）
+[connectors]
+config_directory = "connectors"
+binary_directory = "connectors/bin"
+auto_start = true
+
+# 日志配置（系统级）
+[logging]
+level = "info"
+enable_console = true
+enable_file = true
+log_file = "linch-mind.log"
+
+# 注意：以下配置已迁移到数据库，请使用 config_manager_cli.py db 管理：
+# - AI模型配置 (ollama)
+# - 向量维度配置 (vector)
+# - 性能参数 (performance)
+# - 用户界面配置 (ui)
+"""
+            with open(output_path, 'w', encoding='utf-8') as f:
+                f.write(system_config_content)
+            print(f"✅ 系统配置模板已生成: {output_path}")
+            print("📋 模板说明:")
+            print("  - 仅包含系统级和部署配置")
+            print("  - 用户偏好配置请使用: python config_manager_cli.py db")
+            print("  - AI模型、向量维度等配置在数据库中管理")
+        else:
+            print("⚠️  目前仅支持TOML格式的系统配置模板")
+            config = get_unified_config()
+            print(f"✅ 配置信息摘要:")
+            print(f"  应用名称: {config.app_name}")
+            print(f"  版本: {config.version}")
+            print("💡 建议：使用 --format toml 生成系统配置模板")
         
         if args.show:
             print("\n📄 模板内容:")
             print("-" * 60)
-            with open(output_path, 'r', encoding='utf-8') as f:
-                print(f.read())
+            if output_path.exists():
+                with open(output_path, 'r', encoding='utf-8') as f:
+                    print(f.read())
                 
     except Exception as e:
         print(f"❌ 生成配置模板失败: {e}")
@@ -552,27 +612,41 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 示例用法:
-  # 生成配置模板
-  python config_manager_cli.py template --format toml --output my-config.toml
+
+📁 系统配置管理（文件配置层）:
+  # 生成系统配置模板
+  python config_manager_cli.py template --format toml --output system-config.toml
   
-  # 验证配置文件
+  # 验证系统配置文件
   python config_manager_cli.py validate --verbose
   
-  # 显示当前配置
+  # 显示当前配置概览
   python config_manager_cli.py show --detailed
-  
-  # 初始化配置文件
-  python config_manager_cli.py init --format yaml --create-env-example
-  
-  # 从环境变量迁移配置
-  python config_manager_cli.py migrate-env-vars
-  
-  # 数据库配置管理
+
+🗄️ 数据库配置管理（用户偏好层）:
+  # 初始化数据库配置
   python config_manager_cli.py init-db
+  
+  # 查看所有数据库配置
   python config_manager_cli.py db list
+  
+  # 向量维度配置管理
+  python config_manager_cli.py db get --section vector --key vector_dimension
+  python config_manager_cli.py db set --section vector --key vector_dimension --value 512
+  
+  # AI模型配置管理
   python config_manager_cli.py db get --section ollama --key llm_model
   python config_manager_cli.py db set --section ollama --key llm_model --value "qwen2.5:1b"
+  
+  # 性能参数配置
+  python config_manager_cli.py db set --section performance --key cache_size_mb --value 1024
+  
+  # 配置历史记录
   python config_manager_cli.py db history --section ollama
+
+🔄 配置迁移:
+  # 从环境变量迁移到数据库配置
+  python config_manager_cli.py migrate-env-vars
         """
     )
     

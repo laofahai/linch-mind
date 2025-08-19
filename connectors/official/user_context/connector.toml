@@ -25,12 +25,11 @@ hot_reload = true
 max_instances = 1
 supports_multiple_instances = false
 
-# 权限要求
+# 权限要求 - 专注用户行为监控
 permissions = [
     "accessibility:read",
-    "system:monitor",
-    "network:status",
-    "power:status",
+    "applications:monitor",
+    "windows:focus",
     "network:daemon-api"
 ]
 
@@ -76,16 +75,16 @@ linux = "bin/release/linch-mind-user-context"
 macos = "bin/release/linch-mind-user-context"
 windows = "bin/release/linch-mind-user-context.exe"
 
-# 默认配置值
+# 默认配置值 - 专注用户行为分析
 [config_default_values]
 enable_app_monitoring = true       # 启用前台应用监控
-enable_device_state_monitoring = true  # 启用设备状态监控
-load_sampling_interval_minutes = 10    # 系统负载采样间隔（分钟）
+enable_window_focus_tracking = true    # 启用窗口焦点跟踪
 activity_summary_interval_hours = 2    # 活动摘要生成间隔（小时）
-top_process_count = 5              # TOP进程数量
-enable_network_monitoring = true   # 启用网络状态监控
-enable_power_monitoring = true     # 启用电源状态监控
+work_pattern_analysis = true       # 启用工作模式分析
+app_usage_tracking = true          # 启用应用使用统计
 privacy_mode = "balanced"          # 隐私模式: minimal, balanced, detailed
+focus_session_detection = true     # 启用专注会话检测
+productivity_metrics = true        # 启用生产力指标
 
 # 配置模式定义
 [config_schema]
@@ -96,39 +95,47 @@ config_schema_source = "static"
 
 [config_schema.properties.enable_app_monitoring]
 title = "启用应用监控"
-description = "监控前台应用切换和窗口焦点变化"
+description = "监控前台应用切换和使用时长"
 type = "boolean"
 default = true
 
-[config_schema.properties.enable_device_state_monitoring]
-title = "启用设备状态监控"
-description = "监控设备电源、网络、睡眠/唤醒状态"
+[config_schema.properties.enable_window_focus_tracking]
+title = "启用窗口焦点跟踪"
+description = "跟踪窗口焦点变化，分析工作切换模式"
 type = "boolean"
 default = true
-
-[config_schema.properties.load_sampling_interval_minutes]
-title = "负载采样间隔 (分钟)"
-description = "系统负载信息采样的时间间隔"
-type = "integer"
-minimum = 1
-maximum = 60
-default = 10
 
 [config_schema.properties.activity_summary_interval_hours]
 title = "活动摘要间隔 (小时)"
-description = "生成用户活动摘要的时间间隔"
+description = "生成用户活动模式摘要的时间间隔"
 type = "integer"
 minimum = 1
 maximum = 24
 default = 2
 
-[config_schema.properties.top_process_count]
-title = "TOP进程数量"
-description = "收集的资源占用最高的进程数量"
-type = "integer"
-minimum = 3
-maximum = 10
-default = 5
+[config_schema.properties.work_pattern_analysis]
+title = "工作模式分析"
+description = "分析用户的工作习惯和效率模式"
+type = "boolean"
+default = true
+
+[config_schema.properties.app_usage_tracking]
+title = "应用使用统计"
+description = "统计各应用的使用时长和频率"
+type = "boolean"
+default = true
+
+[config_schema.properties.focus_session_detection]
+title = "专注会话检测"
+description = "检测和分析用户的专注工作时段"
+type = "boolean"
+default = true
+
+[config_schema.properties.productivity_metrics]
+title = "生产力指标"
+description = "计算生产力相关的量化指标"
+type = "boolean"
+default = true
 
 [config_schema.properties.privacy_mode]
 title = "隐私模式"
@@ -153,37 +160,41 @@ ui_collapsible = false
 
 [config_ui_schema.ui_sections.monitoring_config.ui_fields.enable_app_monitoring]
 ui_widget = "switch"
-ui_help = "监控前台应用和窗口变化，用于理解用户当前活动"
+ui_help = "监控前台应用变化，分析应用使用模式"
 
-[config_ui_schema.ui_sections.monitoring_config.ui_fields.enable_device_state_monitoring]
+[config_ui_schema.ui_sections.monitoring_config.ui_fields.enable_window_focus_tracking]
 ui_widget = "switch"
-ui_help = "监控设备状态变化，包括电源、网络等"
+ui_help = "跟踪窗口焦点，了解工作切换频率"
+
+[config_ui_schema.ui_sections.monitoring_config.ui_fields.work_pattern_analysis]
+ui_widget = "switch"
+ui_help = "分析工作习惯，识别高效时段"
+
+[config_ui_schema.ui_sections.monitoring_config.ui_fields.app_usage_tracking]
+ui_widget = "switch"
+ui_help = "统计应用使用时长，优化工作流程"
 
 [config_ui_schema.ui_sections.monitoring_config.ui_fields.privacy_mode]
 ui_widget = "select"
 ui_help = "控制数据收集的详细程度，保护用户隐私"
 
-[config_ui_schema.ui_sections.performance_config]
-ui_title = "性能配置"
-ui_icon = "speed"
-ui_description = "配置采样间隔和性能相关参数"
+[config_ui_schema.ui_sections.analysis_config]
+ui_title = "分析配置"
+ui_icon = "analytics"
+ui_description = "配置用户行为分析和生产力指标"
 ui_collapsed = false
 ui_collapsible = true
 
-[config_ui_schema.ui_sections.performance_config.ui_fields.load_sampling_interval_minutes]
-ui_widget = "slider"
-ui_step = 1
-ui_unit = "分钟"
-ui_help = "较小值提供更及时的系统状态，但消耗更多资源"
+[config_ui_schema.ui_sections.analysis_config.ui_fields.focus_session_detection]
+ui_widget = "switch"
+ui_help = "检测专注工作时段，提供效率改进建议"
 
-[config_ui_schema.ui_sections.performance_config.ui_fields.activity_summary_interval_hours]
+[config_ui_schema.ui_sections.analysis_config.ui_fields.productivity_metrics]
+ui_widget = "switch"
+ui_help = "计算生产力指标，量化工作效率"
+
+[config_ui_schema.ui_sections.analysis_config.ui_fields.activity_summary_interval_hours]
 ui_widget = "slider"
 ui_step = 1
 ui_unit = "小时"
 ui_help = "定期生成用户活动模式摘要"
-
-[config_ui_schema.ui_sections.performance_config.ui_fields.top_process_count]
-ui_widget = "slider"
-ui_step = 1
-ui_unit = "个"
-ui_help = "收集资源占用最高的进程数量，用于活动分析"

@@ -1,7 +1,14 @@
 #!/usr/bin/env python3
 """
-核心配置管理 - Session V61 简化重构
-简化环境变量处理，移除复杂的正则表达式，专注稳定性
+核心配置管理 - Bootstrap委托架构
+统一配置系统，消除配置源重复和字段不一致问题
+
+Session V62 整合重构：
+- CoreConfig委托给BootstrapConfig作为数据源
+- 统一数据库字段为sqlite_file
+- 清理TOML文件依赖
+- 保持API向后兼容
+- 纯代码+环境变量驱动
 """
 
 import sys
@@ -10,11 +17,10 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
-import yaml
-
 if TYPE_CHECKING:
     from .config_context import ConfigContext
 
+from .bootstrap_config import get_bootstrap_config, BootstrapConfigManager
 from .error_handling import (
     ConfigFileError,
     ConfigValidationError,
@@ -42,12 +48,20 @@ class IPCServerConfig:
 
 @dataclass
 class DatabaseConfig:
-    """数据库配置"""
+    """数据库配置 - 统一字段架构"""
 
-    sqlite_url: str = ""
+    sqlite_file: str = ""  # 统一使用sqlite_file字段
     chroma_persist_directory: str = ""
-    embedding_model: str = "all-MiniLM-L6-v2"
-    vector_dimension: int = 384
+    # 注意：embedding_model 和 vector_dimension 已迁移到数据库配置管理
+    
+    @property
+    def sqlite_url(self) -> str:
+        """向后兼容属性：将sqlite_file转换为sqlite_url格式"""
+        if not self.sqlite_file:
+            return ""
+        if self.sqlite_file == ":memory:":
+            return "sqlite:///:memory:"
+        return f"sqlite:///{self.sqlite_file}"
 
 
 @dataclass
@@ -62,15 +76,15 @@ class StorageConfig:
     graph_cache_ttl_seconds: int = 300
     graph_max_workers: int = 4
 
-    # 向量数据库配置
-    vector_dimension: int = 384
+    # 向量数据库配置 - 系统级别
+    # 注意：vector_dimension 已迁移到数据库配置管理
     vector_index_type: str = "IVF"  # Flat, IVF, HNSW
     vector_index_path: str = "vector_index.bin"
     distance_metric: str = "cosine"  # cosine, euclidean, inner_product
     vector_max_workers: int = 4
 
-    # 嵌入服务配置
-    embedding_model_name: str = "all-MiniLM-L6-v2"
+    # 嵌入服务配置 - 系统级别
+    # 注意：embedding_model_name 已迁移到数据库配置管理
     embedding_cache_enabled: bool = True
     embedding_max_workers: int = 2
 
@@ -165,11 +179,12 @@ class AppConfig:
 class CoreConfigManager:
     """核心配置管理器
 
-    Session V61 简化原则:
-    1. 移除复杂的环境变量正则处理
-    2. 使用标准的 os.getenv() 处理环境变量
-    3. 单一配置文件路径策略
-    4. 清晰的错误处理和日志记录
+    Session V62 Bootstrap委托架构:
+    1. 委托给BootstrapConfig作为配置源
+    2. 统一配置字段和路径
+    3. 清理TOML文件依赖
+    4. 保持API向后兼容
+    5. 纯代码+环境变量驱动
     """
 
     def __init__(
@@ -178,252 +193,82 @@ class CoreConfigManager:
         config_root: Optional[Path] = None,
     ):
         """
-        初始化配置管理器 - 企业级最佳实践
+        初始化配置管理器 - Bootstrap委托架构
 
         Args:
             config_context: 配置上下文接口（推荐使用）
-            config_root: 配置根目录（向后兼容，将被弃用）
+            config_root: 配置根目录（向后兼容，已弃用）
         """
+        # Bootstrap配置管理器作为数据源
+        self.bootstrap = get_bootstrap_config()
+        
         # 依赖倒置：接受配置上下文抽象
         if config_context is not None:
             self.context = config_context
         else:
             # 向后兼容和工厂模式
             from .config_context import create_config_context
-
             self.context = create_config_context(config_root)
 
-        # 使用配置上下文获取路径信息 - 关注点分离
-        self.config_dir = self.context.get_config_dir()
-        self.data_dir = self.context.get_data_dir()
-        self.logs_dir = self.context.get_logs_dir()
-        self.db_dir = self.context.get_database_dir()
+        # 使用Bootstrap配置获取路径信息
+        self.config_dir = self.bootstrap.get_config_dir()
+        self.data_dir = self.bootstrap.get_data_dir()
+        self.logs_dir = self.data_dir / "logs"  # 日志目录
+        self.db_dir = self.data_dir  # 数据库目录
 
-        # 配置文件路径 - 优先使用 TOML
-        self.config_root = config_root or Path(__file__).parent.parent.parent
-        self.primary_config_path = self.config_dir / "app.toml"
-        self.primary_yaml_path = self.config_dir / "app.yaml"
-        self.fallback_config_path = self.config_root / "linch-mind.config.toml"
-        self.fallback_yaml_path = self.config_root / "linch-mind.config.yaml"
+        # 清理TOML文件引用 - 不再使用配置文件
+        self.config_root = None
+        self.primary_config_path = None
+        self.primary_yaml_path = None
+        self.fallback_config_path = None
+        self.fallback_yaml_path = None
 
-        # 加载配置
-        self.config = self._load_config()
+        # 加载配置（基于Bootstrap）
+        self.config = self._load_config_from_bootstrap()
         self._setup_dynamic_paths()
         self._apply_env_overrides()
 
         logger.info(
-            f"Core config loaded - Environment: {self.context.get_environment_name()}, Path: {self._get_active_config_path()}"
+            f"Core config loaded via Bootstrap - Environment: {self.bootstrap.get_environment()}"
         )
 
-    def _get_active_config_path(self) -> Path:
-        """获取当前活跃的配置文件路径"""
-        # 按优先级检查：TOML > YAML
-        if self.primary_config_path.exists():
-            return self.primary_config_path
-        elif self.primary_yaml_path.exists():
-            return self.primary_yaml_path
-        elif self.fallback_config_path.exists():
-            return self.fallback_config_path
-        elif self.fallback_yaml_path.exists():
-            return self.fallback_yaml_path
-        else:
-            return self.primary_config_path  # 将要创建的路径（TOML）
+    def _get_active_config_source(self) -> str:
+        """获取当前活跃的配置源"""
+        return f"Bootstrap(LINCH_MIND_ENVIRONMENT={self.bootstrap.get_environment()})"
 
-    def _load_config(self) -> AppConfig:
-        """加载配置 - 支持 TOML 和 YAML"""
-
-        # 1. 尝试从主配置路径加载（优先 TOML）
-        if self.primary_config_path.exists():
-            try:
-                return self._load_from_file(self.primary_config_path)
-            except Exception as e:
-                logger.error(f"Failed to load primary TOML config: {e}")
+    def _load_config_from_bootstrap(self) -> AppConfig:
+        """从Bootstrap配置加载 - 统一配置源"""
         
-        # 2. 尝试加载 YAML 配置
-        if self.primary_yaml_path.exists():
-            try:
-                return self._load_from_file(self.primary_yaml_path)
-            except Exception as e:
-                logger.error(f"Failed to load primary YAML config: {e}")
-
-        # 3. 尝试从项目根目录配置加载
-        if self.fallback_config_path.exists():
-            try:
-                config = self._load_from_file(self.fallback_config_path)
-                # 保存到主配置路径
-                self._save_config(config, self.primary_config_path)
-                logger.info("Migrated config from project root to user directory")
-                return config
-            except Exception as e:
-                logger.error(f"Failed to load fallback TOML config: {e}")
+        bootstrap_db = self.bootstrap.get_database_config()
+        bootstrap_ipc = self.bootstrap.get_ipc_config()
         
-        if self.fallback_yaml_path.exists():
-            try:
-                config = self._load_from_file(self.fallback_yaml_path)
-                # 保存到主配置路径
-                self._save_config(config, self.primary_config_path)
-                logger.info("Migrated config from project root to user directory")
-                return config
-            except Exception as e:
-                logger.error(f"Failed to load fallback YAML config: {e}")
-
-        # 4. 创建默认配置
-        config = AppConfig()
-        self._save_config(config, self.primary_config_path)
-        logger.info("Created default configuration")
+        # 基于Bootstrap构建AppConfig
+        config = AppConfig(
+            app_name="Linch Mind",
+            version="0.1.0",
+            description="Personal AI Life Assistant API",
+            debug=self.bootstrap.config.debug
+        )
+        
+        # 统一数据库配置字段
+        config.database.sqlite_file = bootstrap_db.sqlite_file
+        config.database.chroma_persist_directory = str(self.data_dir / "chroma")
+        
+        # IPC配置
+        config.server.socket_path = bootstrap_ipc.socket_path
+        config.server.pipe_name = bootstrap_ipc.pipe_name
+        config.server.max_connections = bootstrap_ipc.max_connections
+        config.server.auth_required = bootstrap_ipc.auth_required
+        config.server.debug = self.bootstrap.config.debug
+        
+        logger.info("配置从Bootstrap加载完成")
         return config
 
-    def _load_from_file(self, config_path: Path) -> AppConfig:
-        """从配置文件加载（支持 TOML 和 YAML）"""
+    # 已弃用：_load_from_file（Bootstrap架构下不再使用文件加载）
 
-        def load_operation():
-            try:
-                if config_path.suffix == '.toml':
-                    # 加载 TOML 文件
-                    try:
-                        import tomli
-                    except ImportError:
-                        logger.warning("tomli not installed, falling back to tomllib")
-                        import tomllib as tomli
-                    
-                    with open(config_path, "rb") as f:
-                        config_data = tomli.load(f)
-                else:
-                    # 加载 YAML 文件
-                    with open(config_path, "r", encoding="utf-8") as f:
-                        config_data = yaml.safe_load(f)
+    # 已弃用：_dict_to_config（Bootstrap架构下不再使用字典解析）
 
-                if not config_data:
-                    config_data = {}
-
-                return self._dict_to_config(config_data)
-            except FileNotFoundError:
-                raise ConfigFileError(
-                    file_path=str(config_path),
-                    operation="read",
-                    reason="File not found",
-                )
-            except (yaml.YAMLError if config_path.suffix != '.toml' else Exception) as e:
-                raise ConfigFileError(
-                    file_path=str(config_path),
-                    operation="parse",
-                    reason=f"Invalid {config_path.suffix[1:].upper()} syntax: {e}",
-                )
-            except PermissionError:
-                raise ConfigFileError(
-                    file_path=str(config_path),
-                    operation="read",
-                    reason="Permission denied",
-                )
-
-        return safe_operation(
-            operation_name=f"load_config_from_{config_path.name}",
-            operation_func=load_operation,
-            logger=logger,
-            error_type=ConfigFileError,
-            reraise=True,
-        )
-
-    def _dict_to_config(self, data: Dict[str, Any]) -> AppConfig:
-        """将字典转换为配置对象 - 增强错误处理"""
-        try:
-            # 处理嵌套配置，确保都是字典类型
-            server_data = data.get("server", {})
-            database_data = data.get("database", {})
-            storage_data = data.get("storage", {})
-            connectors_data = data.get("connectors", {})
-            connector_registry_data = data.get("connector_registry", {})
-            ai_data = data.get("ai", {})
-
-            # 类型检查和修正
-            if not isinstance(server_data, dict):
-                server_data = {}
-            if not isinstance(database_data, dict):
-                database_data = {}
-            if not isinstance(storage_data, dict):
-                storage_data = {}
-            if not isinstance(connectors_data, dict):
-                connectors_data = {}
-            if not isinstance(connector_registry_data, dict):
-                connector_registry_data = {}
-            if not isinstance(ai_data, dict):
-                ai_data = {}
-
-            return AppConfig(
-                app_name=data.get("app_name", "Linch Mind"),
-                version=data.get("version", "0.1.0"),
-                description=data.get("description", "Personal AI Life Assistant API"),
-                debug=bool(data.get("debug", False)),
-                server=IPCServerConfig(**server_data),
-                database=DatabaseConfig(**database_data),
-                storage=StorageConfig(**storage_data),
-                connectors=ConnectorConfig(**connectors_data),
-                connector_registry=ConnectorRegistryConfig(**connector_registry_data),
-                ai=AIConfig(**ai_data),
-            )
-        except Exception as e:
-            logger.error(f"Failed to parse config dict: {e}")
-            logger.warning("Using default configuration due to parsing error")
-            return AppConfig()
-
-    def _save_config(self, config: AppConfig, config_path: Path):
-        """保存配置文件 - 支持 TOML 和 YAML"""
-        config_dict = asdict(config)
-        
-        # 清理 None 值，TOML 不支持 None
-        def clean_none_values(d):
-            """递归清理字典中的 None 值"""
-            if not isinstance(d, dict):
-                return d
-            cleaned = {}
-            for k, v in d.items():
-                if v is not None:
-                    if isinstance(v, dict):
-                        cleaned[k] = clean_none_values(v)
-                    elif isinstance(v, list):
-                        cleaned[k] = [clean_none_values(item) if isinstance(item, dict) else item for item in v]
-                    else:
-                        cleaned[k] = v
-            return cleaned
-        
-        config_dict = clean_none_values(config_dict)
-
-        try:
-            # 确保配置目录存在
-            config_path.parent.mkdir(parents=True, exist_ok=True)
-
-            if config_path.suffix == '.toml':
-                # 保存为 TOML 格式
-                try:
-                    import tomli_w
-                except ImportError:
-                    logger.warning("tomli_w not installed, falling back to YAML")
-                    config_path = config_path.with_suffix('.yaml')
-                else:
-                    with open(config_path, "wb") as f:
-                        tomli_w.dump(config_dict, f)
-                    logger.info(f"TOML configuration saved to: {config_path}")
-                    return
-            
-            # 保存为 YAML 格式（后备选项）
-            yaml_content = f"""# Linch Mind Configuration
-# Generated: {datetime.now(timezone.utc).isoformat()}
-
-"""
-            with open(config_path, "w", encoding="utf-8") as f:
-                f.write(yaml_content)
-                yaml.dump(
-                    config_dict,
-                    f,
-                    default_flow_style=False,
-                    allow_unicode=True,
-                    indent=2,
-                )
-
-            logger.info(f"YAML configuration saved to: {config_path}")
-        except Exception as e:
-            logger.error(f"Failed to save config: {e}")
-            raise
+    # 已弃用：_save_config（Bootstrap架构下不再使用文件保存）
 
     def _setup_dynamic_paths(self):
         """设置动态路径配置 - 环境管理器集成版本"""
@@ -438,23 +283,18 @@ class CoreConfigManager:
             or any("test" in arg for arg in sys.argv)
         )
 
-        # 使用配置上下文的数据库配置 - 最佳实践
-        if is_test_env or self.context.is_test_environment():
-            # 测试环境：只有当database.sqlite_url为空时才使用内存数据库
-            if not self.config.database.sqlite_url:
-                self.config.database.sqlite_url = "sqlite:///:memory:"
-                logger.info("测试环境检测：使用内存数据库（默认）")
+        # 使用Bootstrap的数据库配置 - 统一数据源
+        if is_test_env:
+            # 测试环境：使用内存数据库
+            if not self.config.database.sqlite_file or self.config.database.sqlite_file.endswith("linch_mind.db"):
+                self.config.database.sqlite_file = ":memory:"
+                logger.info("测试环境检测：使用内存数据库")
             if not self.config.database.chroma_persist_directory:
                 self.config.database.chroma_persist_directory = ":memory:"
         else:
-            # 使用配置上下文的数据库配置
-            self.config.database.sqlite_url = self.context.get_database_url()
-            self.config.database.chroma_persist_directory = (
-                self.context.get_chroma_persist_directory()
-            )
-
-            logger.info("使用配置上下文的数据库配置")
-            logger.info(f"  Database: {self.config.database.sqlite_url}")
+            # 使用Bootstrap的数据库配置（已经正确设置）
+            logger.info("使用Bootstrap的数据库配置")
+            logger.info(f"  Database: {self.config.database.sqlite_file}")
             logger.info(f"  ChromaDB: {self.config.database.chroma_persist_directory}")
 
         # 设置存储目录路径 - 使用环境特定的数据目录
@@ -462,7 +302,7 @@ class CoreConfigManager:
             self.config.storage.data_directory = str(self.data_dir)
 
         # 设置向量索引路径 - 环境隔离
-        vector_index_path = self.context.get_vector_index_path()
+        vector_index_path = self.data_dir / "vector_index.bin"
         if hasattr(self.config.storage, "vector_index_path"):
             self.config.storage.vector_index_path = str(vector_index_path)
 
@@ -476,16 +316,16 @@ class CoreConfigManager:
                 logger.debug(f"使用项目连接器目录: {project_connectors_dir}")
             else:
                 # 如果项目connectors目录不存在，使用环境特定的connectors目录
-                env_connectors_dir = self.context.get_connectors_dir()
+                env_connectors_dir = self.config_dir / "connectors"
                 env_connectors_dir.mkdir(exist_ok=True)
                 self.config.connectors.config_dir = str(env_connectors_dir)
                 logger.debug(f"使用环境connectors目录: {env_connectors_dir}")
 
-        # 环境特定的调试配置
-        if self.context.is_debug_enabled():
+        # 环境特定的调试配置 - 使用Bootstrap配置
+        if self.bootstrap.config.debug:
             self.config.debug = True
             self.config.server.debug = True
-            logger.debug(f"环境 {self.context.get_environment_name()} 启用调试模式")
+            logger.debug(f"环境 {self.bootstrap.get_environment()} 启用调试模式")
 
     def _apply_env_overrides(self):
         """应用配置文件覆盖 - 用户配置优先"""
@@ -542,14 +382,17 @@ class CoreConfigManager:
             logger.debug(f"Applied debug override from LINCH_DEBUG: {debug_value}")
 
     def save_config(self):
-        """保存当前配置"""
-        self._save_config(self.config, self.primary_config_path)
+        """保存当前配置 - Bootstrap架构下不需要文件保存"""
+        logger.info("Bootstrap架构下配置由环境变量驱动，无需文件保存")
+        pass
 
     def reload_config(self) -> bool:
         """重新加载配置"""
         try:
             old_config = self.config
-            self.config = self._load_config()
+            # 重新加载Bootstrap配置
+            self.bootstrap = get_bootstrap_config()
+            self.config = self._load_config_from_bootstrap()
             self._setup_dynamic_paths()
             self._apply_env_overrides()
             logger.info("Configuration reloaded successfully")
@@ -560,15 +403,13 @@ class CoreConfigManager:
             return False
 
     def get_paths(self) -> Dict[str, Path]:
-        """获取各种路径 - 使用配置上下文"""
+        """获取各种路径 - 使用Bootstrap配置"""
         return {
             "config": self.config_dir,
             "data": self.data_dir,
             "app_data": self.data_dir,  # 向后兼容的别名
             "logs": self.logs_dir,
             "database": self.db_dir,
-            "primary_config": self.primary_config_path,
-            "fallback_config": self.fallback_config_path,
         }
 
     def get_server_info(self) -> Dict[str, Any]:
@@ -582,7 +423,7 @@ class CoreConfigManager:
             "auth_required": self.config.server.auth_required,
             "debug": self.config.debug,
             "started_at": datetime.now(timezone.utc).isoformat(),
-            "config_source": str(self._get_active_config_path()),
+            "config_source": self._get_active_config_source(),
         }
 
     def validate_config(self) -> List[str]:
@@ -634,17 +475,12 @@ class CoreConfigManager:
         except Exception as e:
             errors.append(f"IPC server config validation failed: {e}")
 
-        # 验证数据库配置
+        # 验证数据库配置 - 统一字段验证
         try:
             validate_required_field(
-                "database.sqlite_url", self.config.database.sqlite_url, str
+                "database.sqlite_file", self.config.database.sqlite_file, str
             )
-            validate_required_field(
-                "database.embedding_model", self.config.database.embedding_model, str
-            )
-
-            if self.config.database.vector_dimension <= 0:
-                errors.append("database.vector_dimension must be positive")
+            # 注意：embedding_model 和 vector_dimension 验证已迁移到数据库配置管理器
 
         except ConfigValidationError as e:
             errors.append(str(e))
@@ -724,11 +560,11 @@ class CoreConfigManager:
             "ai": asdict(self.config.ai),
         }
 
-        # 🆕 添加环境信息 - 使用配置上下文
+        # 🆕 添加环境信息 - 使用Bootstrap配置
         system_config["environment"] = {
-            "name": self.context.get_environment_name(),
-            "debug": self.context.is_debug_enabled(),
-            "test_mode": self.context.is_test_environment(),
+            "name": self.bootstrap.get_environment(),
+            "debug": self.bootstrap.config.debug,
+            "test_mode": False,
         }
 
         return system_config
@@ -749,16 +585,16 @@ class CoreConfigManager:
             logger.error(f"更新系统配置失败: {e}")
             return False
 
-    # 🆕 环境管理相关方法 - 使用配置上下文
+    # 🆕 环境管理相关方法 - 使用Bootstrap配置
     def get_environment_info(self) -> Dict[str, Any]:
         """获取当前环境信息"""
         return {
-            "name": self.context.get_environment_name(),
-            "debug": self.context.is_debug_enabled(),
-            "test_mode": self.context.is_test_environment(),
-            "config_dir": str(self.context.get_config_dir()),
-            "data_dir": str(self.context.get_data_dir()),
-            "database_url": self.context.get_database_url(),
+            "name": self.bootstrap.get_environment(),
+            "debug": self.bootstrap.config.debug,
+            "test_mode": False,
+            "config_dir": str(self.config_dir),
+            "data_dir": str(self.data_dir),
+            "database_file": self.config.database.sqlite_file,
         }
 
     def list_all_environments(self) -> List[Dict[str, Any]]:
@@ -774,10 +610,10 @@ class CoreConfigManager:
     def get_environment_paths(self) -> Dict[str, str]:
         """获取当前环境的路径信息"""
         return {
-            "config": str(self.context.get_config_dir()),
-            "data": str(self.context.get_data_dir()),
-            "logs": str(self.context.get_logs_dir()),
-            "database": str(self.context.get_database_dir()),
+            "config": str(self.config_dir),
+            "data": str(self.data_dir),
+            "logs": str(self.logs_dir),
+            "database": str(self.db_dir),
         }
 
 
@@ -802,6 +638,17 @@ def get_server_config() -> IPCServerConfig:
 def get_database_config() -> DatabaseConfig:
     """获取数据库配置"""
     return get_core_config().config.database
+
+
+# 向后兼容性支持 - 添加sqlite_url访问的便捷函数
+def get_database_url() -> str:
+    """获取数据库URL - 向后兼容性支持"""
+    return get_core_config().config.database.sqlite_url
+
+
+def get_database_file() -> str:
+    """获取数据库文件路径 - 新的统一接口"""
+    return get_core_config().config.database.sqlite_file
 
 
 def get_connector_config() -> ConnectorConfig:
