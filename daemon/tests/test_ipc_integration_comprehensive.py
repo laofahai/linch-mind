@@ -11,9 +11,9 @@ import time
 
 import pytest
 
-from services.ipc_client import IPCClient
-from services.ipc_protocol import IPCMessage, IPCRequest, IPCResponse
-from services.ipc_server import IPCServer
+from services.ipc.core.client import IPCClient
+from services.ipc.core.protocol import IPCMessage, IPCRequest, IPCResponse
+from services.ipc.core.server import IPCServer
 
 
 @pytest.fixture

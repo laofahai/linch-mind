@@ -43,7 +43,7 @@ class DataInsightsService:
 
     def __init__(self):
         # 使用UnifiedDatabaseService（已在容器中注册）
-        from services.unified_database_service import UnifiedDatabaseService
+        from services.storage.core.database import UnifiedDatabaseService
         self.db_service = get_service(UnifiedDatabaseService)
 
     def get_dashboard_overview(self) -> Dict[str, Any]:

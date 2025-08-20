@@ -6,6 +6,7 @@ import '../widgets/ai_chat/ai_recommendation_widget.dart';
 import '../widgets/ai_chat/ai_chat_input_widget.dart';
 import '../widgets/sidebar/smart_sidebar_panel.dart';
 import '../utils/responsive_utils.dart';
+import 'universe_screen.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -25,8 +26,8 @@ class HomeScreen extends ConsumerWidget {
               Text(
                 'AI正在准备中...',
                 style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                ),
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
               ),
             ],
           ),
@@ -54,13 +55,14 @@ class HomeScreen extends ConsumerWidget {
               Text(
                 aiChatState.error!,
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                ),
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 24),
               ElevatedButton(
-                onPressed: () => ref.read(aiChatProvider.notifier).refreshChat(),
+                onPressed: () =>
+                    ref.read(aiChatProvider.notifier).refreshChat(),
                 child: const Text('重新连接'),
               ),
             ],
@@ -74,6 +76,15 @@ class HomeScreen extends ConsumerWidget {
         mobile: _buildMobileLayout(context, ref, aiChatState),
         tablet: _buildTabletLayout(context, ref, aiChatState),
         desktop: _buildDesktopLayout(context, ref, aiChatState),
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () => Navigator.of(context).push(
+          MaterialPageRoute(builder: (context) => const UniverseScreen()),
+        ),
+        icon: const Icon(Icons.language),
+        label: const Text('数据宇宙'),
+        backgroundColor: Colors.blue.shade600,
+        tooltip: '进入3D球形宇宙视图',
       ),
     );
   }
@@ -113,12 +124,16 @@ class HomeScreen extends ConsumerWidget {
             decoration: BoxDecoration(
               border: Border(
                 left: BorderSide(
-                  color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.2),
+                  color: Theme.of(context)
+                      .colorScheme
+                      .outline
+                      .withValues(alpha: 0.2),
                 ),
               ),
             ),
             child: SmartSidebarPanel(
-              onPromptTap: (prompt) => _handleInsightPromptTap(context, ref, prompt),
+              onPromptTap: (prompt) =>
+                  _handleInsightPromptTap(context, ref, prompt),
             ),
           ),
       ],
@@ -151,12 +166,16 @@ class HomeScreen extends ConsumerWidget {
           decoration: BoxDecoration(
             border: Border(
               left: BorderSide(
-                color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.2),
+                color: Theme.of(context)
+                    .colorScheme
+                    .outline
+                    .withValues(alpha: 0.2),
               ),
             ),
           ),
           child: SmartSidebarPanel(
-            onPromptTap: (prompt) => _handleInsightPromptTap(context, ref, prompt),
+            onPromptTap: (prompt) =>
+                _handleInsightPromptTap(context, ref, prompt),
           ),
         ),
       ],
@@ -181,9 +200,8 @@ class HomeScreen extends ConsumerWidget {
                 final message = aiChatState.messages[index];
                 return AIChatMessageWidget(
                   message: message,
-                  onActionTap: (action) => ref
-                      .read(aiChatProvider.notifier)
-                      .handleActionTap(action),
+                  onActionTap: (action) =>
+                      ref.read(aiChatProvider.notifier).handleActionTap(action),
                   onTap: () => _handleMessageTap(context, message),
                 );
               },
@@ -214,9 +232,8 @@ class HomeScreen extends ConsumerWidget {
   // 输入区域
   Widget _buildInputArea(BuildContext context, WidgetRef ref, aiChatState) {
     return AIChatInputWidget(
-      onSendMessage: (message) => ref
-          .read(aiChatProvider.notifier)
-          .sendMessage(message),
+      onSendMessage: (message) =>
+          ref.read(aiChatProvider.notifier).sendMessage(message),
       onVoiceInput: (text) => _handleVoiceInput(context, text),
       onSearchTap: () => _handleSearchTap(context),
       isEnabled: !aiChatState.isAITyping,
@@ -224,7 +241,8 @@ class HomeScreen extends ConsumerWidget {
   }
 
   // 处理洞察面板提示词点击
-  void _handleInsightPromptTap(BuildContext context, WidgetRef ref, String prompt) {
+  void _handleInsightPromptTap(
+      BuildContext context, WidgetRef ref, String prompt) {
     // 将提示词发送给AI聊天
     ref.read(aiChatProvider.notifier).sendMessage(prompt);
   }

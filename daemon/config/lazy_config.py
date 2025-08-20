@@ -7,7 +7,7 @@
 import logging
 from pathlib import Path
 from typing import Optional, Dict, Any, TYPE_CHECKING
-from services.unified_cache_service import get_unified_cache_service, CacheType
+# 移除已删除的统一缓存服务依赖
 
 if TYPE_CHECKING:
     from .config_context import ConfigContext

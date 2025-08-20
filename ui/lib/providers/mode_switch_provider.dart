@@ -12,7 +12,7 @@ enum AppMode {
   evening('晚间', '温和护眼，智能调节，为您营造舒适的夜间使用环境。', Colors.indigo);
 
   const AppMode(this.displayName, this.description, this.color);
-  
+
   final String displayName;
   final String description;
   final Color color;
@@ -47,7 +47,8 @@ class ModeSwitchState with _$ModeSwitchState {
 }
 
 /// 模式切换 Provider
-final modeSwitchProvider = StateNotifierProvider<ModeSwitchNotifier, ModeSwitchState>(
+final modeSwitchProvider =
+    StateNotifierProvider<ModeSwitchNotifier, ModeSwitchState>(
   (ref) => ModeSwitchNotifier(),
 );
 
@@ -61,7 +62,7 @@ class ModeSwitchNotifier extends StateNotifier<ModeSwitchState> {
   void _initializeMode() {
     final now = DateTime.now();
     final hour = now.hour;
-    
+
     AppMode initialMode;
     if (hour >= 6 && hour < 12) {
       initialMode = AppMode.daily;
@@ -72,7 +73,7 @@ class ModeSwitchNotifier extends StateNotifier<ModeSwitchState> {
     } else {
       initialMode = AppMode.evening;
     }
-    
+
     state = state.copyWith(
       currentMode: initialMode,
       lastSwitchTime: now,
@@ -84,14 +85,15 @@ class ModeSwitchNotifier extends StateNotifier<ModeSwitchState> {
     if (state.currentMode == mode || state.isTransitioning) return;
 
     state = state.copyWith(isTransitioning: true);
-    
+
     // 模拟切换过程
     await Future.delayed(const Duration(milliseconds: 800));
-    
+
     final now = DateTime.now();
-    final updatedStats = Map<AppMode, DateTime>.from(state.modeUsageStats ?? {});
+    final updatedStats =
+        Map<AppMode, DateTime>.from(state.modeUsageStats ?? {});
     updatedStats[mode] = now;
-    
+
     state = state.copyWith(
       currentMode: mode,
       isTransitioning: false,
@@ -106,7 +108,7 @@ class ModeSwitchNotifier extends StateNotifier<ModeSwitchState> {
     if (stats == null || !stats.containsKey(mode)) {
       return Duration.zero;
     }
-    
+
     return DateTime.now().difference(stats[mode]!);
   }
 
@@ -114,7 +116,7 @@ class ModeSwitchNotifier extends StateNotifier<ModeSwitchState> {
   void autoSwitchMode() {
     final now = DateTime.now();
     final hour = now.hour;
-    
+
     AppMode suggestedMode;
     if (hour >= 6 && hour < 12) {
       suggestedMode = AppMode.daily;
@@ -125,7 +127,7 @@ class ModeSwitchNotifier extends StateNotifier<ModeSwitchState> {
     } else {
       suggestedMode = AppMode.evening;
     }
-    
+
     if (suggestedMode != state.currentMode) {
       switchToMode(suggestedMode);
     }
@@ -136,7 +138,7 @@ class ModeSwitchNotifier extends StateNotifier<ModeSwitchState> {
     final now = DateTime.now();
     final hour = now.hour;
     final currentMode = state.currentMode;
-    
+
     // 基于时间和当前模式推荐下一个模式
     switch (currentMode) {
       case AppMode.daily:
@@ -152,7 +154,7 @@ class ModeSwitchNotifier extends StateNotifier<ModeSwitchState> {
         if (hour >= 6 && hour < 12) return AppMode.daily;
         break;
     }
-    
+
     return null;
   }
 }

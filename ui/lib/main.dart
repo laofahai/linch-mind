@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:window_manager/window_manager.dart';
 import 'screens/home_screen.dart';
+import 'screens/starry_universe_screen.dart';
 import 'screens/connector_management_screen.dart';
 import 'screens/settings_screen.dart';
 import 'providers/app_providers.dart';
@@ -217,10 +218,11 @@ class MainApp extends ConsumerStatefulWidget {
 }
 
 class _MainAppState extends ConsumerState<MainApp> {
-  int _currentIndex = 0; // 默认显示连接器管理页面
+  int _currentIndex = 0; // 默认显示首页
 
   final List<Widget> _pages = const [
     HomeScreen(),
+    StarryUniverseScreen(),
     ConnectorManagementScreen(),
     SettingsScreen(),
   ];

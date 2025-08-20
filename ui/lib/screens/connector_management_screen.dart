@@ -659,7 +659,8 @@ class _ConnectorManagementScreenState
       await _apiClient.toggleConnectorEnabled(connector.connectorId, enabled);
 
       if (mounted) {
-        final message = '已${enabled ? '启用' : '禁用'}连接器: ${connector.displayName}';
+        final message =
+            '已${enabled ? '启用' : '禁用'}连接器: ${connector.displayName}';
         if (enabled) {
           showSuccessNotification(ref, message);
         } else {

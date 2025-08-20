@@ -2,7 +2,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/ai_insight_models.dart';
 
 /// AI洞察数据Provider
-final aiInsightsProvider = StateNotifierProvider<AIInsightsNotifier, AIInsightsState>((ref) {
+final aiInsightsProvider =
+    StateNotifierProvider<AIInsightsNotifier, AIInsightsState>((ref) {
   return AIInsightsNotifier();
 });
 
@@ -72,13 +73,14 @@ class AIInsightsNotifier extends StateNotifier<AIInsightsState> {
 
   List<AIInsightCard> _generateMockInsights() {
     final now = DateTime.now();
-    
+
     return [
       AIInsightCard(
         id: '1',
         type: 'discovery',
         title: '发现学习模式',
-        message: '我注意到你最近在学习Flutter开发，刚才复制的链接是关于Flutter状态管理的教程。这和你上周研究的Riverpod方向很匹配！建议你按照Provider → Riverpod → Bloc的顺序学习。',
+        message:
+            '我注意到你最近在学习Flutter开发，刚才复制的链接是关于Flutter状态管理的教程。这和你上周研究的Riverpod方向很匹配！建议你按照Provider → Riverpod → Bloc的顺序学习。',
         iconName: 'lightbulb',
         timestamp: now.subtract(const Duration(minutes: 5)),
         confidence: 0.92,
@@ -167,7 +169,7 @@ class AIInsightsNotifier extends StateNotifier<AIInsightsState> {
 
   List<QuickAccessItem> _generateMockQuickAccess() {
     final now = DateTime.now();
-    
+
     return [
       QuickAccessItem(
         id: '1',
@@ -210,12 +212,15 @@ class AIInsightsNotifier extends StateNotifier<AIInsightsState> {
 
   void dismissInsight(String insightId) {
     state = state.copyWith(
-      insights: state.insights.map((insight) {
-        if (insight.id == insightId) {
-          return insight.copyWith(isDismissed: true);
-        }
-        return insight;
-      }).where((insight) => !insight.isDismissed).toList(),
+      insights: state.insights
+          .map((insight) {
+            if (insight.id == insightId) {
+              return insight.copyWith(isDismissed: true);
+            }
+            return insight;
+          })
+          .where((insight) => !insight.isDismissed)
+          .toList(),
     );
   }
 

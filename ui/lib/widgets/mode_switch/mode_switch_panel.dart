@@ -11,7 +11,7 @@ class ModeSwitchPanel extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final modeSwitchState = ref.watch(modeSwitchProvider);
     final theme = Theme.of(context);
-    
+
     return ModeTransitionAnimator(
       currentMode: modeSwitchState.currentMode,
       isTransitioning: modeSwitchState.isTransitioning,
@@ -23,31 +23,31 @@ class ModeSwitchPanel extends ConsumerWidget {
             // 面板标题
             _buildPanelHeader(context, theme),
             const SizedBox(height: 20),
-            
+
             // 当前模式状态
             _buildCurrentModeStatus(context, theme, modeSwitchState),
             const SizedBox(height: 16),
-            
+
             // 切换进度指示器
             ModeTransitionProgress(
               isTransitioning: modeSwitchState.isTransitioning,
               currentMode: modeSwitchState.currentMode,
             ),
             const SizedBox(height: 8),
-            
+
             // 模式选择网格
             _buildModeGrid(context, theme, ref, modeSwitchState),
             const SizedBox(height: 24),
-            
+
             // 快捷操作
             _buildQuickActions(context, theme, ref, modeSwitchState),
             const SizedBox(height: 24),
-            
+
             // 模式统计
             _buildModeStats(context, theme, modeSwitchState),
-            
+
             const Spacer(),
-            
+
             // 智能建议
             _buildSmartSuggestions(context, theme, ref, modeSwitchState),
           ],
@@ -100,12 +100,12 @@ class ModeSwitchPanel extends ConsumerWidget {
   }
 
   Widget _buildCurrentModeStatus(
-    BuildContext context, 
-    ThemeData theme, 
+    BuildContext context,
+    ThemeData theme,
     ModeSwitchState state,
   ) {
     final currentMode = state.currentMode;
-    
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -166,8 +166,8 @@ class ModeSwitchPanel extends ConsumerWidget {
   }
 
   Widget _buildModeGrid(
-    BuildContext context, 
-    ThemeData theme, 
+    BuildContext context,
+    ThemeData theme,
     WidgetRef ref,
     ModeSwitchState state,
   ) {
@@ -192,20 +192,25 @@ class ModeSwitchPanel extends ConsumerWidget {
           children: AppMode.values.map((mode) {
             final isSelected = mode == state.currentMode;
             final isDisabled = state.isTransitioning;
-            
+
             return Material(
               color: Colors.transparent,
               child: InkWell(
-                onTap: isDisabled ? null : () {
-                  ref.read(modeSwitchProvider.notifier).switchToMode(mode);
-                },
+                onTap: isDisabled
+                    ? null
+                    : () {
+                        ref
+                            .read(modeSwitchProvider.notifier)
+                            .switchToMode(mode);
+                      },
                 borderRadius: BorderRadius.circular(8),
                 child: Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
                     color: isSelected
                         ? mode.color.withValues(alpha: 0.1)
-                        : theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
+                        : theme.colorScheme.surfaceContainerHighest
+                            .withValues(alpha: 0.3),
                     borderRadius: BorderRadius.circular(8),
                     border: Border.all(
                       color: isSelected
@@ -226,8 +231,11 @@ class ModeSwitchPanel extends ConsumerWidget {
                       Text(
                         mode.displayName,
                         style: theme.textTheme.bodySmall?.copyWith(
-                          fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-                          color: isSelected ? mode.color : theme.colorScheme.onSurfaceVariant,
+                          fontWeight:
+                              isSelected ? FontWeight.w600 : FontWeight.w500,
+                          color: isSelected
+                              ? mode.color
+                              : theme.colorScheme.onSurfaceVariant,
                         ),
                       ),
                     ],
@@ -242,8 +250,8 @@ class ModeSwitchPanel extends ConsumerWidget {
   }
 
   Widget _buildQuickActions(
-    BuildContext context, 
-    ThemeData theme, 
+    BuildContext context,
+    ThemeData theme,
     WidgetRef ref,
     ModeSwitchState state,
   ) {
@@ -301,7 +309,8 @@ class ModeSwitchPanel extends ConsumerWidget {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
           decoration: BoxDecoration(
-            color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+            color: theme.colorScheme.surfaceContainerHighest
+                .withValues(alpha: 0.5),
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
               color: theme.colorScheme.outline.withValues(alpha: 0.2),
@@ -330,8 +339,8 @@ class ModeSwitchPanel extends ConsumerWidget {
   }
 
   Widget _buildModeStats(
-    BuildContext context, 
-    ThemeData theme, 
+    BuildContext context,
+    ThemeData theme,
     ModeSwitchState state,
   ) {
     return Column(
@@ -348,7 +357,8 @@ class ModeSwitchPanel extends ConsumerWidget {
         Container(
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
+            color: theme.colorScheme.surfaceContainerHighest
+                .withValues(alpha: 0.3),
             borderRadius: BorderRadius.circular(8),
           ),
           child: Row(
@@ -373,15 +383,16 @@ class ModeSwitchPanel extends ConsumerWidget {
   }
 
   Widget _buildSmartSuggestions(
-    BuildContext context, 
-    ThemeData theme, 
+    BuildContext context,
+    ThemeData theme,
     WidgetRef ref,
     ModeSwitchState state,
   ) {
-    final recommendedMode = ref.read(modeSwitchProvider.notifier).getRecommendedNextMode();
-    
+    final recommendedMode =
+        ref.read(modeSwitchProvider.notifier).getRecommendedNextMode();
+
     if (recommendedMode == null) return const SizedBox.shrink();
-    
+
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -409,7 +420,9 @@ class ModeSwitchPanel extends ConsumerWidget {
           ),
           TextButton(
             onPressed: () {
-              ref.read(modeSwitchProvider.notifier).switchToMode(recommendedMode);
+              ref
+                  .read(modeSwitchProvider.notifier)
+                  .switchToMode(recommendedMode);
             },
             child: Text(
               '切换',

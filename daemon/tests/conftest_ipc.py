@@ -68,7 +68,7 @@ def test_database(temp_dir):
 @pytest.fixture
 def mock_database_service(test_database):
     """模拟数据库服务"""
-    from services.unified_database_service import UnifiedDatabaseService as DatabaseService
+    from services.storage.core.database import UnifiedDatabaseService as DatabaseService
 
     service = Mock(spec=DatabaseService)
     service.get_session.return_value.__enter__.return_value = test_database
@@ -214,7 +214,7 @@ def sample_connector_discovery_response():
 @pytest.fixture
 def mock_ipc_server():
     """模拟IPC服务器fixture"""
-    from services.ipc_server import IPCServer
+    from services.ipc.core.server import IPCServer
 
     server = Mock(spec=IPCServer)
     server.start = AsyncMock()
@@ -240,7 +240,7 @@ def pure_ipc_daemon(mock_config_manager, mock_database_service, mock_connector_m
             "services.connectors.connector_manager.get_connector_manager",
             return_value=mock_connector_manager,
         ):
-            from services.ipc_server import get_ipc_server
+            from services.ipc.core.server import get_ipc_server
 
             # 创建模拟IPC服务器
             ipc_server = get_ipc_server()

@@ -1,7 +1,8 @@
 """
-连接器发现服务 - 动态发现和加载连接器配置
+连接器元数据服务 - 从数据库查询已注册连接器
 
-实现完全配置驱动的连接器系统，消除硬编码依赖
+注：已移除文件系统自动扫描功能，只查询数据库中已注册的连接器
+新连接器需要通过手动注册或从注册表下载的方式添加
 """
 
 import json
@@ -17,7 +18,7 @@ from core.error_handling import (
     ErrorSeverity,
     handle_errors,
 )
-from config.core_config import CoreConfigManager
+from config.config_manager import ConfigManager
 from core.service_facade import get_service
 
 logger = logging.getLogger(__name__)
@@ -78,29 +79,24 @@ class ConnectorDiscoveryService:
     4. 提供连接器查询和过滤能力
     """
 
-    def __init__(self, config_manager: Optional[CoreConfigManager] = None):
-        self.config_manager = config_manager or get_service(CoreConfigManager)
+    def __init__(self, config_manager: Optional[ConfigManager] = None):
+        self.config_manager = config_manager or get_service(ConfigManager)
         self._metadata_cache: Dict[str, ConnectorMetadata] = {}
         self._cache_lock = RLock()
         self._last_scan_time = 0
         self._cache_ttl = 300  # 5分钟缓存过期时间
-        
-        # 连接器目录路径
-        self._connector_base_paths = [
-            "connectors/official",
-            "connectors/third-party",
-            # 支持绝对路径配置
-        ]
 
     @handle_errors(
         severity=ErrorSeverity.MEDIUM,
         category=ErrorCategory.CONNECTOR_DISCOVERY,
-        user_message="连接器发现失败",
-        recovery_suggestions="检查连接器目录是否存在且可读"
+        user_message="连接器查询失败",
+        recovery_suggestions="检查数据库连接是否正常"
     )
     def discover_connectors(self, force_refresh: bool = False) -> Dict[str, ConnectorMetadata]:
         """
-        发现所有可用连接器
+        从数据库获取所有已注册的连接器
+        
+        注：已移除自动扫描功能，只查询数据库中已注册的连接器
         
         Args:
             force_refresh: 强制刷新缓存
@@ -115,84 +111,40 @@ class ConnectorDiscoveryService:
             return self._metadata_cache.copy()
         
         with self._cache_lock:
-            logger.info("开始发现连接器配置...")
+            logger.info("从数据库查询已注册连接器...")
             discovered_connectors = {}
             
-            # 获取项目根目录
-            project_root = Path(__file__).parent.parent.parent.parent
+            # 从数据库获取已注册的连接器
+            from services.storage.core.database import UnifiedDatabaseService
+            from models.database_models import Connector
             
-            # 扫描所有连接器目录
-            for base_path in self._connector_base_paths:
-                connector_dir = project_root / base_path
-                if not connector_dir.exists():
-                    logger.debug(f"连接器目录不存在: {connector_dir}")
-                    continue
-                
-                # 扫描连接器
-                for connector_path in connector_dir.iterdir():
-                    if not connector_path.is_dir():
-                        continue
+            try:
+                db_service = get_service(UnifiedDatabaseService)
+                with db_service.get_session() as session:
+                    connectors = session.query(Connector).all()
                     
-                    config_file = connector_path / "connector.toml"
-                    if not config_file.exists():
-                        logger.debug(f"连接器配置文件不存在: {config_file}")
-                        continue
-                    
-                    try:
-                        # 加载连接器配置
-                        metadata = self._load_connector_metadata(config_file, str(connector_path))
-                        if metadata and metadata.id:
-                            # 应用启用状态配置
-                            metadata.enabled = self._is_connector_enabled(metadata.id)
-                            discovered_connectors[metadata.id] = metadata
-                            logger.debug(f"发现连接器: {metadata.id} ({metadata.name})")
+                    for connector in connectors:
+                        metadata = ConnectorMetadata(
+                            id=connector.connector_id,
+                            name=connector.name or connector.connector_id,
+                            description=connector.description or "",
+                            version=connector.version or "0.0.0",
+                            author="",  # 数据库中没有author字段
+                            category="general",  # 默认分类
+                            path=connector.path,
+                            enabled=connector.enabled
+                        )
+                        discovered_connectors[connector.connector_id] = metadata
                         
-                    except Exception as e:
-                        logger.warning(f"加载连接器配置失败 {config_file}: {e}")
-                        continue
+            except Exception as e:
+                logger.error(f"查询数据库连接器失败: {e}")
             
             self._metadata_cache = discovered_connectors
             self._last_scan_time = current_time
             
-            logger.info(f"连接器发现完成，共发现 {len(discovered_connectors)} 个连接器")
+            logger.info(f"数据库查询完成，共有 {len(discovered_connectors)} 个已注册连接器")
             return discovered_connectors.copy()
 
-    def _load_connector_metadata(self, config_file: Path, connector_path: str) -> Optional[ConnectorMetadata]:
-        """加载单个连接器的元数据"""
-        try:
-            import tomllib
-            with open(config_file, 'rb') as f:
-                config = tomllib.load(f)
-            
-            # 验证必要字段（从 metadata 部分检查）
-            metadata = config.get("metadata", config)  # 兼容扁平结构
-            required_fields = ['id', 'name', 'version']
-            for field in required_fields:
-                if not metadata.get(field):
-                    logger.warning(f"连接器配置缺少必要字段 metadata.{field}: {config_file}")
-                    return None
-            
-            return ConnectorMetadata.from_config(config, connector_path)
-            
-        except tomllib.TOMLDecodeError as e:
-            logger.error(f"连接器配置TOML解析失败 {config_file}: {e}")
-            return None
-        except Exception as e:
-            logger.error(f"加载连接器元数据失败 {config_file}: {e}")
-            return None
-
-    def _is_connector_enabled(self, connector_id: str) -> bool:
-        """检查连接器是否在配置中启用"""
-        try:
-            # 从配置管理器获取连接器启用状态
-            connector_config = self.config_manager.config.connectors
-            
-            # 使用配置类的新方法来检查启用状态
-            return connector_config.is_connector_enabled(connector_id)
-            
-        except Exception as e:
-            logger.warning(f"检查连接器启用状态失败 {connector_id}: {e}")
-            return False
 
     def get_connector_metadata(self, connector_id: str) -> Optional[ConnectorMetadata]:
         """获取指定连接器的元数据"""

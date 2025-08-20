@@ -35,7 +35,8 @@ class AIChatState {
 }
 
 /// AI聊天Provider
-final aiChatProvider = StateNotifierProvider<AIChatNotifier, AIChatState>((ref) {
+final aiChatProvider =
+    StateNotifierProvider<AIChatNotifier, AIChatState>((ref) {
   return AIChatNotifier();
 });
 
@@ -66,7 +67,7 @@ class AIChatNotifier extends StateNotifier<AIChatState> {
   List<AIChatMessage> _generateInitialMessages() {
     final now = DateTime.now();
     final hour = now.hour;
-    
+
     String greeting;
     if (hour < 12) {
       greeting = '🌅 早上好！';
@@ -85,7 +86,8 @@ class AIChatNotifier extends StateNotifier<AIChatState> {
       ),
       AIChatMessage(
         id: 'insight_1',
-        content: '我发现你最近在学习Flutter开发，今天为你准备了一些有价值的资源。另外，我注意到你的工作效率在上午最高，建议重要的编程任务可以安排在这个时段。',
+        content:
+            '我发现你最近在学习Flutter开发，今天为你准备了一些有价值的资源。另外，我注意到你的工作效率在上午最高，建议重要的编程任务可以安排在这个时段。',
         type: MessageType.aiInsight,
         timestamp: now.subtract(const Duration(seconds: 5)),
         actions: [
@@ -193,7 +195,7 @@ class AIChatNotifier extends StateNotifier<AIChatState> {
     // 模拟思考时间
     Future.delayed(const Duration(seconds: 1, milliseconds: 500), () {
       final aiResponse = _generateAIResponse(userInput);
-      
+
       state = state.copyWith(
         messages: [...state.messages, aiResponse],
         isAITyping: false,
@@ -208,7 +210,8 @@ class AIChatNotifier extends StateNotifier<AIChatState> {
     List<MessageAction> actions = [];
 
     if (lower.contains('搜索') || lower.contains('找')) {
-      response = '好的！我来帮你搜索最近的内容。根据你的活动记录，我找到了3个相关项目：一个Flutter教程链接、两个代码文件路径，还有一个GitHub仓库。需要我展示详细信息吗？';
+      response =
+          '好的！我来帮你搜索最近的内容。根据你的活动记录，我找到了3个相关项目：一个Flutter教程链接、两个代码文件路径，还有一个GitHub仓库。需要我展示详细信息吗？';
       type = MessageType.aiInsight;
       actions = [
         const MessageAction(
@@ -223,7 +226,8 @@ class AIChatNotifier extends StateNotifier<AIChatState> {
         ),
       ];
     } else if (lower.contains('分析') || lower.contains('进度')) {
-      response = '通过分析你的学习数据，我发现你在Flutter状态管理方面进步很快！已经掌握了Provider的基础用法，建议接下来学习Riverpod的高级特性。要我为你制定一个学习计划吗？';
+      response =
+          '通过分析你的学习数据，我发现你在Flutter状态管理方面进步很快！已经掌握了Provider的基础用法，建议接下来学习Riverpod的高级特性。要我为你制定一个学习计划吗？';
       type = MessageType.aiInsight;
       actions = [
         const MessageAction(
@@ -238,7 +242,8 @@ class AIChatNotifier extends StateNotifier<AIChatState> {
         ),
       ];
     } else if (lower.contains('洞察') || lower.contains('建议')) {
-      response = '基于你最近的活动，我有几个建议：1) 你经常在下午访问同一个文档，可以添加到快捷访问；2) 建议整理一下重复的学习资源；3) 你的编程效率在上午最高，重要任务可以安排在那个时段。';
+      response =
+          '基于你最近的活动，我有几个建议：1) 你经常在下午访问同一个文档，可以添加到快捷访问；2) 建议整理一下重复的学习资源；3) 你的编程效率在上午最高，重要任务可以安排在那个时段。';
       type = MessageType.aiRecommendation;
       actions = [
         const MessageAction(
@@ -253,7 +258,8 @@ class AIChatNotifier extends StateNotifier<AIChatState> {
         ),
       ];
     } else {
-      response = '我理解了！让我想想如何更好地帮助你。你可以试试问我一些具体的问题，比如搜索某个内容、分析数据模式，或者让我给出一些效率建议。';
+      response =
+          '我理解了！让我想想如何更好地帮助你。你可以试试问我一些具体的问题，比如搜索某个内容、分析数据模式，或者让我给出一些效率建议。';
       actions = [
         const MessageAction(
           id: 'help_search',

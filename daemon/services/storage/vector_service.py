@@ -688,13 +688,8 @@ class VectorService:
 _vector_service: Optional[VectorService] = None
 
 
-async def get_vector_service() -> VectorService:
-    """获取向量服务实例（单例模式）"""
-    global _vector_service
-    if _vector_service is None:
-        _vector_service = VectorService()
-        await _vector_service.migrate_to_selective_encryption()
-    return _vector_service
+# 已删除：get_vector_service() - 违反ServiceFacade统一服务获取铁律
+# 请使用：from core.service_facade import get_service; get_service(VectorService)
 
 
 async def cleanup_vector_service():

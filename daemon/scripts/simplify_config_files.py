@@ -28,7 +28,8 @@ from typing import Dict, List, Tuple, Any
 # 添加项目路径
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from services.database_config_service import get_database_config_service
+from services.database_config_service import DatabaseConfigService
+from core.service_facade import get_service
 from core.environment_manager import get_environment_manager
 
 logger = logging.getLogger(__name__)
@@ -39,7 +40,7 @@ class ConfigFileCleaner:
 
     def __init__(self):
         self.project_root = Path(__file__).parent.parent.parent
-        self.db_config_service = get_database_config_service()
+        self.db_config_service = get_service(DatabaseConfigService)
         self.env_manager = get_environment_manager()
         
         # 明确定义必须保留的文件（仅限外部工具必需）

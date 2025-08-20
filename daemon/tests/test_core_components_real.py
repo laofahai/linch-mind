@@ -46,10 +46,9 @@ from core.error_handling import (
     handle_errors,
 )
 from core.service_facade import (
-    ServiceError,
-    ServiceErrorType,
-    ServiceFacade,
     ServiceResult,
+    get_service,
+    get_service_safe,
     get_service_facade,
 )
 
@@ -89,14 +88,21 @@ class TestEnvironmentManager:
 
     def test_environment_detection(self):
         """测试环境检测逻辑"""
-        # 测试LINCH_ENV环境变量
-        with patch.dict(os.environ, {"LINCH_ENV": "production"}):
+        # 测试LINCH_MIND_ENVIRONMENT环境变量（新架构使用的标准变量名）
+        with patch.dict(os.environ, {"LINCH_MIND_ENVIRONMENT": "production"}):
+            reset_environment_manager()
+            # 同时需要重置bootstrap配置单例
+            from config.bootstrap_config import BootstrapConfigManager
+            BootstrapConfigManager._instance = None
             env_manager = EnvironmentManager()
             assert env_manager.current_environment == Environment.PRODUCTION
 
         # 测试默认环境
         with patch.dict(os.environ, {}, clear=True):
             reset_environment_manager()
+            # 同时需要重置bootstrap配置单例
+            from config.bootstrap_config import BootstrapConfigManager
+            BootstrapConfigManager._instance = None
             env_manager = EnvironmentManager()
             assert env_manager.current_environment == Environment.DEVELOPMENT
 
@@ -220,12 +226,12 @@ class TestServiceFacade:
     def setup_method(self):
         """测试前重置"""
         # 重置全局状态
-        if hasattr(ServiceFacade, "_instance"):
-            ServiceFacade._instance = None
+        from core.service_facade import reset_service_facade
+        reset_service_facade()
 
     def test_service_facade_creation(self):
         """测试ServiceFacade创建"""
-        facade = ServiceFacade()
+        facade = get_service_facade()
         assert facade is not None
         assert hasattr(facade, "container")
         assert hasattr(facade, "_access_stats")
@@ -237,53 +243,51 @@ class TestServiceFacade:
         # 注意：如果不是严格单例，这个测试可能失败，但这是对实际实现的验证
         # assert facade1 is facade2
 
-    def test_service_error_types(self):
-        """测试ServiceError和相关枚举"""
-        # 测试ServiceErrorType枚举
-        assert ServiceErrorType.NOT_REGISTERED.value == "not_registered"
-        assert ServiceErrorType.INITIALIZATION_FAILED.value == "initialization_failed"
-
-        # 测试ServiceError异常
-        error = ServiceError(ServiceErrorType.NOT_REGISTERED, "Test error")
-        assert error.error_type == ServiceErrorType.NOT_REGISTERED
-        assert str(error) == "Test error"
-
-    def test_service_result(self):
-        """测试ServiceResult封装"""
-        # 测试成功结果
-        success_result = ServiceResult(success=True, service="test_service")
-        assert success_result.is_success
+    def test_service_result_types(self):
+        """测试ServiceResult封装类型"""
+        # 测试成功结果创建
+        success_result = ServiceResult(service="test_service")
+        assert success_result.success
         assert success_result.unwrap() == "test_service"
+        
+        # 测试失败结果创建
+        fail_result = ServiceResult(error="Service not found")
+        assert not fail_result.success
+        assert fail_result.error == "Service not found"
 
-        # 测试失败结果
-        fail_result = ServiceResult(
-            success=False,
-            error_type=ServiceErrorType.NOT_REGISTERED,
-            error_message="Service not found",
-        )
-        assert not fail_result.is_success
+    def test_service_result_unwrap(self):
+        """测试ServiceResult解包功能"""
+        # 测试成功解包
+        success_result = ServiceResult(service="test_service")
+        assert success_result.unwrap() == "test_service"
+        assert success_result.unwrap_or("default") == "test_service"
 
-        with pytest.raises(ServiceError):
+        # 测试失败解包
+        fail_result = ServiceResult(error="Service not found")
+        assert fail_result.unwrap_or("default") == "default"
+        
+        with pytest.raises(RuntimeError, match="Service unavailable"):
             fail_result.unwrap()
 
     def test_service_facade_container_integration(self):
         """测试ServiceFacade与Container的集成"""
-        facade = ServiceFacade()
+        facade = get_service_facade()
         container = facade.container
 
         assert container is not None
         # container应该是ServiceContainer的实例
-        assert hasattr(container, "get_all_services")
+        assert hasattr(container, "get_service")
 
     def test_service_access_stats(self):
         """测试服务访问统计"""
-        facade = ServiceFacade()
+        facade = get_service_facade()
 
         # 初始统计应该为空
-        stats = facade.get_service_stats()
+        stats = facade.get_all_services_info()
         assert isinstance(stats, dict)
-        assert "access_stats" in stats
-        assert "registered_services" in stats
+        
+        # 测试访问统计功能
+        assert hasattr(facade, '_access_stats')
 
 
 class TestErrorHandling:
@@ -575,13 +579,13 @@ class TestPerformance:
 
     def test_service_facade_performance(self):
         """测试服务门面性能"""
-        facade = ServiceFacade()
+        facade = get_service_facade()
 
         start_time = time.time()
 
         # 多次访问服务门面
         for _ in range(100):
-            stats = facade.get_service_stats()
+            stats = facade.get_all_services_info()
             assert isinstance(stats, dict)
 
         elapsed = time.time() - start_time
@@ -636,7 +640,7 @@ class TestIntegration:
         env_manager = EnvironmentManager()
 
         # 获取服务门面
-        facade = ServiceFacade()
+        facade = get_service_facade()
 
         # 两者应该能正常协作
         assert env_manager.current_environment is not None
@@ -668,8 +672,8 @@ class TestIntegration:
         """测试完整系统集成"""
         # 初始化所有核心组件
         env_manager = EnvironmentManager()
-        facade = ServiceFacade()
-        container = ServiceContainer()
+        facade = get_service_facade()
+        container = get_container()
         error_handler = get_error_handler()
 
         # 验证所有组件都正常工作

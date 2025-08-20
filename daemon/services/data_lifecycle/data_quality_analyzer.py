@@ -12,7 +12,7 @@ from sqlalchemy import and_, func, or_, select
 
 from core.service_facade import get_service
 from models.database_models import EntityMetadata, EntityRelationship
-from services.unified_database_service import UnifiedDatabaseService as DatabaseService
+from services.storage.core.database import UnifiedDatabaseService as DatabaseService
 
 from .models import DataQualityReport
 

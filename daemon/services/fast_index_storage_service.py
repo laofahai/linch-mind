@@ -14,7 +14,7 @@ from dataclasses import dataclass
 
 from core.service_facade import get_service
 from models.database_models import EntityMetadata
-from services.unified_database_service import UnifiedDatabaseService
+from services.storage.core.database import UnifiedDatabaseService
 
 logger = logging.getLogger(__name__)
 

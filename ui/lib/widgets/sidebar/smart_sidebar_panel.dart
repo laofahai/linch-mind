@@ -23,7 +23,7 @@ final selectedSidebarPanelProvider = StateProvider<SidebarPanelType>(
 /// 智能侧边栏面板 - 多功能集成
 class SmartSidebarPanel extends ConsumerWidget {
   final Function(String prompt)? onPromptTap;
-  
+
   const SmartSidebarPanel({
     super.key,
     this.onPromptTap,
@@ -33,7 +33,7 @@ class SmartSidebarPanel extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final selectedPanel = ref.watch(selectedSidebarPanelProvider);
     final theme = Theme.of(context);
-    
+
     return Container(
       decoration: BoxDecoration(
         color: theme.colorScheme.surface,
@@ -47,7 +47,7 @@ class SmartSidebarPanel extends ConsumerWidget {
         children: [
           // 顶部导航标签
           _buildTabNavigation(context, theme, ref, selectedPanel),
-          
+
           // 内容区域
           Expanded(
             child: _buildPanelContent(context, ref, selectedPanel),
@@ -76,20 +76,22 @@ class SmartSidebarPanel extends ConsumerWidget {
       child: Row(
         children: SidebarPanelType.values.map((panelType) {
           final isSelected = panelType == selectedPanel;
-          
+
           return Expanded(
             child: Material(
               color: Colors.transparent,
               child: InkWell(
                 onTap: () {
-                  ref.read(selectedSidebarPanelProvider.notifier).state = panelType;
+                  ref.read(selectedSidebarPanelProvider.notifier).state =
+                      panelType;
                 },
                 borderRadius: BorderRadius.circular(6),
                 child: Container(
                   padding: const EdgeInsets.symmetric(vertical: 8),
                   decoration: BoxDecoration(
                     color: isSelected
-                        ? theme.colorScheme.primaryContainer.withValues(alpha: 0.5)
+                        ? theme.colorScheme.primaryContainer
+                            .withValues(alpha: 0.5)
                         : Colors.transparent,
                     borderRadius: BorderRadius.circular(6),
                   ),
@@ -108,7 +110,8 @@ class SmartSidebarPanel extends ConsumerWidget {
                         panelType.title,
                         style: theme.textTheme.bodySmall?.copyWith(
                           fontSize: 10,
-                          fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+                          fontWeight:
+                              isSelected ? FontWeight.w600 : FontWeight.w400,
                           color: isSelected
                               ? theme.colorScheme.onPrimaryContainer
                               : theme.colorScheme.onSurfaceVariant,
@@ -134,13 +137,13 @@ class SmartSidebarPanel extends ConsumerWidget {
     switch (selectedPanel) {
       case SidebarPanelType.modeSwitch:
         return const ModeSwitchPanel();
-      
+
       case SidebarPanelType.aiInsights:
         return AIInsightsPanel(onPromptTap: onPromptTap);
-      
+
       case SidebarPanelType.systemStatus:
         return _SystemStatusPanel();
-      
+
       case SidebarPanelType.shortcuts:
         return _ShortcutsPanel();
     }
@@ -152,7 +155,7 @@ class _SystemStatusPanel extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
-    
+
     return Container(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -176,7 +179,7 @@ class _SystemStatusPanel extends ConsumerWidget {
             ],
           ),
           const SizedBox(height: 20),
-          
+
           // 服务状态
           _buildStatusSection(
             context,
@@ -187,9 +190,9 @@ class _SystemStatusPanel extends ConsumerWidget {
               _StatusItem('数据同步', true, '实时同步'),
             ],
           ),
-          
+
           const SizedBox(height: 16),
-          
+
           // 连接器状态
           _buildStatusSection(
             context,
@@ -200,9 +203,9 @@ class _SystemStatusPanel extends ConsumerWidget {
               _StatusItem('浏览器', false, '未连接'),
             ],
           ),
-          
+
           const SizedBox(height: 16),
-          
+
           // 性能指标
           _buildPerformanceMetrics(context, theme),
         ],
@@ -216,7 +219,7 @@ class _SystemStatusPanel extends ConsumerWidget {
     required List<_StatusItem> items,
   }) {
     final theme = Theme.of(context);
-    
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -235,7 +238,7 @@ class _SystemStatusPanel extends ConsumerWidget {
 
   Widget _buildStatusItem(BuildContext context, _StatusItem item) {
     final theme = Theme.of(context);
-    
+
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.all(12),
@@ -293,7 +296,8 @@ class _SystemStatusPanel extends ConsumerWidget {
         Container(
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
+            color: theme.colorScheme.surfaceContainerHighest
+                .withValues(alpha: 0.3),
             borderRadius: BorderRadius.circular(8),
           ),
           child: Column(
@@ -317,7 +321,7 @@ class _SystemStatusPanel extends ConsumerWidget {
     double progress,
   ) {
     final theme = Theme.of(context);
-    
+
     return Row(
       children: [
         Expanded(
@@ -344,7 +348,7 @@ class _ShortcutsPanel extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
-    
+
     return Container(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -368,7 +372,7 @@ class _ShortcutsPanel extends ConsumerWidget {
             ],
           ),
           const SizedBox(height: 20),
-          
+
           // 快捷按钮网格
           GridView.count(
             shrinkWrap: true,
@@ -404,9 +408,9 @@ class _ShortcutsPanel extends ConsumerWidget {
               ),
             ],
           ),
-          
+
           const SizedBox(height: 20),
-          
+
           // 最近操作
           _buildRecentActions(context, theme),
         ],
@@ -421,7 +425,7 @@ class _ShortcutsPanel extends ConsumerWidget {
     required VoidCallback onTap,
   }) {
     final theme = Theme.of(context);
-    
+
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -430,7 +434,8 @@ class _ShortcutsPanel extends ConsumerWidget {
         child: Container(
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
+            color: theme.colorScheme.surfaceContainerHighest
+                .withValues(alpha: 0.3),
             borderRadius: BorderRadius.circular(8),
             border: Border.all(
               color: theme.colorScheme.outline.withValues(alpha: 0.2),
@@ -474,7 +479,8 @@ class _ShortcutsPanel extends ConsumerWidget {
         Container(
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
+            color: theme.colorScheme.surfaceContainerHighest
+                .withValues(alpha: 0.3),
             borderRadius: BorderRadius.circular(8),
           ),
           child: Column(
@@ -493,7 +499,7 @@ class _ShortcutsPanel extends ConsumerWidget {
 
   Widget _buildActionItem(BuildContext context, String action, String time) {
     final theme = Theme.of(context);
-    
+
     return Row(
       children: [
         Expanded(

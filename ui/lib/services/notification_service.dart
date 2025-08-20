@@ -9,7 +9,7 @@ class NotificationService {
   static const Duration _longDuration = Duration(seconds: 5);
 
   void showSuccess(
-    BuildContext context, 
+    BuildContext context,
     String message, {
     Duration? duration,
     bool dismissPrevious = true,

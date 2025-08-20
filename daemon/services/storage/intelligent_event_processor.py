@@ -14,13 +14,13 @@ import numpy as np
 
 from core.error_handling import handle_errors, ErrorSeverity, ErrorCategory
 from core.service_facade import get_service
-from services.ai.ollama_service import get_ollama_service, ContentEvaluation
+from services.ai.ollama_service import OllamaService, ContentEvaluation
 from services.storage.faiss_vector_store import (
     get_faiss_vector_store, 
     VectorDocument,
     SearchResult
 )
-from services.unified_database_service import UnifiedDatabaseService
+from services.storage.core.database import UnifiedDatabaseService
 from models.database_models import EntityMetadata, ConnectorLog, EventCorrelation
 from config.intelligent_storage import get_intelligent_storage_config
 from services.event_correlation.ai_driven_correlator import get_ai_correlator
@@ -125,7 +125,9 @@ class IntelligentEventProcessor:
         try:
             # 初始化韧性Ollama服务 - 必须依赖模式
             try:
-                self._ollama_service = await get_ollama_service()
+                self._ollama_service = get_service(OllamaService)
+                if not await self._ollama_service.initialize():
+                    raise RuntimeError("Ollama服务初始化失败")
                 if self._ollama_service.is_available():
                     self._processing_mode = "ai"
                     logger.info("智能事件处理器：AI模式 - Ollama服务可用")
@@ -420,7 +422,9 @@ class IntelligentEventProcessor:
             
             # 尝试重新初始化服务
             if self._ollama_service is None:
-                self._ollama_service = await get_ollama_service()
+                self._ollama_service = get_service(OllamaService)
+                if not await self._ollama_service.initialize():
+                    raise RuntimeError("Ollama服务初始化失败")
             
             # 等待短时间让重连逻辑工作
             import asyncio

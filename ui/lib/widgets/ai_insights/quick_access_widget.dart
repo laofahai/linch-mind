@@ -96,7 +96,8 @@ class _QuickAccessCard extends StatelessWidget {
                     Container(
                       padding: const EdgeInsets.all(6),
                       decoration: BoxDecoration(
-                        color: _getTypeColor(colorScheme).withValues(alpha: 0.1),
+                        color:
+                            _getTypeColor(colorScheme).withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(6),
                       ),
                       child: Icon(

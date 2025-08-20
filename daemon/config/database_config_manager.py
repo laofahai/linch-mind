@@ -219,7 +219,7 @@ class DatabaseConfigManager:
             try:
                 # 直接从DI容器获取，避免ServiceFacade循环依赖
                 from core.container import get_container
-                from services.unified_database_service import UnifiedDatabaseService
+                from services.storage.core.database import UnifiedDatabaseService
                 container = get_container()
                 self._db_service = container.get_service(UnifiedDatabaseService)
             except Exception as e:

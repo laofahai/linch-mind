@@ -792,13 +792,8 @@ class GraphService:
 _graph_service: Optional[GraphService] = None
 
 
-async def get_graph_service() -> GraphService:
-    """获取图服务实例（单例模式）"""
-    global _graph_service
-    if _graph_service is None:
-        _graph_service = GraphService()
-        await _graph_service.migrate_to_selective_encryption()
-    return _graph_service
+# 已删除：get_graph_service() - 违反ServiceFacade统一服务获取铁律
+# 请使用：from core.service_facade import get_service; get_service(GraphService)
 
 
 async def cleanup_graph_service():

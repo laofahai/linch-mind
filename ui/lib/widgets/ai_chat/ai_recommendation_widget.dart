@@ -83,7 +83,7 @@ class AIRecommendationWidget extends ConsumerWidget {
   Widget _buildRecommendationGrid(BuildContext context, ThemeData theme) {
     final columns = ResponsiveUtils.getRecommendationColumns(context);
     final maxItems = columns * 2; // 显示两行
-    
+
     return GridView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
@@ -106,10 +106,10 @@ class AIRecommendationWidget extends ConsumerWidget {
 
   double _getChildAspectRatio(BuildContext context) {
     final deviceType = ResponsiveUtils.getDeviceType(context);
-    
+
     switch (deviceType) {
       case DeviceType.mobile:
-        return 2.0;  // 降低比例，增加卡片高度
+        return 2.0; // 降低比例，增加卡片高度
       case DeviceType.tablet:
         return 2.2;
       case DeviceType.desktop:
@@ -131,14 +131,14 @@ class _RecommendationCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    
+
     return Card(
       margin: EdgeInsets.zero,
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(12),
         child: Padding(
-          padding: const EdgeInsets.all(6),  // 减少内边距以增加内容空间
+          padding: const EdgeInsets.all(6), // 减少内边距以增加内容空间
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -158,7 +158,8 @@ class _RecommendationCard extends StatelessWidget {
                   ),
                   const Spacer(),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
                     decoration: BoxDecoration(
                       color: theme.colorScheme.secondaryContainer,
                       borderRadius: BorderRadius.circular(4),
@@ -177,7 +178,7 @@ class _RecommendationCard extends StatelessWidget {
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,  // 防止Column溢出
+                  mainAxisSize: MainAxisSize.min, // 防止Column溢出
                   children: [
                     Flexible(
                       child: Text(
@@ -185,7 +186,7 @@ class _RecommendationCard extends StatelessWidget {
                         style: theme.textTheme.bodySmall?.copyWith(
                           fontWeight: FontWeight.w500,
                         ),
-                        maxLines: 2,  // 增加标题行数
+                        maxLines: 2, // 增加标题行数
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
@@ -197,7 +198,7 @@ class _RecommendationCard extends StatelessWidget {
                           color: theme.colorScheme.onSurfaceVariant,
                           fontSize: 10,
                         ),
-                        maxLines: 2,  // 增加描述行数
+                        maxLines: 2, // 增加描述行数
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),

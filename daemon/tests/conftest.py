@@ -20,8 +20,8 @@ from sqlalchemy.orm import sessionmaker
 from config.core_config import CoreConfigManager
 from core.container import get_container
 from models.database_models import Base, Connector
-from services.unified_database_service import UnifiedDatabaseService as DatabaseService
-from services.ipc_security import IPCSecurityManager
+from services.storage.core.database import UnifiedDatabaseService as DatabaseService
+from services.ipc.core.security import IPCSecurityManager
 
 
 @pytest.fixture(scope="session")

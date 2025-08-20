@@ -1,32 +1,20 @@
 #include "linch_connector/daemon_discovery.hpp"
-#include <filesystem>
-#include <fstream>
 #include <iostream>
 #include <thread>
-#include <sstream>
 #include <cstdlib>
-#include <regex>
 
 #ifdef _WIN32
 #include <windows.h>
-#include <tlhelp32.h>
 #else
-#include <sys/stat.h>
-#include <unistd.h>
 #include <sys/socket.h>
 #include <sys/un.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
-#include <signal.h>
-#include <errno.h>
+#include <unistd.h>
 #endif
 
 namespace linch_connector {
 
 class DaemonDiscovery::Impl {
 public:
-    std::optional<DaemonInfo> cachedDaemonInfo;
-    
     std::string getHomeDirectory() {
         const char* homeDir = nullptr;
 #ifdef _WIN32
@@ -36,205 +24,6 @@ public:
 #endif
         return homeDir ? std::string(homeDir) : "";
     }
-    
-    std::string getSocketFilePath() {
-        auto homeDir = getHomeDirectory();
-        if (homeDir.empty()) {
-            return "";
-        }
-        
-        // 🔧 环境感知: 读取LINCH_MIND_MODE环境变量，默认为development
-        const char* envMode = std::getenv("LINCH_MIND_MODE");
-        std::string environment = envMode ? std::string(envMode) : "development";
-        
-        return homeDir + "/.linch-mind/" + environment + "/daemon.socket.info";
-    }
-    
-    
-    std::optional<DaemonInfo> readSocketFile() {
-        auto socketFilePath = getSocketFilePath();
-        if (socketFilePath.empty()) {
-            std::cerr << "[DaemonDiscovery] 无法获取用户主目录" << std::endl;
-            return std::nullopt;
-        }
-        
-        std::filesystem::path socketFile(socketFilePath);
-        if (!std::filesystem::exists(socketFile)) {
-            // socket文件不存在，daemon未启动
-            return std::nullopt;
-        }
-        
-        // 检查文件权限（Unix系统）
-#ifndef _WIN32
-        struct stat fileStat;
-        if (stat(socketFilePath.c_str(), &fileStat) == 0) {
-            // 检查是否只有owner有读写权限
-            if ((fileStat.st_mode & 0x3F) != 0) {
-                std::cerr << "[DaemonDiscovery] socket文件权限不安全，忽略" << std::endl;
-                return std::nullopt;
-            }
-        }
-#endif
-        
-        try {
-            std::ifstream file(socketFilePath);
-            if (!file.is_open()) {
-                std::cerr << "[DaemonDiscovery] 无法打开socket文件: " << socketFilePath << std::endl;
-                return std::nullopt;
-            }
-            
-            std::string content;
-            std::string line;
-            while (std::getline(file, line)) {
-                content += line;
-            }
-            file.close();
-            
-            // 解析JSON格式: {"type": "unix_socket", "path": "/path/to/socket", "pid": 12345}
-            return parseSocketFileContent(content);
-            
-        } catch (const std::exception& e) {
-            std::cerr << "[DaemonDiscovery] 解析socket文件失败: " << e.what() << std::endl;
-            return std::nullopt;
-        }
-    }
-    
-    
-    std::optional<DaemonInfo> parseSocketFileContent(const std::string& content) {
-        // 简单的JSON解析实现（生产环境中应该使用更健壮的JSON库）
-        try {
-            DaemonInfo daemonInfo;
-            
-            // 简化的JSON字段提取
-            std::smatch match;
-            std::string socket_type;
-            
-            // 提取type字段  
-            std::regex type_regex("\"type\"\\s*:\\s*\"([^\"]+)\"");
-            if (std::regex_search(content, match, type_regex)) {
-                socket_type = match[1];
-            }
-            
-            // 提取path字段
-            std::regex path_regex("\"path\"\\s*:\\s*\"([^\"]+)\"");
-            if (std::regex_search(content, match, path_regex)) {
-                if (socket_type == "unix_socket") {
-                    daemonInfo.socket_path = match[1];
-                } else if (socket_type == "named_pipe") {
-                    daemonInfo.socket_path = match[1];
-                    daemonInfo.socket_type = "pipe";
-                }
-            }
-            
-            // 提取pid字段
-            std::regex pid_regex("\"pid\"\\s*:\\s*(\\d+)");
-            if (std::regex_search(content, match, pid_regex)) {
-                daemonInfo.pid = std::stoi(match[1]);
-            }
-            
-            if (socket_type == "unix_socket") {
-                daemonInfo.socket_type = "unix";
-            }
-            
-            return daemonInfo;
-            
-        } catch (const std::exception& e) {
-            std::cerr << "[DaemonDiscovery] JSON解析失败: " << e.what() << std::endl;
-            return std::nullopt;
-        }
-    }
-    
-    bool verifyDaemonProcess(int pid) {
-#ifdef _WIN32
-        // Windows系统的进程验证
-        HANDLE snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
-        if (snapshot == INVALID_HANDLE_VALUE) {
-            return false;
-        }
-        
-        PROCESSENTRY32 processEntry;
-        processEntry.dwSize = sizeof(PROCESSENTRY32);
-        
-        bool found = false;
-        if (Process32First(snapshot, &processEntry)) {
-            do {
-                if (processEntry.th32ProcessID == static_cast<DWORD>(pid)) {
-                    found = true;
-                    break;
-                }
-            } while (Process32Next(snapshot, &processEntry));
-        }
-        
-        CloseHandle(snapshot);
-        return found;
-#else
-        // Unix系统的进程验证
-        // macOS使用kill(pid, 0)来检测进程
-        if (kill(pid, 0) == 0) {
-            return true;  // 进程存在
-        } else {
-            return (errno == EPERM);  // 进程存在但没有权限也算存在
-        }
-#endif
-    }
-    
-    bool testConnection(const std::string& host, int port) {
-        try {
-#ifdef _WIN32
-            WSADATA wsaData;
-            if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0) {
-                return false;
-            }
-            
-            SOCKET sock = socket(AF_INET, SOCK_STREAM, 0);
-            if (sock == INVALID_SOCKET) {
-                WSACleanup();
-                return false;
-            }
-            
-            // 设置超时
-            DWORD timeout = 3000; // 3秒
-            setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, (char*)&timeout, sizeof(timeout));
-            setsockopt(sock, SOL_SOCKET, SO_SNDTIMEO, (char*)&timeout, sizeof(timeout));
-            
-            sockaddr_in serverAddr{};
-            serverAddr.sin_family = AF_INET;
-            serverAddr.sin_port = htons(port);
-            inet_pton(AF_INET, host.c_str(), &serverAddr.sin_addr);
-            
-            bool connected = (connect(sock, (sockaddr*)&serverAddr, sizeof(serverAddr)) == 0);
-            
-            closesocket(sock);
-            WSACleanup();
-            return connected;
-#else
-            int sock = socket(AF_INET, SOCK_STREAM, 0);
-            if (sock < 0) {
-                return false;
-            }
-            
-            // 设置超时
-            struct timeval timeout;
-            timeout.tv_sec = 3;
-            timeout.tv_usec = 0;
-            setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout));
-            setsockopt(sock, SOL_SOCKET, SO_SNDTIMEO, &timeout, sizeof(timeout));
-            
-            struct sockaddr_in serverAddr{};
-            serverAddr.sin_family = AF_INET;
-            serverAddr.sin_port = htons(port);
-            inet_pton(AF_INET, host.c_str(), &serverAddr.sin_addr);
-            
-            bool connected = (connect(sock, (struct sockaddr*)&serverAddr, sizeof(serverAddr)) == 0);
-            
-            close(sock);
-            return connected;
-#endif
-        } catch (const std::exception& e) {
-            std::cerr << "[DaemonDiscovery] 连接测试失败: " << e.what() << std::endl;
-            return false;
-        }
-    }
 };
 
 DaemonDiscovery::DaemonDiscovery() : pImpl(std::make_unique<Impl>()) {}
@@ -242,59 +31,56 @@ DaemonDiscovery::DaemonDiscovery() : pImpl(std::make_unique<Impl>()) {}
 DaemonDiscovery::~DaemonDiscovery() = default;
 
 std::optional<DaemonInfo> DaemonDiscovery::discoverDaemon() {
-    // 如果有缓存且有效，直接返回
-    if (pImpl->cachedDaemonInfo && testIPCConnection(*pImpl->cachedDaemonInfo)) {
-        return pImpl->cachedDaemonInfo;
-    }
+    // 简化版本：直接使用环境变量和固定路径约定
+    DaemonInfo daemonInfo;
     
-    // 清除无效缓存
-    pImpl->cachedDaemonInfo = std::nullopt;
-    
-    // 纯IPC模式，只读取socket文件
-    auto daemonInfoOpt = pImpl->readSocketFile();
-    if (!daemonInfoOpt) {
+    // 获取环境感知的socket路径
+    auto homeDir = pImpl->getHomeDirectory();
+    if (homeDir.empty()) {
+        std::cerr << "[DaemonDiscovery] 无法获取用户主目录" << std::endl;
         return std::nullopt;
     }
     
-    auto& daemonInfo = *daemonInfoOpt;
-
-    // 验证进程是否运行
-    if (daemonInfo.pid > 0 && !pImpl->verifyDaemonProcess(daemonInfo.pid)) {
-        std::cerr << "[DaemonDiscovery] Daemon进程 " << daemonInfo.pid << " 未运行" << std::endl;
-        // 清理过时的socket文件
-        std::remove(pImpl->getSocketFilePath().c_str());
-        return std::nullopt;
-    }
+    const char* envMode = std::getenv("LINCH_MIND_ENVIRONMENT");
+    std::string environment = envMode ? std::string(envMode) : "development";
     
-    // 测试连接性
+#ifdef _WIN32
+    daemonInfo.socket_path = homeDir + "\\.linch-mind\\" + environment + "\\daemon.pipe";
+    daemonInfo.socket_type = "pipe";
+#else
+    daemonInfo.socket_path = homeDir + "/.linch-mind/" + environment + "/data/daemon.socket";
+    daemonInfo.socket_type = "unix";
+#endif
+    
+    // 简单的连接测试
     daemonInfo.is_accessible = testIPCConnection(daemonInfo);
     
     if (daemonInfo.is_accessible) {
-        pImpl->cachedDaemonInfo = daemonInfo;
-        std::cout << "[DaemonDiscovery] 发现可访问的daemon (IPC): " << daemonInfo.socket_path << std::endl;
+        std::cout << "[DaemonDiscovery] ✅ 连接成功: " << daemonInfo.socket_path << std::endl;
+        return daemonInfo;
     } else {
-        std::cout << "[DaemonDiscovery] Daemon不可访问 (IPC): " << daemonInfo.socket_path << std::endl;
+        std::cout << "[DaemonDiscovery] ❌ 连接失败: " << daemonInfo.socket_path << std::endl;
+        return std::nullopt;
     }
-    
-    return daemonInfo;
 }
 
 std::optional<DaemonInfo> DaemonDiscovery::waitForDaemon(
     std::chrono::seconds timeout,
     std::chrono::milliseconds checkInterval) {
     
-    auto startTime = std::chrono::steady_clock::now();
-    
-    while (std::chrono::steady_clock::now() - startTime < timeout) {
+    // 简化版本：最多重试3次，每次间隔1秒
+    for (int i = 0; i < 3; i++) {
         auto daemonInfo = discoverDaemon();
         if (daemonInfo && daemonInfo->is_accessible) {
             return daemonInfo;
         }
         
-        std::this_thread::sleep_for(checkInterval);
+        if (i < 2) { // 不在最后一次重试后sleep
+            std::this_thread::sleep_for(std::chrono::seconds(1));
+        }
     }
     
-    std::cerr << "[DaemonDiscovery] Daemon发现超时" << std::endl;
+    std::cerr << "[DaemonDiscovery] ❌ 3次重试后仍无法连接daemon" << std::endl;
     return std::nullopt;
 }
 
@@ -341,7 +127,7 @@ bool DaemonDiscovery::testIPCConnection(const DaemonInfo& daemonInfo) {
 }
 
 void DaemonDiscovery::clearCache() {
-    pImpl->cachedDaemonInfo = std::nullopt;
+    // 简化版本不需要缓存清理
 }
 
 } // namespace linch_connector

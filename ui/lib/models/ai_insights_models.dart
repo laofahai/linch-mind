@@ -6,43 +6,43 @@ part 'ai_insights_models.g.dart';
 /// AI洞察时间维度
 enum InsightTimeframe {
   @JsonValue('realtime')
-  realtime,    // 实时（秒级）
-  
+  realtime, // 实时（秒级）
+
   @JsonValue('session')
-  session,     // 会话（分钟级）
-  
+  session, // 会话（分钟级）
+
   @JsonValue('daily')
-  daily,       // 今日（小时级）
-  
+  daily, // 今日（小时级）
+
   @JsonValue('weekly')
-  weekly,      // 本周（天级）
-  
+  weekly, // 本周（天级）
+
   @JsonValue('trend')
-  trend,       // 趋势（周/月级）
-  
+  trend, // 趋势（周/月级）
+
   @JsonValue('prediction')
-  prediction,  // 预测（未来）
+  prediction, // 预测（未来）
 }
 
 /// AI洞察类型
 enum InsightType {
   @JsonValue('activity')
-  activity,         // 活动观察
-  
+  activity, // 活动观察
+
   @JsonValue('pattern')
-  pattern,          // 模式识别
-  
+  pattern, // 模式识别
+
   @JsonValue('performance')
-  performance,      // 效率分析
-  
+  performance, // 效率分析
+
   @JsonValue('learning')
-  learning,         // 学习轨迹
-  
+  learning, // 学习轨迹
+
   @JsonValue('suggestion')
-  suggestion,       // 建议推荐
-  
+  suggestion, // 建议推荐
+
   @JsonValue('trend')
-  trend,           // 趋势分析
+  trend, // 趋势分析
 }
 
 /// AI洞察项目
@@ -73,7 +73,7 @@ class InsightAction with _$InsightAction {
   const factory InsightAction({
     required String id,
     required String label,
-    required String prompt,  // 要填入聊天框的提示词
+    required String prompt, // 要填入聊天框的提示词
     String? iconName,
     @Default(false) bool isPrimary,
   }) = _InsightAction;
@@ -86,13 +86,13 @@ class InsightAction with _$InsightAction {
 @freezed
 class AIInsightsState with _$AIInsightsState {
   const factory AIInsightsState({
-    @Default([]) List<AIInsight> realtimeInsights,    // 实时洞察
-    @Default([]) List<AIInsight> sessionInsights,     // 会话洞察  
-    @Default([]) List<AIInsight> dailyInsights,       // 今日洞察
-    @Default([]) List<AIInsight> trendInsights,       // 趋势洞察
-    @Default([]) List<AIInsight> predictions,         // 预测建议
+    @Default([]) List<AIInsight> realtimeInsights, // 实时洞察
+    @Default([]) List<AIInsight> sessionInsights, // 会话洞察
+    @Default([]) List<AIInsight> dailyInsights, // 今日洞察
+    @Default([]) List<AIInsight> trendInsights, // 趋势洞察
+    @Default([]) List<AIInsight> predictions, // 预测建议
     @Default(false) bool isLoading,
-    @Default(false) bool isCollapsed,                 // 是否折叠
+    @Default(false) bool isCollapsed, // 是否折叠
     String? error,
     DateTime? lastUpdated,
   }) = _AIInsightsState;
@@ -108,12 +108,12 @@ class WorkSession with _$WorkSession {
     required String id,
     required DateTime startTime,
     DateTime? endTime,
-    required String mainTopic,           // 主要工作主题
-    @Default([]) List<String> keywords,  // 关键词
-    @Default([]) List<String> files,     // 涉及文件
-    @Default(0) int focusMinutes,        // 专注时间（分钟）
-    @Default(0) int breaksCount,         // 休息次数
-    Map<String, dynamic>? metrics,       // 其他指标
+    required String mainTopic, // 主要工作主题
+    @Default([]) List<String> keywords, // 关键词
+    @Default([]) List<String> files, // 涉及文件
+    @Default(0) int focusMinutes, // 专注时间（分钟）
+    @Default(0) int breaksCount, // 休息次数
+    Map<String, dynamic>? metrics, // 其他指标
   }) = _WorkSession;
 
   factory WorkSession.fromJson(Map<String, dynamic> json) =>
@@ -124,11 +124,11 @@ class WorkSession with _$WorkSession {
 @freezed
 class TrendData with _$TrendData {
   const factory TrendData({
-    required String metric,              // 指标名称
-    required List<TrendPoint> points,    // 数据点
-    required String unit,                // 单位
-    @Default(0.0) double changePercent,  // 变化百分比
-    String? interpretation,              // 趋势解释
+    required String metric, // 指标名称
+    required List<TrendPoint> points, // 数据点
+    required String unit, // 单位
+    @Default(0.0) double changePercent, // 变化百分比
+    String? interpretation, // 趋势解释
   }) = _TrendData;
 
   factory TrendData.fromJson(Map<String, dynamic> json) =>
@@ -153,10 +153,10 @@ class TrendPoint with _$TrendPoint {
 class SkillAssessment with _$SkillAssessment {
   const factory SkillAssessment({
     required String skillName,
-    required double currentLevel,   // 当前水平 (0-1)
-    required double previousLevel,  // 之前水平
+    required double currentLevel, // 当前水平 (0-1)
+    required double previousLevel, // 之前水平
     required List<String> evidence, // 证据/表现
-    String? nextMilestone,         // 下一个里程碑
+    String? nextMilestone, // 下一个里程碑
     @Default([]) List<String> suggestions, // 提升建议
   }) = _SkillAssessment;
 

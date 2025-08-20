@@ -10,7 +10,7 @@ class ResponsiveUtils {
   /// 获取设备类型
   static DeviceType getDeviceType(BuildContext context) {
     final width = MediaQuery.of(context).size.width;
-    
+
     if (width < mobileBreakpoint) {
       return DeviceType.mobile;
     } else if (width < tabletBreakpoint) {
@@ -24,12 +24,12 @@ class ResponsiveUtils {
   static double getMessageMaxWidth(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
     final deviceType = getDeviceType(context);
-    
+
     switch (deviceType) {
       case DeviceType.mobile:
         return screenWidth * 0.85; // 85%的屏幕宽度
       case DeviceType.tablet:
-        return screenWidth * 0.7;  // 70%的屏幕宽度
+        return screenWidth * 0.7; // 70%的屏幕宽度
       case DeviceType.desktop:
         return 600; // 固定最大宽度600px
     }
@@ -38,7 +38,7 @@ class ResponsiveUtils {
   /// 获取推荐网格列数
   static int getRecommendationColumns(BuildContext context) {
     final deviceType = getDeviceType(context);
-    
+
     switch (deviceType) {
       case DeviceType.mobile:
         return 2;
@@ -52,7 +52,7 @@ class ResponsiveUtils {
   /// 获取页面边距
   static EdgeInsets getPagePadding(BuildContext context) {
     final deviceType = getDeviceType(context);
-    
+
     switch (deviceType) {
       case DeviceType.mobile:
         return const EdgeInsets.symmetric(horizontal: 16);
@@ -66,7 +66,7 @@ class ResponsiveUtils {
   /// 获取聊天区域约束
   static BoxConstraints getChatConstraints(BuildContext context) {
     final deviceType = getDeviceType(context);
-    
+
     switch (deviceType) {
       case DeviceType.mobile:
         return const BoxConstraints(maxWidth: double.infinity);
@@ -85,7 +85,7 @@ class ResponsiveUtils {
   /// 获取字体缩放因子
   static double getFontScale(BuildContext context) {
     final deviceType = getDeviceType(context);
-    
+
     switch (deviceType) {
       case DeviceType.mobile:
         return 1.0;
@@ -120,7 +120,7 @@ class ResponsiveWrapper extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final deviceType = ResponsiveUtils.getDeviceType(context);
-    
+
     switch (deviceType) {
       case DeviceType.mobile:
         return mobile;
@@ -146,7 +146,7 @@ class ResponsiveValue<T> {
 
   T getValue(BuildContext context) {
     final deviceType = ResponsiveUtils.getDeviceType(context);
-    
+
     switch (deviceType) {
       case DeviceType.mobile:
         return mobile;

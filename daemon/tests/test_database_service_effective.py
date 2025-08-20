@@ -11,7 +11,7 @@ from pathlib import Path
 import pytest
 
 from core.container import get_container
-from services.unified_database_service import UnifiedDatabaseService as DatabaseService
+from services.storage.core.database import UnifiedDatabaseService as DatabaseService
 from services.storage.storage_orchestrator import get_storage_orchestrator
 
 

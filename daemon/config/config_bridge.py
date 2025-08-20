@@ -79,16 +79,9 @@ class ConfigurationBridge:
     
     @property
     def unified_config_manager(self):
-        """获取统一配置管理器（延迟加载）"""
-        if self._unified_config_manager is None:
-            try:
-                from .unified_config_manager import get_unified_config_manager
-                self._unified_config_manager = get_unified_config_manager()
-                logger.debug("Unified config manager loaded")
-            except Exception as e:
-                logger.warning(f"Failed to load unified config manager: {e}")
-                self._unified_config_manager = None
-        return self._unified_config_manager
+        """获取统一配置管理器（已废弃，重定向到数据库配置管理器）"""
+        logger.warning("unified_config_manager已废弃，使用database_config_manager替代")
+        return self.database_config_manager
     
     @property
     def intelligent_storage_manager(self):

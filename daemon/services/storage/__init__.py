@@ -9,24 +9,7 @@
 - 智能数据生命周期管理
 """
 
-# 🆕 统一服务 - 替代重复实现的现代化架构
-from ..unified_search_service import (
-    UnifiedSearchService,
-    SearchQuery,
-    SearchResult as UnifiedSearchResult,
-    SearchType,
-    SearchStats,
-    get_unified_search_service,
-    cleanup_unified_search_service,
-)
-from ..unified_cache_service import (
-    UnifiedCacheService,
-    CacheType,
-    CacheEntry,
-    CacheStats,
-    get_unified_cache_service,
-    cleanup_unified_cache_service,
-)
+# 已删除：统一服务引用（冗余服务已删除）
 from ..shared_executor_service import (
     SharedExecutorService,
     TaskType,
@@ -37,14 +20,13 @@ from ..shared_executor_service import (
     cleanup_shared_executor_service,
 )
 
-# 原有服务 - 向后兼容（推荐迁移到统一服务）
+# 原有服务 - 向后兼容
 from .graph_service import (
     EntityNode,
     GraphMetrics,
     GraphService,
     RelationshipEdge,
     cleanup_graph_service,
-    get_graph_service,
 )
 from .storage_orchestrator import (
     StorageMetrics,
@@ -58,7 +40,6 @@ from .vector_service import (
     VectorMetrics,
     VectorService,
     cleanup_vector_service,
-    get_vector_service,
 )
 
 __all__ = [

@@ -12,7 +12,9 @@ void showSuccessNotification(
   if (clearPrevious) {
     ref.read(notificationProvider.notifier).clearAll();
   }
-  ref.read(notificationProvider.notifier).showSuccess(message, duration: duration);
+  ref
+      .read(notificationProvider.notifier)
+      .showSuccess(message, duration: duration);
 }
 
 /// 显示错误通知
@@ -25,7 +27,9 @@ void showErrorNotification(
   if (clearPrevious) {
     ref.read(notificationProvider.notifier).clearAll();
   }
-  ref.read(notificationProvider.notifier).showError(message, duration: duration);
+  ref
+      .read(notificationProvider.notifier)
+      .showError(message, duration: duration);
 }
 
 /// 显示警告通知
@@ -38,7 +42,9 @@ void showWarningNotification(
   if (clearPrevious) {
     ref.read(notificationProvider.notifier).clearAll();
   }
-  ref.read(notificationProvider.notifier).showWarning(message, duration: duration);
+  ref
+      .read(notificationProvider.notifier)
+      .showWarning(message, duration: duration);
 }
 
 /// 显示信息通知
@@ -63,7 +69,8 @@ class NotificationUtils {
     Duration? duration,
     bool clearPrevious = true,
   }) {
-    showSuccessNotification(ref, message, duration: duration, clearPrevious: clearPrevious);
+    showSuccessNotification(ref, message,
+        duration: duration, clearPrevious: clearPrevious);
   }
 
   /// 显示错误通知
@@ -73,7 +80,8 @@ class NotificationUtils {
     Duration? duration,
     bool clearPrevious = true,
   }) {
-    showErrorNotification(ref, message, duration: duration, clearPrevious: clearPrevious);
+    showErrorNotification(ref, message,
+        duration: duration, clearPrevious: clearPrevious);
   }
 
   /// 显示警告通知
@@ -83,7 +91,8 @@ class NotificationUtils {
     Duration? duration,
     bool clearPrevious = true,
   }) {
-    showWarningNotification(ref, message, duration: duration, clearPrevious: clearPrevious);
+    showWarningNotification(ref, message,
+        duration: duration, clearPrevious: clearPrevious);
   }
 
   /// 显示信息通知
@@ -93,7 +102,8 @@ class NotificationUtils {
     Duration? duration,
     bool clearPrevious = true,
   }) {
-    showInfoNotification(ref, message, duration: duration, clearPrevious: clearPrevious);
+    showInfoNotification(ref, message,
+        duration: duration, clearPrevious: clearPrevious);
   }
 
   /// 清除所有通知
@@ -104,20 +114,28 @@ class NotificationUtils {
 
 /// 在StatelessWidget中使用的通知扩展
 extension NotificationExtensions on WidgetRef {
-  void showSuccess(String message, {Duration? duration, bool clearPrevious = true}) {
-    NotificationUtils.showSuccess(this, message, duration: duration, clearPrevious: clearPrevious);
+  void showSuccess(String message,
+      {Duration? duration, bool clearPrevious = true}) {
+    NotificationUtils.showSuccess(this, message,
+        duration: duration, clearPrevious: clearPrevious);
   }
 
-  void showError(String message, {Duration? duration, bool clearPrevious = true}) {
-    NotificationUtils.showError(this, message, duration: duration, clearPrevious: clearPrevious);
+  void showError(String message,
+      {Duration? duration, bool clearPrevious = true}) {
+    NotificationUtils.showError(this, message,
+        duration: duration, clearPrevious: clearPrevious);
   }
 
-  void showWarning(String message, {Duration? duration, bool clearPrevious = true}) {
-    NotificationUtils.showWarning(this, message, duration: duration, clearPrevious: clearPrevious);
+  void showWarning(String message,
+      {Duration? duration, bool clearPrevious = true}) {
+    NotificationUtils.showWarning(this, message,
+        duration: duration, clearPrevious: clearPrevious);
   }
 
-  void showInfo(String message, {Duration? duration, bool clearPrevious = true}) {
-    NotificationUtils.showInfo(this, message, duration: duration, clearPrevious: clearPrevious);
+  void showInfo(String message,
+      {Duration? duration, bool clearPrevious = true}) {
+    NotificationUtils.showInfo(this, message,
+        duration: duration, clearPrevious: clearPrevious);
   }
 
   void clearNotifications() {
@@ -138,11 +156,14 @@ void showSnackBarCompat(
   if (backgroundColor != null) {
     // 根据背景色判断通知类型
     final theme = Theme.of(context);
-    if (backgroundColor == Colors.green || backgroundColor == theme.colorScheme.primaryContainer) {
+    if (backgroundColor == Colors.green ||
+        backgroundColor == theme.colorScheme.primaryContainer) {
       NotificationUtils.showSuccess(ref, message, duration: duration);
-    } else if (backgroundColor == Colors.red || backgroundColor == theme.colorScheme.errorContainer) {
+    } else if (backgroundColor == Colors.red ||
+        backgroundColor == theme.colorScheme.errorContainer) {
       NotificationUtils.showError(ref, message, duration: duration);
-    } else if (backgroundColor == Colors.orange || backgroundColor == theme.colorScheme.tertiaryContainer) {
+    } else if (backgroundColor == Colors.orange ||
+        backgroundColor == theme.colorScheme.tertiaryContainer) {
       NotificationUtils.showWarning(ref, message, duration: duration);
     } else {
       NotificationUtils.showInfo(ref, message, duration: duration);

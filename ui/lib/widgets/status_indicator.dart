@@ -223,7 +223,7 @@ class ResponsiveStatusIndicator extends ConsumerWidget {
   // void _showStatusSnackBar(BuildContext context, WidgetRef ref) {
   //   final statusText = customMessage ?? (isConnected ? '已连接' : '连接断开');
   //   final message = '状态: $statusText';
-  //   
+  //
   //   if (isConnected) {
   //     showSuccessNotification(ref, message);
   //   } else {

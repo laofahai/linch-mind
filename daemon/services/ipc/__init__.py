@@ -18,18 +18,14 @@ from .strategy import (
     UnixSocketStrategy,
     WindowsNamedPipeStrategy,
 )
-from .unified_server import UnifiedIPCServer, create_unified_ipc_server
+# 移除已删除的unified_server导入
 
 __all__ = [
-    # 核心类
-    "UnifiedIPCServer",
     # 策略相关
     "IPCStrategy",
     "IPCStrategyFactory",
     "UnixSocketStrategy",
     "WindowsNamedPipeStrategy",
-    # 便捷函数
-    "create_unified_ipc_server",
 ]
 
 # 版本信息

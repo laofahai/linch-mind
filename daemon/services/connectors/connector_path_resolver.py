@@ -129,22 +129,34 @@ class ConnectorPathResolver:
         return None
 
     def _find_connector_base_directories(self) -> List[Path]:
-        """查找连接器的基础目录"""
-        possible_bases = [
-            Path("connectors"),
-            Path("../connectors"),
-            # 从daemon/services/connectors向上找
-            Path(__file__).parent.parent.parent.parent / "connectors",
-        ]
+        """查找连接器的基础目录
+        
+        注：仅用于已注册连接器的可执行文件查找
+        不再用于自动发现新连接器
+        """
+        from core.environment_manager import get_environment_manager
         
         found_dirs = []
-        for base in possible_bases:
-            if base.exists() and base.is_dir():
-                found_dirs.append(base.resolve())
-                break  # 找到第一个就足够了
+        
+        # 1. 用户数据目录（下载的连接器）
+        try:
+            env_manager = get_environment_manager()
+            user_connectors_dir = Path(env_manager.get_data_dir()) / "connectors"
+            if user_connectors_dir.exists():
+                found_dirs.append(user_connectors_dir)
+        except Exception as e:
+            logger.debug(f"获取用户连接器目录失败: {e}")
+        
+        # 2. 开发模式fallback（仅用于开发测试）
+        if not found_dirs:
+            # 开发模式下查找项目目录
+            dev_connectors = Path(__file__).parent.parent.parent.parent / "connectors"
+            if dev_connectors.exists():
+                found_dirs.append(dev_connectors)
+                logger.debug(f"使用开发模式连接器目录: {dev_connectors}")
                 
         if not found_dirs:
-            logger.warning("未找到任何连接器基础目录")
+            logger.warning("未找到任何连接器目录")
             
         return found_dirs
 

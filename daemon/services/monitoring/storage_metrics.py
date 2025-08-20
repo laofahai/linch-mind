@@ -22,7 +22,7 @@ from services.ai.ollama_service import get_ollama_service
 from services.storage.faiss_vector_store import get_faiss_vector_store
 from services.storage.intelligent_event_processor import get_intelligent_event_processor
 from services.storage.data_lifecycle_manager import get_data_lifecycle_manager
-from services.unified_database_service import UnifiedDatabaseService
+from services.storage.core.database import UnifiedDatabaseService
 from models.database_models import EntityMetadata
 
 logger = logging.getLogger(__name__)

@@ -24,41 +24,41 @@ class AIChatMessage with _$AIChatMessage {
 /// 消息类型
 enum MessageType {
   @JsonValue('ai_greeting')
-  aiGreeting,           // AI问候
-  
+  aiGreeting, // AI问候
+
   @JsonValue('ai_insight')
-  aiInsight,           // AI洞察发现
-  
+  aiInsight, // AI洞察发现
+
   @JsonValue('ai_recommendation')
-  aiRecommendation,    // AI推荐
-  
+  aiRecommendation, // AI推荐
+
   @JsonValue('ai_question')
-  aiQuestion,          // AI询问
-  
+  aiQuestion, // AI询问
+
   @JsonValue('user_reply')
-  userReply,           // 用户回复
-  
+  userReply, // 用户回复
+
   @JsonValue('user_request')
-  userRequest,         // 用户请求
-  
+  userRequest, // 用户请求
+
   @JsonValue('system_update')
-  systemUpdate,        // 系统更新
+  systemUpdate, // 系统更新
 }
 
 /// 消息状态
 enum MessageStatus {
   @JsonValue('sending')
   sending,
-  
+
   @JsonValue('sent')
   sent,
-  
+
   @JsonValue('delivered')
   delivered,
-  
+
   @JsonValue('read')
   read,
-  
+
   @JsonValue('error')
   error,
 }
@@ -81,22 +81,22 @@ class MessageAction with _$MessageAction {
 /// 操作类型
 enum ActionType {
   @JsonValue('quick_reply')
-  quickReply,          // 快速回复
-  
+  quickReply, // 快速回复
+
   @JsonValue('open_link')
-  openLink,            // 打开链接
-  
+  openLink, // 打开链接
+
   @JsonValue('view_detail')
-  viewDetail,          // 查看详情
-  
+  viewDetail, // 查看详情
+
   @JsonValue('dismiss')
-  dismiss,             // 忽略
-  
+  dismiss, // 忽略
+
   @JsonValue('save')
-  save,                // 保存
-  
+  save, // 保存
+
   @JsonValue('search')
-  search,              // 搜索
+  search, // 搜索
 }
 
 /// AI智能推荐项
@@ -120,14 +120,14 @@ class AIRecommendation with _$AIRecommendation {
 /// 推荐类型
 enum RecommendationType {
   @JsonValue('quick_access')
-  quickAccess,         // 快速访问
-  
+  quickAccess, // 快速访问
+
   @JsonValue('learning_resource')
-  learningResource,    // 学习资源
-  
+  learningResource, // 学习资源
+
   @JsonValue('productivity_tool')
-  productivityTool,    // 效率工具
-  
+  productivityTool, // 效率工具
+
   @JsonValue('recent_item')
-  recentItem,          // 最近项目
+  recentItem, // 最近项目
 }

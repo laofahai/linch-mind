@@ -30,7 +30,7 @@ class ConnectorHealthChecker:
         self.max_restart_attempts = 3
         self.restart_cooldown = 60  # 秒
         self.restart_interval = 5  # 秒
-        self.health_check_interval = 10  # 秒
+        self.health_check_interval = 60  # 秒 - 减少噪音
 
         # 监控任务
         self._health_monitor_task: Optional[asyncio.Task] = None

@@ -22,7 +22,7 @@ from enum import Enum
 
 from core.service_facade import get_service
 from core.environment_manager import EnvironmentManager
-from services.unified_database_service import UnifiedDatabaseService
+from services.storage.core.database import UnifiedDatabaseService
 
 logger = logging.getLogger(__name__)
 
@@ -988,15 +988,8 @@ class UniversalIndexService:
 _universal_index_service: Optional[UniversalIndexService] = None
 
 
-def get_universal_index_service() -> UniversalIndexService:
-    """获取通用索引服务单例"""
-    global _universal_index_service
-    
-    if _universal_index_service is None:
-        _universal_index_service = UniversalIndexService()
-        _universal_index_service.initialize()
-    
-    return _universal_index_service
+# 已删除：get_service(UniversalIndexService) - 违反ServiceFacade统一服务获取铁律
+# 请使用：from core.service_facade import get_service; get_service(UniversalIndexService)
 
 
 def cleanup_universal_index_service():

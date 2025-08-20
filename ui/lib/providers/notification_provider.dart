@@ -114,11 +114,13 @@ class NotificationNotifier extends StateNotifier<NotificationState> {
   }
 
   void removeNotification(String id) {
-    final updatedNotifications = state.notifications.where((n) => n.id != id).toList();
-    
+    final updatedNotifications =
+        state.notifications.where((n) => n.id != id).toList();
+
     state = state.copyWith(
       notifications: updatedNotifications,
-      currentNotification: updatedNotifications.isNotEmpty ? updatedNotifications.last : null,
+      currentNotification:
+          updatedNotifications.isNotEmpty ? updatedNotifications.last : null,
     );
   }
 
@@ -127,40 +129,61 @@ class NotificationNotifier extends StateNotifier<NotificationState> {
   }
 
   // 便捷方法
-  void showSuccess(String message, {Duration? duration, bool clearPrevious = true}) {
-    showNotification(message, NotificationType.success, duration: duration, clearPrevious: clearPrevious);
+  void showSuccess(String message,
+      {Duration? duration, bool clearPrevious = true}) {
+    showNotification(message, NotificationType.success,
+        duration: duration, clearPrevious: clearPrevious);
   }
 
-  void showError(String message, {Duration? duration, bool clearPrevious = true}) {
-    showNotification(message, NotificationType.error, duration: duration, clearPrevious: clearPrevious);
+  void showError(String message,
+      {Duration? duration, bool clearPrevious = true}) {
+    showNotification(message, NotificationType.error,
+        duration: duration, clearPrevious: clearPrevious);
   }
 
-  void showWarning(String message, {Duration? duration, bool clearPrevious = true}) {
-    showNotification(message, NotificationType.warning, duration: duration, clearPrevious: clearPrevious);
+  void showWarning(String message,
+      {Duration? duration, bool clearPrevious = true}) {
+    showNotification(message, NotificationType.warning,
+        duration: duration, clearPrevious: clearPrevious);
   }
 
-  void showInfo(String message, {Duration? duration, bool clearPrevious = true}) {
-    showNotification(message, NotificationType.info, duration: duration, clearPrevious: clearPrevious);
+  void showInfo(String message,
+      {Duration? duration, bool clearPrevious = true}) {
+    showNotification(message, NotificationType.info,
+        duration: duration, clearPrevious: clearPrevious);
   }
 }
 
-final notificationProvider = StateNotifierProvider<NotificationNotifier, NotificationState>((ref) {
+final notificationProvider =
+    StateNotifierProvider<NotificationNotifier, NotificationState>((ref) {
   return NotificationNotifier();
 });
 
 // 便捷的全局通知方法
-void showSuccessNotification(WidgetRef ref, String message, {Duration? duration, bool clearPrevious = true}) {
-  ref.read(notificationProvider.notifier).showSuccess(message, duration: duration, clearPrevious: clearPrevious);
+void showSuccessNotification(WidgetRef ref, String message,
+    {Duration? duration, bool clearPrevious = true}) {
+  ref
+      .read(notificationProvider.notifier)
+      .showSuccess(message, duration: duration, clearPrevious: clearPrevious);
 }
 
-void showErrorNotification(WidgetRef ref, String message, {Duration? duration, bool clearPrevious = true}) {
-  ref.read(notificationProvider.notifier).showError(message, duration: duration, clearPrevious: clearPrevious);
+void showErrorNotification(WidgetRef ref, String message,
+    {Duration? duration, bool clearPrevious = true}) {
+  ref
+      .read(notificationProvider.notifier)
+      .showError(message, duration: duration, clearPrevious: clearPrevious);
 }
 
-void showWarningNotification(WidgetRef ref, String message, {Duration? duration, bool clearPrevious = true}) {
-  ref.read(notificationProvider.notifier).showWarning(message, duration: duration, clearPrevious: clearPrevious);
+void showWarningNotification(WidgetRef ref, String message,
+    {Duration? duration, bool clearPrevious = true}) {
+  ref
+      .read(notificationProvider.notifier)
+      .showWarning(message, duration: duration, clearPrevious: clearPrevious);
 }
 
-void showInfoNotification(WidgetRef ref, String message, {Duration? duration, bool clearPrevious = true}) {
-  ref.read(notificationProvider.notifier).showInfo(message, duration: duration, clearPrevious: clearPrevious);
+void showInfoNotification(WidgetRef ref, String message,
+    {Duration? duration, bool clearPrevious = true}) {
+  ref
+      .read(notificationProvider.notifier)
+      .showInfo(message, duration: duration, clearPrevious: clearPrevious);
 }

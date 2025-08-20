@@ -22,7 +22,7 @@ class AIChatMessageWidget extends ConsumerWidget {
     final isAI = _isAIMessage(message.type);
     final maxWidth = ResponsiveUtils.getMessageMaxWidth(context);
     final pagePadding = ResponsiveUtils.getPagePadding(context);
-    
+
     return Container(
       margin: EdgeInsets.symmetric(
         horizontal: pagePadding.horizontal,
@@ -37,7 +37,8 @@ class AIChatMessageWidget extends ConsumerWidget {
           ],
           Expanded(
             child: Column(
-              crossAxisAlignment: isAI ? CrossAxisAlignment.start : CrossAxisAlignment.end,
+              crossAxisAlignment:
+                  isAI ? CrossAxisAlignment.start : CrossAxisAlignment.end,
               children: [
                 Container(
                   constraints: BoxConstraints(maxWidth: maxWidth),
@@ -66,27 +67,31 @@ class AIChatMessageWidget extends ConsumerWidget {
 
   Widget _buildAvatar(BuildContext context, {required bool isAI}) {
     final theme = Theme.of(context);
-    
+
     return Container(
       width: 36,
       height: 36,
       decoration: BoxDecoration(
-        color: isAI ? theme.colorScheme.primaryContainer : theme.colorScheme.secondaryContainer,
+        color: isAI
+            ? theme.colorScheme.primaryContainer
+            : theme.colorScheme.secondaryContainer,
         shape: BoxShape.circle,
       ),
       child: Icon(
         isAI ? Icons.psychology : Icons.person,
         size: 20,
-        color: isAI ? theme.colorScheme.onPrimaryContainer : theme.colorScheme.onSecondaryContainer,
+        color: isAI
+            ? theme.colorScheme.onPrimaryContainer
+            : theme.colorScheme.onSecondaryContainer,
       ),
     );
   }
 
   Widget _buildMessageBubble(BuildContext context, ThemeData theme, bool isAI) {
-    final backgroundColor = isAI 
+    final backgroundColor = isAI
         ? theme.colorScheme.surfaceContainerHighest
         : theme.colorScheme.primaryContainer;
-    
+
     final textColor = isAI
         ? theme.colorScheme.onSurfaceVariant
         : theme.colorScheme.onPrimaryContainer;
@@ -100,8 +105,10 @@ class AIChatMessageWidget extends ConsumerWidget {
           borderRadius: BorderRadius.only(
             topLeft: const Radius.circular(16),
             topRight: const Radius.circular(16),
-            bottomLeft: isAI ? const Radius.circular(4) : const Radius.circular(16),
-            bottomRight: isAI ? const Radius.circular(16) : const Radius.circular(4),
+            bottomLeft:
+                isAI ? const Radius.circular(4) : const Radius.circular(16),
+            bottomRight:
+                isAI ? const Radius.circular(16) : const Radius.circular(4),
           ),
         ),
         child: Column(
@@ -178,10 +185,12 @@ class AIChatMessageWidget extends ConsumerWidget {
     return Wrap(
       spacing: 8,
       runSpacing: 6,
-      children: message.actions.map((action) => _ActionChip(
-        action: action,
-        onTap: () => onActionTap?.call(action),
-      )).toList(),
+      children: message.actions
+          .map((action) => _ActionChip(
+                action: action,
+                onTap: () => onActionTap?.call(action),
+              ))
+          .toList(),
     );
   }
 
@@ -247,7 +256,7 @@ class AIChatMessageWidget extends ConsumerWidget {
   String _formatTimestamp(DateTime timestamp) {
     final now = DateTime.now();
     final diff = now.difference(timestamp);
-    
+
     if (diff.inMinutes < 1) {
       return '刚刚';
     } else if (diff.inMinutes < 60) {
@@ -276,25 +285,27 @@ class _ActionChip extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isPrimary = action.type == ActionType.quickReply;
-    
+
     return GestureDetector(
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
-          color: isPrimary 
-              ? theme.colorScheme.primary 
+          color: isPrimary
+              ? theme.colorScheme.primary
               : theme.colorScheme.outline.withValues(alpha: 0.1),
-          border: isPrimary ? null : Border.all(
-            color: theme.colorScheme.outline.withValues(alpha: 0.3),
-          ),
+          border: isPrimary
+              ? null
+              : Border.all(
+                  color: theme.colorScheme.outline.withValues(alpha: 0.3),
+                ),
           borderRadius: BorderRadius.circular(16),
         ),
         child: Text(
           action.label,
           style: theme.textTheme.bodySmall?.copyWith(
-            color: isPrimary 
-                ? theme.colorScheme.onPrimary 
+            color: isPrimary
+                ? theme.colorScheme.onPrimary
                 : theme.colorScheme.onSurfaceVariant,
             fontWeight: isPrimary ? FontWeight.w500 : FontWeight.normal,
           ),

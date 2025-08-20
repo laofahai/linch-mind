@@ -9,13 +9,14 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from config.core_config import CoreConfigManager
+from config.config_manager import ConfigManager
 from core.service_facade import get_service
 from models.database_models import Connector
 from services.connector_registry_service import ConnectorRegistryService
-from services.connectors.connector_config_service import ConnectorConfigService
+from services.connectors.config.service import ConnectorConfigService
 from services.connectors.process_manager import ProcessManager
-from services.unified_database_service import UnifiedDatabaseService
+from services.connectors.resource_monitor import ResourceProtectionMonitor
+from services.storage.core.database import UnifiedDatabaseService
 
 logger = logging.getLogger(__name__)
 
@@ -31,6 +32,7 @@ class ConnectorManager:
         config_service=None,
         registry_service=None,
         config_manager=None,
+        resource_monitor=None,
     ):
         # 优先使用依赖注入参数，fallback到ServiceFacade
         self.db_service = db_service or get_service(UnifiedDatabaseService)
@@ -39,9 +41,16 @@ class ConnectorManager:
         self.registry_service = registry_service or get_service(
             ConnectorRegistryService
         )
-        self.config_manager = config_manager or get_service(CoreConfigManager)
+        self.config_manager = config_manager or get_service(ConfigManager)
+        
+        # 集成资源监控器
+        self.resource_monitor = resource_monitor or ResourceProtectionMonitor()
+        
         self.active_processes = {}  # 存储活动的进程引用
         self.connectors_dir = connectors_dir  # 保持向后兼容
+        
+        # 启动资源监控
+        asyncio.create_task(self._initialize_resource_monitoring())
 
     def get_all_connectors(self) -> List[Dict[str, Any]]:
         """获取所有已注册的连接器"""
@@ -829,3 +838,75 @@ class ConnectorManager:
         except Exception as e:
             logger.error(f"获取连接器进程信息失败 {connector_id}: {e}")
             return None
+
+    # ========== 资源监控集成方法 ==========
+    
+    async def _initialize_resource_monitoring(self):
+        """初始化资源监控"""
+        try:
+            await self.resource_monitor.start_monitoring()
+            logger.info("✅ 连接器资源监控已启动")
+        except Exception as e:
+            logger.error(f"启动资源监控失败: {e}")
+    
+    async def start_resource_monitoring(self):
+        """手动启动资源监控"""
+        await self.resource_monitor.start_monitoring()
+    
+    async def stop_resource_monitoring(self):
+        """停止资源监控"""
+        await self.resource_monitor.stop_monitoring()
+    
+    def get_connector_resource_stats(self, connector_id: str) -> Dict:
+        """获取连接器资源统计"""
+        return self.resource_monitor.get_resource_stats(connector_id)
+    
+    def get_system_protection_stats(self) -> Dict:
+        """获取系统保护统计"""
+        return self.resource_monitor.get_system_protection_stats()
+    
+    def update_resource_thresholds(self, **kwargs):
+        """更新资源保护阈值"""
+        self.resource_monitor.update_thresholds(**kwargs)
+        logger.info(f"更新资源监控阈值: {kwargs}")
+    
+    def get_running_connectors(self) -> List[str]:
+        """获取运行中的连接器ID列表 - 供资源监控器使用"""
+        try:
+            with self.db_service.get_session() as session:
+                running_connectors = (
+                    session.query(Connector.connector_id)
+                    .filter_by(status="running")
+                    .all()
+                )
+                return [c.connector_id for c in running_connectors]
+        except Exception as e:
+            logger.error(f"获取运行中连接器列表失败: {e}")
+            return []
+    
+    async def restart_connector(self, connector_id: str) -> bool:
+        """重启连接器 - 供资源监控器紧急重启使用"""
+        try:
+            logger.info(f"🔄 重启连接器: {connector_id}")
+            
+            # 先停止
+            stop_success = await self.stop_connector(connector_id)
+            if not stop_success:
+                logger.warning(f"停止连接器 {connector_id} 失败，强制继续启动")
+            
+            # 等待一秒确保进程完全停止
+            await asyncio.sleep(1)
+            
+            # 再启动
+            start_success = await self.start_connector(connector_id)
+            
+            if start_success:
+                logger.info(f"✅ 连接器 {connector_id} 重启成功")
+                return True
+            else:
+                logger.error(f"❌ 连接器 {connector_id} 重启失败")
+                return False
+                
+        except Exception as e:
+            logger.error(f"重启连接器 {connector_id} 异常: {e}")
+            return False

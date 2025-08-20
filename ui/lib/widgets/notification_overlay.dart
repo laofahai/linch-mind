@@ -13,7 +13,7 @@ class NotificationOverlay extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final notificationState = ref.watch(notificationProvider);
-    
+
     return Scaffold(
       body: Stack(
         children: [
@@ -26,8 +26,8 @@ class NotificationOverlay extends ConsumerWidget {
               child: _NotificationCard(
                 notification: notificationState.currentNotification!,
                 onDismiss: () {
-                  ref.read(notificationProvider.notifier)
-                     .removeNotification(notificationState.currentNotification!.id);
+                  ref.read(notificationProvider.notifier).removeNotification(
+                      notificationState.currentNotification!.id);
                 },
               ),
             ),
@@ -126,7 +126,9 @@ class _NotificationCardState extends State<_NotificationCard>
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: widget.notification.getTextColor(colorScheme).withValues(alpha: 0.1),
+                    color: widget.notification
+                        .getTextColor(colorScheme)
+                        .withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Icon(
@@ -159,13 +161,17 @@ class _NotificationCardState extends State<_NotificationCard>
                   child: Container(
                     padding: const EdgeInsets.all(4),
                     decoration: BoxDecoration(
-                      color: widget.notification.getTextColor(colorScheme).withValues(alpha: 0.1),
+                      color: widget.notification
+                          .getTextColor(colorScheme)
+                          .withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(4),
                     ),
                     child: Icon(
                       Icons.close,
                       size: 16,
-                      color: widget.notification.getTextColor(colorScheme).withValues(alpha: 0.7),
+                      color: widget.notification
+                          .getTextColor(colorScheme)
+                          .withValues(alpha: 0.7),
                     ),
                   ),
                 ),
@@ -185,7 +191,7 @@ class GlobalNotificationDisplay extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final notificationState = ref.watch(notificationProvider);
-    
+
     if (notificationState.currentNotification == null) {
       return const SizedBox.shrink();
     }
@@ -197,8 +203,9 @@ class GlobalNotificationDisplay extends ConsumerWidget {
       child: _NotificationCard(
         notification: notificationState.currentNotification!,
         onDismiss: () {
-          ref.read(notificationProvider.notifier)
-             .removeNotification(notificationState.currentNotification!.id);
+          ref
+              .read(notificationProvider.notifier)
+              .removeNotification(notificationState.currentNotification!.id);
         },
       ),
     );

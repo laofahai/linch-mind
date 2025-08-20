@@ -28,7 +28,7 @@
 - **[shared/](./shared/README.md)**: C++连接器共享库
 - **统一daemon发现**: 与UI完全一致的服务发现机制
 - **标准化配置**: JSON Schema驱动的配置管理
-- **HTTP客户端**: 基于libcurl的轻量封装
+- **IPC客户端**: 基于Unix Socket的高性能通信
 
 ---
 
@@ -41,7 +41,7 @@
 │          Linch Mind Daemon             │
 │        (IPC服务器 + 数据处理)            │
 └─────────────────────────────────────────┘
-                    ↑ HTTP推送
+                    ↑ IPC通信
 ┌─────────────────────────────────────────┐
 │            连接器生态系统                │
 ├─────────────────────────────────────────┤
@@ -53,7 +53,7 @@
 │  共享基础库 (shared/)                    │
 │  ├─ DaemonDiscovery (服务发现)           │
 │  ├─ ConfigManager (配置管理)             │
-│  ├─ HttpClient (HTTP通信)                │
+│  ├─ IPCClient (IPC通信)                 │
 │  └─ Utils (通用工具)                     │
 └─────────────────────────────────────────┘
 ```
@@ -61,9 +61,9 @@
 ### 统一数据流
 
 ```
-数据源 → 连接器监控 → 数据处理 → HTTP推送 → Daemon IPC → UI显示
+数据源 → 连接器监控 → 数据处理 → IPC传输 → Daemon处理 → UI显示
   ↓         ↓          ↓        ↓         ↓        ↓
-文件系统   实时监控    JSON格式   API调用   图数据库   智能推荐
+文件系统   实时监控    TOML格式   Socket通信  图数据库   智能推荐
 剪贴板     内容过滤    元数据     自动重试   向量索引   可视化
 ```
 
@@ -74,16 +74,16 @@
 ### 环境要求
 - **C++**: C++17标准兼容编译器
 - **CMake**: 3.16+
-- **依赖**: libcurl, nlohmann-json
+- **依赖**: cpptoml (TOML解析)
 
 ### 构建所有连接器
 
 ```bash
 # macOS系统
-brew install curl nlohmann-json cmake
+brew install cpptoml cmake
 
 # Ubuntu/Debian系统  
-sudo apt-get install libcurl4-openssl-dev nlohmann-json3-dev cmake build-essential
+sudo apt-get install libcpptoml-dev cmake build-essential
 
 # 构建所有连接器
 cd connectors/
@@ -116,7 +116,7 @@ cd official/filesystem/
 ```cpp
 #include <linch_connector/daemon_discovery.hpp>
 #include <linch_connector/config_manager.hpp>
-#include <linch_connector/http_client.hpp>
+#include <linch_connector/ipc_client.hpp>
 #include <linch_connector/utils.hpp>
 
 using namespace linch_connector;
@@ -124,8 +124,8 @@ using namespace linch_connector;
 class MyConnector {
 private:
     std::unique_ptr<ConfigManager> configManager;
-    std::unique_ptr<HttpClient> httpClient;
-    std::string daemonUrl;
+    std::unique_ptr<IPCClient> ipcClient;
+    std::string daemonSocketPath;
 
 public:
     bool initialize() {
@@ -134,15 +134,15 @@ public:
         auto daemonInfo = discovery.waitForDaemon(std::chrono::seconds(30));
         if (!daemonInfo) return false;
         
-        daemonUrl = daemonInfo->getBaseUrl();
+        daemonSocketPath = daemonInfo->getSocketPath();
         
         // 2. 初始化配置
         configManager = std::make_unique<ConfigManager>(daemonUrl, "my-connector");
         configManager->loadFromDaemon();
         
-        // 3. 初始化HTTP客户端
-        httpClient = std::make_unique<HttpClient>();
-        httpClient->addHeader("Content-Type", "application/json");
+        // 3. 初始化IPC客户端
+        ipcClient = std::make_unique<IPCClient>();
+        ipcClient->connectSocket(daemonSocketPath);
         
         return true;
     }
@@ -176,8 +176,8 @@ private:
             itemId, data, "my-connector", "{}"
         );
         
-        auto response = httpClient->post(
-            daemonUrl + "/api/v1/data/ingest", 
+        auto response = ipcClient->sendRequest(
+            "data.ingest", 
             dataItem
         );
     }
@@ -194,8 +194,7 @@ set(CMAKE_CXX_STANDARD 17)
 
 # 查找依赖
 find_package(PkgConfig REQUIRED)
-find_package(nlohmann_json REQUIRED)
-pkg_check_modules(CURL REQUIRED libcurl)
+find_package(cpptoml REQUIRED)
 
 # 添加共享库
 add_subdirectory(../shared shared)
@@ -209,13 +208,11 @@ add_executable(my-connector
 # 链接库
 target_link_libraries(my-connector
     linch_connector_shared
-    nlohmann_json::nlohmann_json
-    ${CURL_LIBRARIES}
+    cpptoml::cpptoml
 )
 
 target_include_directories(my-connector PRIVATE
     src
-    ${CURL_INCLUDE_DIRS}
 )
 ```
 
@@ -225,50 +222,44 @@ target_include_directories(my-connector PRIVATE
 
 ### 必需实现
 1. **daemon发现**: 使用shared库的DaemonDiscovery
-2. **配置管理**: 实现JSON Schema配置格式
-3. **数据推送**: 标准HTTP API调用
+2. **配置管理**: 实现TOML配置格式
+3. **数据推送**: 标准IPC通信调用
 4. **健康检查**: 定期验证daemon连接
 5. **错误处理**: 失败重试和优雅降级
 
 ### 配置标准
 
-```json
-{
-  "type": "object",
-  "title": "连接器名称配置",
-  "description": "连接器功能描述",
-  "properties": {
-    "global_config": {
-      "type": "object", 
-      "title": "全局配置",
-      "properties": {
-        "check_interval": {
-          "type": "number",
-          "title": "检查间隔(秒)",
-          "default": 1.0,
-          "minimum": 0.1,
-          "maximum": 3600.0
-        }
-      }
-    }
-  },
-  "required": ["global_config"]
-}
+**配置层次说明**：
+1. **连接器元数据和默认配置** - 存储在 `connector.toml` 文件中
+2. **运行时配置** - 存储在daemon数据库中，可通过UI/API修改
+
+```toml
+# connector.toml - 连接器基本信息和默认配置
+[metadata]
+id = "my-connector"
+name = "连接器名称"
+description = "连接器功能描述"
+version = "1.0.0"
+
+# 运行时配置的默认值
+[config_default_values]
+check_interval = 1.0  # 检查间隔(秒)
+max_file_size = 50    # 最大文件大小(MB)
+enable_logging = true # 启用日志
 ```
 
 ### 数据格式标准
 
-```json
-{
-  "id": "connector-name_uuid",
-  "content": "数据内容",
-  "source": "connector-name", 
-  "metadata": {
-    "timestamp": "2025-08-08T10:30:00Z",
-    "connector_version": "1.0.0",
-    "data_type": "specific-type"
-  }
-}
+```toml
+# IPC消息数据格式
+id = "connector-name_uuid"
+content = "数据内容"
+source = "connector-name"
+
+[metadata]
+timestamp = "2025-08-08T10:30:00Z"
+connector_version = "1.0.0"
+data_type = "specific-type"
 ```
 
 ---
@@ -345,7 +336,7 @@ make
 ### 故障排除
 
 1. **连接失败**: 检查daemon状态和端口文件
-2. **配置错误**: 验证JSON Schema格式
+2. **配置错误**: 验证TOML配置格式
 3. **权限问题**: 确保文件系统/剪贴板访问权限
 4. **性能问题**: 调整check_interval参数
 

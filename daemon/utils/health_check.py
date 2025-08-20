@@ -10,7 +10,7 @@ from pathlib import Path
 
 # 使用标准Python包导入，无需动态路径添加
 
-from services.ipc_client import IPCClient
+from services.ipc.core.client import IPCClient
 
 
 async def check_daemon_health():

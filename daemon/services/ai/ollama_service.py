@@ -681,14 +681,8 @@ class OllamaService:
 
 _ollama_service: Optional[OllamaService] = None
 
-async def get_ollama_service() -> OllamaService:
-    """获取Ollama服务实例（单例模式）"""
-    global _ollama_service
-    if _ollama_service is None:
-        _ollama_service = OllamaService()
-        if not await _ollama_service.initialize():
-            raise RuntimeError("Ollama服务初始化失败")
-    return _ollama_service
+# 已删除：get_ollama_service() - 违反ServiceFacade统一服务获取铁律
+# 请使用：from core.service_facade import get_service; get_service(OllamaService)
 
 async def cleanup_ollama_service():
     """清理Ollama服务"""

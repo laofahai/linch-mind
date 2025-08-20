@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 /// AI智能洞察面板 - 多时间维度
 class AIInsightsPanel extends ConsumerWidget {
   final Function(String prompt)? onPromptTap;
-  
+
   const AIInsightsPanel({
     super.key,
     this.onPromptTap,
@@ -13,7 +13,7 @@ class AIInsightsPanel extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
-    
+
     return Container(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -43,7 +43,7 @@ class AIInsightsPanel extends ConsumerWidget {
             ],
           ),
           const SizedBox(height: 16),
-          
+
           // 滚动内容区域
           Expanded(
             child: SingleChildScrollView(
@@ -70,9 +70,9 @@ class AIInsightsPanel extends ConsumerWidget {
                       ),
                     ],
                   ),
-                  
+
                   const SizedBox(height: 20),
-                  
+
                   // 今日模式
                   _buildInsightSection(
                     context,
@@ -101,9 +101,9 @@ class AIInsightsPanel extends ConsumerWidget {
                       ),
                     ],
                   ),
-                  
+
                   const SizedBox(height: 20),
-                  
+
                   // 趋势发现
                   _buildInsightSection(
                     context,
@@ -126,9 +126,9 @@ class AIInsightsPanel extends ConsumerWidget {
                       ),
                     ],
                   ),
-                  
+
                   const SizedBox(height: 20),
-                  
+
                   // 预测建议
                   _buildInsightSection(
                     context,
@@ -151,7 +151,7 @@ class AIInsightsPanel extends ConsumerWidget {
                       ),
                     ],
                   ),
-                  
+
                   const SizedBox(height: 80),
                 ],
               ),
@@ -168,7 +168,7 @@ class AIInsightsPanel extends ConsumerWidget {
     required List<_InsightItem> items,
   }) {
     final theme = Theme.of(context);
-    
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -187,7 +187,7 @@ class AIInsightsPanel extends ConsumerWidget {
 
   Widget _buildInsightCard(BuildContext context, _InsightItem item) {
     final theme = Theme.of(context);
-    
+
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       child: Material(
@@ -198,13 +198,15 @@ class AIInsightsPanel extends ConsumerWidget {
           child: Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: item.isActive 
-                ? theme.colorScheme.primaryContainer.withValues(alpha: 0.5)
-                : theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
+              color: item.isActive
+                  ? theme.colorScheme.primaryContainer.withValues(alpha: 0.5)
+                  : theme.colorScheme.surfaceContainerHighest
+                      .withValues(alpha: 0.3),
               borderRadius: BorderRadius.circular(8),
-              border: item.isImportant 
-                ? Border.all(color: theme.colorScheme.primary.withValues(alpha: 0.3))
-                : null,
+              border: item.isImportant
+                  ? Border.all(
+                      color: theme.colorScheme.primary.withValues(alpha: 0.3))
+                  : null,
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -216,16 +218,16 @@ class AIInsightsPanel extends ConsumerWidget {
                         item.title,
                         style: theme.textTheme.bodyMedium?.copyWith(
                           fontWeight: FontWeight.w500,
-                          color: item.isActive 
-                            ? theme.colorScheme.onPrimaryContainer
-                            : null,
+                          color: item.isActive
+                              ? theme.colorScheme.onPrimaryContainer
+                              : null,
                         ),
                       ),
                     ),
                     if (item.confidence != null) ...[
                       Container(
                         padding: const EdgeInsets.symmetric(
-                          horizontal: 6, 
+                          horizontal: 6,
                           vertical: 2,
                         ),
                         decoration: BoxDecoration(
@@ -258,14 +260,16 @@ class AIInsightsPanel extends ConsumerWidget {
                       item.time,
                       style: theme.textTheme.bodySmall?.copyWith(
                         fontSize: 11,
-                        color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
+                        color: theme.colorScheme.onSurfaceVariant
+                            .withValues(alpha: 0.7),
                       ),
                     ),
                     const Spacer(),
                     Icon(
                       Icons.arrow_forward_ios,
                       size: 12,
-                      color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
+                      color: theme.colorScheme.onSurfaceVariant
+                          .withValues(alpha: 0.5),
                     ),
                   ],
                 ),

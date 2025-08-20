@@ -258,7 +258,8 @@ class ConnectorLifecycleApiClient {
         } else {
           errorMessage = 'Unknown error';
         }
-        throw ConnectorApiException('Failed to restart connector: $errorMessage');
+        throw ConnectorApiException(
+            'Failed to restart connector: $errorMessage');
       }
 
       return OperationResponse(

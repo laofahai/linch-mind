@@ -107,7 +107,8 @@ class AIInsightCardWidget extends ConsumerWidget {
                   ),
                   const SizedBox(width: 8),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                     decoration: BoxDecoration(
                       color: colorScheme.secondaryContainer,
                       borderRadius: BorderRadius.circular(4),
@@ -140,7 +141,7 @@ class AIInsightCardWidget extends ConsumerWidget {
 
   Widget _buildContent(BuildContext context) {
     final theme = Theme.of(context);
-    
+
     return Text(
       insight.message,
       style: theme.textTheme.bodyMedium?.copyWith(
@@ -220,7 +221,7 @@ class AIInsightCardWidget extends ConsumerWidget {
   String _formatTimestamp() {
     final now = DateTime.now();
     final diff = now.difference(insight.timestamp);
-    
+
     if (diff.inMinutes < 1) {
       return '刚刚';
     } else if (diff.inMinutes < 60) {
@@ -249,23 +250,25 @@ class _ActionButton extends StatelessWidget {
     final colorScheme = theme.colorScheme;
 
     final isPrimary = action.type == 'primary';
-    
+
     return GestureDetector(
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
           color: isPrimary ? colorScheme.primary : Colors.transparent,
-          border: isPrimary ? null : Border.all(
-            color: colorScheme.outline.withValues(alpha: 0.5),
-          ),
+          border: isPrimary
+              ? null
+              : Border.all(
+                  color: colorScheme.outline.withValues(alpha: 0.5),
+                ),
           borderRadius: BorderRadius.circular(16),
         ),
         child: Text(
           action.label,
           style: theme.textTheme.bodySmall?.copyWith(
-            color: isPrimary 
-                ? colorScheme.onPrimary 
+            color: isPrimary
+                ? colorScheme.onPrimary
                 : colorScheme.onSurfaceVariant,
             fontWeight: isPrimary ? FontWeight.w500 : FontWeight.normal,
           ),

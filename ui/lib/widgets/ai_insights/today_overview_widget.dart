@@ -107,7 +107,7 @@ class TodayOverviewWidget extends ConsumerWidget {
   String _formatLastUpdate() {
     final now = DateTime.now();
     final diff = now.difference(overview.lastUpdate);
-    
+
     if (diff.inMinutes < 1) {
       return '刚刚';
     } else if (diff.inMinutes < 60) {

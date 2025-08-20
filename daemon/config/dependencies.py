@@ -12,17 +12,18 @@ from pathlib import Path
 
 # 使用标准Python包导入，无需动态路径添加
 
-from config.core_config import CoreConfigManager
+from config.config_manager import ConfigManager
 
 logger = logging.getLogger(__name__)
 
 
 # 🔧 移除@lru_cache装饰器 - 使用DI容器管理单例
-def get_config_manager() -> CoreConfigManager:
+def get_config_manager() -> ConfigManager:
     """获取配置管理器 - 现在通过DI容器管理"""
-    from core.service_facade import get_config_manager as get_manager_from_container
-
-    return get_manager_from_container()
+    from core.service_facade import get_service
+    from config.config_manager import ConfigManager
+    
+    return get_service(ConfigManager)
 
 
 # 🚨 架构修复：移除对services层的直接依赖

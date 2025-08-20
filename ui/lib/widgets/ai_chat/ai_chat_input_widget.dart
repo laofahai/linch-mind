@@ -59,7 +59,7 @@ class _AIChatInputWidgetState extends ConsumerState<AIChatInputWidget> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    
+
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
       decoration: BoxDecoration(
@@ -95,12 +95,14 @@ class _AIChatInputWidgetState extends ConsumerState<AIChatInputWidget> {
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       child: Row(
-        children: suggestions.map((suggestion) => 
-          _SuggestionChip(
-            text: suggestion,
-            onTap: () => _handleSuggestionTap(suggestion),
-          ),
-        ).toList(),
+        children: suggestions
+            .map(
+              (suggestion) => _SuggestionChip(
+                text: suggestion,
+                onTap: () => _handleSuggestionTap(suggestion),
+              ),
+            )
+            .toList(),
       ),
     );
   }
@@ -113,13 +115,13 @@ class _AIChatInputWidgetState extends ConsumerState<AIChatInputWidget> {
           onPressed: widget.isEnabled ? widget.onSearchTap : null,
           icon: Icon(
             Icons.search,
-            color: widget.isEnabled 
-                ? theme.colorScheme.onSurfaceVariant 
+            color: widget.isEnabled
+                ? theme.colorScheme.onSurfaceVariant
                 : theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
           ),
           tooltip: '搜索',
         ),
-        
+
         // 输入框
         Expanded(
           child: Container(
@@ -136,7 +138,8 @@ class _AIChatInputWidgetState extends ConsumerState<AIChatInputWidget> {
               decoration: InputDecoration(
                 hintText: widget.isEnabled ? '和AI聊聊，或者问问题...' : 'AI暂时不可用',
                 hintStyle: theme.textTheme.bodyMedium?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
+                  color:
+                      theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
                 ),
                 border: InputBorder.none,
                 contentPadding: const EdgeInsets.symmetric(
@@ -148,18 +151,19 @@ class _AIChatInputWidgetState extends ConsumerState<AIChatInputWidget> {
             ),
           ),
         ),
-        
+
         const SizedBox(width: 8),
-        
+
         // 语音/发送按钮
         _isComposing
             ? IconButton(
                 onPressed: widget.isEnabled ? _handleSubmitted : null,
                 icon: Icon(
                   Icons.send,
-                  color: widget.isEnabled 
-                      ? theme.colorScheme.primary 
-                      : theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
+                  color: widget.isEnabled
+                      ? theme.colorScheme.primary
+                      : theme.colorScheme.onSurfaceVariant
+                          .withValues(alpha: 0.5),
                 ),
                 tooltip: '发送',
               )
@@ -167,9 +171,10 @@ class _AIChatInputWidgetState extends ConsumerState<AIChatInputWidget> {
                 onPressed: widget.isEnabled ? _handleVoiceInput : null,
                 icon: Icon(
                   Icons.mic,
-                  color: widget.isEnabled 
-                      ? theme.colorScheme.onSurfaceVariant 
-                      : theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
+                  color: widget.isEnabled
+                      ? theme.colorScheme.onSurfaceVariant
+                      : theme.colorScheme.onSurfaceVariant
+                          .withValues(alpha: 0.5),
                 ),
                 tooltip: '语音输入',
               ),
@@ -179,9 +184,10 @@ class _AIChatInputWidgetState extends ConsumerState<AIChatInputWidget> {
 
   void _handleSuggestionTap(String suggestion) {
     if (!widget.isEnabled) return;
-    
+
     // 移除emoji，提取实际内容
-    final cleanText = suggestion.replaceAll(RegExp(r'[^\w\s\u4e00-\u9fa5]'), '').trim();
+    final cleanText =
+        suggestion.replaceAll(RegExp(r'[^\w\s\u4e00-\u9fa5]'), '').trim();
     widget.onSendMessage?.call(cleanText);
   }
 
@@ -204,7 +210,7 @@ class _SuggestionChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    
+
     return Padding(
       padding: const EdgeInsets.only(right: 8),
       child: GestureDetector(

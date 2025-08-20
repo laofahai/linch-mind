@@ -16,7 +16,7 @@ from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
 from core.service_facade import get_service
-from services.unified_database_service import UnifiedDatabaseService
+from services.storage.core.database import UnifiedDatabaseService
 
 logger = logging.getLogger(__name__)
 

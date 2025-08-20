@@ -22,7 +22,7 @@ from core import (
     handle_exceptions,
     safe_execute,
 )
-from services.ipc import UnifiedIPCServer
+from services.ipc.core.server import IPCServer
 
 
 class PerformanceBenchmark:

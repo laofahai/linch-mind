@@ -213,21 +213,8 @@ class SystemConfigService:
 
 # === 服务管理函数 ===
 
-# 全局服务实例
-_system_config_service: SystemConfigService = None
-
-
-def get_system_config_service() -> SystemConfigService:
-    """获取系统配置服务实例（单例模式）"""
-    global _system_config_service
-    if _system_config_service is None:
-        _system_config_service = SystemConfigService()
-    return _system_config_service
-
-
-def system_config_service() -> SystemConfigService:
-    """获取系统配置服务实例的简化函数"""
-    return get_system_config_service()
+# 已删除：get_system_config_service() 和 system_config_service() - 违反ServiceFacade统一服务获取铁律
+# 请使用：from core.service_facade import get_service; get_service(SystemConfigService)
 
 
 # ServiceFacade现在负责管理服务单例，但保留向后兼容的函数

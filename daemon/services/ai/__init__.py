@@ -9,10 +9,9 @@ AI Services Module
 - 实体识别
 """
 
-from .ollama_service import OllamaService, get_ollama_service, cleanup_ollama_service
+from .ollama_service import OllamaService, cleanup_ollama_service
 
 __all__ = [
     "OllamaService",
-    "get_ollama_service", 
     "cleanup_ollama_service",
 ]

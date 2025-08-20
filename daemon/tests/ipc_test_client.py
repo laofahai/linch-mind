@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import Any, Dict, Optional, Tuple
 from unittest.mock import AsyncMock, Mock
 
-from services.ipc_server import IPCServer
+from services.ipc.core.server import IPCServer
 
 
 class IPCTestClient:

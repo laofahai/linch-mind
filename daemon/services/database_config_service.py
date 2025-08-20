@@ -697,13 +697,5 @@ class DatabaseConfigService:
         logger.debug("配置缓存已清除")
 
 
-# 全局单例
-_database_config_service: Optional[DatabaseConfigService] = None
-
-
-def get_database_config_service() -> DatabaseConfigService:
-    """获取数据库配置服务单例"""
-    global _database_config_service
-    if _database_config_service is None:
-        _database_config_service = DatabaseConfigService()
-    return _database_config_service
+# 已删除：get_database_config_service() - 违反ServiceFacade统一服务获取铁律
+# 请使用：from core.service_facade import get_service; get_service(DatabaseConfigService)

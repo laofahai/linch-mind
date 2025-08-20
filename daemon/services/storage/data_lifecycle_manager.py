@@ -17,7 +17,7 @@ from core.service_facade import get_service
 from config.intelligent_storage import get_intelligent_storage_config
 from services.ai.ollama_service import get_ollama_service
 from services.storage.faiss_vector_store import get_faiss_vector_store
-from services.unified_database_service import UnifiedDatabaseService
+from services.storage.core.database import UnifiedDatabaseService
 from models.database_models import EntityMetadata
 from services.shared_executor_service import get_shared_executor_service
 

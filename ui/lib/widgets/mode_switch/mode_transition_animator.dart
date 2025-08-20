@@ -6,7 +6,7 @@ class ModeTransitionAnimator extends StatefulWidget {
   final AppMode currentMode;
   final bool isTransitioning;
   final Widget child;
-  
+
   const ModeTransitionAnimator({
     super.key,
     required this.currentMode,
@@ -20,36 +20,35 @@ class ModeTransitionAnimator extends StatefulWidget {
 
 class _ModeTransitionAnimatorState extends State<ModeTransitionAnimator>
     with TickerProviderStateMixin {
-  
   late AnimationController _colorController;
   late AnimationController _scaleController;
   late AnimationController _fadeController;
-  
+
   late Animation<Color?> _colorAnimation;
   late Animation<double> _scaleAnimation;
   late Animation<double> _fadeAnimation;
-  
+
   AppMode? _previousMode;
 
   @override
   void initState() {
     super.initState();
-    
+
     _colorController = AnimationController(
       duration: const Duration(milliseconds: 800),
       vsync: this,
     );
-    
+
     _scaleController = AnimationController(
       duration: const Duration(milliseconds: 600),
       vsync: this,
     );
-    
+
     _fadeController = AnimationController(
       duration: const Duration(milliseconds: 400),
       vsync: this,
     );
-    
+
     _setupAnimations();
     _previousMode = widget.currentMode;
   }
@@ -62,7 +61,7 @@ class _ModeTransitionAnimatorState extends State<ModeTransitionAnimator>
       parent: _colorController,
       curve: Curves.easeInOutCubic,
     ));
-    
+
     _scaleAnimation = Tween<double>(
       begin: 1.0,
       end: 1.05,
@@ -70,7 +69,7 @@ class _ModeTransitionAnimatorState extends State<ModeTransitionAnimator>
       parent: _scaleController,
       curve: Curves.elasticOut,
     ));
-    
+
     _fadeAnimation = Tween<double>(
       begin: 1.0,
       end: 0.8,
@@ -83,14 +82,14 @@ class _ModeTransitionAnimatorState extends State<ModeTransitionAnimator>
   @override
   void didUpdateWidget(ModeTransitionAnimator oldWidget) {
     super.didUpdateWidget(oldWidget);
-    
+
     // 检测模式变化
     if (oldWidget.currentMode != widget.currentMode) {
       _previousMode = oldWidget.currentMode;
       _updateColorAnimation();
       _colorController.forward();
     }
-    
+
     // 检测切换状态变化
     if (oldWidget.isTransitioning != widget.isTransitioning) {
       if (widget.isTransitioning) {
@@ -169,7 +168,7 @@ class ModeIconAnimator extends StatefulWidget {
   final bool isSelected;
   final bool isTransitioning;
   final VoidCallback? onTap;
-  
+
   const ModeIconAnimator({
     super.key,
     required this.mode,
@@ -184,27 +183,26 @@ class ModeIconAnimator extends StatefulWidget {
 
 class _ModeIconAnimatorState extends State<ModeIconAnimator>
     with TickerProviderStateMixin {
-  
   late AnimationController _pulseController;
   late AnimationController _bounceController;
-  
+
   late Animation<double> _pulseAnimation;
   late Animation<double> _bounceAnimation;
 
   @override
   void initState() {
     super.initState();
-    
+
     _pulseController = AnimationController(
       duration: const Duration(milliseconds: 1500),
       vsync: this,
     );
-    
+
     _bounceController = AnimationController(
       duration: const Duration(milliseconds: 300),
       vsync: this,
     );
-    
+
     _pulseAnimation = Tween<double>(
       begin: 0.0,
       end: 1.0,
@@ -212,7 +210,7 @@ class _ModeIconAnimatorState extends State<ModeIconAnimator>
       parent: _pulseController,
       curve: Curves.easeInOut,
     ));
-    
+
     _bounceAnimation = Tween<double>(
       begin: 1.0,
       end: 1.2,
@@ -220,7 +218,7 @@ class _ModeIconAnimatorState extends State<ModeIconAnimator>
       parent: _bounceController,
       curve: Curves.elasticOut,
     ));
-    
+
     if (widget.isSelected) {
       _pulseController.repeat(reverse: true);
     }
@@ -229,7 +227,7 @@ class _ModeIconAnimatorState extends State<ModeIconAnimator>
   @override
   void didUpdateWidget(ModeIconAnimator oldWidget) {
     super.didUpdateWidget(oldWidget);
-    
+
     if (oldWidget.isSelected != widget.isSelected) {
       if (widget.isSelected) {
         _pulseController.repeat(reverse: true);
@@ -253,7 +251,7 @@ class _ModeIconAnimatorState extends State<ModeIconAnimator>
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    
+
     return GestureDetector(
       onTap: widget.onTap,
       child: AnimatedBuilder(
@@ -295,7 +293,7 @@ class _ModeIconAnimatorState extends State<ModeIconAnimator>
 class ModeTransitionProgress extends StatefulWidget {
   final bool isTransitioning;
   final AppMode currentMode;
-  
+
   const ModeTransitionProgress({
     super.key,
     required this.isTransitioning,
@@ -308,19 +306,18 @@ class ModeTransitionProgress extends StatefulWidget {
 
 class _ModeTransitionProgressState extends State<ModeTransitionProgress>
     with TickerProviderStateMixin {
-  
   late AnimationController _progressController;
   late Animation<double> _progressAnimation;
 
   @override
   void initState() {
     super.initState();
-    
+
     _progressController = AnimationController(
       duration: const Duration(milliseconds: 800),
       vsync: this,
     );
-    
+
     _progressAnimation = Tween<double>(
       begin: 0.0,
       end: 1.0,
@@ -333,7 +330,7 @@ class _ModeTransitionProgressState extends State<ModeTransitionProgress>
   @override
   void didUpdateWidget(ModeTransitionProgress oldWidget) {
     super.didUpdateWidget(oldWidget);
-    
+
     if (oldWidget.isTransitioning != widget.isTransitioning) {
       if (widget.isTransitioning) {
         _progressController.forward();
@@ -354,7 +351,7 @@ class _ModeTransitionProgressState extends State<ModeTransitionProgress>
     if (!widget.isTransitioning) {
       return const SizedBox.shrink();
     }
-    
+
     return AnimatedBuilder(
       animation: _progressAnimation,
       builder: (context, child) {
@@ -365,16 +362,17 @@ class _ModeTransitionProgressState extends State<ModeTransitionProgress>
             children: [
               LinearProgressIndicator(
                 value: _progressAnimation.value,
-                backgroundColor: widget.currentMode.color.withValues(alpha: 0.2),
+                backgroundColor:
+                    widget.currentMode.color.withValues(alpha: 0.2),
                 valueColor: AlwaysStoppedAnimation(widget.currentMode.color),
               ),
               const SizedBox(height: 4),
               Text(
                 '正在切换到${widget.currentMode.displayName}模式...',
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: widget.currentMode.color,
-                  fontStyle: FontStyle.italic,
-                ),
+                      color: widget.currentMode.color,
+                      fontStyle: FontStyle.italic,
+                    ),
               ),
             ],
           ),

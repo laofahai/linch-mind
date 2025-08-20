@@ -5,6 +5,11 @@
 #include <memory>
 #include <chrono>
 
+// 前向声明
+namespace nlohmann {
+    class json;
+}
+
 namespace linch_connector {
 
 /**
@@ -68,6 +73,10 @@ private:
     std::chrono::steady_clock::time_point m_lastConfigLoad;
 
     void configMonitorLoop(int check_interval_seconds);
+    
+    // TOML配置支持
+    bool loadFromLocalToml();
+    bool parseJsonConfig(const nlohmann::json& configData);
 };
 
 } // namespace linch_connector

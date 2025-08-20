@@ -16,10 +16,10 @@ from config.core_config import CoreConfigManager
 from core.container import get_container
 from core.service_facade import reset_service_facade
 from services.connector_registry_service import ConnectorRegistryService
-from services.connectors.connector_config_service import ConnectorConfigService
+from services.connectors.config.service import ConnectorConfigService
 from services.connectors.connector_manager import ConnectorManager
 from services.connectors.process_manager import ProcessManager
-from services.unified_database_service import UnifiedDatabaseService as DatabaseService
+from services.storage.core.database import UnifiedDatabaseService as DatabaseService
 
 
 class TestConnectorManagerEffective:

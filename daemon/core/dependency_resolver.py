@@ -141,15 +141,15 @@ def setup_core_dependencies():
 
     # 数据库服务
     def create_database_service():
-        from services.unified_database_service import UnifiedDatabaseService
+        from services.storage.core.database import UnifiedDatabaseService
         return UnifiedDatabaseService()
 
     resolver.register_singleton("database_service", create_database_service)
 
-    # 配置管理器
+    # 配置管理器（使用数据库配置服务）
     def create_config_manager():
-        from services.unified_config_manager import UnifiedConfigManager
-        return UnifiedConfigManager()
+        from services.database_config_service import DatabaseConfigService
+        return DatabaseConfigService()
 
     resolver.register_singleton("config_manager", create_config_manager)
 
